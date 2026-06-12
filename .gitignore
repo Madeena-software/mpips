@@ -12,6 +12,8 @@ env/
 
 # Environment configurations and secrets
 .env
+.env.*
+!.env.production.example
 
 # IDE and Editor files
 .vscode/
