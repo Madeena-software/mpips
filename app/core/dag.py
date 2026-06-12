@@ -1,7 +1,7 @@
 import os
 import tempfile
 import cv2
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional, Callable
 from app.core.storage import download_image, upload_image
 from image_engine.factory import get_node_class
 
@@ -50,6 +50,7 @@ class DAGExecutor:
         pipeline: Dict[str, Any],
         inputs_config: Dict[str, Any],
         output_config: Dict[str, Any],
+        on_progress: Optional[Callable[[str, float], None]] = None,
     ) -> Dict[str, Any]:
         """
         Executes the visual pipeline DAG.
@@ -71,6 +72,7 @@ class DAGExecutor:
         # 2. Track temp files to clean them up
         temp_files: List[str] = []
         target = ""
+        outputs_metadata: Dict[str, Any] = {}
 
         try:
             # 3. Download inputs and prepare execution context
@@ -86,10 +88,14 @@ class DAGExecutor:
                 incoming_edges[edge["target"]].append(edge)
 
             # Process each node in topological order
-            for node in sorted_nodes:
+            total_nodes = len(sorted_nodes)
+            for idx, node in enumerate(sorted_nodes, start=1):
                 node_id = node["id"]
                 node_type = node["type"]
                 node_params = node.get("parameters", {})
+
+                if on_progress:
+                    on_progress(node_id, round(((idx - 1) / total_nodes) * 100.0, 2))
 
                 # Fetch node class
                 node_cls = get_node_class(node_type)
@@ -200,6 +206,35 @@ class DAGExecutor:
 
                     try:
                         upload_image(temp_path, target, is_presigned_url=is_presigned)
+
+                        import hashlib
+
+                        size_bytes = os.path.getsize(temp_path)
+                        hasher = hashlib.md5()
+                        with open(temp_path, "rb") as f:
+                            for chunk in iter(lambda: f.read(4096), b""):
+                                hasher.update(chunk)
+                        checksum = hasher.hexdigest()
+
+                        outputs_metadata = {
+                            node_id: {
+                                "storage_disk": "s3" if not is_presigned else "url",
+                                "bucket": output_config.get(
+                                    "bucket", os.getenv("AWS_BUCKET", "madeena-media")
+                                ),
+                                "key": target if not is_presigned else None,
+                                "url": target if is_presigned else None,
+                                "mime_type": "image/png",
+                                "size_bytes": size_bytes,
+                                "checksum": checksum,
+                                "quality_assessment": {
+                                    "brisque": 0.0,
+                                    "entropy": 0.0,
+                                    "eme": 0.0,
+                                    "cii": 0.0,
+                                },
+                            }
+                        }
                     finally:
                         if original_bucket is not None:
                             os.environ["AWS_BUCKET"] = original_bucket
@@ -207,7 +242,11 @@ class DAGExecutor:
                             os.environ.pop("AWS_BUCKET", None)
 
             # Return successfully processed details
-            return {"status": "completed", "output_target": target}
+            return {
+                "status": "completed",
+                "output_target": target,
+                "outputs": outputs_metadata,
+            }
 
         finally:
             # Clean up all temp files

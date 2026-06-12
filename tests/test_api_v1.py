@@ -1,5 +1,8 @@
 import os
+import json
 import pytest
+from unittest.mock import patch, MagicMock
+from typing import Any
 from fastapi import status
 from fastapi.testclient import TestClient
 from app.main import app
@@ -12,6 +15,42 @@ def setup_bypass_token() -> None:
     # Set environment variables for developer bypass during tests
     os.environ["DEV_AUTH_BYPASS"] = "true"
     os.environ["DEV_BEARER_TOKEN"] = "test_developer_token"
+
+
+@pytest.fixture(autouse=True)
+def mock_external_services() -> Any:
+    with (
+        patch("celery_tasks.tasks.get_redis_client") as mock_redis,
+        patch("celery_tasks.tasks.run_pipeline") as mock_run_pipeline,
+        patch("celery_tasks.worker.app.control.revoke") as mock_revoke,
+    ):
+
+        redis_client = MagicMock()
+        mock_redis.return_value = redis_client
+
+        mock_job_state = {
+            "job_id": "job_123456",
+            "external_execution_id": "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851",
+            "status": "queued",
+            "progress": 0.0,
+            "current_node": None,
+            "started_at": None,
+            "finished_at": None,
+            "outputs": {},
+            "error": None,
+            "callback_url": "https://mipc.madeena.com/api/v1/callbacks/jobs",
+        }
+        redis_client.get.return_value = json.dumps(mock_job_state)
+
+        task_mock = MagicMock()
+        task_mock.id = "job_123456"
+        mock_run_pipeline.apply_async.return_value = task_mock
+
+        yield {
+            "redis": redis_client,
+            "apply": mock_run_pipeline.apply_async,
+            "revoke": mock_revoke,
+        }
 
 
 def test_get_nodes_no_auth() -> None:
