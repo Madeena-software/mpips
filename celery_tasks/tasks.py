@@ -3,6 +3,7 @@ import json
 import httpx
 import hmac
 import hashlib
+import time
 from datetime import datetime, timezone
 from typing import Dict, Any
 from celery import shared_task
@@ -26,12 +27,16 @@ def compute_signature(payload_bytes: bytes, secret: str) -> str:
 
 def dispatch_webhook(callback_url: str, payload: Dict[str, Any]) -> None:
     secret = os.getenv("WEBHOOK_SECRET", "your_hmac_webhook_secret_here")
-    payload_bytes = json.dumps(payload).encode("utf-8")
-    signature = compute_signature(payload_bytes, secret)
+    payload_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+    timestamp = str(int(time.time()))
+    signature = compute_signature(
+        timestamp.encode("utf-8") + b"." + payload_bytes, secret
+    )
 
     headers = {
         "Content-Type": "application/json",
         "X-Madeena-Signature": signature,
+        "X-Madeena-Timestamp": timestamp,
     }
 
     try:
@@ -42,6 +47,15 @@ def dispatch_webhook(callback_url: str, payload: Dict[str, Any]) -> None:
             logger.info(
                 f"Webhook sent to {callback_url}. Status: {response.status_code}"
             )
+            if response.status_code >= 400:
+                logger.error(
+                    "Webhook delivery rejected. "
+                    f"Status: {response.status_code}; "
+                    f"signature_prefix: {signature[:12]}; "
+                    f"timestamp: {timestamp}; "
+                    f"content_sha256: {hashlib.sha256(payload_bytes).hexdigest()}; "
+                    f"body: {response.text}"
+                )
     except Exception as e:
         logger.error(f"Failed to dispatch webhook to {callback_url}: {str(e)}")
 

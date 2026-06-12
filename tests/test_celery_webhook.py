@@ -44,6 +44,7 @@ def test_dispatch_webhook(mock_httpx_client: Any) -> None:
     args, kwargs = client_instance.post.call_args
     assert args[0] == callback_url
     assert "X-Madeena-Signature" in kwargs["headers"]
+    assert "X-Madeena-Timestamp" in kwargs["headers"]
     assert kwargs["headers"]["Content-Type"] == "application/json"
 
 
