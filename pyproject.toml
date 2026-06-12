@@ -13,6 +13,11 @@ dependencies = [
     "pyjwt>=2.13.0",
     "redis>=8.0.0",
     "uvicorn>=0.49.0",
+    "numpy>=1.26.0",
+    "opencv-python-headless>=4.9.0.80",
+    "scipy>=1.12.0",
+    "scikit-image>=0.22.0",
+    "PyWavelets>=1.5.0",
 ]
 
 [dependency-groups]
