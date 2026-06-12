@@ -1,10 +1,13 @@
 from fastapi import FastAPI, Depends
 from typing import Dict, Any
 from app.core.security import verify_token
+from app.api.v1.router import router as api_v1_router
 
 app = FastAPI(
     title="Madeena Image Pipeline Scientific Execution Plane", version="0.1.0"
 )
+
+app.include_router(api_v1_router)
 
 
 @app.get("/")
