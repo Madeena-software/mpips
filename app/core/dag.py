@@ -76,6 +76,7 @@ class DAGExecutor:
 
         try:
             # 3. Download inputs and prepare execution context
+            original_input_img = None
             context: Dict[tuple[str, str], Any] = (
                 {}
             )  # maps (node_id, slot_name) -> value
@@ -138,6 +139,8 @@ class DAGExecutor:
                             raise ValueError(
                                 f"Failed to read downloaded image at '{temp_path}'."
                             )
+                        if original_input_img is None:
+                            original_input_img = img
                     finally:
                         if original_bucket is not None:
                             os.environ["AWS_BUCKET"] = original_bucket
@@ -216,6 +219,15 @@ class DAGExecutor:
                                 hasher.update(chunk)
                         checksum = hasher.hexdigest()
 
+                        from image_engine.iqa import calculate_all_metrics
+
+                        ref_img = (
+                            original_input_img
+                            if original_input_img is not None
+                            else output_img
+                        )
+                        quality_assessment = calculate_all_metrics(output_img, ref_img)
+
                         outputs_metadata = {
                             node_id: {
                                 "storage_disk": "s3" if not is_presigned else "url",
@@ -227,12 +239,7 @@ class DAGExecutor:
                                 "mime_type": "image/png",
                                 "size_bytes": size_bytes,
                                 "checksum": checksum,
-                                "quality_assessment": {
-                                    "brisque": 0.0,
-                                    "entropy": 0.0,
-                                    "eme": 0.0,
-                                    "cii": 0.0,
-                                },
+                                "quality_assessment": quality_assessment,
                             }
                         }
                     finally:

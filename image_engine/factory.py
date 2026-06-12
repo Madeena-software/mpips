@@ -13,6 +13,20 @@ from image_engine.nodes.filtering import (
     CannyNode,
     SobelNode,
 )
+from image_engine.nodes.iqa import (
+    BrisqueNode,
+    ContrastImprovementIndexNode,
+    EnhancementMeasureNode,
+    EntropyNode,
+)
+from image_engine.nodes.scientific import (
+    NonLocalMeansNode,
+    HomomorphicFilterNode,
+    WaveletDenoisingNode,
+    FlatFieldCorrectionNode,
+    CameraCalibrationNode,
+    FABEMDNode,
+)
 
 
 class InputNode(BaseNode):
@@ -44,6 +58,16 @@ NODE_CLASSES: Dict[str, Type[BaseNode]] = {
     "median_blur": MedianBlurNode,
     "canny": CannyNode,
     "sobel": SobelNode,
+    "nlm_denoising": NonLocalMeansNode,
+    "homomorphic_filter": HomomorphicFilterNode,
+    "wavelet_denoising": WaveletDenoisingNode,
+    "flat_field_correction": FlatFieldCorrectionNode,
+    "camera_calibration": CameraCalibrationNode,
+    "fabemd": FABEMDNode,
+    "cii": ContrastImprovementIndexNode,
+    "ent": EntropyNode,
+    "eme": EnhancementMeasureNode,
+    "brisque": BrisqueNode,
 }
 
 
