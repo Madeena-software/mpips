@@ -33,12 +33,13 @@ def submit_job(
     from celery_tasks.tasks import run_pipeline, get_redis_client
 
     # 1. Trigger Celery task
-    task = run_pipeline.apply_async(args=[job_req.model_dump()])
+    task = run_pipeline.apply_async(args=[job_req.model_dump(mode="json")])
 
     # 2. Store initial state in Redis
     r = get_redis_client()
     job_state = {
         "job_id": task.id,
+        "tenant_id": str(job_req.tenant_id),
         "external_execution_id": str(job_req.external_execution_id),
         "status": "queued",
         "progress": 0.0,
@@ -76,6 +77,7 @@ def get_job_status(
 
     return JobStatusResponse(
         job_id=job_state["job_id"],
+        tenant_id=UUID(job_state["tenant_id"]),
         external_execution_id=UUID(job_state["external_execution_id"]),
         status=job_state["status"],
         progress=job_state["progress"],

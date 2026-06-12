@@ -2,7 +2,7 @@ import os
 import json
 import pytest
 from unittest.mock import patch, MagicMock
-from typing import Any
+from typing import Any, Dict
 
 from celery_tasks.tasks import (
     run_pipeline,
@@ -70,6 +70,7 @@ def test_run_pipeline_success(
 
     # Initial job data
     job_data = {
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
         "external_execution_id": "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851",
         "pipeline": {"nodes": [], "edges": []},
         "inputs": {},
@@ -88,6 +89,7 @@ def test_run_pipeline_success(
     # Verify outputs
     assert res["status"] == "completed"
     assert res["progress"] == 100.0
+    assert res["tenant_id"] == "11111111-1111-4111-8111-111111111111"
     assert "output_1" in res["outputs"]
 
     # Verify Redis interactions
@@ -108,6 +110,7 @@ def test_run_pipeline_failure(
     task_self.request.called_directly = False
 
     job_data = {
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
         "external_execution_id": "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851",
         "pipeline": {"nodes": [], "edges": []},
         "inputs": {},
@@ -132,3 +135,31 @@ def test_run_pipeline_failure(
 
     # Verify webhook dispatch
     mock_dispatch.assert_called_once()
+
+
+def test_run_pipeline_rejects_cross_tenant_paths(mock_redis: Any) -> None:
+    job_data: Dict[str, Any] = {
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
+        "external_execution_id": "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851",
+        "pipeline": {"nodes": [], "edges": []},
+        "inputs": {
+            "input_1": {"key": "22222222-2222-4222-8222-222222222222/media/image.png"}
+        },
+        "output": {
+            "prefix": ("11111111-1111-4111-8111-111111111111/" "outputs/8fa3b7e4/")
+        },
+        "callback_url": None,
+    }
+
+    ctx = Context(id="test-job-id", called_directly=False)
+    run_pipeline.request_stack.push(ctx)
+    try:
+        with pytest.raises(ValueError, match="cross-tenant"):
+            run_pipeline.run(job_data)
+    finally:
+        run_pipeline.request_stack.pop()
+
+    last_call = mock_redis.set.call_args_list[-1]
+    saved_state = json.loads(last_call[0][1])
+    assert saved_state["status"] == "failed"
+    assert saved_state["tenant_id"] == "11111111-1111-4111-8111-111111111111"

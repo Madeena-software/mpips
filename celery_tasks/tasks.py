@@ -9,6 +9,7 @@ from celery import shared_task
 from celery.utils.log import get_task_logger
 
 from app.core.dag import DAGExecutor
+from app.core.tenant_paths import validate_job_storage_paths
 import redis
 
 logger = get_task_logger(__name__)
@@ -50,6 +51,7 @@ def dispatch_webhook(callback_url: str, payload: Dict[str, Any]) -> None:
 )  # type: ignore[untyped-decorator]
 def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
     job_id = self.request.id
+    tenant_id = job_data["tenant_id"]
     external_execution_id = job_data["external_execution_id"]
     pipeline = job_data["pipeline"]
     inputs = job_data["inputs"]
@@ -60,6 +62,7 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
 
     job_state = {
         "job_id": job_id,
+        "tenant_id": tenant_id,
         "external_execution_id": external_execution_id,
         "status": "running",
         "progress": 0.0,
@@ -71,6 +74,12 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
         "callback_url": callback_url,
     }
     r.set(f"mpips:job:{job_id}", json.dumps(job_state))
+    log_context = {
+        "job_id": job_id,
+        "tenant_id": tenant_id,
+        "external_execution_id": external_execution_id,
+    }
+    logger.info("Job started.", extra=log_context)
 
     def on_progress(node_id: str, progress_pct: float) -> None:
         # Check if cancelled in Redis
@@ -85,6 +94,7 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
         r.set(f"mpips:job:{job_id}", json.dumps(job_state))
 
     try:
+        validate_job_storage_paths(tenant_id, inputs, output)
         executor = DAGExecutor()
         result = executor.execute(pipeline, inputs, output, on_progress=on_progress)
 
@@ -95,6 +105,7 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
         job_state["outputs"] = result.get("outputs", {})
 
         r.set(f"mpips:job:{job_id}", json.dumps(job_state))
+        logger.info("Job completed.", extra=log_context)
 
         if callback_url:
             dispatch_webhook(callback_url, job_state)
@@ -111,10 +122,14 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
                 is_cancelled = True
 
         if is_cancelled:
-            logger.info(f"Job {job_id} was cancelled during execution.")
+            logger.info("Job was cancelled during execution.", extra=log_context)
             return job_state
 
-        logger.error(f"Job {job_id} failed: {str(e)}", exc_info=True)
+        logger.error(
+            f"Job failed: {str(e)}",
+            exc_info=True,
+            extra=log_context,
+        )
 
         job_state["status"] = "failed"
         job_state["finished_at"] = datetime.now(timezone.utc).isoformat()

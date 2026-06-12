@@ -73,13 +73,18 @@ def test_dag_executor(
             },
         ],
     }
-    inputs_config = {"in_1": {"key": "test_input_key.png"}}
-    output_config = {"prefix": "test_output_prefix/"}
+    inputs_config = {
+        "in_1": {"key": "11111111-1111-4111-8111-111111111111/media/input.png"}
+    }
+    output_config = {"prefix": "11111111-1111-4111-8111-111111111111/outputs/test/"}
 
     result = executor.execute(pipeline, inputs_config, output_config)
 
     assert result["status"] == "completed"
-    assert result["output_target"] == "test_output_prefix/output.png"
+    assert (
+        result["output_target"]
+        == "11111111-1111-4111-8111-111111111111/outputs/test/output.png"
+    )
 
     mock_download.assert_called_once()
     mock_upload.assert_called_once()

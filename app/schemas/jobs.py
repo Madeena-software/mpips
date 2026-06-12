@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import Optional, Dict, Any, List
 from uuid import UUID
 from datetime import datetime
+
+from app.core.tenant_paths import validate_job_storage_paths
 
 
 class PipelineDefinition(BaseModel):
@@ -12,6 +14,7 @@ class PipelineDefinition(BaseModel):
 
 
 class JobSubmitRequest(BaseModel):
+    tenant_id: UUID = Field(..., description="Tenant boundary for S3 key validation")
     external_execution_id: UUID = Field(
         ..., description="Unique run identifier from mipc"
     )
@@ -26,6 +29,12 @@ class JobSubmitRequest(BaseModel):
         None, description="Optional callback URL for status reports"
     )
 
+    @model_validator(mode="after")
+    def validate_storage_boundaries(self) -> "JobSubmitRequest":
+        validate_job_storage_paths(str(self.tenant_id), self.inputs, self.output)
+
+        return self
+
 
 class JobSubmitResponse(BaseModel):
     job_id: str = Field(
@@ -39,6 +48,7 @@ class JobSubmitResponse(BaseModel):
 
 class JobStatusResponse(BaseModel):
     job_id: str = Field(..., description="Job execution identifier")
+    tenant_id: UUID = Field(..., description="Tenant boundary for the job")
     external_execution_id: UUID = Field(
         ..., description="Unique run identifier from mipc"
     )

@@ -30,6 +30,7 @@ def mock_external_services() -> Any:
 
         mock_job_state = {
             "job_id": "job_123456",
+            "tenant_id": "11111111-1111-4111-8111-111111111111",
             "external_execution_id": "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851",
             "status": "queued",
             "progress": 0.0,
@@ -107,6 +108,7 @@ def test_submit_job_validation_error() -> None:
 
 def test_submit_job_success() -> None:
     payload = {
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
         "external_execution_id": "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851",
         "pipeline": {
             "nodes": [
@@ -126,13 +128,13 @@ def test_submit_job_success() -> None:
             "input_1": {
                 "source_type": "s3",
                 "bucket": "madeena-media",
-                "key": "tenants/t1/uploads/image.png",
+                "key": "11111111-1111-4111-8111-111111111111/media/image.png",
             }
         },
         "output": {
             "destination_type": "s3",
             "bucket": "madeena-media",
-            "prefix": "tenants/t1/outputs/8fa3b7e4/",
+            "prefix": ("11111111-1111-4111-8111-111111111111/" "outputs/8fa3b7e4/"),
         },
         "callback_url": "https://mipc.madeena.com/api/v1/callbacks/jobs",
     }
@@ -148,6 +150,64 @@ def test_submit_job_success() -> None:
     assert "submitted_at" in data
 
 
+def test_submit_job_rejects_cross_tenant_input_key() -> None:
+    payload = {
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
+        "external_execution_id": "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851",
+        "pipeline": {"nodes": [], "edges": []},
+        "inputs": {
+            "input_1": {
+                "source_type": "s3",
+                "bucket": "madeena-media",
+                "key": "22222222-2222-4222-8222-222222222222/media/image.png",
+            }
+        },
+        "output": {
+            "destination_type": "s3",
+            "bucket": "madeena-media",
+            "prefix": ("11111111-1111-4111-8111-111111111111/" "outputs/8fa3b7e4/"),
+        },
+    }
+
+    response = client.post(
+        "/v1/jobs",
+        json=payload,
+        headers={"Authorization": "Bearer test_developer_token"},
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert "cross-tenant" in str(response.json())
+
+
+def test_submit_job_rejects_cross_tenant_output_prefix() -> None:
+    payload = {
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
+        "external_execution_id": "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851",
+        "pipeline": {"nodes": [], "edges": []},
+        "inputs": {
+            "input_1": {
+                "source_type": "s3",
+                "bucket": "madeena-media",
+                "key": "11111111-1111-4111-8111-111111111111/media/image.png",
+            }
+        },
+        "output": {
+            "destination_type": "s3",
+            "bucket": "madeena-media",
+            "prefix": ("22222222-2222-4222-8222-222222222222/" "outputs/8fa3b7e4/"),
+        },
+    }
+
+    response = client.post(
+        "/v1/jobs",
+        json=payload,
+        headers={"Authorization": "Bearer test_developer_token"},
+    )
+
+    assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+    assert "Output prefix" in str(response.json())
+
+
 def test_get_job_status_success() -> None:
     job_id = "job_123456"
     response = client.get(
@@ -157,6 +217,7 @@ def test_get_job_status_success() -> None:
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert data["job_id"] == job_id
+    assert data["tenant_id"] == "11111111-1111-4111-8111-111111111111"
     assert data["status"] == "queued"
     assert data["progress"] == 0.0
     assert data["external_execution_id"] == "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851"
