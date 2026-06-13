@@ -251,3 +251,60 @@ def cancel_job(
         status="cancelled",
         cancelled_at=datetime.now(timezone.utc),
     )
+
+
+@router.get(
+    "/jobs",
+    response_model=list[JobStatusResponse],
+    summary="List all jobs",
+    description=(
+        "Retrieves a list of all jobs currently stored in Redis. "
+        "Each job contains its state, progress, and metadata."
+    ),
+    response_description="List of job status snapshots",
+    operation_id="listJobs",
+    responses={401: _error_401, 403: _error_403},
+    tags=["Jobs"],
+)
+def list_jobs(
+    payload: Dict[str, Any] = Depends(verify_token),
+) -> list[JobStatusResponse]:
+    """Retrieves all jobs stored in Redis."""
+    from celery_tasks.tasks import get_redis_client
+
+    r = get_redis_client()
+    keys = r.keys("mpips:job:*")
+    jobs = []
+    for key in keys:
+        try:
+            job_state_str = r.get(key)
+            if job_state_str:
+                job_state = json.loads(job_state_str)
+                jobs.append(
+                    JobStatusResponse(
+                        job_id=job_state["job_id"],
+                        tenant_id=UUID(job_state["tenant_id"]),
+                        external_execution_id=UUID(job_state["external_execution_id"]),
+                        status=job_state["status"],
+                        progress=job_state["progress"],
+                        current_node=job_state.get("current_node"),
+                        started_at=(
+                            datetime.fromisoformat(job_state["started_at"])
+                            if job_state.get("started_at")
+                            else None
+                        ),
+                        finished_at=(
+                            datetime.fromisoformat(job_state["finished_at"])
+                            if job_state.get("finished_at")
+                            else None
+                        ),
+                        outputs=job_state.get("outputs", {}),
+                        error=job_state.get("error"),
+                    )
+                )
+        except Exception:
+            pass
+
+    # Sort jobs by started_at (newest first)
+    jobs.sort(key=lambda j: j.started_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    return jobs

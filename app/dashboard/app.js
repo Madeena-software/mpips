@@ -121,8 +121,16 @@ class ApiClient {
     return resp.json();
   }
 
+  async testAuth() {
+    return this.request('GET', '/v1/secure-test');
+  }
+
   async getNodes() {
     return this.request('GET', '/v1/nodes');
+  }
+
+  async getJobs() {
+    return this.request('GET', '/v1/jobs');
   }
 
   async getJob(id) {
@@ -172,6 +180,16 @@ class DashboardApp {
         this.switchTab(btn.dataset.tab);
       });
     });
+
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    if (disconnectBtn) {
+      disconnectBtn.addEventListener('click', () => {
+        this.api.clearToken();
+        this.setConnectionStatus('error', 'Disconnected');
+        this.showToast('Disconnected from MPIPS', 'info');
+        this.showAuthModal();
+      });
+    }
   }
 
   switchTab(tabName) {
@@ -254,7 +272,7 @@ class DashboardApp {
     this.api.setToken(token);
 
     try {
-      await this.api.getHealth();
+      await this.api.testAuth();
       this.hideAuthModal();
       this.connect();
     } catch (err) {
@@ -279,14 +297,17 @@ class DashboardApp {
 
   async connect() {
     try {
+      await this.api.testAuth();
       this.health = await this.api.getHealth();
       this.setConnectionStatus('connected', 'Connected');
       this.showToast('Connected to MPIPS', 'success');
       this.loadOverview();
       this.startHealthPolling();
     } catch (err) {
-      this.setConnectionStatus('error', 'Error');
-      this.showToast(`Connection error: ${err.message}`, 'error');
+      this.setConnectionStatus('error', 'Authentication failed');
+      this.showToast(`Authentication failed: ${err.message}`, 'error');
+      this.api.clearToken();
+      this.showAuthModal();
     }
   }
 
@@ -496,15 +517,37 @@ class DashboardApp {
     container.innerHTML = '<tr><td colspan="6"><div class="loading-state"><div class="spinner"></div><span>Loading…</span></div></td></tr>';
 
     try {
-      // Try loading recent jobs by scanning Redis keys.
-      // The API doesn't have a list-all-jobs endpoint,
-      // so we show an informative empty state.
-      container.innerHTML = '';
-      this.renderJobsEmpty();
+      const data = await this.api.getJobs();
+      this.jobs = data || [];
+      this.renderJobs();
     } catch (err) {
       container.innerHTML = '';
       this.renderJobsEmpty();
     }
+  }
+
+  renderJobs() {
+    const container = document.getElementById('jobsTableBody');
+    if (this.jobs.length === 0) {
+      this.renderJobsEmpty();
+      return;
+    }
+
+    container.innerHTML = this.jobs.map(job => this.renderJobRow(job)).join('');
+
+    // Render the job lookup search/filter area
+    this.renderJobLookup();
+
+    // Bind row clicks to open the modal
+    container.querySelectorAll('.job-row').forEach(row => {
+      row.addEventListener('click', () => {
+        const jobId = row.dataset.jobId;
+        const job = this.jobs.find(j => j.job_id === jobId);
+        if (job) {
+          this.showJobDetail(job);
+        }
+      });
+    });
   }
 
   renderJobsEmpty() {

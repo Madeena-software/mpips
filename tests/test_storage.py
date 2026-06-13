@@ -12,6 +12,7 @@ def test_s3_direct_upload_and_download() -> None:
     os.environ["AWS_SECRET_ACCESS_KEY"] = "testing"
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
     os.environ["AWS_BUCKET"] = "madeena-media"
+    os.environ.pop("AWS_ENDPOINT_URL", None)
 
     s3 = get_s3_client()
     s3.create_bucket(Bucket="madeena-media")
