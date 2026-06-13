@@ -1,1 +1,1 @@
-# Madeena Image Pipeline Scientific Execution Plane package
+# Madeena Python Image Processing Services (MPIPS) package
