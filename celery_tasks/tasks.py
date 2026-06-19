@@ -74,7 +74,21 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
 
     r = get_redis_client()
 
-    job_state = {
+    existing_state_str = r.get(f"mpips:job:{job_id}")
+    if existing_state_str:
+        job_state = json.loads(existing_state_str)
+    else:
+        job_state = {
+            "job_id": job_id,
+            "tenant_id": tenant_id,
+            "external_execution_id": external_execution_id,
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+            "outputs": {},
+            "error": None,
+            "callback_url": callback_url,
+        }
+
+    job_state.update({
         "job_id": job_id,
         "tenant_id": tenant_id,
         "external_execution_id": external_execution_id,
@@ -83,10 +97,8 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
         "current_node": None,
         "started_at": datetime.now(timezone.utc).isoformat(),
         "finished_at": None,
-        "outputs": {},
-        "error": None,
         "callback_url": callback_url,
-    }
+    })
     r.set(f"mpips:job:{job_id}", json.dumps(job_state))
     log_context = {
         "job_id": job_id,

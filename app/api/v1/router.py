@@ -94,6 +94,7 @@ def submit_job(
 
     # 2. Store initial state in Redis
     r = get_redis_client()
+    submitted_at = datetime.now(timezone.utc)
     job_state = {
         "job_id": task.id,
         "tenant_id": str(job_req.tenant_id),
@@ -101,6 +102,7 @@ def submit_job(
         "status": "queued",
         "progress": 0.0,
         "current_node": None,
+        "submitted_at": submitted_at.isoformat(),
         "started_at": None,
         "finished_at": None,
         "outputs": {},
@@ -162,6 +164,11 @@ def get_job_status(
         status=job_state["status"],
         progress=job_state["progress"],
         current_node=job_state.get("current_node"),
+        submitted_at=(
+            datetime.fromisoformat(job_state["submitted_at"])
+            if job_state.get("submitted_at")
+            else None
+        ),
         started_at=(
             datetime.fromisoformat(job_state["started_at"])
             if job_state.get("started_at")
@@ -288,6 +295,11 @@ def list_jobs(
                         status=job_state["status"],
                         progress=job_state["progress"],
                         current_node=job_state.get("current_node"),
+                        submitted_at=(
+                            datetime.fromisoformat(job_state["submitted_at"])
+                            if job_state.get("submitted_at")
+                            else None
+                        ),
                         started_at=(
                             datetime.fromisoformat(job_state["started_at"])
                             if job_state.get("started_at")
@@ -305,6 +317,11 @@ def list_jobs(
         except Exception:
             pass
 
-    # Sort jobs by started_at (newest first)
-    jobs.sort(key=lambda j: j.started_at or datetime.min.replace(tzinfo=timezone.utc), reverse=True)
+    # Sort jobs by submission time (newest first), then by start time.
+    jobs.sort(
+        key=lambda job: (
+            job.submitted_at or job.started_at or datetime.min.replace(tzinfo=timezone.utc)
+        ),
+        reverse=True,
+    )
     return jobs

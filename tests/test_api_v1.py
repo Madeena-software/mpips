@@ -234,3 +234,60 @@ def test_cancel_job_success() -> None:
     assert data["job_id"] == job_id
     assert data["status"] == "cancelled"
     assert "cancelled_at" in data
+
+
+def test_list_jobs_sorts_by_submitted_at(mock_external_services: Any) -> None:
+    redis_client = mock_external_services["redis"]
+    redis_client.keys.return_value = [
+        "mpips:job:older-job",
+        "mpips:job:newer-job",
+    ]
+
+    def get_side_effect(key: str) -> str:
+        if key.endswith("older-job"):
+            return json.dumps(
+                {
+                    "job_id": "older-job",
+                    "tenant_id": "11111111-1111-4111-8111-111111111111",
+                    "external_execution_id": "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851",
+                    "status": "queued",
+                    "progress": 0.0,
+                    "current_node": None,
+                    "submitted_at": "2026-06-15T10:00:00+00:00",
+                    "started_at": None,
+                    "finished_at": None,
+                    "outputs": {},
+                    "error": None,
+                }
+            )
+        if key.endswith("newer-job"):
+            return json.dumps(
+                {
+                    "job_id": "newer-job",
+                    "tenant_id": "11111111-1111-4111-8111-111111111111",
+                    "external_execution_id": "9fa3b7e4-0bb7-4b71-9252-c6c7b3be9852",
+                    "status": "queued",
+                    "progress": 0.0,
+                    "current_node": None,
+                    "submitted_at": "2026-06-15T11:00:00+00:00",
+                    "started_at": None,
+                    "finished_at": None,
+                    "outputs": {},
+                    "error": None,
+                }
+            )
+        raise AssertionError(f"Unexpected redis key: {key}")
+
+    redis_client.get.side_effect = get_side_effect
+
+    response = client.get(
+        "/v1/jobs",
+        headers={"Authorization": "Bearer test_developer_token"},
+    )
+
+    assert response.status_code == status.HTTP_200_OK
+    data = response.json()
+    assert len(data) == 2
+    assert data[0]["job_id"] == "newer-job"
+    assert data[0]["submitted_at"] is not None
+    assert data[1]["job_id"] == "older-job"

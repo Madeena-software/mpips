@@ -189,6 +189,10 @@ class JobStatusResponse(BaseModel):
         description=("Active processor node ID executing"),
     )
     started_at: Optional[datetime] = Field(None, description="Timestamp of task start")
+    submitted_at: Optional[datetime] = Field(
+        None,
+        description="Timestamp of when the job was accepted",
+    )
     finished_at: Optional[datetime] = Field(
         None,
         description="Timestamp of task completion",

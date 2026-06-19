@@ -156,7 +156,7 @@ class DashboardApp {
     this.nodeSearch = '';
     this.healthInterval = null;
     this.jobsInterval = null;
-    this.autoRefreshJobs = false;
+    this.autoRefreshJobs = true;
   }
 
   init() {
@@ -215,7 +215,10 @@ class DashboardApp {
     // Load data for tab
     if (tabName === 'overview') this.loadOverview();
     if (tabName === 'nodes') this.loadNodes();
-    if (tabName === 'jobs') this.loadJobs();
+    if (tabName === 'jobs') {
+      this.loadJobs();
+      this.setupJobsAutoRefresh();
+    }
   }
 
   renderTopbarActions(tab) {
@@ -615,7 +618,7 @@ class DashboardApp {
           <div class="progress-text">${(job.progress || 0).toFixed(0)}%</div>
         </td>
         <td class="job-id-cell">${escapeHtml(truncateId(job.tenant_id))}</td>
-        <td>${formatTimestamp(job.started_at)}</td>
+        <td>${formatTimestamp(job.submitted_at || job.started_at)}</td>
         <td>${formatDuration(job.started_at, job.finished_at)}</td>
       </tr>`;
   }
