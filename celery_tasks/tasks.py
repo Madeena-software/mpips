@@ -88,17 +88,19 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
             "callback_url": callback_url,
         }
 
-    job_state.update({
-        "job_id": job_id,
-        "tenant_id": tenant_id,
-        "external_execution_id": external_execution_id,
-        "status": "running",
-        "progress": 0.0,
-        "current_node": None,
-        "started_at": datetime.now(timezone.utc).isoformat(),
-        "finished_at": None,
-        "callback_url": callback_url,
-    })
+    job_state.update(
+        {
+            "job_id": job_id,
+            "tenant_id": tenant_id,
+            "external_execution_id": external_execution_id,
+            "status": "running",
+            "progress": 0.0,
+            "current_node": None,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "finished_at": None,
+            "callback_url": callback_url,
+        }
+    )
     r.set(f"mpips:job:{job_id}", json.dumps(job_state))
     log_context = {
         "job_id": job_id,
@@ -125,7 +127,7 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
 
         now = time.monotonic()
         if callback_url and now - last_progress_webhook_at >= 2.0:
-            dispatch_webhook(callback_url, job_state)
+            dispatch_webhook(callback_url, job_state.copy())
             last_progress_webhook_at = now
 
     try:
@@ -143,7 +145,7 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
         logger.info("Job completed.", extra=log_context)
 
         if callback_url:
-            dispatch_webhook(callback_url, job_state)
+            dispatch_webhook(callback_url, job_state.copy())
 
         return job_state
 
@@ -173,6 +175,6 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
         r.set(f"mpips:job:{job_id}", json.dumps(job_state))
 
         if callback_url:
-            dispatch_webhook(callback_url, job_state)
+            dispatch_webhook(callback_url, job_state.copy())
 
         raise e

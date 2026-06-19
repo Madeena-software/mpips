@@ -90,3 +90,100 @@ def test_dag_executor(
     mock_upload.assert_called_once()
     mock_imread.assert_called_once()
     mock_imwrite.assert_called_once()
+
+
+@patch("app.core.dag.download_image")
+@patch("app.core.dag.upload_image")
+@patch("app.core.dag.cv2.imread")
+@patch("app.core.dag.cv2.imwrite")
+def test_dag_executor_tiff_32bit_no_convert(
+    mock_imwrite: MagicMock,
+    mock_imread: MagicMock,
+    mock_upload: MagicMock,
+    mock_download: MagicMock,
+) -> None:
+    # Mock return value of cv2.imread: returns a float32 image array (32-bit TIFF)
+    mock_imread.return_value = np.zeros((100, 100, 3), dtype=np.float32)
+
+    executor = DAGExecutor()
+    pipeline = {
+        "nodes": [
+            {"id": "in_1", "type": "input", "parameters": {"convert_to_8bit": False}},
+            {"id": "out_1", "type": "output"},
+        ],
+        "edges": [
+            {
+                "source": "in_1",
+                "target": "out_1",
+                "source_handle": "output_image",
+                "target_handle": "input_image",
+            },
+        ],
+    }
+    inputs_config = {
+        "in_1": {"key": "11111111-1111-4111-8111-111111111111/media/input.tiff"}
+    }
+    output_config = {"prefix": "11111111-1111-4111-8111-111111111111/outputs/test/"}
+
+    result = executor.execute(pipeline, inputs_config, output_config)
+
+    assert result["status"] == "completed"
+    assert (
+        result["output_target"]
+        == "11111111-1111-4111-8111-111111111111/outputs/test/output.tiff"
+    )
+    # Check that output metadata specifies tiff mime type
+    outputs = result["outputs"]["out_1"]
+    assert outputs["mime_type"] == "image/tiff"
+
+    # Assert that imwrite received a float32 array
+    written_img = mock_imwrite.call_args[0][1]
+    assert written_img.dtype == np.float32
+
+
+@patch("app.core.dag.download_image")
+@patch("app.core.dag.upload_image")
+@patch("app.core.dag.cv2.imread")
+@patch("app.core.dag.cv2.imwrite")
+def test_dag_executor_tiff_32bit_convert_to_8bit(
+    mock_imwrite: MagicMock,
+    mock_imread: MagicMock,
+    mock_upload: MagicMock,
+    mock_download: MagicMock,
+) -> None:
+    # Mock return value of cv2.imread: returns a float32 image array (32-bit TIFF)
+    mock_imread.return_value = np.zeros((100, 100, 3), dtype=np.float32)
+
+    executor = DAGExecutor()
+    pipeline = {
+        "nodes": [
+            {"id": "in_1", "type": "input", "parameters": {"convert_to_8bit": True}},
+            {"id": "out_1", "type": "output"},
+        ],
+        "edges": [
+            {
+                "source": "in_1",
+                "target": "out_1",
+                "source_handle": "output_image",
+                "target_handle": "input_image",
+            },
+        ],
+    }
+    inputs_config = {
+        "in_1": {"key": "11111111-1111-4111-8111-111111111111/media/input.tiff"}
+    }
+    output_config = {"prefix": "11111111-1111-4111-8111-111111111111/outputs/test/"}
+
+    result = executor.execute(pipeline, inputs_config, output_config)
+
+    assert result["status"] == "completed"
+    assert (
+        result["output_target"]
+        == "11111111-1111-4111-8111-111111111111/outputs/test/output.tiff"
+    )
+    outputs = result["outputs"]["out_1"]
+    assert outputs["mime_type"] == "image/tiff"
+
+    # Assert that imwrite received a uint8 array (8-bit conversion)
+    written_img = mock_imwrite.call_args[0][1]
+    assert written_img.dtype == np.uint8

@@ -198,12 +198,27 @@ class FlatFieldCorrectionNode(BaseNode):
         if image is None:
             raise ValueError("FlatFieldCorrectionNode requires 'input_image' input.")
 
-        dark_key = params.get("dark_field_key", "")
-        flat_key = params.get("flat_field_key", "")
-
         img_float = image.astype(float)
-        dark_float = self._read_frame(dark_key, 0.0, image.shape)
-        flat_float = self._read_frame(flat_key, 255.0, image.shape)
+
+        dark_image = inputs.get("dark_field_image")
+        if dark_image is not None:
+            dark_float = dark_image.astype(float)
+            # Ensure shape matches
+            if dark_float.shape[:2] != image.shape[:2]:
+                dark_float = cv2.resize(dark_float, (image.shape[1], image.shape[0]))
+        else:
+            dark_key = params.get("dark_field_key", "")
+            dark_float = self._read_frame(dark_key, 0.0, image.shape)
+
+        flat_image = inputs.get("flat_field_image")
+        if flat_image is not None:
+            flat_float = flat_image.astype(float)
+            # Ensure shape matches
+            if flat_float.shape[:2] != image.shape[:2]:
+                flat_float = cv2.resize(flat_float, (image.shape[1], image.shape[0]))
+        else:
+            flat_key = params.get("flat_field_key", "")
+            flat_float = self._read_frame(flat_key, 255.0, image.shape)
 
         # C = (img_float - dark_float) / (flat_float - dark_float)
         # * mean(flat_float - dark_float)

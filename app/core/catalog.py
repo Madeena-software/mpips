@@ -11,7 +11,14 @@ NODE_CATALOG = [
         ),
         inputs=[],
         outputs=[OutputSlot(name="output_image", type="image")],
-        parameters=[],
+        parameters=[
+            Parameter(
+                name="convert_to_8bit",
+                type="boolean",
+                default=False,
+                description="Automatically convert high bit-depth/float inputs to 8-bit (0-255 uint8) format.",
+            )
+        ],
         version="1.0.0",
     ),
     ProcessorNodeSchema(
@@ -436,7 +443,11 @@ NODE_CATALOG = [
             "Corrects uneven sensor sensitivity and lens vignetting "
             "using flat and dark calibration frames."
         ),
-        inputs=[InputSlot(name="input_image", type="image")],
+        inputs=[
+            InputSlot(name="input_image", type="image"),
+            InputSlot(name="dark_field_image", type="image"),
+            InputSlot(name="flat_field_image", type="image"),
+        ],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
             Parameter(

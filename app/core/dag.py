@@ -1,6 +1,7 @@
 import os
 import tempfile
 import cv2
+import numpy as np
 from typing import List, Dict, Any, Optional, Callable
 from app.core.storage import download_image, upload_image
 from image_engine.factory import get_node_class
@@ -73,6 +74,7 @@ class DAGExecutor:
         temp_files: List[str] = []
         target = ""
         outputs_metadata: Dict[str, Any] = {}
+        input_ext = ".png"
 
         try:
             # 3. Download inputs and prepare execution context
@@ -128,7 +130,27 @@ class DAGExecutor:
                     if "bucket" in input_src:
                         os.environ["AWS_BUCKET"] = input_src["bucket"]
 
-                    fd, temp_path = tempfile.mkstemp(suffix=".png")
+                    # Determine source file extension to preserve it
+                    _, parsed_ext = os.path.splitext(source.split("?")[0])
+                    ext = (
+                        parsed_ext.lower()
+                        if parsed_ext.lower()
+                        in [
+                            ".tiff",
+                            ".tif",
+                            ".jpg",
+                            ".jpeg",
+                            ".webp",
+                            ".gif",
+                            ".svg",
+                            ".bmp",
+                        ]
+                        else ".png"
+                    )
+                    if parsed_ext.lower() in [".tiff", ".tif"]:
+                        input_ext = parsed_ext.lower()
+
+                    fd, temp_path = tempfile.mkstemp(suffix=ext)
                     os.close(fd)
                     temp_files.append(temp_path)
 
@@ -139,6 +161,29 @@ class DAGExecutor:
                             raise ValueError(
                                 f"Failed to read downloaded image at '{temp_path}'."
                             )
+
+                        # Convert to 8-bit ONLY if explicitly requested by the user
+                        convert_to_8bit = node_params.get("convert_to_8bit", False)
+                        if convert_to_8bit:
+                            if img.dtype in [np.float32, np.float64]:
+                                min_val = img.min()
+                                max_val = img.max()
+                                if max_val > min_val:
+                                    img = (
+                                        (img - min_val) / (max_val - min_val) * 255.0
+                                    ).astype(np.uint8)
+                                else:
+                                    img = (img * 255.0).clip(0, 255).astype(np.uint8)
+                            elif img.dtype in [np.uint16, np.int32, np.uint32]:
+                                min_val = img.min()
+                                max_val = img.max()
+                                if max_val > min_val:
+                                    img = (
+                                        (img - min_val) / (max_val - min_val) * 255.0
+                                    ).astype(np.uint8)
+                                else:
+                                    img = img.clip(0, 255).astype(np.uint8)
+
                         if original_input_img is None:
                             original_input_img = img
                     finally:
@@ -183,8 +228,9 @@ class DAGExecutor:
                             f"OutputNode '{node_id}' has no input image to upload."
                         )
 
-                    # Save image to temp path
-                    fd, temp_path = tempfile.mkstemp(suffix=".png")
+                    # Save image to temp path using dynamic extension
+                    out_ext = input_ext if input_ext in [".tiff", ".tif"] else ".png"
+                    fd, temp_path = tempfile.mkstemp(suffix=out_ext)
                     os.close(fd)
                     temp_files.append(temp_path)
 
@@ -201,7 +247,7 @@ class DAGExecutor:
                         # Direct S3 key construct
                         prefix = output_config.get("prefix", "")
                         # Construct a unique output key
-                        target = f"{prefix}output.png"
+                        target = f"{prefix}output{out_ext}"
 
                     original_bucket = os.getenv("AWS_BUCKET")
                     if "bucket" in output_config:
@@ -226,7 +272,27 @@ class DAGExecutor:
                             if original_input_img is not None
                             else output_img
                         )
-                        quality_assessment = calculate_all_metrics(output_img, ref_img)
+
+                        # Normalize copies for IQA metrics
+                        def to_uint8_copy(arr: np.ndarray) -> np.ndarray:
+                            if arr.dtype == np.uint8:
+                                return arr
+                            min_v = arr.min()
+                            max_v = arr.max()
+                            if max_v > min_v:
+                                return ((arr - min_v) / (max_v - min_v) * 255.0).astype(
+                                    np.uint8
+                                )
+                            else:
+                                if arr.dtype in [np.float32, np.float64]:
+                                    return (arr * 255.0).clip(0, 255).astype(np.uint8)
+                                return arr.clip(0, 255).astype(np.uint8)
+
+                        ref_img_u8 = to_uint8_copy(ref_img)
+                        output_img_u8 = to_uint8_copy(output_img)
+                        quality_assessment = calculate_all_metrics(
+                            output_img_u8, ref_img_u8
+                        )
 
                         outputs_metadata = {
                             node_id: {
@@ -236,7 +302,11 @@ class DAGExecutor:
                                 ),
                                 "key": target if not is_presigned else None,
                                 "url": target if is_presigned else None,
-                                "mime_type": "image/png",
+                                "mime_type": (
+                                    "image/tiff"
+                                    if out_ext in [".tiff", ".tif"]
+                                    else "image/png"
+                                ),
                                 "size_bytes": size_bytes,
                                 "checksum": checksum,
                                 "quality_assessment": quality_assessment,
