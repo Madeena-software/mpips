@@ -106,8 +106,11 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
         "external_execution_id": external_execution_id,
     }
     logger.info("Job started.", extra=log_context)
+    last_progress_webhook_at = 0.0
 
     def on_progress(node_id: str, progress_pct: float) -> None:
+        nonlocal last_progress_webhook_at
+
         # Check if cancelled in Redis
         current_state_str = r.get(f"mpips:job:{job_id}")
         if current_state_str:
@@ -115,9 +118,15 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
             if state.get("status") == "cancelled":
                 raise RuntimeError("Task execution cancelled by user request.")
 
+        job_state["status"] = "running"
         job_state["progress"] = progress_pct
         job_state["current_node"] = node_id
         r.set(f"mpips:job:{job_id}", json.dumps(job_state))
+
+        now = time.monotonic()
+        if callback_url and now - last_progress_webhook_at >= 2.0:
+            dispatch_webhook(callback_url, job_state)
+            last_progress_webhook_at = now
 
     try:
         validate_job_storage_paths(tenant_id, inputs, output)

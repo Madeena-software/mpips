@@ -100,6 +100,60 @@ def test_run_pipeline_success(
 
 @patch("celery_tasks.tasks.dispatch_webhook")
 @patch("app.core.dag.DAGExecutor.execute")
+def test_run_pipeline_dispatches_progress_webhook(
+    mock_execute: Any, mock_dispatch: Any, mock_redis: Any
+) -> None:
+    def execute_with_progress(
+        pipeline: Dict[str, Any],
+        inputs: Dict[str, Any],
+        output: Dict[str, Any],
+        on_progress: Any,
+    ) -> Dict[str, Any]:
+        on_progress("resize_1", 50.0)
+
+        return {
+            "status": "completed",
+            "outputs": {
+                "output_1": {
+                    "storage_disk": "s3",
+                    "checksum": "abc123xyz",
+                }
+            },
+        }
+
+    mock_execute.side_effect = execute_with_progress
+
+    job_data = {
+        "tenant_id": "11111111-1111-4111-8111-111111111111",
+        "external_execution_id": "8fa3b7e4-0bb7-4b71-9252-c6c7b3be9851",
+        "pipeline": {"nodes": [], "edges": []},
+        "inputs": {},
+        "output": {},
+        "callback_url": "https://mipc.example.com/callback",
+    }
+
+    ctx = Context(id="test-job-id", called_directly=False)
+    run_pipeline.request_stack.push(ctx)
+    try:
+        res = run_pipeline.run(job_data)
+    finally:
+        run_pipeline.request_stack.pop()
+
+    assert res["status"] == "completed"
+    assert mock_dispatch.call_count == 2
+
+    progress_payload = mock_dispatch.call_args_list[0].args[1]
+    assert progress_payload["status"] == "running"
+    assert progress_payload["progress"] == 50.0
+    assert progress_payload["current_node"] == "resize_1"
+
+    final_payload = mock_dispatch.call_args_list[1].args[1]
+    assert final_payload["status"] == "completed"
+    assert final_payload["progress"] == 100.0
+
+
+@patch("celery_tasks.tasks.dispatch_webhook")
+@patch("app.core.dag.DAGExecutor.execute")
 def test_run_pipeline_failure(
     mock_execute: Any, mock_dispatch: Any, mock_redis: Any
 ) -> None:
