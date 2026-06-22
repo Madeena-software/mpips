@@ -1,18 +1,16 @@
 import cv2
 import numpy as np
 from typing import Dict
+from image_engine.nodes.bit_depth import grayscale_any_depth, normalize_to_uint8
 
 
 class EntropyCalculator:
     """Evaluates image information content from pixel probabilities."""
 
     def calculate(self, image: np.ndarray) -> float:
-        if len(image.shape) == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = image
+        gray = grayscale_any_depth(image)
 
-        hist, _ = np.histogram(gray, bins=256, range=(0, 256))
+        hist, _ = np.histogram(gray, bins=256)
         total = hist.sum()
         if total == 0:
             return 0.0
@@ -27,10 +25,7 @@ class EnhancementMeasureCalculator:
     """Computes EME with block-wise Weber-Fechner contrast ratios."""
 
     def calculate(self, image: np.ndarray, block_size: int = 8) -> float:
-        if len(image.shape) == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = image
+        gray = grayscale_any_depth(image)
 
         h, w = gray.shape
         k1 = h // block_size
@@ -67,10 +62,7 @@ class ContrastImprovementIndexCalculator:
     """Computes CII as processed local contrast divided by original contrast."""
 
     def calculate_local_contrast(self, image: np.ndarray) -> float:
-        if len(image.shape) == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        else:
-            gray = image
+        gray = grayscale_any_depth(image)
 
         block_size = 8
         h, w = gray.shape
@@ -101,10 +93,7 @@ class BrisqueCalculator:
     """MSCN-based BRISQUE proxy score; lower scores represent higher quality."""
 
     def calculate(self, image: np.ndarray) -> float:
-        if len(image.shape) == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY).astype(float)
-        else:
-            gray = image.astype(float)
+        gray = normalize_to_uint8(grayscale_any_depth(image)).astype(float)
 
         mu = cv2.GaussianBlur(gray, (7, 7), 1.16)
         mu_sq = mu * mu

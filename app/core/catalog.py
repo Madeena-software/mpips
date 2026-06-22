@@ -1,5 +1,18 @@
 from app.schemas.nodes import ProcessorNodeSchema, InputSlot, OutputSlot, Parameter
 
+PRESERVES_BIT_DEPTH = (
+    " Bit depth: supports uint8/uint16/uint32/float inputs and preserves the "
+    "input bit depth where the operation semantics allow."
+)
+USES_8BIT_WORKING_COPY = (
+    " Bit depth note: accepts high bit-depth inputs, but this algorithm uses a "
+    "normalized 8-bit working copy internally."
+)
+OUTPUTS_8BIT = (
+    " Bit depth note: accepts high bit-depth inputs, but the algorithm outputs "
+    "an 8-bit result."
+)
+
 NODE_CATALOG = [
     ProcessorNodeSchema(
         id="input",
@@ -7,7 +20,8 @@ NODE_CATALOG = [
         category="io",
         description=(
             "Maps S3 source configurations into the DAG execution pipeline. "
-            "Downloads file to memory or temporary local workspace."
+            "Downloads file to memory or temporary local workspace. "
+            "Preserves native bit depth unless convert_to_8bit is enabled."
         ),
         inputs=[],
         outputs=[OutputSlot(name="output_image", type="image")],
@@ -16,7 +30,10 @@ NODE_CATALOG = [
                 name="convert_to_8bit",
                 type="boolean",
                 default=False,
-                description="Automatically convert high bit-depth/float inputs to 8-bit (0-255 uint8) format.",
+                description=(
+                    "Automatically convert high bit-depth/float inputs to 8-bit "
+                    "(0-255 uint8). Leave disabled to preserve native bit depth."
+                ),
             )
         ],
         version="1.0.0",
@@ -37,7 +54,8 @@ NODE_CATALOG = [
         id="resize",
         name="Resize Image",
         category="geometry",
-        description="Resizes images based on width, height, and interpolation mode.",
+        description="Resizes images based on width, height, and interpolation mode."
+        + PRESERVES_BIT_DEPTH,
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
@@ -69,7 +87,7 @@ NODE_CATALOG = [
         id="crop",
         name="Crop Image",
         category="geometry",
-        description="Crops image relative to bounding box.",
+        description="Crops image relative to bounding box." + PRESERVES_BIT_DEPTH,
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
@@ -108,7 +126,7 @@ NODE_CATALOG = [
         id="rotate",
         name="Rotate Image",
         category="geometry",
-        description="Rotates image by an arbitrary angle.",
+        description="Rotates image by an arbitrary angle." + PRESERVES_BIT_DEPTH,
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
@@ -131,7 +149,8 @@ NODE_CATALOG = [
         id="flip",
         name="Flip Image",
         category="geometry",
-        description="Flips image horizontally, vertically, or both.",
+        description="Flips image horizontally, vertically, or both."
+        + PRESERVES_BIT_DEPTH,
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
@@ -151,7 +170,7 @@ NODE_CATALOG = [
         category="adjustments",
         description=(
             "Converts multi-channel RGB/RGBA images into "
-            "single-channel luminance arrays."
+            "single-channel luminance arrays." + PRESERVES_BIT_DEPTH
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
@@ -162,7 +181,8 @@ NODE_CATALOG = [
         id="brightness_contrast",
         name="Brightness & Contrast",
         category="adjustments",
-        description="Adjusts brightness and contrast using linear scaling.",
+        description="Adjusts brightness and contrast using linear scaling."
+        + PRESERVES_BIT_DEPTH,
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
@@ -187,7 +207,8 @@ NODE_CATALOG = [
         name="Thresholding",
         category="adjustments",
         description=(
-            "Converts image to binary using simple threshold " "or Otsu's thresholding."
+            "Converts image to binary using simple threshold "
+            "or Otsu's thresholding." + PRESERVES_BIT_DEPTH
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
@@ -214,7 +235,8 @@ NODE_CATALOG = [
         id="gamma_correction",
         name="Gamma Correction",
         category="adjustments",
-        description="Non-linear luminance correction using power-law transformations.",
+        description="Non-linear luminance correction using power-law transformations."
+        + PRESERVES_BIT_DEPTH,
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
@@ -232,7 +254,8 @@ NODE_CATALOG = [
         id="gaussian_blur",
         name="Gaussian Blur",
         category="filtering",
-        description="Smooths images to reduce noise using Gaussian filter.",
+        description="Smooths images to reduce noise using Gaussian filter."
+        + PRESERVES_BIT_DEPTH,
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
@@ -259,7 +282,7 @@ NODE_CATALOG = [
         category="filtering",
         description=(
             "Non-linear blur using median filter, "
-            "highly effective for salt-and-pepper noise."
+            "highly effective for salt-and-pepper noise." + PRESERVES_BIT_DEPTH
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
@@ -278,7 +301,8 @@ NODE_CATALOG = [
         id="canny",
         name="Canny Edge Detection",
         category="filtering",
-        description="Detects edges using multi-stage hysteresis thresholding.",
+        description="Detects edges using multi-stage hysteresis thresholding."
+        + OUTPUTS_8BIT,
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
@@ -305,7 +329,8 @@ NODE_CATALOG = [
         id="sobel",
         name="Sobel Filter",
         category="filtering",
-        description="Computes horizontal or vertical derivatives to extract gradients.",
+        description="Computes horizontal or vertical derivatives to extract gradients."
+        + PRESERVES_BIT_DEPTH,
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
@@ -341,7 +366,7 @@ NODE_CATALOG = [
         category="advanced",
         description=(
             "Smooths images based on patch similarity. "
-            "Highly effective for low-light sensor noise."
+            "Highly effective for low-light sensor noise." + USES_8BIT_WORKING_COPY
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
@@ -378,7 +403,7 @@ NODE_CATALOG = [
         category="advanced",
         description=(
             "Frequency domain filter that separates illumination and reflectance. "
-            "Used to correct non-uniform lighting."
+            "Used to correct non-uniform lighting." + PRESERVES_BIT_DEPTH
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
@@ -413,7 +438,7 @@ NODE_CATALOG = [
         category="advanced",
         description=(
             "Multiscale image denoising using discrete wavelet transform (DWT), "
-            "thresholding coefficients, and inverse transform."
+            "thresholding coefficients, and inverse transform." + USES_8BIT_WORKING_COPY
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
@@ -441,7 +466,7 @@ NODE_CATALOG = [
         category="advanced",
         description=(
             "Corrects uneven sensor sensitivity and lens vignetting "
-            "using flat and dark calibration frames."
+            "using flat and dark calibration frames." + PRESERVES_BIT_DEPTH
         ),
         inputs=[
             InputSlot(name="input_image", type="image"),
@@ -471,7 +496,7 @@ NODE_CATALOG = [
         category="advanced",
         description=(
             "Supports correcting geometric lens distortion "
-            "using pre-calculated camera matrices (.npz files)."
+            "using pre-calculated camera matrices (.npz files)." + PRESERVES_BIT_DEPTH
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
@@ -491,7 +516,7 @@ NODE_CATALOG = [
         category="advanced",
         description=(
             "Fast Adaptive Bi-dimensional Empirical Mode Decomposition. "
-            "Decomposes images into BIMFs and a residue."
+            "Decomposes images into BIMFs and a residue." + PRESERVES_BIT_DEPTH
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
@@ -559,7 +584,7 @@ NODE_CATALOG = [
         category="iqa",
         description=(
             "No-reference image quality metric evaluating naturalness. "
-            "Lower values indicate higher perceptual quality."
+            "Lower values indicate higher perceptual quality." + USES_8BIT_WORKING_COPY
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="brisque_score", type="float")],

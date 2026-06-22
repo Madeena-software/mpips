@@ -1,6 +1,12 @@
 import cv2
+import numpy as np
 from typing import Dict, Any
 from image_engine.nodes.base import BaseNode
+from image_engine.nodes.bit_depth import (
+    clip_to_input_dtype,
+    grayscale_any_depth,
+    normalize_to_uint8,
+)
 
 
 class GaussianBlurNode(BaseNode):
@@ -48,22 +54,12 @@ class CannyNode(BaseNode):
         if image is None:
             raise ValueError("CannyNode requires 'input_image' input.")
 
-        # Convert to grayscale first if multi-channel
-        if len(image.shape) == 3:
-            channels = image.shape[2]
-            if channels == 3:
-                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            elif channels == 4:
-                gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
-            else:
-                raise ValueError(f"Unsupported channels: {channels}")
-        else:
-            gray = image
+        gray = grayscale_any_depth(image)
 
         low = float(params.get("low_threshold", 50.0))
         high = float(params.get("high_threshold", 150.0))
 
-        edges = cv2.Canny(gray, low, high)
+        edges = cv2.Canny(normalize_to_uint8(gray), low, high)
         return {"output_image": edges}
 
 
@@ -75,17 +71,7 @@ class SobelNode(BaseNode):
         if image is None:
             raise ValueError("SobelNode requires 'input_image' input.")
 
-        # Convert to grayscale first if multi-channel
-        if len(image.shape) == 3:
-            channels = image.shape[2]
-            if channels == 3:
-                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            elif channels == 4:
-                gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
-            else:
-                raise ValueError(f"Unsupported channels: {channels}")
-        else:
-            gray = image
+        gray = grayscale_any_depth(image)
 
         dx = int(params.get("dx", 1))
         dy = int(params.get("dy", 0))
@@ -94,6 +80,6 @@ class SobelNode(BaseNode):
         if ksize not in (1, 3, 5, 7):
             ksize = 3
 
-        sobel = cv2.Sobel(gray, cv2.CV_64F, dx, dy, ksize=ksize)
-        sobel = cv2.convertScaleAbs(sobel)
+        sobel = np.abs(cv2.Sobel(gray, cv2.CV_64F, dx, dy, ksize=ksize))
+        sobel = clip_to_input_dtype(sobel, gray)
         return {"output_image": sobel}

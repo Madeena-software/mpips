@@ -95,7 +95,10 @@ class DAGExecutor:
             for idx, node in enumerate(sorted_nodes, start=1):
                 node_id = node["id"]
                 node_type = node["type"]
-                node_params = node.get("parameters", {})
+                raw_node_params = node.get("parameters", {})
+                node_params = (
+                    raw_node_params if isinstance(raw_node_params, dict) else {}
+                )
 
                 if on_progress:
                     on_progress(node_id, round(((idx - 1) / total_nodes) * 100.0, 2))

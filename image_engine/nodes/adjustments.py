@@ -2,6 +2,12 @@ import cv2
 import numpy as np
 from typing import Dict, Any
 from image_engine.nodes.base import BaseNode
+from image_engine.nodes.bit_depth import (
+    clip_to_input_dtype,
+    dtype_limits,
+    grayscale_any_depth,
+    normalize_to_uint8,
+)
 
 
 class GrayscaleNode(BaseNode):
@@ -12,21 +18,7 @@ class GrayscaleNode(BaseNode):
         if image is None:
             raise ValueError("GrayscaleNode requires 'input_image' input.")
 
-        if len(image.shape) == 2:
-            # Already grayscale
-            return {"output_image": image}
-
-        channels = image.shape[2]
-        if channels == 3:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        elif channels == 4:
-            gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
-        else:
-            raise ValueError(
-                f"Unsupported number of channels for GrayscaleNode: {channels}"
-            )
-
-        return {"output_image": gray}
+        return {"output_image": grayscale_any_depth(image)}
 
 
 class BrightnessContrastNode(BaseNode):
@@ -40,7 +32,7 @@ class BrightnessContrastNode(BaseNode):
         alpha = float(params.get("alpha", 1.0))
         beta = float(params.get("beta", 0.0))
 
-        adjusted = np.clip(image.astype(float) * alpha + beta, 0, 255).astype(np.uint8)
+        adjusted = clip_to_input_dtype(image.astype(np.float64) * alpha + beta, image)
         return {"output_image": adjusted}
 
 
@@ -52,25 +44,26 @@ class ThresholdingNode(BaseNode):
         if image is None:
             raise ValueError("ThresholdingNode requires 'input_image' input.")
 
-        # Convert to grayscale first if multi-channel
-        if len(image.shape) == 3:
-            channels = image.shape[2]
-            if channels == 3:
-                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-            elif channels == 4:
-                gray = cv2.cvtColor(image, cv2.COLOR_BGRA2GRAY)
-            else:
-                raise ValueError(f"Unsupported channels: {channels}")
-        else:
-            gray = image
+        gray = grayscale_any_depth(image)
 
         threshold_value = int(params.get("threshold_value", 127))
         algo_type = params.get("type", "binary")
+        _, max_val = dtype_limits(gray)
 
         if algo_type == "otsu":
-            _, th = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+            if gray.dtype in (np.uint8, np.uint16):
+                _, th = cv2.threshold(
+                    gray, 0, max_val, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+                )
+            else:
+                gray_u8 = normalize_to_uint8(gray)
+                _, th_u8 = cv2.threshold(
+                    gray_u8, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+                )
+                th = np.where(th_u8 > 0, max_val, 0)
+                th = clip_to_input_dtype(th, gray)
         else:
-            _, th = cv2.threshold(gray, threshold_value, 255, cv2.THRESH_BINARY)
+            _, th = cv2.threshold(gray, threshold_value, max_val, cv2.THRESH_BINARY)
 
         return {"output_image": th}
 
@@ -87,9 +80,15 @@ class GammaCorrectionNode(BaseNode):
         if gamma <= 0:
             raise ValueError("Gamma parameter must be strictly positive.")
 
-        invGamma = 1.0 / gamma
-        table = np.array([((i / 255.0) ** invGamma) * 255 for i in range(256)]).astype(
-            "uint8"
+        min_val, max_val = dtype_limits(image)
+        if max_val <= min_val:
+            return {"output_image": image.copy()}
+
+        inv_gamma = 1.0 / gamma
+        normalized = (image.astype(np.float64) - min_val) / (max_val - min_val)
+        corrected = clip_to_input_dtype(
+            np.power(np.clip(normalized, 0.0, 1.0), inv_gamma) * (max_val - min_val)
+            + min_val,
+            image,
         )
-        corrected = cv2.LUT(image, table)
         return {"output_image": corrected}

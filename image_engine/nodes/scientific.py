@@ -7,6 +7,11 @@ from typing import Dict, Any
 from skimage.restoration import denoise_wavelet
 
 from image_engine.nodes.base import BaseNode
+from image_engine.nodes.bit_depth import (
+    clip_to_input_dtype,
+    normalize_to_uint8,
+    scale_unit_to_dtype,
+)
 from app.core.storage import download_image
 
 
@@ -30,19 +35,21 @@ class NonLocalMeansNode(BaseNode):
         if search_window_size % 2 == 0:
             search_window_size += 1
 
-        if len(image.shape) == 2:
+        working = image if image.dtype == np.uint8 else normalize_to_uint8(image)
+
+        if len(working.shape) == 2:
             denoised = cv2.fastNlMeansDenoising(
-                image,
+                working,
                 None,
                 h=h,
                 templateWindowSize=template_window_size,
                 searchWindowSize=search_window_size,
             )
-        elif len(image.shape) == 3:
-            channels = image.shape[2]
+        elif len(working.shape) == 3:
+            channels = working.shape[2]
             if channels == 3:
                 denoised = cv2.fastNlMeansDenoisingColored(
-                    image,
+                    working,
                     None,
                     h=h,
                     hColor=h,
@@ -51,8 +58,8 @@ class NonLocalMeansNode(BaseNode):
                 )
             elif channels == 4:
                 # Separate BGR and alpha
-                bgr = cv2.cvtColor(image, cv2.COLOR_BGRA2BGR)
-                alpha = image[:, :, 3]
+                bgr = cv2.cvtColor(working, cv2.COLOR_BGRA2BGR)
+                alpha = working[:, :, 3]
                 denoised_bgr = cv2.fastNlMeansDenoisingColored(
                     bgr,
                     None,
@@ -67,7 +74,12 @@ class NonLocalMeansNode(BaseNode):
         else:
             raise ValueError("Invalid image dimensions.")
 
-        return {"output_image": denoised}
+        if image.dtype == np.uint8:
+            return {"output_image": denoised}
+
+        return {
+            "output_image": scale_unit_to_dtype(denoised.astype(float) / 255.0, image)
+        }
 
 
 class HomomorphicFilterNode(BaseNode):
@@ -107,8 +119,7 @@ class HomomorphicFilterNode(BaseNode):
         # Exponentiate back
         filtered = np.expm1(filtered_log)
 
-        # Clip and convert back to uint8
-        return np.clip(filtered, 0, 255).astype(np.uint8)
+        return filtered
 
     def execute(self, inputs: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
         image = inputs.get("input_image")
@@ -120,11 +131,18 @@ class HomomorphicFilterNode(BaseNode):
         d0 = float(params.get("cutoff_frequency", 30.0))
 
         if len(image.shape) == 2:
-            filtered = self._filter_channel(image, gl, gh, d0)
+            filtered = clip_to_input_dtype(
+                self._filter_channel(image, gl, gh, d0), image
+            )
         elif len(image.shape) == 3:
             channels = []
             for c in range(image.shape[2]):
-                channels.append(self._filter_channel(image[:, :, c], gl, gh, d0))
+                channel = image[:, :, c]
+                channels.append(
+                    clip_to_input_dtype(
+                        self._filter_channel(channel, gl, gh, d0), channel
+                    )
+                )
             filtered = cv2.merge(channels)
         else:
             raise ValueError("Invalid image dimensions.")
@@ -144,7 +162,7 @@ class WaveletDenoisingNode(BaseNode):
         mode = str(params.get("mode", "soft"))
 
         # skimage's denoise_wavelet expects floats [0, 1]
-        img_float = image.astype(float) / 255.0
+        img_float = normalize_to_uint8(image).astype(float) / 255.0
         channel_axis = -1 if len(image.shape) == 3 else None
 
         denoised = denoise_wavelet(
@@ -155,8 +173,10 @@ class WaveletDenoisingNode(BaseNode):
             rescale_sigma=True,
         )
 
-        denoised_uint8 = np.clip(denoised * 255.0, 0, 255).astype(np.uint8)
-        return {"output_image": denoised_uint8}
+        if image.dtype == np.uint8:
+            return {"output_image": np.clip(denoised * 255.0, 0, 255).astype(np.uint8)}
+
+        return {"output_image": scale_unit_to_dtype(denoised, image)}
 
 
 class FlatFieldCorrectionNode(BaseNode):
@@ -229,7 +249,7 @@ class FlatFieldCorrectionNode(BaseNode):
         mean_diff = np.mean(diff_F_D)
 
         corrected_float = (diff_I_D / diff_F_D) * mean_diff
-        corrected = np.clip(corrected_float, 0, 255).astype(np.uint8)
+        corrected = clip_to_input_dtype(corrected_float, image)
 
         return {"output_image": corrected}
 
@@ -306,15 +326,15 @@ class FABEMDNode(BaseNode):
             imfs.append(imf)
             current = mean_env
 
-        # Return first IMF scaled
+        # Return first IMF scaled to 0..1
         first_imf = imfs[0]
         f_min = np.min(first_imf)
         f_max = np.max(first_imf)
         if f_max > f_min:
-            out = (first_imf - f_min) / (f_max - f_min) * 255.0
+            out = (first_imf - f_min) / (f_max - f_min)
         else:
             out = np.zeros_like(first_imf)
-        return out.astype(np.uint8)  # type: ignore[no-any-return]
+        return out  # type: ignore[no-any-return]
 
     def execute(self, inputs: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
         image = inputs.get("input_image")
@@ -324,11 +344,18 @@ class FABEMDNode(BaseNode):
         num_imfs = int(params.get("num_imfs", 2))
 
         if len(image.shape) == 2:
-            decomposed = self._decompose_channel(image, num_imfs)
+            decomposed = scale_unit_to_dtype(
+                self._decompose_channel(image, num_imfs), image
+            )
         elif len(image.shape) == 3:
             channels = []
             for c in range(image.shape[2]):
-                channels.append(self._decompose_channel(image[:, :, c], num_imfs))
+                channel = image[:, :, c]
+                channels.append(
+                    scale_unit_to_dtype(
+                        self._decompose_channel(channel, num_imfs), channel
+                    )
+                )
             decomposed = cv2.merge(channels)
         else:
             raise ValueError("Invalid image dimensions.")
