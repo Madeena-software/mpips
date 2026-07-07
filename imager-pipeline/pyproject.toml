@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "madeena-imager"
+version = "0.1.0"
+description = "X-ray image processing pipeline for the Madeena Node Imager"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "opencv-python>=4.8,<5.0",
+    "numpy>=1.24,<2.0",
+    "Pillow>=10.0,<11.0",
+    "scipy>=1.10",
+    "PyWavelets>=1.4",
+    "matplotlib>=3.6",
+    "python-dotenv>=1.0,<2.0",
+    "scikit-image>=0.20",
+]
+
+# All public modules live flat in the package root (not inside a sub-package).
+# setuptools py-modules installs each one as a top-level importable module.
+[tool.setuptools]
+py-modules = [
+    "build_image_pairs",
+    "calibration_examples",
+    "camera_calibration",
+    "complete_pipeline",
+    "imagej_replicator",
+    "process_without_ffc",
+    "tiff_json_to_dcm",
+    "wavelet_denoising",
+]
