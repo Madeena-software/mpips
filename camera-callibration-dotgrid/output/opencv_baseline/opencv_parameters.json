@@ -1,0 +1,55 @@
+{
+  "opencv_version": "5.0.0",
+  "image_size": {
+    "width": 4096,
+    "height": 3000
+  },
+  "grid_shape": {
+    "rows": 19,
+    "cols": 26
+  },
+  "object_spacing": 30.0,
+  "rms_reprojection_error_px": 2.5476016211834005,
+  "camera_matrix": [
+    [
+      40127.569483486535,
+      0.0,
+      2048.0
+    ],
+    [
+      0.0,
+      39868.15860746277,
+      1500.0
+    ],
+    [
+      0.0,
+      0.0,
+      1.0
+    ]
+  ],
+  "distortion_coefficients": {
+    "k1": -43.33662053884158,
+    "k2": 6820.121478184365,
+    "p1": 0.0037449770734903306,
+    "p2": 0.003167358789125732,
+    "k3": -120156.01547202736
+  },
+  "rotation_vector": [
+    0.035258657613761846,
+    0.1254168606543079,
+    0.007034169552205007
+  ],
+  "translation_vector": [
+    -365.3441808378781,
+    -263.0920287845994,
+    7065.788565012324
+  ],
+  "flags": [
+    "CALIB_USE_INTRINSIC_GUESS",
+    "CALIB_FIX_PRINCIPAL_POINT"
+  ],
+  "per_view_errors": [
+    2.5476016211834005
+  ],
+  "invalid_pixel_fraction": 0.0
+}

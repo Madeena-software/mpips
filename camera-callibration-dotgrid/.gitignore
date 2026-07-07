@@ -1,0 +1,15 @@
+# Virtual Environment
+venv/
+
+# Output Data
+# output/
+
+# Input Data
+# data/
+
+# Python Cache
+__pycache__/
+*.pyc
+
+# OS Files
+.DS_Store
