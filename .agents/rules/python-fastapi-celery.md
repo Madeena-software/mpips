@@ -2,30 +2,33 @@
 
 ## Architecture And Routing
 
-- The FastAPI app entrypoint is `app/main.py`; the installed ASGI entrypoint is
-  `mpips.asgi:app`.
-- Keep versioned product routes under `app/api/v1/router.py`.
-- Public utility routes may live in `app/main.py` only when they are global
-  service concerns such as `/`, `/health`, `/docs`, `/redoc`, `/dashboard/`, or
-  `/v1/secure-test`.
+- The primary FastAPI app entrypoint is `mpips/api/application.py`; the
+  installed ASGI entrypoint is `mpips.asgi:app`.
+- Keep versioned product routes under `mpips/api/routes/v1/router.py`.
+- Public utility routes may live in `mpips/api/application.py` only when they
+  are global service concerns such as `/`, `/health`, `/docs`, `/redoc`,
+  or `/v1/secure-test`.
 - Route handlers should remain thin: validate request bodies, call security
   dependencies, enqueue Celery work, read/write Redis job state, and return
   Pydantic response models.
-- Add or change request/response contracts in `app/schemas/` first, then wire
-  routes to those contracts.
-- Keep DAG validation and execution in `app/core/dag.py` and image operations
-  in `image_engine/nodes/`.
+- Add or change request/response contracts in `mpips/api/schemas/` first, then
+  wire routes to those contracts.
+- Keep engine/catalog node schemas in `mpips/engine/schemas.py`.
+- Keep DAG validation and execution in `mpips/engine/dag.py` and image
+  operations in `mpips/engine/nodes/`.
 - When adding a processing node, update all required places together:
-  `image_engine/nodes/`, `image_engine/factory.py`, `app/core/catalog.py`, and
-  focused tests.
+  `mpips/engine/nodes/`, `mpips/engine/registry.py`,
+  `mpips/engine/catalog.py`, and focused tests.
+- Experimental code starts in `research/<topic>/`; backend code must only use
+  logic promoted into `mpips/engine/`.
 
 ## State Management And Storage
 
 - Redis is runtime state, not a business database. Job state is stored under
   `mpips:job:*`.
 - Do not introduce persistent metadata tables unless `docs/PRD.md` is updated.
-- Preserve tenant path validation in `app/core/tenant_paths.py` for direct S3
-  keys and output prefixes.
+- Preserve tenant path validation in `mpips/tenant_paths.py` for direct S3 keys
+  and output prefixes.
 - S3 bucket overrides inside execution must be restored after use. Be careful
   with any change that mutates `os.environ["AWS_BUCKET"]`.
 - Temporary files created during DAG execution must be cleaned in `finally`
@@ -84,10 +87,10 @@ For targeted service-only checks, scope tools to the packaged service paths:
 
 ```bash
 python -m pytest tests
-python -m black --check app celery_tasks image_engine mpips tests
-python -m flake8 app celery_tasks image_engine mpips tests
-python -m mypy app celery_tasks image_engine mpips
+python -m black --check mpips tests
+python -m flake8 mpips tests
+python -m mypy mpips tests
 ```
 
-Current bootstrap health note: `uv` and system `pytest` were not available in
-the shell on 2026-07-08, so verification requires installing dev tooling first.
+Default Black/flake8/mypy configuration excludes `research/`; research scripts
+are not part of service quality gates unless a task explicitly targets them.

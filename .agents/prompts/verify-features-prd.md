@@ -51,14 +51,16 @@ Read `docs/PRD.md` and extract requirements from:
 
 Verify each requirement against:
 
-- API routing: `app/main.py`, `app/api/v1/router.py`, `app/api/v1/health.py`.
-- Schemas: `app/schemas/jobs.py`, `app/schemas/nodes.py`.
-- DAG and execution: `app/core/dag.py`, `app/core/catalog.py`,
-  `image_engine/`, `celery_tasks/`.
-- Security and isolation: `app/core/security.py`,
-  `app/core/tenant_paths.py`, `app/core/storage.py`.
+- API routing: `mpips/api/application.py`, `mpips/api/routes/v1/router.py`,
+  `mpips/api/routes/v1/health.py`.
+- Schemas: `mpips/api/schemas/jobs.py`, `mpips/api/schemas/nodes.py`,
+  `mpips/engine/schemas.py`.
+- DAG and execution: `mpips/engine/dag.py`, `mpips/engine/catalog.py`,
+  `mpips/engine/nodes/`, `mpips/worker/`.
+- Security and isolation: `mpips/api/security.py`,
+  `mpips/tenant_paths.py`, `mpips/storage.py`.
 - Package entrypoints: `mpips/`.
-- Static dashboard: `app/dashboard/`.
+- Static UI: none expected beyond API documentation endpoints.
 - Deployment: `Dockerfile`, `docker/entrypoint.sh`,
   `.env.production.example`, `.dockerignore`.
 - Tests: `tests/`.
@@ -84,7 +86,7 @@ Specifically check:
 - Tenant path validation for all direct S3 key and prefix flows.
 - Webhook signature payload, timestamp, headers, and error behavior.
 - Redis job-state fields vs documented status schema.
-- Node catalog entries vs `image_engine.factory` and node tests.
+- Node catalog entries vs `mpips/engine/registry.py` and node tests.
 - Docker/env examples vs variables read by code.
 
 ### Step 5: Review Test Coverage

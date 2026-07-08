@@ -45,3 +45,37 @@ Notes:
   because it already had an uncommitted worktree change before this bootstrap.
 - The older `.agents/` files contained stale Laravel/Pest/Dusk guidance; the
   active rules now describe the Python/FastAPI/Celery MPIPS service.
+
+## 2026-07-08 - Session 2: Folder Refactor And Promotion Flow
+
+Goal: Refactor MPIPS so experiments, importable package code, and backend
+service code have clear boundaries.
+
+Implementation actions:
+
+- Moved `camera-callibration-dotgrid/` to
+  `research/camera-calibration-dotgrid/` and `imager-pipeline/` to
+  `research/imager-pipeline/`.
+- Removed tracked `*:Zone.Identifier` Windows metadata files and ignored them
+  for future changes.
+- Promoted `mpips/` to the primary source package with `mpips.api`,
+  `mpips.engine`, `mpips.storage`, `mpips.tenant_paths`, and `mpips.worker`.
+- Initially kept `app/`, `image_engine/`, and `celery_tasks/` as compatibility
+  shims, then removed them after the user clarified the desired structure
+  should be clean rather than compatibility-first.
+- Removed dashboard static frontend assets because MPIPS is a backend-only
+  service.
+- Added `LocalFileStorageBackend` for importable/local/Colab DAG execution.
+- Added promoted calibration helper `mpips.engine.calibration.warp_image` and
+  backend node `camera_calibration_warp`.
+- Updated packaging extras, Docker entrypoint, README, and promotion-flow docs.
+
+Verification:
+
+- `.venv/bin/pip install -e ".[dev]"`
+- `.venv/bin/uv lock`
+- `.venv/bin/python - <<'PY' ... public import smoke ... PY`
+- `.venv/bin/pytest -q` passed: 62 tests, 4 warnings.
+- `.venv/bin/black --check .` passed.
+- `.venv/bin/flake8 .` passed.
+- `.venv/bin/mypy .` passed: no issues in 46 source files.

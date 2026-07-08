@@ -6,4 +6,6 @@ exclude =
     __pycache__,
     .venv,
     build,
-    dist
+    dist,
+    mpips.egg-info,
+    research

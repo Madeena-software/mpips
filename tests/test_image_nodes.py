@@ -1,5 +1,5 @@
 import numpy as np
-from image_engine.factory import get_node_class
+from mpips.engine import get_node_class
 
 
 def test_resize_node() -> None:

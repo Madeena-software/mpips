@@ -42,7 +42,7 @@ Structure substantial sessions with CORE:
 I want to build a new MPIPS feature: [Feature Name].
 Use the CORE framework.
 Phase 1: Load `.agents/memory/state.md`, relevant `.agents/rules/`, and `docs/PRD.md`.
-Phase 2: Inspect the existing FastAPI/Celery/image_engine implementation and propose the smallest safe implementation plan before editing.
+Phase 2: Inspect the existing FastAPI/Celery/`mpips.engine` implementation and propose the smallest safe implementation plan before editing.
 Phase 3: Implement with tests and run targeted verification.
 Phase 4: Update `.agents/history.md` and `.agents/memory/state.md` if project state changed.
 ```

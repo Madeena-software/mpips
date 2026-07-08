@@ -20,7 +20,7 @@ end-user image serving.
 - OAuth2/JWKS JWT verification with required scope checks.
 - Developer auth bypass for local testing through `DEV_AUTH_BYPASS` and
   `DEV_BEARER_TOKEN`.
-- Dynamic 24-node image-processing catalog exposed by `GET /v1/nodes`.
+- Dynamic 25-node image-processing catalog exposed by `GET /v1/nodes`.
 - Asynchronous job submission, polling, listing, and cancellation.
 - Redis-backed job state under `mpips:job:*`.
 - Celery worker execution for long-running DAG workloads.
@@ -30,14 +30,14 @@ end-user image serving.
 - HMAC-signed webhook callbacks with timestamp headers.
 - IQA metrics in output metadata.
 - Docker runtime supporting `api` and `worker` roles.
-- Static dashboard mounted at `/dashboard/`.
+- Backend-only service; no dashboard/static frontend is mounted.
 
 ## Setup Instructions
 
 Preferred dependency path, once `uv` is installed:
 
 ```bash
-uv sync
+uv sync --extra service
 ```
 
 Standard virtualenv path:
@@ -51,7 +51,7 @@ pip install -e ".[dev]"
 Run the API:
 
 ```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
+uvicorn mpips.asgi:app --host 0.0.0.0 --port 8000
 ```
 
 Or after editable/package install:
@@ -63,7 +63,7 @@ mpips-api
 Run the worker:
 
 ```bash
-celery -A celery_tasks.worker worker --loglevel=info
+celery -A mpips.worker worker --loglevel=info
 ```
 
 Or after editable/package install:
@@ -124,38 +124,42 @@ Additional environment keys used by code but not present in
 ## Repository Structure
 
 - `.agents/`: Agent control center and project operating rules.
-- `app/main.py`: FastAPI app, docs, root, health, dashboard mount, and router
-  inclusion.
-- `app/api/v1/`: Versioned FastAPI routes for nodes and jobs.
-- `app/core/`: Catalog, DAG execution, auth, storage, and tenant path rules.
-- `app/schemas/`: Pydantic request/response and catalog schemas.
-- `app/dashboard/`: Static dashboard assets served by FastAPI.
-- `celery_tasks/`: Celery app and task definitions.
-- `image_engine/`: Image-processing node implementations, factory, and IQA.
-- `mpips/`: Installable package interface, ASGI entrypoint, CLI, and public
-  engine exports.
+- `mpips/api/`: FastAPI app, docs, root, health, schemas, security, and
+  versioned routes.
+- `mpips/engine/`: DAG execution, catalog, node registry, image nodes, IQA,
+  engine schemas, and promoted calibration helpers.
+- `mpips/storage.py`: S3/presigned URL helpers plus local-file storage backend
+  for importable/Colab workflows.
+- `mpips/tenant_paths.py`: Tenant path validation for direct S3 keys and output
+  prefixes.
+- `mpips/worker/`: Celery app and task definitions.
+- No `app/`, `celery_tasks/`, or `image_engine/` source trees should exist;
+  `mpips/` is the single Python package source.
 - `tests/`: Pytest suite.
 - `docker/`: Runtime entrypoint scripts.
 - `Dockerfile`: Python 3.12 slim container image for API and worker roles.
 - `docs/PRD.md`: Product requirements and service boundary authority.
-- `camera-callibration-dotgrid/`: Bundled calibration research/prototype
-  artifacts; not included in the packaged MPIPS service.
-- `imager-pipeline/`: Bundled legacy/prototype image pipeline scripts; not
-  included in the packaged MPIPS service.
+- `research/camera-calibration-dotgrid/`: Bundled calibration
+  research/prototype artifacts; not included in the packaged MPIPS service.
+- `research/imager-pipeline/`: Bundled legacy/prototype image pipeline scripts;
+  not included in the packaged MPIPS service.
 
 ## General Coding Conventions
 
-- Keep the public API versioned under `app/api/v1/`.
-- Keep Pydantic models in `app/schemas/`; avoid duplicating request/response
-  shapes inside route functions.
+- Keep the public API versioned under `mpips/api/routes/v1/`.
+- Keep Pydantic API models in `mpips/api/schemas/`; keep engine catalog node
+  schemas in `mpips/engine/schemas.py`.
 - Keep execution logic out of route handlers. Routes should validate, enqueue,
   read Redis state, and return schemas.
-- Keep reusable image operations in `image_engine/nodes/` and register catalog
-  metadata in `app/core/catalog.py`.
+- Keep reusable image operations in `mpips/engine/nodes/` and register node
+  classes in `mpips/engine/registry.py` plus catalog metadata in
+  `mpips/engine/catalog.py`.
 - Preserve tenant-prefix validation for direct S3 keys and output prefixes.
 - Do not enable developer auth bypass in production configuration.
 - Do not add persistent application metadata storage without a PRD update.
-- Keep legacy/prototype folders out of normal service changes unless the task
-  explicitly targets them.
+- Keep `research/` out of normal service checks and imports unless the task
+  explicitly targets research code.
+- Backend code must not import directly from `research/`; promote stable logic
+  into `mpips/engine/` first.
 - Use Black line length 88, flake8 max line length 88, and strict mypy settings
   from `pyproject.toml`.
