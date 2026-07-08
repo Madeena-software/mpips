@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "mpips"
 version = "0.1.0"
@@ -20,6 +24,20 @@ dependencies = [
     "PyWavelets>=1.5.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "black>=26.5.1",
+    "flake8>=7.3.0",
+    "httpx>=0.28.1",
+    "moto>=5.2.2",
+    "mypy>=2.1.0",
+    "pytest>=9.0.3",
+]
+
+[project.scripts]
+mpips-api = "mpips.cli:run_api"
+mpips-worker = "mpips.cli:run_worker"
+
 [dependency-groups]
 dev = [
     "black>=26.5.1",
@@ -29,6 +47,22 @@ dev = [
     "mypy>=2.1.0",
     "pytest>=9.0.3",
 ]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = [
+    "app*",
+    "celery_tasks*",
+    "image_engine*",
+    "mpips*",
+]
+exclude = [
+    "tests*",
+]
+
+[tool.setuptools.package-data]
+app = ["dashboard/*.html", "dashboard/*.css", "dashboard/*.js"]
+mpips = ["py.typed"]
 
 [tool.black]
 line-length = 88
@@ -43,4 +77,3 @@ plugins = ["pydantic.mypy"]
 [tool.pytest.ini_options]
 pythonpath = ["."]
 testpaths = ["tests"]
-
