@@ -2,7 +2,7 @@ import os
 import tempfile
 import cv2
 import numpy as np
-from typing import List, Dict, Any, Optional, Callable
+from typing import List, Dict, Any, Optional, Callable, cast
 from app.core.storage import download_image, upload_image
 from image_engine.factory import get_node_class
 
@@ -283,8 +283,11 @@ class DAGExecutor:
                             min_v = arr.min()
                             max_v = arr.max()
                             if max_v > min_v:
-                                return ((arr - min_v) / (max_v - min_v) * 255.0).astype(
-                                    np.uint8
+                                return cast(
+                                    np.ndarray,
+                                    ((arr - min_v) / (max_v - min_v) * 255.0).astype(
+                                        np.uint8
+                                    ),
                                 )
                             else:
                                 if arr.dtype in [np.float32, np.float64]:

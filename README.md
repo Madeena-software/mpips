@@ -28,8 +28,14 @@ mpips/
 │   ├── tasks.py         # Celery task definitions (run_pipeline, webhook dispatch)
 │   └── worker.py        # Celery application initialization and configuration tuning
 ├── image_engine/
-│   ├── node_executor.py # Core DAG execution and topological sorting engine
-│   └── processors/      # Image processing implementation files (geometry, filter, IQA, etc.)
+│   ├── factory.py       # Node class lookup and IO node adapters
+│   ├── iqa.py           # Image quality assessment helpers
+│   └── nodes/           # Image processing implementation files (geometry, filter, IQA, etc.)
+├── mpips/
+│   ├── api.py           # Importable FastAPI application helpers
+│   ├── asgi.py          # ASGI entrypoint for installed deployments
+│   ├── cli.py           # Console scripts installed by pip
+│   └── engine.py        # Stable public imports for engine primitives
 ├── tests/               # Pytest integration/unit tests
 ├── pyproject.toml       # Python package configuration and dependencies
 └── uv.lock              # Lockfile for locked dependencies
@@ -123,7 +129,7 @@ We recommend using `uv` to manage Python versions and virtualenvs.
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate
-   pip install -r pyproject.toml
+   pip install -e ".[dev]"
    ```
 
 2. **Setup Local Environment**:
@@ -136,10 +142,49 @@ We recommend using `uv` to manage Python versions and virtualenvs.
    ```bash
    # Start FastAPI Server (running on port 8000)
    uv run fastapi dev app/main.py
+   # or, after pip install:
+   mpips-api
    
    # Start Celery Worker
    uv run celery -A celery_tasks.worker worker --loglevel=info
+   # or, after pip install:
+   mpips-worker
    ```
+
+---
+
+## 📦 Installing as a Python Module
+
+`mpips` can be installed into another Python 3.12+ environment while still
+retaining its backend entrypoints:
+
+```bash
+pip install /path/to/mpips
+# or for editable local development:
+pip install -e /path/to/mpips
+```
+
+Installed import paths:
+
+```python
+import mpips
+from mpips.engine import DAGExecutor, NODE_CATALOG, get_node_class
+
+app = mpips.create_app()
+executor = DAGExecutor()
+resize_node = get_node_class("resize")
+```
+
+Installed service entrypoints:
+
+```bash
+uvicorn mpips.asgi:app --host 0.0.0.0 --port 8000
+mpips-api
+mpips-worker
+```
+
+Legacy internal imports (`app.main`, `image_engine.*`, and `celery_tasks.*`)
+remain available for backwards compatibility.
 
 ---
 

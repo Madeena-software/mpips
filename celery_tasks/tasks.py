@@ -75,6 +75,7 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
     r = get_redis_client()
 
     existing_state_str = r.get(f"mpips:job:{job_id}")
+    job_state: Dict[str, Any]
     if existing_state_str:
         job_state = json.loads(existing_state_str)
     else:

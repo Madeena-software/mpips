@@ -1,4 +1,4 @@
-from typing import Any, Tuple
+from typing import Tuple, cast
 
 import cv2
 import numpy as np
@@ -28,7 +28,9 @@ def clip_to_input_dtype(values: np.ndarray, reference: np.ndarray) -> np.ndarray
     """Clip numeric results back to the input dtype without forcing uint8."""
     if np.issubdtype(reference.dtype, np.integer):
         min_val, max_val = dtype_limits(reference)
-        return np.clip(values, min_val, max_val).astype(reference.dtype)
+        return cast(
+            np.ndarray, np.clip(values, min_val, max_val).astype(reference.dtype)
+        )
 
     return values.astype(reference.dtype, copy=False)
 
