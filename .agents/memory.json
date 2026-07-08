@@ -1,0 +1,155 @@
+{
+  "project": {
+    "name": "mpips",
+    "display_name": "Madeena Python Image Processing Services",
+    "version": "0.1.0",
+    "description": "Reusable Madeena image-processing execution microservice for DAG-based scientific image processing.",
+    "product_authority": "docs/PRD.md",
+    "service_boundary": "MPIPS executes image-processing DAGs for Madeena clients. It owns FastAPI job/catalog endpoints, Celery execution, image node implementations, S3-compatible object storage IO, Redis-backed job state, IQA metadata, and signed webhook callbacks. Calling applications own users, visual builders, billing, user-facing image serving, and business metadata."
+  },
+  "tech_stack": {
+    "backend": {
+      "language": "Python",
+      "python_version": "3.12",
+      "frameworks": [
+        "FastAPI",
+        "Uvicorn",
+        "Pydantic v2",
+        "Celery",
+        "Redis"
+      ],
+      "image_processing": [
+        "OpenCV headless",
+        "NumPy",
+        "SciPy",
+        "scikit-image",
+        "PyWavelets"
+      ],
+      "package_manager": "uv lockfile present; standard pip editable install supported",
+      "package_name": "mpips",
+      "entrypoints": [
+        "mpips-api",
+        "mpips-worker",
+        "uvicorn mpips.asgi:app"
+      ]
+    },
+    "frontend": {
+      "type": "static dashboard assets mounted by FastAPI",
+      "paths": [
+        "app/dashboard/index.html",
+        "app/dashboard/style.css",
+        "app/dashboard/app.js"
+      ]
+    },
+    "database": {
+      "persistent_database": "None detected for application metadata",
+      "runtime_state": "Redis stores Celery state and mpips:job:* status snapshots",
+      "object_storage": "S3-compatible storage via boto3, including MinIO-compatible AWS_ENDPOINT_URL"
+    },
+    "infrastructure": {
+      "container": "Dockerfile based on python:3.12-slim with API and worker roles",
+      "entrypoint": "docker/entrypoint.sh",
+      "ci_cd": "No .github/workflows files detected during bootstrap",
+      "deployment_constraint": "Use CI/CD or committed configuration only; direct SSH is prohibited"
+    }
+  },
+  "external_integrations": {
+    "identity_provider": {
+      "type": "JWKS/OAuth2 JWT verification",
+      "env": [
+        "MADEENA_IDP_JWKS_URL",
+        "MADEENA_REQUIRED_SCOPES"
+      ]
+    },
+    "redis": {
+      "env": [
+        "REDIS_URL",
+        "CELERY_BROKER_URL",
+        "CELERY_RESULT_BACKEND"
+      ]
+    },
+    "object_storage": {
+      "type": "AWS S3 or S3-compatible storage",
+      "env": [
+        "AWS_ACCESS_KEY_ID",
+        "AWS_SECRET_ACCESS_KEY",
+        "AWS_DEFAULT_REGION",
+        "AWS_BUCKET",
+        "AWS_ENDPOINT_URL"
+      ]
+    },
+    "webhooks": {
+      "signature": "HMAC SHA-256 over timestamp.payload",
+      "headers": [
+        "X-Madeena-Signature",
+        "X-Madeena-Timestamp"
+      ],
+      "env": [
+        "WEBHOOK_SECRET"
+      ]
+    },
+    "known_clients": [
+      "mipc",
+      "Madeena mobile and web apps",
+      "Internal research and development tools"
+    ]
+  },
+  "modules": {
+    "app/main.py": "FastAPI application factory, branded docs, root, health, secure-test, static dashboard mount, API router inclusion.",
+    "app/api/v1/router.py": "Versioned node catalog and job lifecycle routes.",
+    "app/api/v1/health.py": "Health checks for uptime, Redis connectivity, Celery worker availability, and environment.",
+    "app/core/catalog.py": "Declarative 24-node image-processing catalog.",
+    "app/core/dag.py": "Topological sort and DAG execution engine with temp file cleanup, S3/URL IO, output metadata, and IQA metrics.",
+    "app/core/security.py": "HTTP Bearer auth, developer bypass, JWKS key resolution, JWT verification, and scope checks.",
+    "app/core/storage.py": "S3-compatible and presigned URL download/upload helpers.",
+    "app/core/tenant_paths.py": "Tenant prefix validation for input and output storage paths.",
+    "app/schemas": "Pydantic request/response and node catalog schemas.",
+    "celery_tasks": "Celery app configuration, run_pipeline task, Redis state updates, webhook dispatch, cancellation behavior.",
+    "image_engine": "Image processing node implementations, node factory, and IQA helpers.",
+    "mpips": "Installable package exports, ASGI entrypoint, CLI entrypoints, and public engine imports.",
+    "tests": "Pytest suite for API, Celery/webhooks, DAG, image nodes, scientific nodes, security, storage, package imports, and root endpoint.",
+    "app/dashboard": "Static dashboard files served at /dashboard/.",
+    "camera-callibration-dotgrid": "Bundled calibration research/prototype artifacts, data, references, outputs, and scripts; not part of packaged MPIPS service.",
+    "imager-pipeline": "Bundled legacy/prototype image pipeline scripts; not part of packaged MPIPS service."
+  },
+  "github_workflows": {
+    "present": false,
+    "workflows": [],
+    "notes": "No .github/workflows files were detected during bootstrap."
+  },
+  "testing": {
+    "framework": "pytest",
+    "test_root": "tests",
+    "declared_commands": [
+      "uv run pytest",
+      "uv run black --check .",
+      "uv run flake8 .",
+      "uv run mypy ."
+    ],
+    "fallback_commands_after_install": [
+      "python -m pytest",
+      "python -m black --check .",
+      "python -m flake8 .",
+      "python -m mypy ."
+    ],
+    "coverage_status": "No coverage command or configured coverage threshold detected.",
+    "last_local_verification": {
+      "date": "2026-07-08",
+      "python_version": "Python 3.12.3",
+      "results": [
+        {
+          "command": "uv run pytest",
+          "status": "blocked",
+          "reason": "uv is not installed in this shell"
+        },
+        {
+          "command": "python3 -m pytest",
+          "status": "blocked",
+          "reason": "pytest is not installed in system Python"
+        }
+      ]
+    }
+  },
+  "bugs_fixed_history": [],
+  "ai_bootstrapped": true
+}
