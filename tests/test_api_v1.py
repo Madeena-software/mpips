@@ -5,7 +5,7 @@ from unittest.mock import patch, MagicMock
 from typing import Any
 from fastapi import status
 from fastapi.testclient import TestClient
-from app.main import app
+from mpips.api import app
 
 client = TestClient(app)
 
@@ -20,9 +20,9 @@ def setup_bypass_token() -> None:
 @pytest.fixture(autouse=True)
 def mock_external_services() -> Any:
     with (
-        patch("celery_tasks.tasks.get_redis_client") as mock_redis,
-        patch("celery_tasks.tasks.run_pipeline") as mock_run_pipeline,
-        patch("celery_tasks.worker.app.control.revoke") as mock_revoke,
+        patch("mpips.worker.tasks.get_redis_client") as mock_redis,
+        patch("mpips.worker.tasks.run_pipeline") as mock_run_pipeline,
+        patch("mpips.worker.app.control.revoke") as mock_revoke,
     ):
 
         redis_client = MagicMock()
@@ -69,7 +69,7 @@ def test_get_nodes_success() -> None:
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
     assert "nodes" in data
-    assert len(data["nodes"]) == 24
+    assert len(data["nodes"]) == 25
 
     # Verify a couple of specific nodes from the catalog
     nodes_map = {node["id"]: node for node in data["nodes"]}
@@ -77,6 +77,7 @@ def test_get_nodes_success() -> None:
     assert "output" in nodes_map
     assert "resize" in nodes_map
     assert "grayscale" in nodes_map
+    assert "camera_calibration_warp" in nodes_map
 
     # Check resize parameters
     resize_node = nodes_map["resize"]

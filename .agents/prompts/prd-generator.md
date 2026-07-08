@@ -24,18 +24,20 @@ Analyze the repository before writing:
 2. Tech stack
    - Inspect Python/FastAPI/Celery/Redis/S3 dependencies and configuration.
    - Inspect Docker runtime files and any CI/CD workflow files.
-   - Inspect static dashboard assets in `app/dashboard/`.
+   - Confirm whether any frontend/static UI assets exist. MPIPS is currently
+     backend-only; `/docs` and `/redoc` are API documentation endpoints.
 3. API contracts
-   - Read `app/main.py`, `app/api/v1/router.py`, and `app/schemas/`.
+   - Read `mpips/api/application.py`, `mpips/api/routes/v1/router.py`, and
+     `mpips/api/schemas/`.
    - Document every route, method, auth requirement, request schema, response
      schema, status behavior, and error behavior.
 4. Execution model
-   - Read `app/core/dag.py`, `app/core/catalog.py`, `image_engine/`,
-     `celery_tasks/`, and `mpips/`.
+   - Read `mpips/engine/dag.py`, `mpips/engine/catalog.py`,
+     `mpips/engine/nodes/`, and `mpips/worker/`.
    - Document DAG validation, node execution, worker lifecycle, Redis state,
      object storage IO, IQA metadata, and webhook callbacks.
 5. Security and isolation
-   - Read `app/core/security.py`, `app/core/tenant_paths.py`, and storage
+   - Read `mpips/api/security.py`, `mpips/tenant_paths.py`, and storage
      helpers.
    - Document JWT/JWKS auth, required scopes, developer bypass, tenant S3 path
      validation, signed webhooks, and secret-handling requirements.
@@ -44,9 +46,9 @@ Analyze the repository before writing:
    - Summarize unit, integration, and service smoke coverage, plus missing CI or
      coverage thresholds.
 7. Adjacent folders
-   - Identify `camera-callibration-dotgrid/` and `imager-pipeline/` as bundled
-     prototype/research or legacy folders unless the current task explicitly
-     says otherwise.
+   - Identify `research/camera-calibration-dotgrid/` and
+     `research/imager-pipeline/` as bundled prototype/research or legacy
+     folders unless the current task explicitly says otherwise.
 
 ## Phase 2: Write The PRD
 

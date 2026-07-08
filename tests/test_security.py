@@ -4,7 +4,7 @@ import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
 import jwt
-from app.main import app
+from mpips.api import app
 
 client = TestClient(app)
 
@@ -54,7 +54,7 @@ def test_secure_endpoint_bypass_failure() -> None:
     assert "Invalid developer bypass token" in response.json().get("detail", "")
 
 
-@patch("app.core.security.decode_and_verify_token")
+@patch("mpips.api.security.decode_and_verify_token")
 def test_secure_endpoint_real_jwt_success(mock_verify: MagicMock) -> None:
     # Set environment to standard auth (no bypass)
     os.environ["DEV_AUTH_BYPASS"] = "false"
@@ -77,7 +77,7 @@ def test_secure_endpoint_real_jwt_success(mock_verify: MagicMock) -> None:
     assert data["scopes"] == "image:process nodes:read extra:scope"
 
 
-@patch("app.core.security.decode_and_verify_token")
+@patch("mpips.api.security.decode_and_verify_token")
 def test_secure_endpoint_real_jwt_missing_scopes(mock_verify: MagicMock) -> None:
     os.environ["DEV_AUTH_BYPASS"] = "false"
 
@@ -96,7 +96,7 @@ def test_secure_endpoint_real_jwt_missing_scopes(mock_verify: MagicMock) -> None
     assert "Missing required scope" in response.json().get("detail", "")
 
 
-@patch("app.core.security.JWKSKeyResolver.get_signing_key")
+@patch("mpips.api.security.JWKSKeyResolver.get_signing_key")
 @patch("jwt.decode")
 def test_decode_and_verify_token_invalid_signature(
     mock_jwt_decode: MagicMock, mock_get_signing_key: MagicMock

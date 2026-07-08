@@ -2,7 +2,7 @@ import os
 import tempfile
 from unittest.mock import patch, MagicMock
 from moto import mock_aws
-from app.core.storage import get_s3_client, download_image, upload_image
+from mpips.storage import get_s3_client, download_image, upload_image
 
 
 @mock_aws

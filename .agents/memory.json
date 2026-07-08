@@ -34,12 +34,7 @@
       ]
     },
     "frontend": {
-      "type": "static dashboard assets mounted by FastAPI",
-      "paths": [
-        "app/dashboard/index.html",
-        "app/dashboard/style.css",
-        "app/dashboard/app.js"
-      ]
+      "type": "none; backend-only service with API documentation endpoints"
     },
     "database": {
       "persistent_database": "None detected for application metadata",
@@ -95,22 +90,18 @@
     ]
   },
   "modules": {
-    "app/main.py": "FastAPI application factory, branded docs, root, health, secure-test, static dashboard mount, API router inclusion.",
-    "app/api/v1/router.py": "Versioned node catalog and job lifecycle routes.",
-    "app/api/v1/health.py": "Health checks for uptime, Redis connectivity, Celery worker availability, and environment.",
-    "app/core/catalog.py": "Declarative 24-node image-processing catalog.",
-    "app/core/dag.py": "Topological sort and DAG execution engine with temp file cleanup, S3/URL IO, output metadata, and IQA metrics.",
-    "app/core/security.py": "HTTP Bearer auth, developer bypass, JWKS key resolution, JWT verification, and scope checks.",
-    "app/core/storage.py": "S3-compatible and presigned URL download/upload helpers.",
-    "app/core/tenant_paths.py": "Tenant prefix validation for input and output storage paths.",
-    "app/schemas": "Pydantic request/response and node catalog schemas.",
-    "celery_tasks": "Celery app configuration, run_pipeline task, Redis state updates, webhook dispatch, cancellation behavior.",
-    "image_engine": "Image processing node implementations, node factory, and IQA helpers.",
-    "mpips": "Installable package exports, ASGI entrypoint, CLI entrypoints, and public engine imports.",
+    "mpips/api": "FastAPI application, branded docs, root, health, secure-test, versioned routes, schemas, and security.",
+    "mpips/engine/catalog.py": "Declarative 25-node image-processing catalog.",
+    "mpips/engine/dag.py": "Topological sort and DAG execution engine with temp file cleanup, storage backend IO, output metadata, and IQA metrics.",
+    "mpips/engine/registry.py": "Node class lookup and IO node adapters.",
+    "mpips/engine/nodes": "Image processing node implementations.",
+    "mpips/engine/calibration": "Promoted reusable calibration helpers such as warp_image.",
+    "mpips/storage.py": "S3-compatible, presigned URL, and local-file storage backends.",
+    "mpips/tenant_paths.py": "Tenant prefix validation for input and output storage paths.",
+    "mpips/worker": "Celery app configuration, run_pipeline task, Redis state updates, webhook dispatch, cancellation behavior.",
     "tests": "Pytest suite for API, Celery/webhooks, DAG, image nodes, scientific nodes, security, storage, package imports, and root endpoint.",
-    "app/dashboard": "Static dashboard files served at /dashboard/.",
-    "camera-callibration-dotgrid": "Bundled calibration research/prototype artifacts, data, references, outputs, and scripts; not part of packaged MPIPS service.",
-    "imager-pipeline": "Bundled legacy/prototype image pipeline scripts; not part of packaged MPIPS service."
+    "research/camera-calibration-dotgrid": "Bundled calibration research/prototype artifacts, data, references, outputs, and scripts; not part of packaged MPIPS service.",
+    "research/imager-pipeline": "Bundled legacy/prototype image pipeline scripts; not part of packaged MPIPS service."
   },
   "github_workflows": {
     "present": false,
@@ -138,14 +129,22 @@
       "python_version": "Python 3.12.3",
       "results": [
         {
-          "command": "uv run pytest",
-          "status": "blocked",
-          "reason": "uv is not installed in this shell"
+          "command": ".venv/bin/pytest -q",
+          "status": "passed",
+          "detail": "62 tests passed, 4 warnings"
         },
         {
-          "command": "python3 -m pytest",
-          "status": "blocked",
-          "reason": "pytest is not installed in system Python"
+          "command": ".venv/bin/black --check .",
+          "status": "passed"
+        },
+        {
+          "command": ".venv/bin/flake8 .",
+          "status": "passed"
+        },
+        {
+          "command": ".venv/bin/mypy .",
+          "status": "passed",
+          "detail": "No issues in 46 source files"
         }
       ]
     }

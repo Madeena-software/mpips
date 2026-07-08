@@ -19,23 +19,17 @@ The scientific computation microservice of the **Madeena Image Platform (MIP)**.
 
 ```
 mpips/
-├── app/
-│   ├── api/v1/          # FastAPI routers (nodes list, job submission/status, job cancellation)
-│   ├── core/            # Core modules (Catalog definitions, security/JWKS authentication, S3 paths, etc.)
-│   ├── schemas/         # Pydantic validation schemas (jobs, nodes)
-│   └── main.py          # FastAPI application entrypoint
-├── celery_tasks/
-│   ├── tasks.py         # Celery task definitions (run_pipeline, webhook dispatch)
-│   └── worker.py        # Celery application initialization and configuration tuning
-├── image_engine/
-│   ├── factory.py       # Node class lookup and IO node adapters
-│   ├── iqa.py           # Image quality assessment helpers
-│   └── nodes/           # Image processing implementation files (geometry, filter, IQA, etc.)
 ├── mpips/
-│   ├── api.py           # Importable FastAPI application helpers
+│   ├── api/             # FastAPI app, routes, schemas, and security
 │   ├── asgi.py          # ASGI entrypoint for installed deployments
 │   ├── cli.py           # Console scripts installed by pip
-│   └── engine.py        # Stable public imports for engine primitives
+│   ├── engine/          # Importable DAG, catalog, registry, nodes, IQA, calibration helpers
+│   ├── storage.py       # S3/presigned URL and local-file storage backends
+│   ├── tenant_paths.py  # Tenant storage boundary validation
+│   └── worker/          # Celery app and task definitions
+├── research/
+│   ├── camera-calibration-dotgrid/
+│   └── imager-pipeline/
 ├── tests/               # Pytest integration/unit tests
 ├── pyproject.toml       # Python package configuration and dependencies
 └── uv.lock              # Lockfile for locked dependencies
@@ -45,7 +39,7 @@ mpips/
 
 ## 🎛️ Image Processing Node Catalog
 
-`mpips` features **24 custom processing nodes** classified into 6 distinct categories:
+`mpips` features **25 custom processing nodes** classified into 6 distinct categories:
 
 ### 1. Input / Output (`io`)
 - `input`: Downloads the source image from S3 and maps it into the DAG execution workspace.
@@ -75,6 +69,7 @@ mpips/
 - `wavelet_denoising`: Multiscale denoising using discrete wavelet transforms (DWT).
 - `flat_field_correction`: Corrects uneven sensor sensitivity using flat and dark calibration frames.
 - `camera_calibration`: Corrects lens distortions using pre-calculated camera matrix `.npz` files.
+- `camera_calibration_warp`: Applies promoted calibration remap coordinates from reusable engine logic.
 - `fabemd`: Fast Adaptive Bi-dimensional Empirical Mode Decomposition.
 
 ### 6. Image Quality Assessment (`iqa`)
@@ -123,7 +118,7 @@ We recommend using `uv` to manage Python versions and virtualenvs.
 
 1. **Install Dependencies**:
    ```bash
-   uv sync
+   uv sync --extra service
    ```
    *Alternatively, using traditional virtualenv:*
    ```bash
@@ -134,19 +129,19 @@ We recommend using `uv` to manage Python versions and virtualenvs.
 
 2. **Setup Local Environment**:
    ```bash
-   cp .env.example .env
+   cp .env.production.example .env
    ```
 
 3. **Run Services**:
    Start both the FastAPI API server and the Celery worker daemon.
    ```bash
    # Start FastAPI Server (running on port 8000)
-   uv run fastapi dev app/main.py
+   uv run uvicorn mpips.asgi:app --reload
    # or, after pip install:
    mpips-api
    
    # Start Celery Worker
-   uv run celery -A celery_tasks.worker worker --loglevel=info
+   uv run celery -A mpips.worker worker --loglevel=info
    # or, after pip install:
    mpips-worker
    ```
@@ -155,13 +150,25 @@ We recommend using `uv` to manage Python versions and virtualenvs.
 
 ## 📦 Installing as a Python Module
 
-`mpips` can be installed into another Python 3.12+ environment while still
-retaining its backend entrypoints:
+`mpips` can be installed as a lightweight engine package or as the full backend
+service package.
 
 ```bash
 pip install /path/to/mpips
 # or for editable local development:
 pip install -e /path/to/mpips
+# full API/worker/S3 service dependencies:
+pip install -e "/path/to/mpips[service]"
+```
+
+For a private GitHub repo in Google Colab, install with a GitHub token or SSH
+credential supplied through the notebook environment. Do not commit tokens into
+the notebook or repository.
+
+```bash
+pip install "git+ssh://git@github.com/<org>/<private-repo>.git"
+# or:
+pip install "git+https://${GITHUB_TOKEN}@github.com/<org>/<private-repo>.git"
 ```
 
 Installed import paths:
@@ -169,9 +176,10 @@ Installed import paths:
 ```python
 import mpips
 from mpips.engine import DAGExecutor, NODE_CATALOG, get_node_class
+from mpips.storage import LocalFileStorageBackend
 
 app = mpips.create_app()
-executor = DAGExecutor()
+executor = DAGExecutor(storage=LocalFileStorageBackend("/content/data"))
 resize_node = get_node_class("resize")
 ```
 
@@ -183,8 +191,16 @@ mpips-api
 mpips-worker
 ```
 
-Legacy internal imports (`app.main`, `image_engine.*`, and `celery_tasks.*`)
-remain available for backwards compatibility.
+The root repository is also named `mpips`, but the inner `mpips/` directory is
+the Python package required for `import mpips` after pip or Colab install.
+
+### Promotion Flow
+
+Prototype code starts in `research/<topic>/`. Once stable, move the reusable
+logic into `mpips.engine` as pure Python/Numpy/OpenCV code. If backend execution
+is needed, wrap that logic in a node under `mpips.engine.nodes`, register it in
+`mpips.engine.registry`, and add catalog metadata in `mpips.engine.catalog`.
+Only promoted code under `mpips/` may be imported by the backend.
 
 ---
 

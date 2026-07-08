@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from typing import Any
 
-from image_engine.nodes.scientific import (
+from mpips.engine.nodes.scientific import (
     NonLocalMeansNode,
     HomomorphicFilterNode,
     WaveletDenoisingNode,
@@ -11,13 +11,13 @@ from image_engine.nodes.scientific import (
     CameraCalibrationNode,
     FABEMDNode,
 )
-from image_engine.nodes.iqa import (
+from mpips.engine.nodes.iqa import (
     BrisqueNode,
     ContrastImprovementIndexNode,
     EnhancementMeasureNode,
     EntropyNode,
 )
-from image_engine.iqa import (
+from mpips.engine.iqa import (
     calculate_entropy,
     calculate_eme,
     calculate_cii,
@@ -92,7 +92,7 @@ def test_wavelet_denoising(
     assert res_color["output_image"].shape == dummy_color_image.shape
 
 
-@patch("image_engine.nodes.scientific.download_image")
+@patch("mpips.engine.nodes.scientific.download_image")
 @patch("cv2.imread")
 def test_flat_field_correction(
     mock_imread: Any, mock_download: Any, dummy_gray_image: np.ndarray
@@ -113,7 +113,7 @@ def test_flat_field_correction(
     assert mock_download.call_count == 2
 
 
-@patch("image_engine.nodes.scientific.download_image")
+@patch("mpips.engine.nodes.scientific.download_image")
 def test_camera_calibration(mock_download: Any, dummy_gray_image: np.ndarray) -> None:
     node = CameraCalibrationNode()
 

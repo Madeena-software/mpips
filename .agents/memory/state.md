@@ -9,22 +9,23 @@
 - Backend: FastAPI, Uvicorn, Pydantic v2, Celery, Redis, boto3, httpx, PyJWT,
   cryptography.
 - Image processing: OpenCV headless, NumPy, SciPy, scikit-image, PyWavelets.
-- API: versioned `/v1` routes plus `/`, `/health`, `/docs`, `/redoc`,
-  `/dashboard/`, and `/v1/secure-test`.
-- Worker: Celery app in `celery_tasks/worker.py`; execution task in
-  `celery_tasks/tasks.py`.
+- API: versioned `/v1` routes plus `/`, `/health`, `/docs`, `/redoc`, and
+  `/v1/secure-test`.
+- Worker: Celery app in `mpips/worker/__init__.py`; execution task in
+  `mpips/worker/tasks.py`.
 - Runtime state: Redis keys under `mpips:job:*`; no application metadata
   database detected.
 - Object storage: AWS S3 or S3-compatible storage through `boto3`, with
   optional presigned URL input/output paths.
 - Deployment: Docker image with `api` and `worker` roles through
   `docker/entrypoint.sh`.
-- Static UI: dashboard assets in `app/dashboard/` mounted by FastAPI.
+- Static UI: none. The service is backend-only; `/docs` and `/redoc` are API
+  documentation endpoints.
 - CI/CD: no `.github/workflows/` files detected during bootstrap.
 
 ## 2. Active Goal
 
-Project Onboarding
+Folder Refactor And Promotion Flow
 
 ## 3. Recent Milestones
 
@@ -34,15 +35,29 @@ Project Onboarding
   Python/FastAPI/Celery-specific project rules.
 - 2026-07-08: Captured detected environment variables, modules, test commands,
   deployment constraints, and verification blockers in `.agents/`.
+- 2026-07-08: Refactored package ownership so `mpips/` is the only
+  importable/service source. Removed legacy `app/`, `image_engine/`, and
+  `celery_tasks/` trees after confirming the project should be clean rather
+  than compatibility-first.
+- 2026-07-08: Removed dashboard static frontend assets; MPIPS is backend-only.
+- 2026-07-08: Moved prototype folders to `research/`, renamed
+  `camera-callibration-dotgrid` to `research/camera-calibration-dotgrid`, and
+  removed tracked `*:Zone.Identifier` metadata files.
+- 2026-07-08: Added promotion-flow example with
+  `mpips.engine.calibration.warp_image` and backend node
+  `camera_calibration_warp`, increasing the catalog to 25 nodes.
 
 ## 4. Environment & Health Status
 
 - Current shell path audited: `/var/www/mpips`.
-- Worktree at audit time had one pre-existing modified file:
-  `.agents/prompts/bootstrap-new-repo.md`.
-- `uv run pytest` was attempted and failed because `uv` is not installed.
-- `python3 -m pytest` was attempted and failed because `pytest` is not
-  installed in system Python.
+- A local `.venv` was created for verification because system Python is
+  externally managed and did not have project tooling installed.
+- `.venv/bin/pip install -e ".[dev]"` completed successfully.
+- `.venv/bin/uv lock` refreshed `uv.lock` after dependency extra changes.
+- `.venv/bin/pytest -q` passed: 62 tests, 4 warnings.
+- `.venv/bin/black --check .` passed.
+- `.venv/bin/flake8 .` passed.
+- `.venv/bin/mypy .` passed: no issues in 46 source files.
 - Test suite exists under `tests/` and covers API, Celery/webhook behavior,
   DAG sorting/execution, image nodes, scientific nodes, security, storage,
   package imports, and root route behavior.
@@ -51,28 +66,21 @@ Project Onboarding
 
 ## 5. Known Issues
 
-- Local verification is blocked until development dependencies are installed
-  with `uv sync` or `python3 -m venv .venv && pip install -e ".[dev]"`.
-- Root `README.md` references `.env.example`, but bootstrap only detected
-  `.env.production.example` at the repository root.
+- The root `README.md` now references `.env.production.example` for local env
+  bootstrap.
 - `.agents/prompts/bootstrap-new-repo.md` remains a pre-existing modified file
   and still contains the original bootstrap prompt wording. Do not overwrite it
   without explicit user direction.
 - The repo contains bundled prototype/research folders
-  `camera-callibration-dotgrid/` and `imager-pipeline/`; future agents must
-  avoid treating those folders as part of the packaged MPIPS service unless a
-  task explicitly targets them.
+  under `research/`; future agents must avoid treating those folders as part of
+  the packaged MPIPS service unless a task explicitly targets them.
 - No CI/CD workflow files were detected even though deployment should happen
   through committed pipeline/configuration changes rather than direct server
   access.
 
 ## 6. Next Steps
 
-- Install development tooling and rerun `uv run pytest`, `uv run black --check .`,
-  `uv run flake8 .`, and `uv run mypy .`.
 - Add or confirm CI/CD workflow files for test, lint, type check, Docker build,
   and deployment promotion.
-- Decide whether to add a root `.env.example` or update `README.md` to point
-  consistently at `.env.production.example` plus local development overrides.
-- Clarify whether `camera-callibration-dotgrid/` and `imager-pipeline/` should
-  remain bundled in this repo, be ignored by core verification, or be extracted.
+- Consider future extraction or pruning of large tracked research outputs if
+  repository size becomes a practical problem.

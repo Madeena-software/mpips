@@ -27,3 +27,8 @@ env/
 # OS-specific files
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
+
+# Research-generated caches and local outputs
+research/**/__pycache__/
+research/**/.ipynb_checkpoints/

@@ -30,7 +30,7 @@ def run_worker() -> None:
     args = [
         "celery",
         "-A",
-        "celery_tasks.worker",
+        "mpips.worker",
         "worker",
         f"--loglevel={os.getenv('MPIPS_WORKER_LOG_LEVEL', 'info')}",
         f"--concurrency={os.getenv('MPIPS_WORKER_CONCURRENCY', '1')}",
