@@ -94,3 +94,14 @@ Verification:
 - Local python test execution of the wrapper logic completed successfully.
 - Matplotlib and python-dotenv installed in the virtual environment.
 - Processing output [output_test.tiff](file:///var/www/mpips/research/kambing-260714/output_test.tiff) validated.
+
+## 2026-07-14 - Session 4: Fix Missing Calibration Dependencies
+
+Goal: Fix `ModuleNotFoundError: No module named 'torch'` when running `imager_pipeline_tweak_local.ipynb`.
+
+Implementation actions:
+- Identified `torch` as a dependency of the `calibration` extra in `pyproject.toml`.
+- Installed the missing dependencies using `.venv/bin/pip install -e '.[calibration]'`.
+
+Verification:
+- The installation command completed successfully, installing `torch` and other calibration dependencies.

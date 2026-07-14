@@ -56,6 +56,7 @@ Google Colab Integration & Research for `kambing-260714`
   externally managed and did not have project tooling installed.
 - `.venv/bin/pip install -e ".[dev]"` completed successfully.
 - `.venv/bin/pip install matplotlib python-dotenv` completed successfully to enable pipeline research scripts.
+- `.venv/bin/pip install -e ".[calibration]"` completed successfully to enable neural calibration in Jupyter notebooks.
 - `.venv/bin/uv lock` refreshed `uv.lock` after dependency extra changes.
 - `.venv/bin/pytest -q` passed: 62 tests, 4 warnings.
 - `.venv/bin/black --check .` passed.
