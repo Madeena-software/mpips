@@ -79,3 +79,18 @@ Verification:
 - `.venv/bin/black --check .` passed.
 - `.venv/bin/flake8 .` passed.
 - `.venv/bin/mypy .` passed: no issues in 46 source files.
+
+## 2026-07-14 - Session 3: Google Colab Integration & Research for `kambing-260714`
+
+Goal: Enable interactive parameter tweaking and research of the image pipeline on Google Colab using the `kambing-260714` dataset.
+
+Implementation actions:
+- Inspected NPZ file contents under `research/kambing-260714/data/` (gain, kambing, kalibrasi-gotri).
+- Created a wrapper process that loads NPZ arrays, matches radiographs to their respective gain file, formats them to uint16, and saves them to temporary TIFF files for pipeline processing compatibility.
+- Programmatically generated an interactive Jupyter Notebook (`imager_pipeline_tweak.ipynb`) under `research/kambing-260714/` featuring Google Colab forms, parameter configuration, camera calibration steps, and matplotlib visualizations.
+- Set up a virtual environment `.venv` and verified pipeline execution on the dataset.
+
+Verification:
+- Local python test execution of the wrapper logic completed successfully.
+- Matplotlib and python-dotenv installed in the virtual environment.
+- Processing output [output_test.tiff](file:///var/www/mpips/research/kambing-260714/output_test.tiff) validated.

@@ -23,13 +23,15 @@ mpips/
 │   ├── api/             # FastAPI app, routes, schemas, and security
 │   ├── asgi.py          # ASGI entrypoint for installed deployments
 │   ├── cli.py           # Console scripts installed by pip
-│   ├── engine/          # Importable DAG, catalog, registry, nodes, IQA, calibration helpers
+│   ├── engine/          # DAG engine plus canonical calibration/imager packages
+│   ├── workflows/       # Colab-facing orchestration and NPZ batch APIs
 │   ├── storage.py       # S3/presigned URL and local-file storage backends
 │   ├── tenant_paths.py  # Tenant storage boundary validation
 │   └── worker/          # Celery app and task definitions
+├── artifacts/           # Research inputs/outputs and archives; excluded from wheels
+├── docs/                # Calibration and imager-pipeline documentation
 ├── research/
-│   ├── camera-calibration-dotgrid/
-│   └── imager-pipeline/
+│   └── kambing-260714/  # Active goat radiography workflow and Colab notebook
 ├── tests/               # Pytest integration/unit tests
 ├── pyproject.toml       # Python package configuration and dependencies
 └── uv.lock              # Lockfile for locked dependencies
@@ -157,6 +159,8 @@ service package.
 pip install /path/to/mpips
 # or for editable local development:
 pip install -e /path/to/mpips
+# canonical calibration and imager-pipeline engines:
+pip install -e "/path/to/mpips[calibration,imager]"
 # full API/worker/S3 service dependencies:
 pip install -e "/path/to/mpips[service]"
 ```
@@ -191,16 +195,90 @@ mpips-api
 mpips-worker
 ```
 
+Canonical research-pipeline entrypoints:
+
+```bash
+mpips-dotgrid  # neural dot-grid calibration and OpenCV comparison
+mpips-imager   # complete ImageJ-style radiography pipeline
+```
+
+The equivalent module commands are
+`python -m mpips.engine.calibration.dotgrid.neural_model.run_pipeline` and
+`python -m mpips.engine.imager_pipeline.complete_pipeline`. Dot-grid commands use
+`MPIPS_ARTIFACT_ROOT` when set, otherwise they resolve the source-checkout
+`artifacts/camera-calibration-dotgrid/` tree. Radiography commands accept an
+environment file through `MPIPS_RADIOGRAPHY_ENV`.
+
+### Google Colab Radiography Workflow
+
+Install the optional neural-calibration and Colab dependencies from a pinned
+Git revision:
+
+```bash
+python -m pip install \
+  "mpips[colab] @ git+https://github.com/Madeena-software/mpips.git@<commit-sha>"
+```
+
+Private repository credentials must be supplied by Git/Colab secrets and must
+not be embedded in a notebook or requirement URL. The ready-to-run notebook is
+`research/kambing-260714/imager_pipeline_tweak.ipynb`.
+
+The reusable API is storage agnostic after its input files have been resolved:
+
+```python
+from mpips.workflows.imager_pipeline import (
+    NeuralCalibrationConfig,
+    ImagerPipelineConfig,
+    build_or_load_calibration,
+    load_gain_catalog,
+    process_npz_batch,
+    resolve_npz_sources,
+)
+
+calibration_files = resolve_npz_sources(
+    calibration_source, "/content/mpips-work/calibration"
+)
+gain_files = resolve_npz_sources(gain_sources, "/content/mpips-work/gains")
+radiograph_files = resolve_npz_sources(
+    radiograph_sources, "/content/mpips-work/radiographs"
+)
+
+calibration = build_or_load_calibration(
+    calibration_files[0],
+    "/content/drive/MyDrive/mpips-output/calibration-cache",
+    NeuralCalibrationConfig(),
+)
+result = process_npz_batch(
+    radiograph_files,
+    load_gain_catalog(gain_files),
+    calibration,
+    "/content/drive/MyDrive/mpips-output",
+    ImagerPipelineConfig(),
+)
+```
+
+Madeena NPZ files contain pickled Python dictionaries, so only trusted NPZ
+inputs should be loaded. Calibration uses the normalized `processedimage`; each
+radiograph is matched to its gain through `gainid`, geometrically calibrated,
+then passed through the promoted research enhancement recipe.
+
 The root repository is also named `mpips`, but the inner `mpips/` directory is
 the Python package required for `import mpips` after pip or Colab install.
 
 ### Promotion Flow
 
 Prototype code starts in `research/<topic>/`. Once stable, move the reusable
-logic into `mpips.engine` as pure Python/Numpy/OpenCV code. If backend execution
+logic into `mpips.engine`. The completed dot-grid and imager pipelines are now
+canonical packages under `mpips.engine.calibration.dotgrid` and
+`mpips.engine.imager_pipeline`; their large inputs, historical outputs, papers, and
+archive notebook live under `artifacts/` and are not shipped in wheels. If backend execution
 is needed, wrap that logic in a node under `mpips.engine.nodes`, register it in
 `mpips.engine.registry`, and add catalog metadata in `mpips.engine.catalog`.
 Only promoted code under `mpips/` may be imported by the backend.
+
+The promoted ImageJ replicator retains its GPL-v2 source notice. See
+`THIRD_PARTY_NOTICES.md` and `LICENSES/GPL-2.0.txt`. Release distribution
+requires owner/legal licensing review.
 
 ---
 

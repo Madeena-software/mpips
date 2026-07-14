@@ -32,3 +32,9 @@ Thumbs.db
 # Research-generated caches and local outputs
 research/**/__pycache__/
 research/**/.ipynb_checkpoints/
+*.npz
+
+# Python packaging / build artifacts
+*.egg-info/
+build/
+dist/
