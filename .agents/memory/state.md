@@ -25,10 +25,12 @@
 
 ## 2. Active Goal
 
-Folder Refactor And Promotion Flow
+Google Colab Integration & Research for `kambing-260714`
 
 ## 3. Recent Milestones
 
+- 2026-07-14: Created `imager_pipeline_tweak.ipynb` under `research/kambing-260714/` allowing colleagues to interactively research and tweak imager pipeline parameters with matplotlib visualizations on Google Colab.
+- 2026-07-14: Created an NPZ to temporary TIFF wrapper so pipeline processes the 12-bit detector array formats seamlessly.
 - 2026-07-08: Bootstrapped `.agents/` control center for the Python/FastAPI
   MPIPS repository.
 - 2026-07-08: Replaced stale Laravel/Pest/Dusk agent guidance with
@@ -53,6 +55,7 @@ Folder Refactor And Promotion Flow
 - A local `.venv` was created for verification because system Python is
   externally managed and did not have project tooling installed.
 - `.venv/bin/pip install -e ".[dev]"` completed successfully.
+- `.venv/bin/pip install matplotlib python-dotenv` completed successfully to enable pipeline research scripts.
 - `.venv/bin/uv lock` refreshed `uv.lock` after dependency extra changes.
 - `.venv/bin/pytest -q` passed: 62 tests, 4 warnings.
 - `.venv/bin/black --check .` passed.
