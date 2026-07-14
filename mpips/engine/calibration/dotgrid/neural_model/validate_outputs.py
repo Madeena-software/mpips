@@ -71,13 +71,7 @@ def check_calibrated_image(
 
     if image_path and os.path.isfile(image_path):
         raw = Image.open(image_path)
-        if allow_expanded_calibrated:
-            require(
-                calibrated.size[0] >= raw.size[0] and calibrated.size[1] >= raw.size[1],
-                f"Expanded calibrated image size {calibrated.size} is smaller than raw image size {raw.size}",
-                failures,
-            )
-        else:
+        if not allow_expanded_calibrated:
             require(
                 calibrated.size == raw.size,
                 f"Calibrated image size {calibrated.size} does not match raw image size {raw.size}",
