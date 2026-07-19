@@ -82,7 +82,12 @@ Google Colab Integration & Research for `kambing-260714`
   through committed pipeline/configuration changes rather than direct server
   access.
 
-## 6. Next Steps
+## 6. Pipeline Architecture Updates
+
+- The image processing pipeline (`complete_pipeline.py`) has been reordered: FFC now happens before Neural Calibration Remap, which in turn happens before Crop & Rotate.
+- OpenCV camera calibration (`camera_calibration.py`) has been entirely removed from the engine to prevent interference.
+
+## 7. Next Steps
 
 - Add or confirm CI/CD workflow files for test, lint, type check, Docker build,
   and deployment promotion.

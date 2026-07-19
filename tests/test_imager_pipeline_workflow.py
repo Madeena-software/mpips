@@ -317,7 +317,6 @@ def test_promoted_canonical_modules_are_importable() -> None:
         "mpips.engine.imager_pipeline.complete_pipeline",
         "mpips.engine.imager_pipeline.imagej_replicator",
         "mpips.engine.imager_pipeline.wavelet_denoising",
-        "mpips.engine.imager_pipeline.camera_calibration",
     )
     for module in modules:
         assert importlib.import_module(module) is not None
@@ -458,3 +457,24 @@ def test_batch_uses_collision_safe_output_names(tmp_path: Path) -> None:
     assert result.succeeded == 2
     assert len(set(outputs)) == 2
     assert all(output and Path(output).is_file() for output in outputs)
+
+
+def test_pipeline_applies_remap_after_ffc_with_different_output_shape() -> None:
+    raw = np.arange(64, dtype=np.uint16).reshape(8, 8) + 100
+    dark = np.zeros((8, 8), dtype=np.uint16)
+    flat = np.full((8, 8), 1000, dtype=np.uint16)
+    config = ImagerPipelineConfig(
+        use_denoise=False,
+        threshold_method="none",
+        use_invert=False,
+        use_contrast_enhancement=False,
+        use_clahe=False,
+        use_median_filter=False,
+    )
+    # create 12x12 map_x and map_y
+    y_values, x_values = np.indices((12, 12), dtype=np.float32)
+    output = process_radiography_arrays(
+        raw, dark, flat, "BED", config, map_x=x_values, map_y=y_values
+    )
+    assert output.shape == (12, 12)
+    assert output.dtype == np.uint16

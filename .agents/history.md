@@ -105,3 +105,9 @@ Implementation actions:
 
 Verification:
 - The installation command completed successfully, installing `torch` and other calibration dependencies.
+
+## 2026-07-14: Refactor Neural Calibration
+Moved the neural calibration step to after Flat-Field Correction (FFC) in `complete_pipeline.py`.
+Modified `pipeline.py` to pass `map_x` and `map_y` into the engine rather than applying them preemptively.
+Deleted the legacy `camera_calibration.py` (OpenCV) step to prevent it from ever being used.
+Added integration test passing pipeline input with different sizes mimicking `expanded_canvas` remaps.
