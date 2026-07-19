@@ -33,6 +33,7 @@ Thumbs.db
 research/**/__pycache__/
 research/**/.ipynb_checkpoints/
 *.npz
+research/kambing-260714/data/output
 
 # Python packaging / build artifacts
 *.egg-info/

@@ -60,10 +60,7 @@ def load_env_config():
         "DARK_PATH": "",
         "FLAT_PATH": "",
         "OUTPUT_DIR": "",
-        # Camera calibration
-        "USE_CALIBRATION": False,
-        "CALIBRATION_NPZ_PATH": "",
-        "CALIBRATION_UNDISTORT_ALPHA": 0.0,
+
     }
 
     if os.path.exists(env_path):
@@ -95,7 +92,6 @@ def load_env_config():
                         "CONTRAST_CLASSIC_EQUALIZATION",
                         "CLAHE_FAST",
                         "CLAHE_COMPOSITE",
-                        "USE_CALIBRATION",
                     ]:
                         config[key] = value.lower() in ["1", "true", "yes", "on"]
                     # Parse integer values
@@ -117,7 +113,6 @@ def load_env_config():
                         "CLAHE_MAX_SLOPE",
                         "CONTRAST_SATURATED_PIXELS",
                         "NORMALIZE_SATURATED_PIXELS",
-                        "CALIBRATION_UNDISTORT_ALPHA",
                     ]:
                         if value:
                             config[key] = float(value)
@@ -237,16 +232,7 @@ except ImportError:
         "Warning: imagej_replicator module not available. ImageJ processing disabled."
     )
 
-# Import camera calibration
-try:
-    from .camera_calibration import undistort_image
 
-    CALIBRATION_MODULE_AVAILABLE = True
-except ImportError:
-    CALIBRATION_MODULE_AVAILABLE = False
-    print(
-        "Warning: camera_calibration module not available. Camera calibration disabled."
-    )
 
 # Check if ImageJ should be used (must have module AND .env flag enabled)
 IMAGEJ_AVAILABLE = IMAGEJ_MODULE_AVAILABLE and get_use_imagej_flag()
@@ -258,26 +244,7 @@ elif IMAGEJ_MODULE_AVAILABLE and not get_use_imagej_flag():
 else:
     print("✗ ImageJ processing not available (imagej_replicator not installed)")
 
-# Check if camera calibration should be used
-CALIBRATION_AVAILABLE = (
-    CALIBRATION_MODULE_AVAILABLE
-    and CONFIG["USE_CALIBRATION"]
-    and CONFIG["CALIBRATION_NPZ_PATH"]
-    and os.path.exists(CONFIG["CALIBRATION_NPZ_PATH"])
-)
 
-if CALIBRATION_AVAILABLE:
-    print(f"✓ Camera calibration enabled (NPZ: {CONFIG['CALIBRATION_NPZ_PATH']})")
-elif CONFIG["USE_CALIBRATION"] and not CONFIG["CALIBRATION_NPZ_PATH"]:
-    print("✗ Camera calibration disabled (CALIBRATION_NPZ_PATH not set)")
-elif CONFIG["USE_CALIBRATION"] and not os.path.exists(CONFIG["CALIBRATION_NPZ_PATH"]):
-    print(
-        f"✗ Camera calibration disabled (NPZ file not found: {CONFIG['CALIBRATION_NPZ_PATH']})"
-    )
-elif not CALIBRATION_MODULE_AVAILABLE and CONFIG["USE_CALIBRATION"]:
-    print("✗ Camera calibration disabled (camera_calibration module not available)")
-else:
-    print("✗ Camera calibration disabled (USE_CALIBRATION=False)")
 
 
 def denoise_wavelet(image, wavelet="sym4", level=3, method="BayesShrink", mode="soft"):
@@ -1027,19 +994,20 @@ def _get_filter_description(filter_type):
 
 
 def process_single_image(
-    raw_path, dark_path, flat_path, output_path, detector_type=None
+    raw_path, dark_path, flat_path, output_path, detector_type=None, map_x=None, map_y=None
 ):
     """
     Process a single image through the complete pipeline.
 
     Pipeline:
-    1. Crop and rotate all images (dark, gain, raw) by detector type
-    2. Denoise dark, gain, raw using wavelet
-    3. Calculate FFC
-    4. Auto Thresholding
-    5. Invert
-    6. Enhance Contrast (ImageJ method: saturated=0.35%, normalize)
-    7. CLAHE (ImageJ method: block_size=127, max_slope=1.5)
+    1. Denoise dark, gain, raw using wavelet
+    2. Calculate FFC
+    3. Neural Calibration Remap (if map_x and map_y provided)
+    4. Crop and rotate
+    5. Auto Thresholding
+    6. Invert
+    7. Enhance Contrast (ImageJ method: saturated=0.35%, normalize)
+    8. CLAHE (ImageJ method: block_size=127, max_slope=1.5)
 
     Args:
         raw_path: Path to raw image
@@ -1047,6 +1015,8 @@ def process_single_image(
         flat_path: Path to flat/gain calibration image
         output_path: Path to save final result
         detector_type: 'BED' or 'TRX' (if None, auto-detect from filename)
+        map_x: X-coordinates for remap
+        map_y: Y-coordinates for remap
 
     Returns:
         True if successful, False otherwise
@@ -1084,113 +1054,40 @@ def process_single_image(
     dark_image = dark_image.astype(np.float32) / MAX_16BIT
     flat_image = flat_image.astype(np.float32) / MAX_16BIT
 
-    # Step 1: Apply camera calibration (fish-eye correction) before geometric transforms
-    if CONFIG.get("USE_CALIBRATION", False) and CALIBRATION_AVAILABLE:
-        print("  [2/10] Applying camera calibration (fish-eye correction)...")
-        try:
-            dark_calibrated = undistort_image(
-                dark_image,
-                CONFIG["CALIBRATION_NPZ_PATH"],
-                alpha=CONFIG.get("CALIBRATION_UNDISTORT_ALPHA", 0.0),
-                crop_to_roi=False,
-            )
-            flat_calibrated = undistort_image(
-                flat_image,
-                CONFIG["CALIBRATION_NPZ_PATH"],
-                alpha=CONFIG.get("CALIBRATION_UNDISTORT_ALPHA", 0.0),
-                crop_to_roi=False,
-            )
-            raw_calibrated = undistort_image(
-                raw_image,
-                CONFIG["CALIBRATION_NPZ_PATH"],
-                alpha=CONFIG.get("CALIBRATION_UNDISTORT_ALPHA", 0.0),
-                crop_to_roi=False,
-            )
-
-            if dark_calibrated.dtype != np.float32:
-                dark_calibrated = dark_calibrated.astype(np.float32) / MAX_16BIT
-                flat_calibrated = flat_calibrated.astype(np.float32) / MAX_16BIT
-                raw_calibrated = raw_calibrated.astype(np.float32) / MAX_16BIT
-
-            print(f"    Calibrated shape: {raw_calibrated.shape}")
-            save_histogram(
-                raw_calibrated,
-                os.path.join(debug_dir, f"histogram_calibrated_{image_id}.png"),
-                title="Calibrated Raw Histogram",
-            )
-
-        except Exception as e:
-            print(
-                f"    Warning: Calibration failed ({str(e)}), proceeding without calibration"
-            )
-            dark_calibrated = dark_image
-            flat_calibrated = flat_image
-            raw_calibrated = raw_image
-    else:
-        print("  [2/10] Camera calibration skipped")
-        dark_calibrated = dark_image
-        flat_calibrated = flat_image
-        raw_calibrated = raw_image
-
-    # Step 2: Crop and rotate images - ALL images must be transformed identically
-    print(f"  [2.5/10] Cropping and rotating ({detector_type})...")
-
-    dark_cropped = crop_and_rotate_by_detector(dark_calibrated, detector_type)
-    flat_cropped = crop_and_rotate_by_detector(flat_calibrated, detector_type)
-    raw_cropped = crop_and_rotate_by_detector(raw_calibrated, detector_type)
-
-    crop_info = f"top={CONFIG['CROP_TOP']}, bottom={CONFIG['CROP_BOTTOM']}, left={CONFIG['CROP_LEFT']}, right={CONFIG['CROP_RIGHT']}"
-    if detector_type == "TRX":
-        print(f"    All images: cropped ({crop_info}), rotated 90° CCW")
-    else:
-        print(f"    All images: cropped ({crop_info})")
-
-    print(f"    Final shape (all identical): {raw_cropped.shape}")
-
-    save_histogram(
-        raw_cropped,
-        os.path.join(debug_dir, f"histogram_cropped_{image_id}.png"),
-        title="Cropped Raw Histogram",
-    )
-
-    dark_calibrated = dark_cropped
-    flat_calibrated = flat_cropped
-    raw_calibrated = raw_cropped
-
-    # Step 3: Denoise using wavelet (now works with float32 [0,1])
+    # Step 1: Denoise using wavelet (on full-size arrays)
     wavelet_type = CONFIG["WAVELET_TYPE"]
     wavelet_level = CONFIG["WAVELET_LEVEL"]
     wavelet_method = CONFIG["WAVELET_METHOD"]
     wavelet_mode = CONFIG["WAVELET_MODE"]
     print(
-        f"  [3/10] Denoising images (wavelet: {wavelet_type}, level={wavelet_level}, {wavelet_method}, {wavelet_mode})..."
+        f"  [1/10] Denoising images (wavelet: {wavelet_type}, level={wavelet_level}, {wavelet_method}, {wavelet_mode})..."
     )
     if CONFIG.get("USE_DENOISE", True):
         dark_denoised = denoise_wavelet(
-            dark_calibrated,
+            dark_image,
             wavelet=wavelet_type,
             level=wavelet_level,
             method=wavelet_method,
             mode=wavelet_mode,
         )
         flat_denoised = denoise_wavelet(
-            flat_calibrated,
+            flat_image,
             wavelet=wavelet_type,
             level=wavelet_level,
             method=wavelet_method,
             mode=wavelet_mode,
         )
         raw_denoised = denoise_wavelet(
-            raw_calibrated,
+            raw_image,
             wavelet=wavelet_type,
             level=wavelet_level,
             method=wavelet_method,
             mode=wavelet_mode,
         )
     else:
-        dark_denoised = dark_calibrated
-        flat_denoised = flat_calibrated
-        raw_denoised = raw_calibrated
+        dark_denoised = dark_image
+        flat_denoised = flat_image
+        raw_denoised = raw_image
 
     save_histogram(
         raw_denoised,
@@ -1198,8 +1095,8 @@ def process_single_image(
         title="Denoised Raw Histogram",
     )
 
-    # Step 4: FFC with matched dimensions
-    print("  [4/10] Applying Flat-Field Correction...")
+    # Step 2: FFC with matched dimensions
+    print("  [2/10] Applying Flat-Field Correction...")
     ffc_result = flat_field_correction(raw_denoised, dark_denoised, flat_denoised)
     print(f"    FFC output range: {ffc_result.min()} - {ffc_result.max()}")
 
@@ -1207,6 +1104,40 @@ def process_single_image(
         ffc_result / ffc_result.max() if ffc_result.max() > 0 else ffc_result,
         os.path.join(debug_dir, f"histogram_ffc_{image_id}.png"),
         title="FFC Result Histogram (Normalized 0-1)",
+    )
+
+    # Step 3: Neural calibration remap
+    if map_x is not None and map_y is not None:
+        print("  [3/10] Applying neural calibration remap...")
+        ffc_result = cv2.remap(
+            ffc_result,
+            map_x.astype(np.float32),
+            map_y.astype(np.float32),
+            cv2.INTER_LINEAR,
+            borderMode=cv2.BORDER_CONSTANT,
+            borderValue=0,
+        )
+        print(f"    Remapped shape: {ffc_result.shape}")
+    else:
+        print("  [3/10] Neural calibration skipped (no remap provided)")
+
+    # Step 4: Crop and rotate images
+    print(f"  [4/10] Cropping and rotating ({detector_type})...")
+
+    ffc_result = crop_and_rotate_by_detector(ffc_result, detector_type)
+
+    crop_info = f"top={CONFIG['CROP_TOP']}, bottom={CONFIG['CROP_BOTTOM']}, left={CONFIG['CROP_LEFT']}, right={CONFIG['CROP_RIGHT']}"
+    if detector_type == "TRX":
+        print(f"    Image: cropped ({crop_info}), rotated 90° CCW")
+    else:
+        print(f"    Image: cropped ({crop_info})")
+
+    print(f"    Final shape: {ffc_result.shape}")
+
+    save_histogram(
+        ffc_result / ffc_result.max() if ffc_result.max() > 0 else ffc_result,
+        os.path.join(debug_dir, f"histogram_cropped_{image_id}.png"),
+        title="Cropped FFC Histogram",
     )
 
     # Step 5: Normalize to configurable bit depth (optional)

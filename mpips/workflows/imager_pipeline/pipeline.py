@@ -189,9 +189,6 @@ def process_radiography_arrays(
     if map_x is not None or map_y is not None:
         if map_x is None or map_y is None:
             raise ValueError("Both map_x and map_y are required")
-        raw = apply_calibration_remap(raw, map_x, map_y)
-        dark = apply_calibration_remap(dark, map_x, map_y)
-        flat = apply_calibration_remap(flat, map_x, map_y)
 
     with tempfile.TemporaryDirectory(prefix="mpips-engine-radiography-") as temporary:
         workspace = Path(temporary)
@@ -209,6 +206,8 @@ def process_radiography_arrays(
                 str(flat_path),
                 str(output_path),
                 detector_type=detector_mode,
+                map_x=map_x,
+                map_y=map_y,
             )
         if not succeeded:
             raise RuntimeError("The canonical radiography pipeline failed")
