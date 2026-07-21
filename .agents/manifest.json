@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "template_version": "1.0.0",
+  "core": {
+    "files": [
+      ".gitignore",
+      "AGENTS.md",
+      "manifest.json",
+      "context/README.md",
+      "context/project.md",
+      "memory/.gitignore",
+      "memory/state.template.md",
+      "tasks/_template.md"
+    ],
+    "skills": [
+      "agent-task",
+      "delegate-work",
+      "develop-feature",
+      "find-agent-skills",
+      "fix-bug",
+      "generate-readme",
+      "onboard-repository",
+      "project-handoff",
+      "review-code",
+      "verify-ui"
+    ],
+    "roles": [
+      "researcher",
+      "reviewer",
+      "test-runner"
+    ],
+    "rules": [
+      "universal-agent"
+    ],
+    "workflows": [
+      "create-agent-task",
+      "onboard-repository",
+      "resume-handoff",
+      "save-handoff"
+    ],
+    "task_validators": [
+      "skills/agent-task/scripts/validate_task.py"
+    ]
+  }
+}

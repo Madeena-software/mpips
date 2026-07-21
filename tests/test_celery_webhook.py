@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from typing import Any, Dict
 
-from celery_tasks.tasks import (
+from mpips.worker.tasks import (
     run_pipeline,
     dispatch_webhook,
     compute_signature,
@@ -14,7 +14,7 @@ from celery.app.task import Context
 
 @pytest.fixture
 def mock_redis() -> Any:
-    with patch("celery_tasks.tasks.get_redis_client") as mock:
+    with patch("mpips.worker.tasks.get_redis_client") as mock:
         client = MagicMock()
         client.get.return_value = None
         mock.return_value = client
@@ -48,8 +48,8 @@ def test_dispatch_webhook(mock_httpx_client: Any) -> None:
     assert kwargs["headers"]["Content-Type"] == "application/json"
 
 
-@patch("celery_tasks.tasks.dispatch_webhook")
-@patch("app.core.dag.DAGExecutor.execute")
+@patch("mpips.worker.tasks.dispatch_webhook")
+@patch("mpips.engine.dag.DAGExecutor.execute")
 def test_run_pipeline_success(
     mock_execute: Any, mock_dispatch: Any, mock_redis: Any
 ) -> None:
@@ -98,8 +98,8 @@ def test_run_pipeline_success(
     mock_dispatch.assert_called_once_with("https://mipc.example.com/callback", res)
 
 
-@patch("celery_tasks.tasks.dispatch_webhook")
-@patch("app.core.dag.DAGExecutor.execute")
+@patch("mpips.worker.tasks.dispatch_webhook")
+@patch("mpips.engine.dag.DAGExecutor.execute")
 def test_run_pipeline_dispatches_progress_webhook(
     mock_execute: Any, mock_dispatch: Any, mock_redis: Any
 ) -> None:
@@ -152,8 +152,8 @@ def test_run_pipeline_dispatches_progress_webhook(
     assert final_payload["progress"] == 100.0
 
 
-@patch("celery_tasks.tasks.dispatch_webhook")
-@patch("app.core.dag.DAGExecutor.execute")
+@patch("mpips.worker.tasks.dispatch_webhook")
+@patch("mpips.engine.dag.DAGExecutor.execute")
 def test_run_pipeline_failure(
     mock_execute: Any, mock_dispatch: Any, mock_redis: Any
 ) -> None:

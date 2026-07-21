@@ -22,11 +22,9 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --extra service --no-install-project
 
-COPY app ./app
-COPY celery_tasks ./celery_tasks
-COPY image_engine ./image_engine
+COPY mpips ./mpips
 COPY docker/entrypoint.sh /usr/local/bin/mpips-entrypoint
 
 RUN chmod +x /usr/local/bin/mpips-entrypoint \
