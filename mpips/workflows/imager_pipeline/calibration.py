@@ -18,14 +18,74 @@ from mpips.workflows.imager_pipeline.models import (
     NeuralCalibrationConfig,
 )
 from mpips.workflows.imager_pipeline.npz_io import (
+    NPZValidationError,
+    load_gain_catalog,
     load_calibration_processed_image,
+    load_radiograph,
     sha256_file,
+    to_uint16,
     write_tiff,
+)
+from mpips.workflows.imager_pipeline.pipeline import (
+    flat_field_correction,
+    imagej_stretch,
 )
 
 
 class CalibrationValidationError(RuntimeError):
     """Raised when canonical calibration validation rejects an artifact set."""
+
+
+def _load_calibration_image(
+    calibration_npz: str | Path,
+    calibration_gain_npz: str | Path | None = None,
+) -> tuple[np.ndarray, dict[str, Any], dict[str, str] | None]:
+    source = Path(calibration_npz)
+    if calibration_gain_npz is None:
+        image, metadata = load_calibration_processed_image(source)
+        return image, metadata, None
+
+    radiograph = load_radiograph(source)
+    gain_path = Path(calibration_gain_npz)
+    gain = next(iter(load_gain_catalog([gain_path]).records.values()))
+    if gain.id != radiograph["gain_id"]:
+        raise NPZValidationError(
+            f"Calibration gain id {gain.id!r} does not match calibration gainid "
+            f"{radiograph['gain_id']!r}"
+        )
+    raw = radiograph["raw"]
+    if raw.shape != gain.dark.shape or raw.shape != gain.flat.shape:
+        raise NPZValidationError(
+            "Calibration raw and gain dark/flat shape must match: "
+            f"{raw.shape}, {gain.dark.shape}, {gain.flat.shape}"
+        )
+    if radiograph["detector_mode"] != gain.detector_mode:
+        raise NPZValidationError("Calibration and gain detector mode must match")
+    serials = {
+        str(radiograph["camera_params"].get("cameraSerial", "")),
+        str(gain.camera_params.get("cameraSerial", "")),
+    }
+    serials.discard("")
+    if len(serials) > 1:
+        raise NPZValidationError(
+            f"Calibration and gain camera serial must match: {sorted(serials)}"
+        )
+
+    corrected = flat_field_correction(
+        to_uint16(raw, "calibration raw"),
+        to_uint16(gain.dark, "calibration gain dark"),
+        to_uint16(gain.flat, "calibration gain flat"),
+    )
+    stretched = imagej_stretch(corrected, saturated_pixels=0.35)
+    image = 1.0 - to_uint16(stretched, "calibration image").astype(np.float32) / 65535
+    metadata = {
+        "id": radiograph["id"],
+        "gain_id": radiograph["gain_id"],
+        "camera_params": radiograph["camera_params"],
+        "detector_mode": radiograph["detector_mode"],
+    }
+    gain_metadata = {"id": gain.id, "sha256": sha256_file(gain_path)}
+    return image, metadata, gain_metadata
 
 
 def extract_dot_grid(
@@ -220,17 +280,23 @@ def build_or_load_calibration(
     calibration_npz: str | Path,
     artifact_dir: str | Path,
     config: NeuralCalibrationConfig | None = None,
+    *,
+    calibration_gain_npz: str | Path | None = None,
 ) -> CalibrationArtifacts:
-    """Train, validate, and checksum-cache the canonical neural calibration."""
+    """Build calibration artifacts, optionally rebuilding input with a gain NPZ."""
     config = config or NeuralCalibrationConfig()
     source = Path(calibration_npz)
-    image, source_metadata = load_calibration_processed_image(source)
+    image, source_metadata, gain_metadata = _load_calibration_image(
+        source, calibration_gain_npz
+    )
     payload = {
         "source_sha256": sha256_file(source),
         "config": config.cache_dict(),
         "image_shape": list(image.shape),
         "mpips_version": mpips.__version__,
     }
+    if gain_metadata is not None:
+        payload["calibration_gain"] = gain_metadata
     serialized = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
     fingerprint = hashlib.sha256(serialized).hexdigest()
     durable_directory = Path(artifact_dir) / fingerprint
