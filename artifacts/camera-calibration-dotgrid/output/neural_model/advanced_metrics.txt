@@ -1,0 +1,34 @@
+==================================================
+ADVANCED CALIBRATION METRICS
+==================================================
+
+1. SMIA TV Distortion (Percentage)
+   Before : Vertical = -1.9521% | Horizontal = 0.2687%
+   After  : Vertical = 0.3578% | Horizontal = 0.2046%
+
+2. Reprojection Error (Homography RMSE)
+   Before : 23.9444 pixels
+   After  : 2.2589 pixels
+   Change : 90.57% reduction
+
+3. Brown-Conrady Radial Distortion Coefficients (Estimated via OpenCV)
+   Before : k1 = -4.3337e+01 | k2 = 6.8201e+03 | k3 = -1.2016e+05
+   After  : k1 = 8.8379e-04 | k2 = -9.3227e-02 | k3 = 2.2578e-01
+   Note   : These coefficients are a diagnostic fit only; the neural model does not use k1/k2/k3 internally.
+
+4. Collinearity Error (Orthogonal Straightness RMSE)
+   Before : 13.7757 pixels
+   After  : 1.2281 pixels
+   Change : 91.08% reduction
+
+5. Target Deformation (Metal-ball Diameter StdDev)
+   Before : 1.5121 pixels (Mean: 30.96px, N: 493)
+   After  : 1.2038 pixels (Mean: 30.80px, N: 493)
+   Change : 20.39% reduction
+
+6. Grid Spacing Consistency (StdDev)
+   Horizontal Before/After : 6.4361px -> 1.7401px (72.96% reduction)
+   Vertical Before/After   : 5.3181px -> 1.3863px (73.93% reduction)
+
+Diameter metrics use metal balls only; center marker excluded at row 10, col 13 (raw diameter 68.45px).
+==================================================

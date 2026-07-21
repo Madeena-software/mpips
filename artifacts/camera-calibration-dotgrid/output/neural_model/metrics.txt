@@ -1,0 +1,19 @@
+--- BEFORE CALIBRATION (Raw Extraction) ---
+Orthogonal Straightness RMSE: 13.7757 pixels
+Metal-ball Diameter StdDev: 1.5121 pixels (Mean: 30.96px, N: 493)
+Horizontal Spacing StdDev: 6.4361 pixels (Mean: 157.74px)
+Vertical Spacing StdDev: 5.3181 pixels (Mean: 159.29px)
+
+--- AFTER CALIBRATION (Neural Compensation) ---
+Orthogonal Straightness RMSE: 1.2281 pixels
+Metal-ball Diameter StdDev: 1.2038 pixels (Mean: 30.80px, N: 493)
+Horizontal Spacing StdDev: 1.7401 pixels (Mean: 157.78px)
+Vertical Spacing StdDev: 1.3863 pixels (Mean: 156.61px)
+
+--- IMPROVEMENT ---
+Straightness Error Reduced By: 91.08%
+Metal-ball Diameter Variance Reduced By: 20.39%
+Horizontal Spacing Error Reduced By: 72.96%
+Vertical Spacing Error Reduced By: 73.93%
+
+Diameter metrics use metal balls only; center marker excluded at row 10, col 13 (raw diameter 68.45px).

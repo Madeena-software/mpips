@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
-from app.core.dag import topological_sort, DAGExecutor
+from mpips.engine import DAGExecutor, topological_sort
 
 
 def test_topological_sort_success() -> None:
@@ -38,10 +38,10 @@ def test_topological_sort_cycle() -> None:
         topological_sort(nodes, edges)
 
 
-@patch("app.core.dag.download_image")
-@patch("app.core.dag.upload_image")
-@patch("app.core.dag.cv2.imread")
-@patch("app.core.dag.cv2.imwrite")
+@patch("mpips.storage.S3StorageBackend.download_image")
+@patch("mpips.storage.S3StorageBackend.upload_image")
+@patch("mpips.engine.dag.cv2.imread")
+@patch("mpips.engine.dag.cv2.imwrite")
 def test_dag_executor(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -92,10 +92,10 @@ def test_dag_executor(
     mock_imwrite.assert_called_once()
 
 
-@patch("app.core.dag.download_image")
-@patch("app.core.dag.upload_image")
-@patch("app.core.dag.cv2.imread")
-@patch("app.core.dag.cv2.imwrite")
+@patch("mpips.storage.S3StorageBackend.download_image")
+@patch("mpips.storage.S3StorageBackend.upload_image")
+@patch("mpips.engine.dag.cv2.imread")
+@patch("mpips.engine.dag.cv2.imwrite")
 def test_dag_executor_tiff_32bit_no_convert(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -141,10 +141,10 @@ def test_dag_executor_tiff_32bit_no_convert(
     assert written_img.dtype == np.float32
 
 
-@patch("app.core.dag.download_image")
-@patch("app.core.dag.upload_image")
-@patch("app.core.dag.cv2.imread")
-@patch("app.core.dag.cv2.imwrite")
+@patch("mpips.storage.S3StorageBackend.download_image")
+@patch("mpips.storage.S3StorageBackend.upload_image")
+@patch("mpips.engine.dag.cv2.imread")
+@patch("mpips.engine.dag.cv2.imwrite")
 def test_dag_executor_tiff_32bit_convert_to_8bit(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,

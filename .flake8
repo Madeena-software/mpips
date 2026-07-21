@@ -6,4 +6,9 @@ exclude =
     __pycache__,
     .venv,
     build,
-    dist
+    dist,
+    mpips.egg-info,
+    research,
+    artifacts,
+    mpips/engine/calibration/dotgrid,
+    mpips/engine/imager_pipeline

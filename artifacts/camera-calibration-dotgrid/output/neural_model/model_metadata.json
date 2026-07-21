@@ -1,0 +1,55 @@
+{
+  "coords_path": "output/grid_coordinates.csv",
+  "diams_path": "output/grid_diameters.csv",
+  "grid_shape": [
+    19,
+    26,
+    2
+  ],
+  "norm_scale": 4075.199951171875,
+  "hidden_dim": 64,
+  "seed": 42,
+  "epochs_requested": 5000,
+  "epochs_ran": 107,
+  "learning_rate": 0.001,
+  "target_loss": 5.0,
+  "smoothness_weight": 0.001,
+  "edge_balance_weight": 0.3,
+  "center_marker": {
+    "mode": "auto",
+    "min_ratio": 1.5,
+    "detected_marker_count": 1,
+    "marker_index_0based": [
+      9,
+      12
+    ],
+    "marker_index_1based": [
+      10,
+      13
+    ],
+    "raw_marker_diameter": 68.44999694824219,
+    "median_all_diameter": 31.144999504089355,
+    "median_metal_ball_diameter": 31.139999389648438,
+    "metal_ball_count": 493,
+    "center_candidate_indices_0based": [
+      [
+        9,
+        12
+      ],
+      [
+        9,
+        13
+      ]
+    ],
+    "candidate_max_to_median_ratio": 2.197784493117576
+  },
+  "best_losses": {
+    "total_loss": 9.964910507202148,
+    "score": 10.272481918334961,
+    "collinearity": 3.308445930480957,
+    "spacing": 4.995062828063965,
+    "edge_balance": 0.4918065071105957,
+    "diameter_variance": 1.454869270324707,
+    "diameter_mean": 0.022298350930213928
+  }
+}

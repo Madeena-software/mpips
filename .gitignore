@@ -27,3 +27,15 @@ env/
 # OS-specific files
 .DS_Store
 Thumbs.db
+*:Zone.Identifier
+
+# Research-generated caches and local outputs
+research/**/__pycache__/
+research/**/.ipynb_checkpoints/
+*.npz
+research/kambing-260714/data/output
+
+# Python packaging / build artifacts
+*.egg-info/
+build/
+dist/

@@ -1,0 +1,40 @@
+{
+  "inverse_residual_mean_px": 7.857200124314089e-06,
+  "inverse_residual_max_px": 0.0003452669770922512,
+  "out_of_bounds_fraction": 0.04467841151411134,
+  "step": 4,
+  "iterations": 10,
+  "dst_origin_xy": [
+    -133.0,
+    75.0
+  ],
+  "source_size": {
+    "width": 4096,
+    "height": 3000
+  },
+  "output_size": {
+    "width": 4147,
+    "height": 3060
+  },
+  "canvas_mode": "expanded",
+  "expanded_canvas": {
+    "origin_xy": [
+      -133,
+      75
+    ],
+    "output_size": {
+      "width": 4147,
+      "height": 3060
+    },
+    "estimated_corrected_bounds_xyxy": [
+      -116.27484893798828,
+      91.36803436279297,
+      3996.3662109375,
+      3117.915771484375
+    ],
+    "sample_step": 4,
+    "margin_px": 16,
+    "sample_count": 770269
+  },
+  "metadata_path": "output/neural_model/calibrated_image_expanded_metadata.json"
+}
