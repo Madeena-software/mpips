@@ -1107,8 +1107,16 @@ def process_single_image(
     )
 
     # Step 3: Neural calibration remap
+    valid_remap_mask = None
     if map_x is not None and map_y is not None:
         print("  [3/10] Applying neural calibration remap...")
+        source_height, source_width = ffc_result.shape[:2]
+        valid_remap_mask = (
+            (map_x >= 0)
+            & (map_x <= source_width - 1)
+            & (map_y >= 0)
+            & (map_y <= source_height - 1)
+        ).astype(np.uint8)
         ffc_result = cv2.remap(
             ffc_result,
             map_x.astype(np.float32),
@@ -1125,6 +1133,10 @@ def process_single_image(
     print(f"  [4/10] Cropping and rotating ({detector_type})...")
 
     ffc_result = crop_and_rotate_by_detector(ffc_result, detector_type)
+    if valid_remap_mask is not None:
+        valid_remap_mask = (
+            crop_and_rotate_by_detector(valid_remap_mask, detector_type) > 0
+        )
 
     crop_info = f"top={CONFIG['CROP_TOP']}, bottom={CONFIG['CROP_BOTTOM']}, left={CONFIG['CROP_LEFT']}, right={CONFIG['CROP_RIGHT']}"
     if detector_type == "TRX":
@@ -1362,6 +1374,9 @@ def process_single_image(
         )
     else:
         print("  [11/11] Median filter skipped (USE_MEDIAN_FILTER=False)")
+
+    if valid_remap_mask is not None:
+        final_result_uint16[~valid_remap_mask] = 0
 
     # Save result
     os.makedirs(os.path.dirname(output_path), exist_ok=True)

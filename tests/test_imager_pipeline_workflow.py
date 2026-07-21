@@ -19,12 +19,14 @@ from mpips.workflows.imager_pipeline import (
 )
 from mpips.workflows.imager_pipeline.calibration import (
     CalibrationValidationError,
+    _load_calibration_image,
     _validate_metrics,
     extract_dot_grid,
 )
 from mpips.workflows.imager_pipeline.npz_io import (
     load_calibration_processed_image,
     load_radiograph,
+    sha256_file,
     to_uint16,
 )
 from mpips.workflows.imager_pipeline.pipeline import (
@@ -51,13 +53,21 @@ XRAY = {
 
 
 def save_gain(
-    path: Path, gain_id: str = "gain-1", shape: tuple[int, int] = (8, 8)
+    path: Path,
+    gain_id: str = "gain-1",
+    shape: tuple[int, int] = (8, 8),
+    *,
+    detector_mode: str = "BED",
+    camera: dict[str, str] | None = None,
 ) -> None:
     np.savez_compressed(
         path,
         id=gain_id,
-        xrayparams=np.asarray({**XRAY, "expType": "gain"}, dtype=object),
-        cameraparams=np.asarray(CAMERA, dtype=object),
+        xrayparams=np.asarray(
+            {**XRAY, "expType": "gain", "detectorMode": detector_mode},
+            dtype=object,
+        ),
+        cameraparams=np.asarray(camera or CAMERA, dtype=object),
         darkimage=np.zeros(shape, dtype=np.uint16),
         rawimage=np.full(shape, 1000, dtype=np.uint16),
     )
@@ -88,6 +98,7 @@ def save_calibration(path: Path, shape: tuple[int, int] = (8, 8)) -> None:
         gainid="gain-1",
         xrayparams=np.asarray(XRAY, dtype=object),
         cameraparams=np.asarray(CAMERA, dtype=object),
+        rawimage=np.arange(np.prod(shape), dtype=np.uint16).reshape(shape) + 100,
         processedimage=np.linspace(0, 1, np.prod(shape)).reshape(shape),
     )
 
@@ -149,6 +160,66 @@ def test_npz_readers_validate_and_extract_schema(tmp_path: Path) -> None:
     np.testing.assert_array_equal(radiograph["raw"], raw)
     assert metadata["gain_id"] == "gain-1"
     assert calibration.dtype == np.float32
+
+
+def test_calibration_gain_override_is_optional_and_requires_matching_id(
+    tmp_path: Path,
+) -> None:
+    calibration_path = tmp_path / "calibration.npz"
+    gain_path = tmp_path / "gain.npz"
+    save_calibration(calibration_path)
+    save_gain(gain_path)
+
+    stored, stored_metadata, stored_gain = _load_calibration_image(calibration_path)
+    rebuilt, rebuilt_metadata, rebuilt_gain = _load_calibration_image(
+        calibration_path, gain_path
+    )
+
+    assert stored_gain is None
+    assert stored_metadata["gain_id"] == "gain-1"
+    assert rebuilt_gain == {"id": "gain-1", "sha256": sha256_file(gain_path)}
+    assert rebuilt_metadata == stored_metadata
+    assert rebuilt.shape == stored.shape
+    assert rebuilt.dtype == np.float32
+    assert not np.array_equal(rebuilt, stored)
+
+    save_gain(gain_path, "different-gain")
+    with pytest.raises(NPZValidationError, match="does not match calibration gainid"):
+        _load_calibration_image(calibration_path, gain_path)
+
+
+@pytest.mark.parametrize(
+    ("shape", "detector_mode", "camera", "message"),
+    [
+        ((7, 8), "BED", None, "shape"),
+        ((8, 8), "TRX", None, "detector mode"),
+        (
+            (8, 8),
+            "BED",
+            {**CAMERA, "cameraSerial": "DIFFERENT"},
+            "camera serial",
+        ),
+    ],
+)
+def test_calibration_gain_override_validates_compatibility(
+    tmp_path: Path,
+    shape: tuple[int, int],
+    detector_mode: str,
+    camera: dict[str, str] | None,
+    message: str,
+) -> None:
+    calibration_path = tmp_path / "calibration.npz"
+    gain_path = tmp_path / "gain.npz"
+    save_calibration(calibration_path)
+    save_gain(
+        gain_path,
+        shape=shape,
+        detector_mode=detector_mode,
+        camera=camera,
+    )
+
+    with pytest.raises(NPZValidationError, match=message):
+        _load_calibration_image(calibration_path, gain_path)
 
 
 def test_gain_catalog_rejects_duplicate_ids(tmp_path: Path) -> None:
@@ -238,11 +309,14 @@ def test_extract_dot_grid_requires_rectangular_grid() -> None:
 
 def test_supplied_gotri_extracts_19_by_26_grid() -> None:
     source = Path("research/kambing-260714/data/kalibrasi-gotri/BED_1783219960026.npz")
-    if not source.exists():
+    gain = Path("research/kambing-260714/data/gain/BED_1783219207291.npz")
+    if not source.exists() or not gain.exists():
         pytest.skip("Local acceptance sample is not present")
-    processed, _ = load_calibration_processed_image(source)
+    processed, _, gain_metadata = _load_calibration_image(source, gain)
     image = np.rint(processed * 255).astype(np.uint8)
     coords, _, _ = extract_dot_grid(image, NeuralCalibrationConfig())
+    assert gain_metadata is not None
+    assert gain_metadata["id"] == "1783219207291"
     assert coords.shape == (19, 26, 2)
     assert coords.shape[0] * coords.shape[1] == 494
 
@@ -466,10 +540,10 @@ def test_pipeline_applies_remap_after_ffc_with_different_output_shape() -> None:
     config = ImagerPipelineConfig(
         use_denoise=False,
         threshold_method="none",
-        use_invert=False,
+        use_invert=True,
         use_contrast_enhancement=False,
         use_clahe=False,
-        use_median_filter=False,
+        use_median_filter=True,
     )
     # create 12x12 map_x and map_y
     y_values, x_values = np.indices((12, 12), dtype=np.float32)
@@ -478,3 +552,6 @@ def test_pipeline_applies_remap_after_ffc_with_different_output_shape() -> None:
     )
     assert output.shape == (12, 12)
     assert output.dtype == np.uint16
+    assert output[:8, :8].any()
+    assert not output[8:, :].any()
+    assert not output[:, 8:].any()
