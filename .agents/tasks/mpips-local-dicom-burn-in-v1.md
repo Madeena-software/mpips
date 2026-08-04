@@ -1,5 +1,5 @@
 ---
-name: mpips-local-dicom-burn-in-v1
+name: mpips-local-dicom-burn-in
 description: Deploy the accepted MPIPS DICOM-only API locally in a production-like Docker environment and iteratively test, diagnose, and remediate the active API path until all scoped local safety gates pass.
 version: 1
 ---
@@ -63,7 +63,7 @@ effects unless a listed model is selected and verified.
 ## Runtime inputs
 
 - `TARGET` (required): MPIPS repository root.
-- `MPIPS_LOCAL_PORT` (optional): loopback port for the local API; default `8000`.
+- `MPIPS_LOCAL_PORT` (optional, default: `8000`): loopback port for the local API.
 
 ## Context and evidence
 
