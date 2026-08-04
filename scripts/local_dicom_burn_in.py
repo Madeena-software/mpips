@@ -572,7 +572,9 @@ class BurnIn:
             request_headers={"Authorization": "Basic local"},
         )
         self.signed_case("auth wrong token", 401, token="not-a-jwt")
-        invalid = valid_token[:-1] + ("A" if valid_token[-1] != "A" else "B")
+        token_prefix, signature = valid_token.rsplit(".", 1)
+        invalid_signature = "A" if signature[0] != "A" else "B"
+        invalid = f"{token_prefix}.{invalid_signature}{signature[1:]}"
         self.signed_case("auth invalid JWT signature", 401, token=invalid)
         self.signed_case(
             "auth missing image convert",
