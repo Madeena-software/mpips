@@ -152,6 +152,38 @@ def _validate_tiff_descriptor(
     return img, (rows, cols)
 
 
+def resolve_calibration_artifact_dir() -> Path:
+    """Resolves the pre-generated, validated calibration artifact directory."""
+    env_dir = os.getenv("MPIPS_CALIBRATION_ARTIFACT_DIR")
+    if env_dir:
+        p = Path(env_dir).expanduser().resolve()
+        if p.is_dir() and (p / "metadata.json").is_file():
+            return p
+
+    artifact_root_env = os.getenv("MPIPS_ARTIFACT_ROOT")
+    if artifact_root_env:
+        root = Path(artifact_root_env).expanduser().resolve()
+        candidates = [
+            root / "camera-calibration-dotgrid" / "output" / "neural_model",
+            root / "output" / "neural_model",
+            root,
+        ]
+        for candidate in candidates:
+            if candidate.is_dir() and (candidate / "metadata.json").is_file():
+                return candidate
+
+    default_dir = Path(
+        "/var/www/mpips/artifacts/camera-calibration-dotgrid/output/neural_model"
+    )
+    if default_dir.is_dir() and (default_dir / "metadata.json").is_file():
+        return default_dir
+
+    raise HTTPException(
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        detail="CALIBRATION_ARTIFACT_MISSING",
+    )
+
+
 def run_isolated_dicom_conversion(
     radiograph_npz_path: Path,
     gain_npz_path: Path,
@@ -172,6 +204,8 @@ def run_isolated_dicom_conversion(
         )
     except ValueError:
         max_tiff_bytes = 100 * 1024 * 1024
+
+    cal_src_dir = resolve_calibration_artifact_dir()
 
     workspace_base = Path("/tmp/mpips-workspaces")
     workspace_base.mkdir(parents=True, exist_ok=True)
@@ -198,13 +232,24 @@ def run_isolated_dicom_conversion(
         os.chmod(input_rad, 0o400)
         os.chmod(input_gain, 0o400)
 
+        # Stage calibration artifact into worker workspace read-only
+        staged_cal_dir = workspace_dir / "calibration"
+        staged_cal_dir.mkdir(parents=True, exist_ok=True)
+        for item in cal_src_dir.iterdir():
+            if item.is_file():
+                dest = staged_cal_dir / item.name
+                shutil.copyfile(item, dest)
+                os.chmod(dest, 0o400)
+        os.chmod(staged_cal_dir, 0o500)
+
         output_tiff = output_dir / "processed.tiff"
         result_path = output_dir / "worker-result.json"
 
-        # Minimal technical worker arguments
+        # Technical worker arguments
         args_data = {
             "radiograph_npz_path": str(input_rad),
             "gain_npz_path": str(input_gain),
+            "calibration_dir": str(staged_cal_dir),
             "expected_gain_id": manifest.capture.gain.gain_id,
             "expected_detector_mode": None,
             "expected_camera_serial": None,

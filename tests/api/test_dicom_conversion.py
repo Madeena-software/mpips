@@ -20,6 +20,7 @@ from mpips.api.manifest_security import (
     canonicalize_tenant_id,
     compute_manifest_signature_digest,
 )
+from mpips.api.schemas.dicom import MHCSManifest
 from mpips.api.security import verify_token_payload
 from mpips.conversion.service import _validate_tiff_descriptor
 from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
@@ -31,7 +32,24 @@ HMAC_SECRET = "c8e73f91d0a5491fb3421e89b70c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c"
 
 
 @pytest.fixture(autouse=True)
-def setup_env_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
+def setup_env_secrets(
+    monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
+) -> None:
+    cal_dir = tmp_path_factory.mktemp("default_cal")
+    y_vals, x_vals = np.indices((64, 64), dtype=np.float32)
+    np.savez_compressed(cal_dir / "remap.npz", map_x=x_vals, map_y=y_vals)
+    metadata = {
+        "validated": True,
+        "fingerprint": "default-test-cal-fp",
+        "image_shape": [64, 64],
+        "source_metadata": {
+            "detector_mode": "BED",
+            "camera_params": {"serialNumber": "CAM123"},
+        },
+    }
+    (cal_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+
+    monkeypatch.setenv("MPIPS_CALIBRATION_ARTIFACT_DIR", str(cal_dir))
     monkeypatch.setenv("DEV_AUTH_BYPASS", "true")
     monkeypatch.setenv("MPIPS_MANIFEST_HMAC_SECRET", HMAC_SECRET)
     monkeypatch.setenv("MPIPS_MANIFEST_MAX_CLOCK_SKEW_SECONDS", "300")
@@ -371,3 +389,218 @@ def test_no_nik_in_openapi() -> None:
     assert resp.status_code == 200
     openapi_str = resp.text.lower()
     assert '"nik"' not in openapi_str
+
+
+# ── 7. Calibration Pipeline Correction Tests ─────────────────────────
+
+
+def create_test_calibration_artifact(
+    cal_dir: Path,
+    shape: tuple[int, int] = (64, 64),
+    detector_mode: str = "BED",
+    camera_serial: str = "CAM123",
+    remap_offset: float = 0.0,
+    fingerprint: str = "test-cal-fp-123",
+    validated: bool = True,
+) -> Path:
+    cal_dir.mkdir(parents=True, exist_ok=True)
+    y_vals, x_vals = np.indices(shape, dtype=np.float32)
+    map_x = x_vals + remap_offset
+    map_y = y_vals + remap_offset
+    np.savez_compressed(cal_dir / "remap.npz", map_x=map_x, map_y=map_y)
+    metadata = {
+        "validated": validated,
+        "fingerprint": fingerprint,
+        "image_shape": list(shape),
+        "source_metadata": {
+            "detector_mode": detector_mode,
+            "camera_params": {"serialNumber": camera_serial},
+        },
+    }
+    (cal_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+    return cal_dir
+
+
+def test_worker_passes_map_x_and_map_y_to_process_radiography_arrays(
+    tmp_path: Path,
+) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+
+    args_data = {
+        "radiograph_npz_path": r_path,
+        "gain_npz_path": g_path,
+        "calibration_dir": str(cal_dir),
+        "expected_gain_id": "GAIN-000042",
+        "expected_detector_mode": "BED",
+        "expected_camera_serial": "CAM123",
+        "output_tiff_path": str(tmp_path / "output.tiff"),
+        "result_path": str(tmp_path / "result.json"),
+    }
+    args_file = tmp_path / "args.json"
+    args_file.write_text(json.dumps(args_data))
+
+    from mpips.conversion.worker import execute_conversion_worker
+
+    captured_kwargs = {}
+
+    def mock_process_radiography_arrays(
+        raw: Any, dark: Any, flat: Any, mode: str, **kwargs: Any
+    ) -> Any:
+        captured_kwargs.update(kwargs)
+        return np.ones((64, 64), dtype=np.uint16) * 500
+
+    with patch(
+        "mpips.conversion.worker.process_radiography_arrays",
+        side_effect=mock_process_radiography_arrays,
+    ):
+        execute_conversion_worker(str(args_file), str(tmp_path / "result.json"))
+
+    assert "map_x" in captured_kwargs
+    assert "map_y" in captured_kwargs
+    assert captured_kwargs["map_x"] is not None
+    assert captured_kwargs["map_y"] is not None
+    assert captured_kwargs["map_x"].shape == (64, 64)
+    assert captured_kwargs["map_y"].shape == (64, 64)
+
+
+def test_missing_calibration_artifact_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.setenv("MPIPS_CALIBRATION_ARTIFACT_DIR", str(tmp_path / "nonexistent"))
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+    manifest = MHCSManifest.model_validate(make_test_manifest(r_sha, g_sha, r_sz, g_sz))
+
+    from mpips.conversion.service import run_isolated_dicom_conversion
+
+    with pytest.raises(HTTPException) as exc_info:
+        run_isolated_dicom_conversion(
+            Path(r_path), Path(g_path), manifest, tmp_path / "output.dcm"
+        )
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "CALIBRATION_ARTIFACT_MISSING"
+
+
+def test_remap_shape_mismatch_fails(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration", shape=(32, 32))
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+
+    args_data = {
+        "radiograph_npz_path": r_path,
+        "gain_npz_path": g_path,
+        "calibration_dir": str(cal_dir),
+        "expected_gain_id": "GAIN-000042",
+        "output_tiff_path": str(tmp_path / "output.tiff"),
+        "result_path": str(tmp_path / "result.json"),
+    }
+    args_file = tmp_path / "args.json"
+    args_file.write_text(json.dumps(args_data))
+
+    from mpips.conversion.worker import execute_conversion_worker
+
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_file), str(tmp_path / "result.json"))
+
+    res = json.loads((tmp_path / "result.json").read_text())
+    assert res["status"] == "failed"
+    assert res["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
+
+
+def test_detector_and_camera_mismatch_fails(tmp_path: Path) -> None:
+    # Test A: detector mode mismatch
+    cal_dir_det = create_test_calibration_artifact(
+        tmp_path / "cal_det", detector_mode="TRX"
+    )
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+
+    args_data = {
+        "radiograph_npz_path": r_path,
+        "gain_npz_path": g_path,
+        "calibration_dir": str(cal_dir_det),
+        "expected_gain_id": "GAIN-000042",
+        "output_tiff_path": str(tmp_path / "output.tiff"),
+        "result_path": str(tmp_path / "result_det.json"),
+    }
+    args_file = tmp_path / "args_det.json"
+    args_file.write_text(json.dumps(args_data))
+
+    from mpips.conversion.worker import execute_conversion_worker
+
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_file), str(tmp_path / "result_det.json"))
+
+    res_det = json.loads((tmp_path / "result_det.json").read_text())
+    assert res_det["status"] == "failed"
+    assert res_det["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
+
+    # Test B: camera serial mismatch
+    cal_dir_cam = create_test_calibration_artifact(
+        tmp_path / "cal_cam", camera_serial="CAM999"
+    )
+    args_data["calibration_dir"] = str(cal_dir_cam)
+    args_file_cam = tmp_path / "args_cam.json"
+    args_file_cam.write_text(json.dumps(args_data))
+
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_file_cam), str(tmp_path / "result_cam.json"))
+
+    res_cam = json.loads((tmp_path / "result_cam.json").read_text())
+    assert res_cam["status"] == "failed"
+    assert res_cam["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
+
+
+def test_calibrated_output_differs_from_uncalibrated_control_fixture() -> None:
+    from mpips.workflows.imager_pipeline.pipeline import process_radiography_arrays
+    from mpips.workflows.imager_pipeline.models import ImagerPipelineConfig
+
+    shape = (64, 64)
+    y_vals, x_vals = np.indices(shape, dtype=np.uint16)
+    raw = (1000 + x_vals * 10 + y_vals * 5).astype(np.uint16)
+    dark = np.ones(shape, dtype=np.uint16) * 50
+    flat = np.ones(shape, dtype=np.uint16) * 2000
+
+    config = ImagerPipelineConfig(use_denoise=False, use_clahe=False)
+
+    y_idx, x_idx = np.indices(shape, dtype=np.float32)
+
+    # Control fixture (identity remap)
+    control_out = process_radiography_arrays(
+        raw, dark, flat, "BED", config, map_x=x_idx, map_y=y_idx
+    )
+
+    # Calibrated fixture with spatial warp
+    warped_x = x_idx + 3.0
+    warped_y = y_idx + 3.0
+    calibrated_out = process_radiography_arrays(
+        raw, dark, flat, "BED", config, map_x=warped_x, map_y=warped_y
+    )
+
+    assert not np.array_equal(calibrated_out, control_out)
+
+
+def test_no_dicom_conversion_until_parent_tiff_valid(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    monkeypatch.setenv("MPIPS_CALIBRATION_ARTIFACT_DIR", str(cal_dir))
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+    manifest = MHCSManifest.model_validate(make_test_manifest(r_sha, g_sha, r_sz, g_sz))
+
+    from mpips.conversion.service import run_isolated_dicom_conversion
+
+    # Patch _validate_tiff_descriptor to simulate failed TIFF descriptor validation
+    with (
+        patch(
+            "mpips.conversion.service._validate_tiff_descriptor",
+            side_effect=HTTPException(status_code=500, detail="TIFF_VALIDATION_ERROR"),
+        ),
+        patch("mpips.conversion.service.tiff_json_to_dcm") as mock_converter,
+    ):
+        with pytest.raises(HTTPException) as exc_info:
+            run_isolated_dicom_conversion(
+                Path(r_path), Path(g_path), manifest, tmp_path / "output.dcm"
+            )
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.detail == "TIFF_VALIDATION_ERROR"
+        # Converter MUST NOT be called!
+        assert not mock_converter.called
