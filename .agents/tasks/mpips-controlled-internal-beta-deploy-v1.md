@@ -1,5 +1,5 @@
 ---
-name: mpips-controlled-internal-beta-deploy-v1
+name: mpips-controlled-internal-beta-deploy
 description: Deploy the accepted MPIPS DICOM-only service as a private same-server internal beta, verify the live path, and document the trusted-NPZ residual-risk boundary.
 version: 1
 ---
@@ -56,19 +56,19 @@ deploy the beta, run live verification, and stop.
 ## Runtime requirements
 
 - Required capabilities:
-  - repository-read
-  - repository-write
-  - shell
-  - docker
+  - `repository-read`
+  - `repository-write`
+  - `shell`
+  - `docker`
 - Ordered model preferences: None.
-- Require preferred model: false
+- Require preferred model: `false`
 
 ## Runtime inputs
 
-- TARGET (required): MPIPS repository root.
-- DEPLOY_TEMPLATES (required): local checkout of Madeena-software/deploy-templates.
-- MPIPS_INTERNAL_PORT (optional): loopback port for host-native MHCS; default 8000.
-- REMOTE_PATH (optional): dedicated runtime directory; default /var/www/mpips-runtime.
+- `TARGET` (required): MPIPS repository root.
+- `DEPLOY_TEMPLATES` (required): local checkout of Madeena-software/deploy-templates.
+- `MPIPS_INTERNAL_PORT` (optional, default: 8000): loopback port for host-native MHCS.
+- `REMOTE_PATH` (optional, default: /var/www/mpips-runtime): dedicated runtime directory.
 
 ## Context and evidence
 
@@ -208,8 +208,8 @@ Repository and server safety:
 
 ## Execution policy
 
-- Mode: agentic-loop
-- Maximum iterations: 6
+- Mode: `agentic-loop`
+- Maximum iterations: `6`
 - Approval gates:
   - ambiguous MHCS topology;
   - any public exposure;
@@ -287,7 +287,7 @@ privacy, or verification checks.
    docker version
    docker compose version
    docker info
-   docker ps --format '{{.ID}} {{.Names}} {{.Image}} {{.Ports}}'
+   docker ps
    docker network ls
    docker volume ls
    docker stack ls
@@ -525,7 +525,7 @@ privacy, or verification checks.
     ```bash
     git rev-parse HEAD
     git status --short
-    docker ps --format '{{.ID}} {{.Names}} {{.Image}} {{.Status}} {{.Ports}}'
+    docker ps
     docker stack ls
     docker service ls
     ss -lnt
@@ -613,7 +613,7 @@ privacy, or verification checks.
 
 ## Output
 
-- Allowed outcomes: succeeded, failed, blocked, awaiting-approval, exhausted.
+- Allowed outcomes: `succeeded`, `failed`, `blocked`, `awaiting-approval`, or `exhausted`.
 - Report:
   - selected runtime/model when verifiable;
   - capabilities and outcome;
