@@ -1,17 +1,155 @@
 from __future__ import annotations
 
+import cv2
 import json
+import numpy as np
 import os
+import shutil
 import signal
+import stat
 import subprocess
 import sys
 import tempfile
+
 from pathlib import Path
 from typing import Any, Dict
 
 from fastapi import HTTPException, status
 
 from mpips.api.schemas.dicom import MHCSManifest
+from mpips.conversion.dicom_enrichment import enrich_dicom_file
+from mpips.conversion.metadata import build_converter_metadata_json
+from mpips.conversion.validation import validate_dicom_dataset
+from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
+
+
+def _validate_tiff_descriptor(
+    output_dir: Path,
+    max_tiff_bytes: int,
+    max_rows: int = 16384,
+    max_cols: int = 16384,
+    max_pixels: int = 268435456,
+) -> tuple[np.ndarray, tuple[int, int]]:
+    """TOCTOU-safe TIFF validation reading from opened file descriptor."""
+    if not hasattr(os, "O_DIRECTORY"):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="TIFF_VALIDATION_ERROR",
+        )
+
+    # 1. Open directory descriptor
+    try:
+        dir_flags = os.O_RDONLY | os.O_DIRECTORY
+        if hasattr(os, "O_CLOEXEC"):
+            dir_flags |= os.O_CLOEXEC
+        dir_fd = os.open(str(output_dir), dir_flags)
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="TIFF_VALIDATION_ERROR",
+        ) from exc
+
+    try:
+        # Check unexpected extra files in output directory
+        entries = os.listdir(dir_fd)
+        allowed = {"processed.tiff", "worker-result.json"}
+        if not set(entries).issubset(allowed):
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="TIFF_VALIDATION_ERROR",
+            )
+
+        # 2. Open processed.tiff relative to directory descriptor with O_NOFOLLOW
+        file_flags = os.O_RDONLY
+        if hasattr(os, "O_NOFOLLOW"):
+            file_flags |= os.O_NOFOLLOW
+        else:
+            if sys.platform.startswith("linux"):
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="TIFF_VALIDATION_ERROR",
+                )
+        if hasattr(os, "O_CLOEXEC"):
+            file_flags |= os.O_CLOEXEC
+
+        try:
+            file_fd = os.open("processed.tiff", file_flags, dir_fd=dir_fd)
+        except OSError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="TIFF_VALIDATION_ERROR",
+            ) from exc
+
+        try:
+            # 3. First fstat
+            st1 = os.fstat(file_fd)
+            if not stat.S_ISREG(st1.st_mode):
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="TIFF_VALIDATION_ERROR",
+                )
+
+            if st1.st_size <= 0 or st1.st_size > max_tiff_bytes:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="TIFF_VALIDATION_ERROR",
+                )
+
+            # 4. Bounded loop read until exactly st1.st_size bytes obtained
+            chunks = []
+            bytes_read = 0
+            target_size = st1.st_size
+            while bytes_read < target_size:
+                chunk = os.read(file_fd, min(65536, target_size - bytes_read))
+                if not chunk:
+                    break
+                chunks.append(chunk)
+                bytes_read += len(chunk)
+
+            if bytes_read != target_size:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="TIFF_VALIDATION_ERROR",
+                )
+
+            # Check EOF
+            if len(os.read(file_fd, 1)) != 0:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="TIFF_VALIDATION_ERROR",
+                )
+
+            # 5. Second fstat for inode/size consistency
+            st2 = os.fstat(file_fd)
+            if st2.st_size != st1.st_size or st2.st_ino != st1.st_ino:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="TIFF_VALIDATION_ERROR",
+                )
+
+        finally:
+            os.close(file_fd)
+
+    finally:
+        os.close(dir_fd)
+
+    # 6. Decode bytes with OpenCV
+    raw_bytes = b"".join(chunks)
+    img = cv2.imdecode(np.frombuffer(raw_bytes, np.uint8), cv2.IMREAD_UNCHANGED)
+    if img is None or img.ndim != 2 or img.dtype != np.uint16:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="TIFF_VALIDATION_ERROR",
+        )
+
+    rows, cols = img.shape
+    if rows > max_rows or cols > max_cols or (rows * cols) > max_pixels:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="TIFF_VALIDATION_ERROR",
+        )
+
+    return img, (rows, cols)
 
 
 def run_isolated_dicom_conversion(
@@ -20,72 +158,138 @@ def run_isolated_dicom_conversion(
     manifest: MHCSManifest,
     output_dicom_path: Path,
 ) -> Dict[str, Any]:
-    """Launches worker child process with process group cleanup and timeout."""
+    """Launches worker child process with isolation and descriptor verification."""
+    env_mode = os.getenv("MPIPS_ENVIRONMENT", "development").lower()
+
     try:
         timeout_seconds = int(os.getenv("MPIPS_DICOM_PROCESS_TIMEOUT_SECONDS", "300"))
     except ValueError:
         timeout_seconds = 300
 
-    with tempfile.TemporaryDirectory(prefix="mpips-service-ipc-") as ipc_dir:
-        args_path = Path(ipc_dir) / "args.json"
-        result_path = Path(ipc_dir) / "result.json"
+    try:
+        max_tiff_bytes = int(
+            os.getenv("MPIPS_DICOM_MAX_TIFF_BYTES", str(100 * 1024 * 1024))
+        )
+    except ValueError:
+        max_tiff_bytes = 100 * 1024 * 1024
 
+    workspace_base = Path("/tmp/mpips-workspaces")
+    workspace_base.mkdir(parents=True, exist_ok=True)
+    os.chmod(workspace_base, 0o700)
+
+    workspace_dir = Path(
+        tempfile.mkdtemp(
+            prefix=f"job-{manifest.conversion_job_id}-",
+            dir=workspace_base,
+        )
+    )
+    os.chmod(workspace_dir, 0o700)
+
+    output_dir = workspace_dir / "output"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    os.chmod(output_dir, 0o700)
+
+    try:
+        # Copy input files to private workspace with fixed names
+        input_rad = workspace_dir / "radiograph.npz"
+        input_gain = workspace_dir / "gain.npz"
+        shutil.copyfile(radiograph_npz_path, input_rad)
+        shutil.copyfile(gain_npz_path, input_gain)
+        os.chmod(input_rad, 0o400)
+        os.chmod(input_gain, 0o400)
+
+        output_tiff = output_dir / "processed.tiff"
+        result_path = output_dir / "worker-result.json"
+
+        # Minimal technical worker arguments
         args_data = {
-            "radiograph_npz_path": str(radiograph_npz_path),
-            "gain_npz_path": str(gain_npz_path),
-            "manifest": manifest.model_dump(mode="json"),
-            "output_dicom_path": str(output_dicom_path),
+            "radiograph_npz_path": str(input_rad),
+            "gain_npz_path": str(input_gain),
+            "expected_gain_id": manifest.capture.gain.gain_id,
+            "expected_detector_mode": None,
+            "expected_camera_serial": None,
+            "max_rows": 16384,
+            "max_cols": 16384,
+            "max_pixels": 268435456,
+            "output_tiff_path": str(output_tiff),
+            "result_path": str(result_path),
         }
 
+        args_path = workspace_dir / "args.json"
         with args_path.open("w", encoding="utf-8") as f:
             json.dump(args_data, f)
+        os.chmod(args_path, 0o400)
 
-        cmd = [
-            sys.executable,
-            "-m",
-            "mpips.conversion.worker",
-            str(args_path),
-            str(result_path),
-        ]
-
-        env = os.environ.copy()
-
-        try:
-            proc = subprocess.Popen(
-                cmd,
-                start_new_session=True,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                env=env,
-            )
-            stdout_bytes, stderr_bytes = proc.communicate(timeout=timeout_seconds)
-        except subprocess.TimeoutExpired:
-            if proc.pid:
-                try:
-                    pgid = os.getpgid(proc.pid)
-                    os.killpg(pgid, signal.SIGTERM)
-                except OSError:
-                    pass
-                try:
-                    proc.communicate(timeout=2)
-                except subprocess.TimeoutExpired:
-                    try:
-                        pgid = os.getpgid(proc.pid)
-                        os.killpg(pgid, signal.SIGKILL)
-                    except OSError:
-                        pass
-                    proc.communicate()
-
-            raise HTTPException(
-                status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-                detail="DICOM conversion process timed out",
-            )
-
-        if not result_path.exists():
-            err_msg = stderr_bytes.decode("utf-8", errors="replace")
+        # Launch worker
+        if env_mode == "production":
+            # Production host supervisor container launcher
+            launcher_sock = Path("/var/run/mpips-launcher.sock")
+            if not launcher_sock.exists():
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="CONVERSION_WORKER_FAILURE",
+                )
+            # In production socket protocol submission...
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Conversion worker produced no result: {err_msg[:100]}",
+                detail="CONVERSION_WORKER_FAILURE",
+            )
+        else:
+            # Development/test adapter with empty environment
+            clean_env = {
+                "LANG": "C.UTF-8",
+                "LC_ALL": "C.UTF-8",
+                "MPIPS_DICOM_WORKER_CPU_SECONDS": os.getenv(
+                    "MPIPS_DICOM_WORKER_CPU_SECONDS", "120"
+                ),
+                "MPIPS_DICOM_WORKER_MEMORY_BYTES": os.getenv(
+                    "MPIPS_DICOM_WORKER_MEMORY_BYTES", str(2 * 1024 * 1024 * 1024)
+                ),
+            }
+
+            cmd = [
+                sys.executable,
+                "-m",
+                "mpips.conversion.worker",
+                str(args_path),
+                str(result_path),
+            ]
+
+            try:
+                proc = subprocess.Popen(
+                    cmd,
+                    start_new_session=True,
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                    env=clean_env,
+                )
+                proc.communicate(timeout=timeout_seconds)
+            except subprocess.TimeoutExpired:
+                if proc.pid:
+                    try:
+                        pgid = os.getpgid(proc.pid)
+                        os.killpg(pgid, signal.SIGTERM)
+                    except OSError:
+                        pass
+                    try:
+                        proc.communicate(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        try:
+                            pgid = os.getpgid(proc.pid)
+                            os.killpg(pgid, signal.SIGKILL)
+                        except OSError:
+                            pass
+                        proc.communicate()
+
+                raise HTTPException(
+                    status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                    detail="CONVERSION_TIMEOUT",
+                )
+
+        if not result_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="CONVERSION_WORKER_FAILURE",
             )
 
         try:
@@ -94,19 +298,58 @@ def run_isolated_dicom_conversion(
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to read conversion worker result",
+                detail="CONVERSION_WORKER_FAILURE",
             ) from exc
 
-        if proc.returncode != 0 or result_data.get("status") != "success":
-            err_code = result_data.get("sanitized_error_code") or "CONVERSION_FAILED"
+        if result_data.get("status") != "success":
+            err_code = (
+                result_data.get("sanitized_error_code") or "CONVERSION_WORKER_FAILURE"
+            )
             if err_code in ("NPZ_VALIDATION_ERROR", "MANIFEST_OR_DATA_ERROR"):
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=f"Validation failed during conversion: {err_code}",
+                    detail=err_code,
                 )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"DICOM conversion worker failed: {err_code}",
+                detail=err_code,
             )
 
-        return dict(result_data)
+        # TOCTOU-safe Parent TIFF descriptor validation & shape derivation
+        _, parent_shape = _validate_tiff_descriptor(
+            output_dir=output_dir,
+            max_tiff_bytes=max_tiff_bytes,
+        )
+
+        # Parent DICOM conversion, enrichment, and validation
+        with tempfile.TemporaryDirectory(prefix="mpips-parent-stage-") as parent_stage:
+            stage_tiff = Path(parent_stage) / "processed.tiff"
+            stage_json = Path(parent_stage) / "adapter.json"
+
+            shutil.copyfile(output_tiff, stage_tiff)
+
+            converter_dict = build_converter_metadata_json(manifest)
+            with stage_json.open("w", encoding="utf-8") as f:
+                json.dump(converter_dict, f)
+
+            tiff_json_to_dcm(
+                str(stage_tiff), str(stage_json), str(output_dicom_path)
+            )  # type: ignore[no-untyped-call]
+            enrich_dicom_file(output_dicom_path, manifest)
+
+        val_res = validate_dicom_dataset(output_dicom_path, manifest, parent_shape)
+
+        out_size = Path(output_dicom_path).stat().st_size
+        return {
+            "status": "success",
+            "sanitized_error_code": None,
+            "output_byte_size": out_size,
+            "validation_flags": {
+                "valid": True,
+                "pixel_bytes": val_res.get("pixel_bytes", 0),
+            },
+        }
+
+    finally:
+        if workspace_dir.exists():
+            shutil.rmtree(str(workspace_dir), ignore_errors=True)

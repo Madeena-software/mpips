@@ -1155,6 +1155,13 @@ imager = [
     { name = "pillow" },
     { name = "pydicom" },
 ]
+npz-worker = [
+    { name = "numpy" },
+    { name = "opencv-python-headless" },
+    { name = "pywavelets" },
+    { name = "scikit-image" },
+    { name = "scipy" },
+]
 s3 = [
     { name = "boto3" },
 ]
@@ -1217,7 +1224,9 @@ requires-dist = [
     { name = "moto", marker = "extra == 'dev'", specifier = ">=5.2.2" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=2.1.0" },
     { name = "numpy", specifier = ">=1.26.0" },
+    { name = "numpy", marker = "extra == 'npz-worker'", specifier = ">=1.26.0" },
     { name = "opencv-python-headless", specifier = ">=4.9.0.80" },
+    { name = "opencv-python-headless", marker = "extra == 'npz-worker'", specifier = ">=4.9.0.80" },
     { name = "pillow", marker = "extra == 'calibration'", specifier = ">=10.0.0" },
     { name = "pillow", marker = "extra == 'colab'", specifier = ">=10.0.0" },
     { name = "pillow", marker = "extra == 'imager'", specifier = ">=10.0.0" },
@@ -1231,18 +1240,21 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },
     { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "pywavelets", specifier = ">=1.5.0" },
+    { name = "pywavelets", marker = "extra == 'npz-worker'", specifier = ">=1.5.0" },
     { name = "redis", marker = "extra == 'dev'", specifier = ">=8.0.0" },
     { name = "redis", marker = "extra == 'service'", specifier = ">=8.0.0" },
     { name = "redis", marker = "extra == 'worker'", specifier = ">=8.0.0" },
     { name = "scikit-image", specifier = ">=0.22.0" },
+    { name = "scikit-image", marker = "extra == 'npz-worker'", specifier = ">=0.22.0" },
     { name = "scipy", specifier = ">=1.12.0" },
+    { name = "scipy", marker = "extra == 'npz-worker'", specifier = ">=1.12.0" },
     { name = "torch", marker = "extra == 'calibration'", specifier = ">=2.6.0,<3.0.0" },
     { name = "torch", marker = "extra == 'colab'", specifier = ">=2.6.0,<3.0.0" },
     { name = "uvicorn", marker = "extra == 'api'", specifier = ">=0.49.0" },
     { name = "uvicorn", marker = "extra == 'dev'", specifier = ">=0.49.0" },
     { name = "uvicorn", marker = "extra == 'service'", specifier = ">=0.49.0" },
 ]
-provides-extras = ["calibration", "imager", "colab", "api", "worker", "s3", "service", "dev"]
+provides-extras = ["calibration", "imager", "colab", "api", "worker", "s3", "service", "npz-worker", "dev"]
 
 [package.metadata.requires-dev]
 dev = [

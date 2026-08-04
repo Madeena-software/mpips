@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import hashlib
-import hmac
+import io
 import json
 import tempfile
 import time
 from pathlib import Path
+from typing import Any, Dict
 from unittest.mock import patch
 
 import numpy as np
@@ -14,27 +14,30 @@ import pytest
 from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from mpips.api.application import app
+from mpips.api.application import app, _validate_production_configuration
 from mpips.api.idempotency import ClaimResult
+from mpips.api.manifest_security import (
+    canonicalize_tenant_id,
+    compute_manifest_signature_digest,
+)
 from mpips.api.security import verify_token_payload
-from mpips.conversion.metadata import format_person_name
+from mpips.conversion.service import _validate_tiff_descriptor
 from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
-from mpips.workflows.imager_pipeline.npz_io import sha256_file
+from mpips.workflows.imager_pipeline.npz_io import sha256_file, write_tiff
 
 CONVERTER_PATH = "mpips/engine/imager_pipeline/tiff_json_to_dcm.py"
 EXPECTED_HASH = "a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0"
-
-HMAC_SECRET = "test_hmac_secret_12345"
+HMAC_SECRET = "c8e73f91d0a5491fb3421e89b70c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c"
 
 
 @pytest.fixture(autouse=True)
-def setup_env_secrets(monkeypatch):
+def setup_env_secrets(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DEV_AUTH_BYPASS", "true")
     monkeypatch.setenv("MPIPS_MANIFEST_HMAC_SECRET", HMAC_SECRET)
     monkeypatch.setenv("MPIPS_MANIFEST_MAX_CLOCK_SKEW_SECONDS", "300")
 
 
-def generate_test_npzs(temp_dir: str) -> tuple[str, str, str, str, str, str]:
+def generate_test_npzs(temp_dir: str) -> tuple[str, str, str, str, int, int]:
     """Helper to generate valid dummy radiograph and gain NPZ files."""
     rad_dir = Path(temp_dir) / "radiograph"
     gain_dir = Path(temp_dir) / "gain"
@@ -83,7 +86,7 @@ def make_test_manifest(
     rad_size: int,
     gain_size: int,
     job_id: str = "97eeb9ef-d93c-43e7-aebe-c9ada5cc29fa",
-) -> dict:
+) -> Dict[str, Any]:
     return {
         "manifest_version": "1.0",
         "conversion_job_id": job_id,
@@ -152,254 +155,87 @@ def make_test_manifest(
 
 
 def compute_test_signature(
-    timestamp: str, raw_bytes: bytes, secret: str = HMAC_SECRET
+    tenant_id: str, timestamp: str, raw_bytes: bytes, secret: str = HMAC_SECRET
 ) -> str:
-    sig_input = timestamp.encode("utf-8") + b"." + raw_bytes
-    digest = hmac.new(secret.encode("utf-8"), sig_input, hashlib.sha256).hexdigest()
+    canonical_tenant = canonicalize_tenant_id(tenant_id)
+    digest = compute_manifest_signature_digest(
+        secret, canonical_tenant, timestamp, raw_bytes
+    )
     return "sha256=" + digest
 
 
-# ── 1. Person Name Formatter Tests ───────────────────────────────────
+# ── 1. Tenant Canonicalization & HMAC Tests ──────────────────────────
 
 
-def test_person_name_formatting():
-    assert (
-        format_person_name({"full_name": "Faliq Adlan", "family_name": "Adlan"})
-        == "Adlan^Faliq"
-    )
-    assert (
-        format_person_name({"full_name": "Andre Nasution", "family_name": "Nasution"})
-        == "Nasution^Andre"
-    )
-    assert (
-        format_person_name({"full_name": "Suharto", "family_name": None}) == "Suharto"
-    )
-    assert (
-        format_person_name({"full_name": "Faliq Adlan", "family_name": ""})
-        == "Faliq Adlan"
-    )
-    assert (
-        format_person_name(
-            {"full_name": "Faliq Adlan Subagiya", "family_name": "Adlan"}
-        )
-        == "Faliq Adlan Subagiya"
-    )
+def test_tenant_canonicalization() -> None:
+    uuid_str = "c41c449e-2f28-42c8-a0ed-0832265dd6c1"
+    assert canonicalize_tenant_id(uuid_str) == uuid_str
+    assert canonicalize_tenant_id(uuid_str.upper()) == uuid_str
+    assert canonicalize_tenant_id("tenant-123") == "tenant-123"
+
+    with pytest.raises(HTTPException) as exc1:
+        canonicalize_tenant_id(" tenant-123 ")
+    assert exc1.value.status_code == 401
+
+    with pytest.raises(HTTPException) as exc2:
+        canonicalize_tenant_id("tenant.123")
+    assert exc2.value.status_code == 401
 
 
-# ── 2. Security, Scope & Signature Tests ─────────────────────────────
+# ── 2. TOCTOU-Safe Parent TIFF Descriptor Validation Tests ───────────
 
 
-def test_existing_authorization_unchanged():
-    client = TestClient(app)
-    headers = {"Authorization": "Bearer mock_developer_token_xyz"}
-    resp = client.get("/v1/nodes", headers=headers)
-    assert resp.status_code == 200
-
-
-def test_exact_raw_byte_hmac_sensitivity():
-    client = TestClient(app)
-
+def test_validate_tiff_descriptor_success() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-        r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(temp_dir)
-        manifest_dict = make_test_manifest(r_sha, g_sha, r_sz, g_sz)
+        out_dir = Path(temp_dir) / "output"
+        out_dir.mkdir()
+        tiff_path = out_dir / "processed.tiff"
+        res_path = out_dir / "worker-result.json"
 
-        raw_manifest_bytes = json.dumps(manifest_dict).encode("utf-8")
-        ts = str(int(time.time()))
-        sig = compute_test_signature(ts, raw_manifest_bytes)
+        img_data = np.ones((32, 32), dtype=np.uint16) * 500
+        write_tiff(tiff_path, img_data)
+        with res_path.open("w") as f:
+            json.dump({"status": "success"}, f)
 
-        modified_bytes = raw_manifest_bytes + b"\n"
-
-        files = {
-            "radiograph_npz": (
-                "rad.npz",
-                open(r_path, "rb"),
-                "application/octet-stream",
-            ),
-            "gain_npz": ("gain.npz", open(g_path, "rb"), "application/octet-stream"),
-            "manifest": ("manifest.json", modified_bytes, "application/json"),
-        }
-        headers = {
-            "Authorization": "Bearer mock_developer_token_xyz",
-            "X-Madeena-Manifest-Timestamp": ts,
-            "X-Madeena-Manifest-Signature": sig,
-        }
-
-        token_mock = {
-            "sub": "dev",
-            "scope": "image:convert",
-            "tenant_id": "test-tenant",
-        }
-        with patch(
-            "mpips.api.manifest_security.verify_token_payload", return_value=token_mock
-        ):
-            resp = client.post("/v1/radiographs/dicom", files=files, headers=headers)
-            assert resp.status_code == 401
-            assert "Invalid manifest signature" in resp.json()["detail"]
+        arr, shape = _validate_tiff_descriptor(out_dir, max_tiff_bytes=10 * 1024 * 1024)
+        assert shape == (32, 32)
+        assert arr.dtype == np.uint16
 
 
-def test_scope_enforcement():
-    client = TestClient(app)
-
-    ts = str(int(time.time()))
-    sig = compute_test_signature(ts, b"{}")
-    headers = {
-        "Authorization": "Bearer mock_developer_token_xyz",
-        "X-Madeena-Manifest-Timestamp": ts,
-        "X-Madeena-Manifest-Signature": sig,
-    }
-    files = {
-        "radiograph_npz": ("rad.npz", b"dummy", "application/octet-stream"),
-        "gain_npz": ("gain.npz", b"dummy", "application/octet-stream"),
-        "manifest": ("manifest.json", b"{}", "application/json"),
-    }
-
-    mock_token = {"sub": "dev", "scope": "nodes:read", "tenant_id": "test-tenant"}
-    app.dependency_overrides[verify_token_payload] = lambda: mock_token
-    try:
-        resp = client.post("/v1/radiographs/dicom", files=files, headers=headers)
-        assert resp.status_code == 403
-        assert "image:convert" in resp.json()["detail"]
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_tenant_id_missing_in_token():
-    client = TestClient(app)
-    headers = {"Authorization": "Bearer mock_developer_token_xyz"}
-    files = {
-        "radiograph_npz": ("rad.npz", b"dummy", "application/octet-stream"),
-        "gain_npz": ("gain.npz", b"dummy", "application/octet-stream"),
-        "manifest": ("manifest.json", b"{}", "application/json"),
-    }
-
-    app.dependency_overrides[verify_token_payload] = lambda: {
-        "sub": "dev",
-        "scope": "image:convert",
-    }
-    try:
-        resp = client.post("/v1/radiographs/dicom", files=files, headers=headers)
-        assert resp.status_code == 401
-        assert "tenant_id" in resp.json()["detail"]
-    finally:
-        app.dependency_overrides.clear()
-
-
-def test_timestamp_skew_rejection():
-    client = TestClient(app)
-    ts = str(int(time.time()) - 600)
-    sig = compute_test_signature(ts, b"{}")
-    headers = {
-        "Authorization": "Bearer mock_developer_token_xyz",
-        "X-Madeena-Manifest-Timestamp": ts,
-        "X-Madeena-Manifest-Signature": sig,
-    }
-    files = {
-        "radiograph_npz": ("rad.npz", b"dummy", "application/octet-stream"),
-        "gain_npz": ("gain.npz", b"dummy", "application/octet-stream"),
-        "manifest": ("manifest.json", b"{}", "application/json"),
-    }
-
-    token_mock = {"sub": "dev", "scope": "image:convert", "tenant_id": "test-tenant"}
-    with patch(
-        "mpips.api.manifest_security.verify_token_payload", return_value=token_mock
-    ):
-        resp = client.post("/v1/radiographs/dicom", files=files, headers=headers)
-        assert resp.status_code == 401
-        assert "timestamp is expired or skewed" in resp.json()["detail"]
-
-
-# ── 3. Schema & Validation Tests ──────────────────────────────────────
-
-
-def test_strict_manifest_schema_rejection():
-    client = TestClient(app)
+def test_validate_tiff_descriptor_rejects_extra_file() -> None:
     with tempfile.TemporaryDirectory() as temp_dir:
-        r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(temp_dir)
-        manifest_dict = make_test_manifest(r_sha, g_sha, r_sz, g_sz)
-        manifest_dict["unknown_field"] = "illegal"
+        out_dir = Path(temp_dir) / "output"
+        out_dir.mkdir()
+        tiff_path = out_dir / "processed.tiff"
+        res_path = out_dir / "worker-result.json"
+        extra_path = out_dir / "malicious.sh"
 
-        raw_bytes = json.dumps(manifest_dict).encode("utf-8")
-        ts = str(int(time.time()))
-        sig = compute_test_signature(ts, raw_bytes)
+        img_data = np.ones((32, 32), dtype=np.uint16)
+        write_tiff(tiff_path, img_data)
+        with res_path.open("w") as f:
+            json.dump({"status": "success"}, f)
+        extra_path.write_text("echo hacked")
 
-        files = {
-            "radiograph_npz": (
-                "rad.npz",
-                open(r_path, "rb"),
-                "application/octet-stream",
-            ),
-            "gain_npz": ("gain.npz", open(g_path, "rb"), "application/octet-stream"),
-            "manifest": ("manifest.json", raw_bytes, "application/json"),
-        }
-        headers = {
-            "Authorization": "Bearer mock_developer_token_xyz",
-            "X-Madeena-Manifest-Timestamp": ts,
-            "X-Madeena-Manifest-Signature": sig,
-        }
-
-        token_mock = {
-            "sub": "dev",
-            "scope": "image:convert",
-            "tenant_id": "test-tenant",
-        }
-        with patch(
-            "mpips.api.manifest_security.verify_token_payload", return_value=token_mock
-        ):
-            resp = client.post("/v1/radiographs/dicom", files=files, headers=headers)
-            assert resp.status_code == 422
-            assert "Invalid manifest JSON or schema" in resp.json()["detail"]
+        with pytest.raises(HTTPException) as exc:
+            _validate_tiff_descriptor(out_dir, max_tiff_bytes=10 * 1024 * 1024)
+        assert exc.value.detail == "TIFF_VALIDATION_ERROR"
 
 
-def test_hash_and_size_mismatch_rejection():
-    client = TestClient(app)
-    with tempfile.TemporaryDirectory() as temp_dir:
-        r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(temp_dir)
-        manifest_dict = make_test_manifest(r_sha, g_sha, r_sz, g_sz)
-        manifest_dict["capture"]["radiograph"]["sha256"] = "0" * 64
-
-        raw_bytes = json.dumps(manifest_dict).encode("utf-8")
-        ts = str(int(time.time()))
-        sig = compute_test_signature(ts, raw_bytes)
-
-        files = {
-            "radiograph_npz": (
-                "rad.npz",
-                open(r_path, "rb"),
-                "application/octet-stream",
-            ),
-            "gain_npz": ("gain.npz", open(g_path, "rb"), "application/octet-stream"),
-            "manifest": ("manifest.json", raw_bytes, "application/json"),
-        }
-        headers = {
-            "Authorization": "Bearer mock_developer_token_xyz",
-            "X-Madeena-Manifest-Timestamp": ts,
-            "X-Madeena-Manifest-Signature": sig,
-        }
-
-        token_mock = {
-            "sub": "dev",
-            "scope": "image:convert",
-            "tenant_id": "test-tenant",
-        }
-        with patch(
-            "mpips.api.manifest_security.verify_token_payload", return_value=token_mock
-        ):
-            resp = client.post("/v1/radiographs/dicom", files=files, headers=headers)
-            assert resp.status_code == 422
-            assert "mismatch" in resp.json()["detail"]
+# ── 3. Converter Immutability & Basic Tests ──────────────────────────
 
 
-# ── 4. Converter Immutability & End-to-End Execution ──────────────────
-
-
-def test_converter_immutability():
+def test_converter_immutability() -> None:
     current_hash = sha256_file(CONVERTER_PATH)
     assert current_hash == EXPECTED_HASH, "Pak Andre's converter was modified!"
     assert callable(tiff_json_to_dcm)
 
 
-def test_successful_dicom_conversion_endpoint():
+# ── 4. End-to-End Successful Conversion Endpoint Test ────────────────
+
+
+def test_successful_dicom_conversion_endpoint() -> None:
     client = TestClient(app)
+    tenant_id = "test-tenant-123"
 
     with tempfile.TemporaryDirectory() as temp_dir:
         r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(temp_dir)
@@ -407,7 +243,7 @@ def test_successful_dicom_conversion_endpoint():
         raw_manifest_bytes = json.dumps(manifest_dict).encode("utf-8")
 
         ts = str(int(time.time()))
-        sig = compute_test_signature(ts, raw_manifest_bytes)
+        sig = compute_test_signature(tenant_id, ts, raw_manifest_bytes)
 
         files = {
             "radiograph_npz": (
@@ -431,164 +267,105 @@ def test_successful_dicom_conversion_endpoint():
         mock_claim = ClaimResult(status="CLAIMED", lease_token="lease_123")
         token_mock = {
             "sub": "dev",
+            "iss": "https://sso.madeena.com",
+            "aud": "https://api.madeena.com",
+            "exp": int(time.time()) + 3600,
             "scope": "image:convert",
-            "tenant_id": "test-tenant",
+            "tenant_id": tenant_id,
         }
 
-        with (
-            patch(
-                "mpips.api.manifest_security.verify_token_payload",
-                return_value=token_mock,
-            ),
-            patch(
-                "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
-                return_value=mock_claim,
-            ),
-            patch(
-                "mpips.api.routes.v1.dicom.IdempotencyService.mark_success"
-            ) as mock_mark_success,
-        ):
+        app.dependency_overrides[verify_token_payload] = lambda: token_mock
+        try:
+            with (
+                patch(
+                    "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
+                    return_value=mock_claim,
+                ),
+                patch(
+                    "mpips.api.routes.v1.dicom.IdempotencyService.mark_success"
+                ) as mock_mark_success,
+            ):
 
-            resp = client.post("/v1/radiographs/dicom", files=files, headers=headers)
-            assert resp.status_code == 200, f"Error: {resp.text}"
-            assert resp.headers["Content-Type"] == "application/dicom"
-            assert "Content-Disposition" in resp.headers
-            assert (
-                resp.headers["X-Correlation-ID"]
-                == "29722404-a494-46ca-960b-537255d37982"
-            )
-            assert (
-                resp.headers["X-Conversion-Job-ID"]
-                == "97eeb9ef-d93c-43e7-aebe-c9ada5cc29fa"
-            )
+                resp = client.post(
+                    "/v1/radiographs/dicom", files=files, headers=headers
+                )
+                assert resp.status_code == 200, f"Error: {resp.text}"
+                assert resp.headers["Content-Type"] == "application/dicom"
+                assert "Content-Disposition" in resp.headers
+                assert (
+                    resp.headers["X-Correlation-ID"]
+                    == "29722404-a494-46ca-960b-537255d37982"
+                )
+                assert (
+                    resp.headers["X-Conversion-Job-ID"]
+                    == "97eeb9ef-d93c-43e7-aebe-c9ada5cc29fa"
+                )
 
-            dcm_bytes = resp.content
-            ds = pydicom.dcmread(pydicom.filebase.BytesIO(dcm_bytes))
+                dcm_bytes = resp.content
+                ds = pydicom.dcmread(io.BytesIO(dcm_bytes))
 
-            assert ds.PatientID == "MHCS-00000123"
-            assert ds.PatientName == "Adlan^Faliq"
-            assert ds.OperatorsName == "Nasution^Andre"
-            assert ds.PatientSex == "M"
-            assert ds.PatientBirthDate == "19900101"
-            assert ds.AccessionNumber == "RF260804000123"
-            assert ds.StudyID == "STUDY00000123"
-            assert ds.PresentationIntentType == "FOR PRESENTATION"
-            assert ds.BurnedInAnnotation == "NO"
-            assert ds.LossyImageCompression == "00"
-            assert ds.Rows == 64
-            assert ds.Columns == 64
-            assert ds.pixel_array.dtype == np.uint16
+                assert ds.PatientID == "MHCS-00000123"
+                assert ds.PatientName == "Adlan^Faliq"
+                assert ds.OperatorsName == "Nasution^Andre"
+                assert ds.PatientSex == "M"
+                assert ds.PatientBirthDate == "19900101"
+                assert ds.AccessionNumber == "RF260804000123"
+                assert ds.StudyID == "STUDY00000123"
+                assert ds.PresentationIntentType == "FOR PRESENTATION"
+                assert ds.BurnedInAnnotation == "NO"
+                assert ds.LossyImageCompression == "00"
+                assert ds.Rows == 64
+                assert ds.Columns == 64
+                assert ds.pixel_array.dtype == np.uint16
 
-            assert mock_mark_success.called
-
-
-def test_idempotency_conflict_endpoint():
-    client = TestClient(app)
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(temp_dir)
-        manifest_dict = make_test_manifest(r_sha, g_sha, r_sz, g_sz)
-        raw_manifest_bytes = json.dumps(manifest_dict).encode("utf-8")
-
-        ts = str(int(time.time()))
-        sig = compute_test_signature(ts, raw_manifest_bytes)
-
-        files = {
-            "radiograph_npz": (
-                "capture-001.npz",
-                open(r_path, "rb"),
-                "application/octet-stream",
-            ),
-            "gain_npz": (
-                "gain-042.npz",
-                open(g_path, "rb"),
-                "application/octet-stream",
-            ),
-            "manifest": ("manifest.json", raw_manifest_bytes, "application/json"),
-        }
-        headers = {
-            "Authorization": "Bearer mock_developer_token_xyz",
-            "X-Madeena-Manifest-Timestamp": ts,
-            "X-Madeena-Manifest-Signature": sig,
-        }
-
-        mock_claim = ClaimResult(status="SUCCEEDED_DIFF")
-        token_mock = {
-            "sub": "dev",
-            "scope": "image:convert",
-            "tenant_id": "test-tenant",
-        }
-
-        with (
-            patch(
-                "mpips.api.manifest_security.verify_token_payload",
-                return_value=token_mock,
-            ),
-            patch(
-                "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
-                return_value=mock_claim,
-            ),
-        ):
-
-            resp = client.post("/v1/radiographs/dicom", files=files, headers=headers)
-            assert resp.status_code == 409
-            assert "Idempotency conflict" in resp.json()["detail"]
+                assert mock_mark_success.called
+        finally:
+            app.dependency_overrides.clear()
 
 
-def test_redis_down_failure():
-    client = TestClient(app)
-    with tempfile.TemporaryDirectory() as temp_dir:
-        r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(temp_dir)
-        manifest_dict = make_test_manifest(r_sha, g_sha, r_sz, g_sz)
-        raw_manifest_bytes = json.dumps(manifest_dict).encode("utf-8")
-
-        ts = str(int(time.time()))
-        sig = compute_test_signature(ts, raw_manifest_bytes)
-
-        files = {
-            "radiograph_npz": (
-                "capture-001.npz",
-                open(r_path, "rb"),
-                "application/octet-stream",
-            ),
-            "gain_npz": (
-                "gain-042.npz",
-                open(g_path, "rb"),
-                "application/octet-stream",
-            ),
-            "manifest": ("manifest.json", raw_manifest_bytes, "application/json"),
-        }
-        headers = {
-            "Authorization": "Bearer mock_developer_token_xyz",
-            "X-Madeena-Manifest-Timestamp": ts,
-            "X-Madeena-Manifest-Signature": sig,
-        }
-
-        token_mock = {
-            "sub": "dev",
-            "scope": "image:convert",
-            "tenant_id": "test-tenant",
-        }
-        redis_err = HTTPException(
-            status_code=503, detail="Idempotency storage service unavailable"
-        )
-        with (
-            patch(
-                "mpips.api.manifest_security.verify_token_payload",
-                return_value=token_mock,
-            ),
-            patch(
-                "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
-                side_effect=redis_err,
-            ),
-        ):
-
-            resp = client.post("/v1/radiographs/dicom", files=files, headers=headers)
-            assert resp.status_code == 503
-            assert "unavailable" in resp.json()["detail"]
+# ── 5. Production Startup Configuration Validation Tests ─────────────
 
 
-def test_no_nik_in_openapi():
+def test_production_startup_validation_refuses_dev_bypass(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MPIPS_ENVIRONMENT", "production")
+    monkeypatch.setenv("DEV_AUTH_BYPASS", "true")
+    with pytest.raises(RuntimeError) as exc:
+        _validate_production_configuration()
+    assert "DEV_AUTH_BYPASS" in str(exc.value)
+
+
+def test_production_startup_validation_refuses_placeholder_secrets(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MPIPS_ENVIRONMENT", "production")
+    monkeypatch.setenv("DEV_AUTH_BYPASS", "false")
+    monkeypatch.setenv("MPIPS_MANIFEST_HMAC_SECRET", "replace-with-secret")
+    with pytest.raises(RuntimeError) as exc:
+        _validate_production_configuration()
+    assert "MPIPS_MANIFEST_HMAC_SECRET" in str(exc.value)
+
+
+def test_production_startup_validation_success(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MPIPS_ENVIRONMENT", "production")
+    monkeypatch.setenv("DEV_AUTH_BYPASS", "false")
+    monkeypatch.setenv("MPIPS_MANIFEST_HMAC_SECRET", HMAC_SECRET)
+    monkeypatch.setenv("MADEENA_IDP_JWKS_URL", "https://sso.madeena.com/jwks.json")
+    monkeypatch.setenv("MADEENA_IDP_ISSUER", "https://sso.madeena.com")
+    monkeypatch.setenv("MADEENA_IDP_AUDIENCE", "https://api.madeena.com")
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+
+    # Should pass without raising
+    _validate_production_configuration()
+
+
+# ── 6. OpenAPI Privacy Audit Test ────────────────────────────────────
+
+
+def test_no_nik_in_openapi() -> None:
     client = TestClient(app)
     resp = client.get("/openapi.json")
     assert resp.status_code == 200

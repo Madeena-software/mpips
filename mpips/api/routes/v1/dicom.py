@@ -8,6 +8,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+import anyio
 from fastapi import (
     APIRouter,
     Depends,
@@ -33,12 +34,29 @@ from mpips.conversion.service import run_isolated_dicom_conversion
 
 router = APIRouter(prefix="", tags=["Radiographs"])
 
+_concurrency_limiter: anyio.CapacityLimiter | None = None
+
+
+def get_concurrency_limiter() -> anyio.CapacityLimiter:
+    global _concurrency_limiter
+    if _concurrency_limiter is None:
+        try:
+            max_conc = int(os.getenv("MPIPS_DICOM_MAX_CONCURRENT_CONVERSIONS", "4"))
+            if max_conc <= 0:
+                max_conc = 4
+        except ValueError:
+            max_conc = 4
+        _concurrency_limiter = anyio.CapacityLimiter(max_conc)
+    return _concurrency_limiter
+
 
 def _get_upload_limits() -> tuple[int, int, int, int]:
     try:
         max_manifest = int(
             os.getenv("MPIPS_DICOM_MAX_MANIFEST_BYTES", str(1 * 1024 * 1024))
         )
+        if max_manifest <= 0:
+            max_manifest = 1 * 1024 * 1024
     except ValueError:
         max_manifest = 1 * 1024 * 1024
 
@@ -46,11 +64,15 @@ def _get_upload_limits() -> tuple[int, int, int, int]:
         max_rad = int(
             os.getenv("MPIPS_DICOM_MAX_RADIOGRAPH_BYTES", str(50 * 1024 * 1024))
         )
+        if max_rad <= 0:
+            max_rad = 50 * 1024 * 1024
     except ValueError:
         max_rad = 50 * 1024 * 1024
 
     try:
         max_gain = int(os.getenv("MPIPS_DICOM_MAX_GAIN_BYTES", str(50 * 1024 * 1024)))
+        if max_gain <= 0:
+            max_gain = 50 * 1024 * 1024
     except ValueError:
         max_gain = 50 * 1024 * 1024
 
@@ -58,6 +80,8 @@ def _get_upload_limits() -> tuple[int, int, int, int]:
         max_total = int(
             os.getenv("MPIPS_DICOM_MAX_TOTAL_BYTES", str(100 * 1024 * 1024))
         )
+        if max_total <= 0:
+            max_total = 100 * 1024 * 1024
     except ValueError:
         max_total = 100 * 1024 * 1024
 
@@ -83,6 +107,7 @@ def _get_upload_limits() -> tuple[int, int, int, int]:
         409: {"description": "Idempotency conflict or job in progress"},
         413: {"description": "Upload size limit exceeded"},
         422: {"description": "Validation error"},
+        429: {"description": "Concurrency limit exceeded"},
         503: {"description": "Redis dependency unavailable"},
         504: {"description": "Processing timeout"},
     },
@@ -100,15 +125,10 @@ async def convert_radiograph_to_dicom(
     payload: Dict[str, Any] = Depends(verify_image_convert_scope),
 ) -> FileResponse:
     tenant_id = str(payload.get("tenant_id", "")).strip()
-    if not tenant_id:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token lacks tenant_id",
-        )
 
     max_manifest, max_rad, max_gain, max_total = _get_upload_limits()
 
-    # Private temp directory with restrictive permissions (0700)
+    # Private staging directory
     stage_dir = Path(tempfile.mkdtemp(prefix="mpips-dicom-stage-"))
     os.chmod(stage_dir, 0o700)
 
@@ -131,13 +151,14 @@ async def convert_radiograph_to_dicom(
             ):
                 raise HTTPException(
                     status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                    detail="Manifest upload size limit exceeded",
+                    detail="UPLOAD_SIZE_EXCEEDED",
                 )
 
         manifest_bytes = bytes(raw_manifest_bytes)
 
-        # 2. Verify signature over exact raw bytes
+        # 2. Verify signature over exact raw bytes with canonical tenant_id
         verify_manifest_signature(
+            tenant_id,
             manifest_bytes,
             x_madeena_manifest_timestamp,
             x_madeena_manifest_signature,
@@ -150,7 +171,7 @@ async def convert_radiograph_to_dicom(
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid manifest JSON or schema: {exc}",
+                detail="MANIFEST_SCHEMA_INVALID",
             ) from exc
 
         # 4. Stream radiograph NPZ
@@ -168,7 +189,7 @@ async def convert_radiograph_to_dicom(
                 if rad_size > max_rad or total_accumulated_bytes > max_total:
                     raise HTTPException(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail="Radiograph NPZ upload size limit exceeded",
+                        detail="UPLOAD_SIZE_EXCEEDED",
                     )
                 rad_hasher.update(chunk)
                 f_out.write(chunk)
@@ -190,7 +211,7 @@ async def convert_radiograph_to_dicom(
                 if gain_size > max_gain or total_accumulated_bytes > max_total:
                     raise HTTPException(
                         status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                        detail="Gain NPZ upload size limit exceeded",
+                        detail="UPLOAD_SIZE_EXCEEDED",
                     )
                 gain_hasher.update(chunk)
                 f_out.write(chunk)
@@ -202,14 +223,14 @@ async def convert_radiograph_to_dicom(
         if rad_size != expected_rad.byte_size or rad_sha256 != expected_rad.sha256:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Radiograph file byte_size or SHA256 mismatch with manifest",
+                detail="NPZ_VALIDATION_ERROR",
             )
 
         expected_gain = mhcs_manifest.capture.gain
         if gain_size != expected_gain.byte_size or gain_sha256 != expected_gain.sha256:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Gain file byte_size or SHA256 mismatch with manifest",
+                detail="NPZ_VALIDATION_ERROR",
             )
 
         # 7. Atomic Redis Idempotency Claim
@@ -229,25 +250,38 @@ async def convert_radiograph_to_dicom(
         if claim.status == "IN_PROGRESS":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="Job is currently processing",
+                detail="IDEMPOTENCY_IN_PROGRESS",
             )
 
         if claim.status == "SUCCEEDED_DIFF":
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail=(
-                    "Idempotency conflict: conversion_job_id already exists "
-                    "with different payload"
-                ),
+                detail="IDEMPOTENCY_CONFLICT",
             )
 
         output_dicom_path = stage_dir / "output.dcm"
 
-        # 8. Isolated Conversion Execution
+        # 8. Bound process concurrency via process-wide CapacityLimiter
+        limiter = get_concurrency_limiter()
         try:
-            run_isolated_dicom_conversion(
-                rad_path, gain_path, mhcs_manifest, output_dicom_path
+            limiter.acquire_nowait()
+        except (anyio.WouldBlock, RuntimeError):
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail="CONCURRENCY_LIMIT_EXCEEDED",
+                headers={"Retry-After": "5"},
             )
+
+        try:
+            # Execute conversion in thread pool off the main event loop
+            await anyio.to_thread.run_sync(
+                run_isolated_dicom_conversion,
+                rad_path,
+                gain_path,
+                mhcs_manifest,
+                output_dicom_path,
+            )
+
             if claim.lease_token:
                 IdempotencyService.mark_success(
                     tenant_id,
@@ -257,13 +291,16 @@ async def convert_radiograph_to_dicom(
                 )
         except Exception as exc:
             if claim.lease_token:
+                err_detail = getattr(exc, "detail", "CONVERSION_FAILED")
                 IdempotencyService.mark_failure(
                     tenant_id,
                     str(mhcs_manifest.conversion_job_id),
                     claim.lease_token,
-                    str(exc),
+                    str(err_detail),
                 )
             raise
+        finally:
+            limiter.release()
 
         # 9. Response preparation & Cleanup Ownership Transfer
         safe_cid = re.sub(r"[^a-zA-Z0-9_-]", "_", mhcs_manifest.capture.capture_id)

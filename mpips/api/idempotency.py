@@ -39,6 +39,116 @@ def compute_manifest_fingerprint(
     return hasher.hexdigest()
 
 
+CLAIM_LUA = """
+local key = KEYS[1]
+local fp = ARGV[1]
+local lease_token = ARGV[2]
+local tenant_id = ARGV[3]
+local lease_ttl = tonumber(ARGV[4])
+
+local existing = redis.call('GET', key)
+if not existing then
+    local data = cjson.encode({
+        status = "processing",
+        fingerprint = fp,
+        lease_token = lease_token,
+        tenant_id = tenant_id
+    })
+    redis.call('SET', key, data, 'EX', lease_ttl)
+    return "CLAIMED"
+end
+
+local ok, data = pcall(cjson.decode, existing)
+if not ok or type(data) ~= "table" then
+    data = {}
+end
+
+local status = data["status"]
+local existing_fp = data["fingerprint"]
+
+if status == "processing" then
+    return "IN_PROGRESS"
+elseif status == "succeeded" then
+    if existing_fp == fp then
+        data["status"] = "processing"
+        data["lease_token"] = lease_token
+        local updated = cjson.encode(data)
+        redis.call('SET', key, updated, 'EX', lease_ttl)
+        local uids_json = cjson.encode(data["cached_uids"] or {})
+        return "SUCCEEDED_SAME:" .. uids_json
+    else
+        return "SUCCEEDED_DIFF"
+    end
+else
+    if existing_fp == fp then
+        data["status"] = "processing"
+        data["lease_token"] = lease_token
+        local updated = cjson.encode(data)
+        redis.call('SET', key, updated, 'EX', lease_ttl)
+        return "CLAIMED"
+    else
+        return "SUCCEEDED_DIFF"
+    end
+end
+"""
+
+SUCCESS_LUA = """
+local key = KEYS[1]
+local lease_token = ARGV[1]
+local cached_uids_json = ARGV[2]
+local success_ttl = tonumber(ARGV[3])
+
+local existing = redis.call('GET', key)
+if not existing then
+    return 0
+end
+
+local ok, data = pcall(cjson.decode, existing)
+if not ok or type(data) ~= "table" then
+    return 0
+end
+
+if data["status"] == "processing" and data["lease_token"] == lease_token then
+    data["status"] = "succeeded"
+    local uids_ok, uids = pcall(cjson.decode, cached_uids_json)
+    if uids_ok then
+        data["cached_uids"] = uids
+    end
+    local updated = cjson.encode(data)
+    redis.call('SET', key, updated, 'EX', success_ttl)
+    return 1
+else
+    return 0
+end
+"""
+
+FAILURE_LUA = """
+local key = KEYS[1]
+local lease_token = ARGV[1]
+local error_code = ARGV[2]
+
+local existing = redis.call('GET', key)
+if not existing then
+    return 0
+end
+
+local ok, data = pcall(cjson.decode, existing)
+if not ok or type(data) ~= "table" then
+    return 0
+end
+
+if data["status"] == "processing" and data["lease_token"] == lease_token then
+    data["status"] = "failed"
+    data["error_code"] = error_code
+    local updated = cjson.encode(data)
+    redis.call('SET', key, updated, 'EX', 300)
+    return 1
+else
+    return 0
+end
+"""
+
+
 class IdempotencyService:
     @staticmethod
     def _get_lease_ttl() -> int:
@@ -46,7 +156,7 @@ class IdempotencyService:
             timeout = int(os.getenv("MPIPS_DICOM_PROCESS_TIMEOUT_SECONDS", "300"))
         except ValueError:
             timeout = 300
-        return timeout + 30
+        return timeout + 60  # Complete operation margin
 
     @staticmethod
     def _get_success_ttl() -> int:
@@ -69,74 +179,34 @@ class IdempotencyService:
 
         try:
             r = get_redis_client()
-            existing_data_str = r.get(key)
-        except RedisError as exc:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="Idempotency storage service unavailable",
-            ) from exc
+            res = r.eval(
+                CLAIM_LUA, 1, key, fingerprint, lease_token, tenant_id, lease_ttl
+            )
+            res_str = res.decode("utf-8") if isinstance(res, bytes) else str(res)
 
-        if not existing_data_str:
-            data = {
-                "status": "processing",
-                "fingerprint": fingerprint,
-                "lease_token": lease_token,
-                "tenant_id": tenant_id,
-            }
-            try:
-                acquired = r.set(key, json.dumps(data), ex=lease_ttl, nx=True)
-                if acquired:
-                    return ClaimResult(status="CLAIMED", lease_token=lease_token)
-                existing_data_str = r.get(key)
-            except RedisError as exc:
-                raise HTTPException(
-                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                    detail="Idempotency storage service unavailable",
-                ) from exc
-
-        if not existing_data_str:
-            return ClaimResult(status="CLAIMED", lease_token=lease_token)
-
-        try:
-            existing = json.loads(existing_data_str)
-        except Exception:
-            existing = {}
-
-        current_status = existing.get("status")
-        existing_fp = existing.get("fingerprint")
-
-        if current_status == "processing":
-            return ClaimResult(status="IN_PROGRESS")
-
-        if current_status == "succeeded":
-            if existing_fp == fingerprint:
-                data = {
-                    "status": "processing",
-                    "fingerprint": fingerprint,
-                    "lease_token": lease_token,
-                    "tenant_id": tenant_id,
-                    "cached_uids": existing.get("cached_uids"),
-                }
-                r.set(key, json.dumps(data), ex=lease_ttl)
+            if res_str == "CLAIMED":
+                return ClaimResult(status="CLAIMED", lease_token=lease_token)
+            elif res_str == "IN_PROGRESS":
+                return ClaimResult(status="IN_PROGRESS")
+            elif res_str == "SUCCEEDED_DIFF":
+                return ClaimResult(status="SUCCEEDED_DIFF")
+            elif res_str.startswith("SUCCEEDED_SAME:"):
+                uids_raw = res_str[len("SUCCEEDED_SAME:") :]
+                try:
+                    uids = json.loads(uids_raw)
+                except Exception:
+                    uids = {}
                 return ClaimResult(
                     status="SUCCEEDED_SAME",
                     lease_token=lease_token,
-                    cached_uids=existing.get("cached_uids"),
+                    cached_uids=uids,
                 )
-            return ClaimResult(status="SUCCEEDED_DIFF")
-
-        # status == "failed" or other
-        if existing_fp == fingerprint:
-            data = {
-                "status": "processing",
-                "fingerprint": fingerprint,
-                "lease_token": lease_token,
-                "tenant_id": tenant_id,
-            }
-            r.set(key, json.dumps(data), ex=lease_ttl)
             return ClaimResult(status="CLAIMED", lease_token=lease_token)
-
-        return ClaimResult(status="SUCCEEDED_DIFF")
+        except RedisError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="IDEMPOTENCY_STORAGE_UNAVAILABLE",
+            ) from exc
 
     @classmethod
     def mark_success(
@@ -150,15 +220,18 @@ class IdempotencyService:
         ttl = cls._get_success_ttl()
         try:
             r = get_redis_client()
-            existing_data_str = r.get(key)
-            if existing_data_str:
-                existing = json.loads(existing_data_str)
-                if existing.get("lease_token") == lease_token:
-                    existing["status"] = "succeeded"
-                    existing["cached_uids"] = cached_uids
-                    r.set(key, json.dumps(existing), ex=ttl)
-        except RedisError:
-            pass
+            uids_json = json.dumps(cached_uids)
+            res = r.eval(SUCCESS_LUA, 1, key, lease_token, uids_json, ttl)
+            if res != 1 and int(res or 0) != 1:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="IDEMPOTENCY_PERSISTENCE_FAILURE",
+                )
+        except RedisError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="IDEMPOTENCY_PERSISTENCE_FAILURE",
+            ) from exc
 
     @classmethod
     def mark_failure(
@@ -166,17 +239,11 @@ class IdempotencyService:
         tenant_id: str,
         conversion_job_id: str,
         lease_token: str,
-        error_msg: str,
+        sanitized_error_code: str,
     ) -> None:
         key = f"mpips:dicom_idempotency:{tenant_id}:{conversion_job_id}"
         try:
             r = get_redis_client()
-            existing_data_str = r.get(key)
-            if existing_data_str:
-                existing = json.loads(existing_data_str)
-                if existing.get("lease_token") == lease_token:
-                    existing["status"] = "failed"
-                    existing["error"] = error_msg[:256]
-                    r.set(key, json.dumps(existing), ex=300)
+            r.eval(FAILURE_LUA, 1, key, lease_token, sanitized_error_code)
         except RedisError:
             pass
