@@ -1,0 +1,67 @@
+version: '3.8'
+
+services:
+  mpips-api:
+    image: mpips-api:latest
+    environment:
+      - MPIPS_ENVIRONMENT=production
+      - DEV_AUTH_BYPASS=false
+      - MPIPS_API_WORKERS=1
+      - PORT=8000
+      - REDIS_URL=redis://redis:6379/0
+      - MPIPS_LAUNCHER_SOCKET_PATH=/var/run/mpips-launcher.sock
+      - MPIPS_MANIFEST_HMAC_SECRET=${MPIPS_MANIFEST_HMAC_SECRET:-c8e73f91d0a5491fb3421e89b70c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c}
+      - MADEENA_IDP_JWKS_URL=${MADEENA_IDP_JWKS_URL:-https://sso.madeena.com/.well-known/jwks.json}
+      - MADEENA_IDP_ISSUER=${MADEENA_IDP_ISSUER:-https://sso.madeena.com}
+      - MADEENA_IDP_AUDIENCE=${MADEENA_IDP_AUDIENCE:-https://api.madeena.com}
+    volumes:
+      - /tmp/mpips-workspaces:/tmp/mpips-workspaces:rw
+      - /var/run/mpips-launcher.sock:/var/run/mpips-launcher.sock:rw
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - mpips-api
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 80 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --save 60 1 --loglevel notice
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+volumes:
+  redis_data:

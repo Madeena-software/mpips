@@ -1,0 +1,21 @@
+[Unit]
+Description=MPIPS NPZ Worker Host Launcher Service
+Documentation=https://github.com/Madeena-software/mpips
+Requires=docker.service
+After=docker.service mpips-launcher.socket
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/python3 /usr/local/bin/mpips-launcher.py
+Restart=always
+RestartSec=5s
+Environment=MPIPS_WORKER_IMAGE=mpips-npz-worker:latest
+Environment=MPIPS_WORKSPACE_ROOT=/tmp/mpips-workspaces
+Environment=MPIPS_LAUNCHER_SOCKET_PATH=/var/run/mpips-launcher.sock
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

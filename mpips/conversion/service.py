@@ -6,6 +6,7 @@ import numpy as np
 import os
 import shutil
 import signal
+import socket
 import stat
 import subprocess
 import sys
@@ -267,18 +268,60 @@ def run_isolated_dicom_conversion(
 
         # Launch worker
         if env_mode == "production":
-            # Production host supervisor container launcher
-            launcher_sock = Path("/var/run/mpips-launcher.sock")
+            # Production host supervisor container launcher via narrow Unix socket
+            launcher_sock_path = os.getenv(
+                "MPIPS_LAUNCHER_SOCKET_PATH", "/var/run/mpips-launcher.sock"
+            )
+            launcher_sock = Path(launcher_sock_path)
             if not launcher_sock.exists():
                 raise HTTPException(
                     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail="CONVERSION_WORKER_FAILURE",
                 )
-            # In production socket protocol submission...
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="CONVERSION_WORKER_FAILURE",
+
+            request_payload = (
+                json.dumps(
+                    {
+                        "job_id": str(manifest.conversion_job_id),
+                        "workspace_dir": str(workspace_dir),
+                    }
+                ).encode("utf-8")
+                + b"\n"
             )
+
+            try:
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+                    sock.settimeout(timeout_seconds + 10)
+                    sock.connect(str(launcher_sock))
+                    sock.sendall(request_payload)
+                    sock.shutdown(socket.SHUT_WR)
+
+                    resp_bytes = bytearray()
+                    while True:
+                        chunk = sock.recv(4096)
+                        if not chunk:
+                            break
+                        resp_bytes.extend(chunk)
+
+                if not resp_bytes:
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="CONVERSION_WORKER_FAILURE",
+                    )
+
+                resp_data = json.loads(resp_bytes.decode("utf-8"))
+                if resp_data.get("status") != "success":
+                    raise HTTPException(
+                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                        detail="CONVERSION_WORKER_FAILURE",
+                    )
+            except HTTPException:
+                raise
+            except Exception as exc:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="CONVERSION_WORKER_FAILURE",
+                ) from exc
         else:
             # Development/test adapter with empty environment
             clean_env = {
