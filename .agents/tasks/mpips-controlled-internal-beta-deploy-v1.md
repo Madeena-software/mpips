@@ -9,8 +9,10 @@ version: 1
 
 ## Objective
 
-For `$TARGET`, deploy the accepted MPIPS DICOM-only service on the same server
-as MHCS as a controlled internal beta.
+For `$TARGET`, deploy the accepted MPIPS DICOM-only service as a controlled
+private internal beta on the approved server. An active MHCS runtime is
+optional; when MHCS is present, verify its private connection, and when it is
+absent, use a task-local synthetic client for verification only.
 
 Accepted application commit:
 
@@ -26,7 +28,7 @@ GET  /health
 ```
 
 The deployment must remain private. The executing agent must inspect the actual
-MHCS runtime topology and select exactly one connection model:
+MHCS runtime state. When MHCS is present, select exactly one connection model:
 
 ```text
 A. MHCS is containerized:
@@ -36,6 +38,13 @@ A. MHCS is containerized:
 B. MHCS runs directly on the host:
    MHCS -> http://127.0.0.1:${MPIPS_INTERNAL_PORT}
    MPIPS binds only to loopback.
+
+C. MHCS is not active on the approved server:
+   task-local synthetic client -> http://127.0.0.1:${MPIPS_INTERNAL_PORT}
+   MPIPS binds only to loopback.
+
+An absent MHCS runtime is not an execution blocker. Record `not-present` and
+use model C. Do not claim MHCS-context connectivity when model C is selected.
 ```
 
 Do not assume that `localhost` inside an MHCS container reaches MPIPS.
@@ -43,11 +52,12 @@ Do not assume that `localhost` inside an MHCS container reaches MPIPS.
 The beta is permitted only under this release condition:
 
 ```text
-MPIPS accepts NPZ files only from the trusted MHCS capture path and trusted
-Madeena detector software. Legacy pickle-enabled NPZ metadata remains a known
-residual risk contained inside the network-disabled, non-root,
-resource-limited isolated worker. Arbitrary third-party NPZ uploads are
-prohibited.
+When MHCS is present, MPIPS accepts NPZ files only from the trusted MHCS
+capture path and trusted Madeena detector software. When MHCS is absent, the
+task-local synthetic client may submit synthetic fixtures solely for this
+verification run. Legacy pickle-enabled NPZ metadata remains a known residual
+risk contained inside the network-disabled, non-root, resource-limited
+isolated worker. Arbitrary third-party NPZ uploads are prohibited.
 ```
 
 The task may prepare deployment artifacts, create one scoped local commit,
@@ -67,7 +77,7 @@ deploy the beta, run live verification, and stop.
 
 - `TARGET` (required): MPIPS repository root.
 - `DEPLOY_TEMPLATES` (required): local checkout of Madeena-software/deploy-templates.
-- `MPIPS_INTERNAL_PORT` (optional, default: 8000): loopback port for host-native MHCS.
+- `MPIPS_INTERNAL_PORT` (optional, default: 8000): loopback port for host-native MHCS or the local synthetic client.
 - `REMOTE_PATH` (optional, default: /var/www/mpips-runtime): dedicated runtime directory.
 
 ## Context and evidence
@@ -95,7 +105,7 @@ Inspect:
 - `mpips/workflows/imager_pipeline/npz_io.py`;
 - focused and full tests;
 - actual Docker, Swarm, systemd, network, and listener state;
-- actual MHCS containers, services, stacks, networks, and host processes;
+- actual MHCS containers, services, stacks, networks, and host processes, when present;
 - applicable production templates under `$DEPLOY_TEMPLATES/templates/prod/`;
 - SHA-256 of `mpips/engine/imager_pipeline/tiff_json_to_dcm.py`.
 
@@ -115,17 +125,17 @@ a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0
 
 In scope:
 
-- determine actual MHCS topology from server evidence;
+- determine actual MHCS topology from server evidence, or record `not-present`;
 - prepare private production deployment configuration;
 - adapt Madeena deployment-template patterns;
 - build immutable MPIPS API and NPZ-worker images;
 - configure private Redis;
 - configure the isolated worker launcher;
 - mount validated calibration artifacts read-only;
-- configure the private MHCS-to-MPIPS connection;
-- deploy locally on the same approved server;
-- update the locally available MHCS runtime configuration only when the change
-  is limited to the MPIPS internal base URL;
+- configure the private MHCS-to-MPIPS connection when MHCS is present;
+- deploy locally on the approved server;
+- update the locally available MHCS runtime configuration, when present, only
+  when the change is limited to the MPIPS internal base URL;
 - run live health, route, authentication, HMAC, DICOM conversion, Redis,
   launcher, isolation, cleanup, restart, concurrency, and rollback checks;
 - document the trusted-NPZ release condition;
@@ -140,7 +150,7 @@ Deployment requirements:
 - no public hostname;
 - no public ingress;
 - no host port when MHCS is containerized;
-- loopback-only host port when MHCS is host-native;
+- loopback-only host port when MHCS is host-native or not present;
 - Redis has no published port;
 - Redis is accessible only to MPIPS;
 - API and worker images use the deployed Git SHA, not `latest`;
@@ -152,7 +162,8 @@ Deployment requirements:
 
 Trusted-NPZ beta conditions:
 
-- only MHCS may call the endpoint;
+- only MHCS may call the endpoint when MHCS is present; otherwise only the
+  task-local synthetic verification client may call it;
 - only trusted Madeena-generated NPZ files may be submitted;
 - no direct end-user or third-party upload route may be introduced;
 - safe non-pickle NPZ migration remains a mandatory post-beta task;
@@ -302,9 +313,11 @@ privacy, or verification checks.
    - `containerized-swarm`: MHCS runs as a Swarm service;
    - `containerized-compose`: MHCS runs as a container or Compose project;
    - `host-native`: MHCS runs directly on the host;
+   - `not-present`: no active MHCS runtime is found on the approved server;
    - `ambiguous`: evidence is insufficient.
 
-   Stop with `awaiting-approval` if ambiguous.
+   Stop with `awaiting-approval` if ambiguous. Continue with model C when the
+   evidence establishes `not-present`.
 
 10. Select the connection model:
 
@@ -314,6 +327,9 @@ privacy, or verification checks.
       publish no MPIPS host port.
     - Host-native: bind only to
       `127.0.0.1:${MPIPS_INTERNAL_PORT}`.
+    - Not present: bind only to
+      `127.0.0.1:${MPIPS_INTERNAL_PORT}` and use the task-local synthetic
+      client. Do not edit an MHCS configuration that is not present.
 
 11. Inspect Madeena deployment templates and record the source commit.
 
@@ -365,7 +381,7 @@ privacy, or verification checks.
 17. Update `.agents/context/project.md` with:
 
     - controlled internal beta status;
-    - detected MHCS topology;
+    - detected MHCS topology, including `not-present` when applicable;
     - exact private MPIPS URL;
     - no public exposure;
     - trusted-NPZ condition;
@@ -396,7 +412,7 @@ privacy, or verification checks.
 20. Verify rendered policy:
 
     - no public port for containerized MHCS;
-    - loopback-only port for host-native MHCS;
+    - loopback-only port for host-native or not-present MHCS;
     - no Redis host port;
     - no Nginx or public hostname;
     - no `latest`;
@@ -436,7 +452,7 @@ privacy, or verification checks.
 
     - current MPIPS stack or Compose configuration;
     - current images and service/container IDs;
-    - current MHCS MPIPS URL;
+    - current MHCS MPIPS URL, when MHCS is present;
     - current launcher configuration;
     - current health state.
 
@@ -451,7 +467,8 @@ privacy, or verification checks.
 31. Verify live exposure:
 
     - no public listener;
-    - correct private URL from the MHCS execution context;
+    - correct private URL from the MHCS execution context when present, or
+      from the task-local synthetic client when MHCS is not present;
     - Redis private;
     - worker network-disabled;
     - no Nginx or ingress route.
@@ -470,7 +487,7 @@ privacy, or verification checks.
     ```
 
 33. Run a live authenticated synthetic conversion from the same context used by
-    MHCS.
+    MHCS, or from the task-local synthetic client when MHCS is not present.
 
 34. Validate returned DICOM:
 
@@ -516,7 +533,8 @@ privacy, or verification checks.
     - a critical or high active-path issue is found.
 
 39. Confirm from the MHCS execution context that the selected private URL
-    reaches `/health`.
+    reaches `/health` when MHCS is present. Otherwise confirm the same URL from
+    the task-local synthetic client.
 
 40. Do not use real patient files.
 
@@ -540,11 +558,11 @@ privacy, or verification checks.
 - [ ] Initial repositories were clean.
 - [ ] Accepted commit `2f267aed...` was an ancestor of starting `HEAD`.
 - [ ] Converter hash matched before and after.
-- [ ] Actual MHCS topology was determined from evidence.
+- [ ] Actual MHCS topology was determined from evidence, or `not-present` was recorded.
 - [ ] Correct private connection model was selected.
 - [ ] MPIPS was not exposed publicly.
-- [ ] Containerized MHCS did not use `localhost` for MPIPS.
-- [ ] Host-native MHCS used loopback only.
+- [ ] Containerized MHCS did not use `localhost` for MPIPS, when containerized MHCS is present.
+- [ ] Host-native or not-present MHCS used loopback only.
 - [ ] Redis had no published host port.
 - [ ] No Nginx or public ingress was deployed.
 - [ ] API and worker images used immutable commit-derived tags.
@@ -571,7 +589,7 @@ privacy, or verification checks.
 - [ ] No secrets or non-synthetic patient data appeared in tracked files,
       client errors, or logs.
 - [ ] No orphan worker or unsafe task-created resource remained.
-- [ ] MHCS execution context reached the selected private MPIPS URL.
+- [ ] MHCS execution context reached the selected private MPIPS URL when present, or the task-local synthetic client reached it when MHCS was not present.
 - [ ] Final Git working tree was clean.
 - [ ] Final outcome used one allowed value.
 
@@ -599,11 +617,13 @@ privacy, or verification checks.
   source, rendered deployment configuration, image build and inspection,
   candidate burn-in, rollback snapshot, live deployment, private exposure,
   live DICOM conversion, Redis interruption and recovery, launcher failure,
-  restart recovery, bounded concurrency, cleanup, and MHCS-context connectivity.
+  restart recovery, bounded concurrency, cleanup, and MHCS-context or local
+  synthetic-client connectivity.
 
 - Expected result:
   - MPIPS runs as a private same-server controlled internal beta;
-  - MHCS reaches it only through the selected private URL;
+  - MHCS reaches it only through the selected private URL when present, or the
+    local synthetic client reaches it when MHCS is not present;
   - no public MPIPS or Redis exposure exists;
   - the active DICOM path passes live verification;
   - trusted legacy NPZ input remains contained in the isolated worker;
@@ -621,7 +641,7 @@ privacy, or verification checks.
   - starting and resulting commit SHAs;
   - exact changed files;
   - deployment-template source commit;
-  - detected MHCS topology;
+  - detected MHCS topology, including `not-present` when applicable;
   - selected internal MPIPS URL;
   - deployed stack or Compose project;
   - immutable API and worker image tags;
@@ -645,7 +665,7 @@ privacy, or verification checks.
 
 Treat as unsuccessful:
 
-- ambiguous topology;
+- ambiguous topology without an approval decision;
 - missing secret or calibration artifact;
 - public exposure or published Redis;
 - mutable image tag;
