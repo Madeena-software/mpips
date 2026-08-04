@@ -3,7 +3,7 @@
 
 **Status:** Verified
 **Last verified:** 2026-08-05
-**Repository checkpoint:** `5c3dcf9`
+**Repository checkpoint:** `3a17baca`
 
 ## Purpose and users
 
@@ -18,8 +18,7 @@ The intended consumers are Madeena services, internal processing tools, and
 Python/Colab users of the packaged workflows. End-user accounts, billing,
 business workflows, and a visual pipeline builder are outside this repository.
 Evidence: API contracts in `mpips/api/schemas/` and the package entry points in
-`pyproject.toml`; the exclusions preserve the product boundary recorded at
-checkpoint `d8b7dec`.
+`pyproject.toml`.
 
 ## Current capabilities and flows
 
@@ -59,7 +58,7 @@ checkpoint `d8b7dec`.
 
 ## Commands
 
-| Purpose | Command | Evidence | Status on 2026-07-19 |
+| Purpose | Command | Evidence | Remediation evidence |
 |---|---|---|---|
 | Install service | `python -m pip install -e ".[service]"` | `pyproject.toml` | Not run this pass |
 | Install development tools | `python -m pip install -e ".[dev]"` | `pyproject.toml` | Existing `.venv` used |
@@ -67,11 +66,17 @@ checkpoint `d8b7dec`.
 | Run imager pipeline | `python -m pip install -e ".[imager]" && mpips-imager` | `pyproject.toml` | Not run this pass |
 | Run API | `uvicorn mpips.asgi:app --host 0.0.0.0 --port 8000` | `mpips/asgi.py`, `docker/entrypoint.sh` | Not run this pass |
 | Run worker | `celery -A mpips.worker worker --loglevel=info` | `mpips/worker/__init__.py` | Not run this pass |
-| Test | `.venv/bin/python -m pytest -q` | `pyproject.toml` | 83 passed, 7 warnings |
-| Format check | `.venv/bin/python -m black --check mpips tests` | `pyproject.toml` | Passed |
-| Lint | `.venv/bin/python -m flake8 mpips tests` | `.flake8` | Passed |
-| Type check | `.venv/bin/python -m mypy mpips tests` | `pyproject.toml` | Passed |
-| Build wheel | `.venv/bin/python -m build --wheel --no-isolation` | `pyproject.toml` | Blocked: `wheel` is not installed |
+| API surface test | `python -m uv run pytest tests/api/test_api_surface.py -v` | `tests/api/test_api_surface.py` | 3 passed, 1 warning |
+| DICOM conversion test | `python -m uv run pytest tests/api/test_dicom_conversion.py -v` | `tests/api/test_dicom_conversion.py` | 15 passed, 5 warnings |
+| DICOM authentication test | `python -m uv run pytest tests/api/test_dicom_authentication.py -v` | `tests/api/test_dicom_authentication.py` | 6 passed, 1 warning |
+| Full test suite | `python -m uv run pytest -v` | `tests/` | 100 passed, 1 failed in unchanged `tests/test_host_launcher.py` |
+| Format check | `python -m uv run black --check mpips tests` | `pyproject.toml` | Failed only on unchanged `tests/test_host_launcher.py` |
+| Lint | `python -m uv run flake8 mpips tests` | `.flake8` | Failed only on unchanged `tests/test_host_launcher.py` |
+| Type check | `python -m uv run mypy mpips tests` | `pyproject.toml` | Passed; no issues in 67 source files |
+| Build wheel | `.venv/bin/python -m build --wheel --no-isolation` | `pyproject.toml` | Not run in this remediation |
+
+The `uv` executable was unavailable on `PATH`; the installed uv module was
+invoked through `.venv/bin/python -m uv run` for these checks.
 
 ## Operational workflows
 
@@ -135,9 +140,9 @@ and `LICENSES/`; the ImageJ replication component carries GPL-v2 obligations.
 
 ## Superseded facts
 
-- Earlier context described now-absent research directory names and only 62
-  tests. The current tree uses `research/kambing-260714/` and the verified suite
-  has 83 tests.
+- Earlier context described now-absent research directory names and stale test
+  counts. The current tree uses `research/kambing-260714/`; test counts and
+  quality-gate results are recorded only when produced by the current pass.
 - Separate stack, server, testing-pyramid, and project-context documents were
   consolidated here to remove conflicting authorities.
 
