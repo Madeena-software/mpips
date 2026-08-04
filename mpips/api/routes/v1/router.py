@@ -14,7 +14,10 @@ from mpips.api.schemas.jobs import (
 )
 from mpips.engine.catalog import NODE_CATALOG
 
+from mpips.api.routes.v1.dicom import router as dicom_router
+
 router = APIRouter(prefix="/v1", tags=["v1"])
+router.include_router(dicom_router)
 
 _error_401 = {
     "description": "Missing or invalid Bearer token",
