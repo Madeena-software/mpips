@@ -77,7 +77,7 @@ def decode_and_verify_token(token: str, resolver: JWKSKeyResolver) -> Dict[str, 
         )
 
 
-async def verify_token(
+async def verify_token_payload(
     credentials: HTTPAuthorizationCredentials = Depends(security_scheme),
     resolver: JWKSKeyResolver = Depends(get_key_resolver),
 ) -> Dict[str, Any]:
@@ -86,11 +86,12 @@ async def verify_token(
 
     if bypass_cfg["bypass"]:
         if token == bypass_cfg["token"]:
-            # Returns a mock payload matching the required scopes
+            # Returns a mock payload matching all default scopes plus image:convert
             idp_cfg = get_idp_config()
+            scopes = set(idp_cfg["scopes"]) | {"image:convert"}
             return {
                 "sub": "mock-client-id",
-                "scope": " ".join(idp_cfg["scopes"]),
+                "scope": " ".join(scopes),
                 "tenant_id": "default-tenant-id",
                 "bypass": True,
             }
@@ -102,9 +103,13 @@ async def verify_token(
             )
 
     # Decode and verify against JWKS IDP
-    payload = decode_and_verify_token(token, resolver)
+    return decode_and_verify_token(token, resolver)
 
-    # Scope validation
+
+async def verify_token(
+    payload: Dict[str, Any] = Depends(verify_token_payload),
+) -> Dict[str, Any]:
+    # Scope validation for default routes
     idp_cfg = get_idp_config()
     scopes_str = payload.get("scope", "")
     scopes: List[str] = [s.strip() for s in scopes_str.split(" ") if s.strip()]
