@@ -3,17 +3,15 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
-import os
-import shutil
-import socket
-import tempfile
 from pathlib import Path
 from unittest.mock import patch, AsyncMock
 
 import pytest
 
 # Dynamically import mpips-launcher.py from docker/host-launcher/
-launcher_file_path = Path(__file__).parent.parent / "docker" / "host-launcher" / "mpips-launcher.py"
+launcher_file_path = (
+    Path(__file__).parent.parent / "docker" / "host-launcher" / "mpips-launcher.py"
+)
 spec = importlib.util.spec_from_file_location("mpips_launcher", launcher_file_path)
 if spec is None or spec.loader is None:
     raise RuntimeError(f"Could not load launcher spec from {launcher_file_path}")
@@ -25,7 +23,9 @@ build_docker_cmd = mpips_launcher.build_docker_cmd
 handle_client = mpips_launcher.handle_client
 
 
-def test_validate_workspace_success(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_validate_workspace_success(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ws_root = tmp_path / "mpips-workspaces"
     ws_root.mkdir()
     monkeypatch.setattr(mpips_launcher, "WORKSPACE_ROOT", ws_root.resolve())
@@ -38,7 +38,9 @@ def test_validate_workspace_success(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     assert validated == job_ws.resolve()
 
 
-def test_validate_workspace_rejects_path_traversal(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_validate_workspace_rejects_path_traversal(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ws_root = tmp_path / "mpips-workspaces"
     ws_root.mkdir()
     monkeypatch.setattr(mpips_launcher, "WORKSPACE_ROOT", ws_root.resolve())
@@ -48,10 +50,14 @@ def test_validate_workspace_rejects_path_traversal(tmp_path: Path, monkeypatch: 
 
     with pytest.raises(ValueError) as exc:
         validate_workspace(str(outside))
-    assert "PATH_TRAVERSAL_REJECTED" in str(exc.value) or "INVALID_WORKSPACE_PREFIX" in str(exc.value)
+    assert "PATH_TRAVERSAL_REJECTED" in str(
+        exc.value
+    ) or "INVALID_WORKSPACE_PREFIX" in str(exc.value)
 
 
-def test_validate_workspace_rejects_non_job_prefix(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_validate_workspace_rejects_non_job_prefix(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ws_root = tmp_path / "mpips-workspaces"
     ws_root.mkdir()
     monkeypatch.setattr(mpips_launcher, "WORKSPACE_ROOT", ws_root.resolve())
@@ -64,7 +70,9 @@ def test_validate_workspace_rejects_non_job_prefix(tmp_path: Path, monkeypatch: 
     assert "INVALID_WORKSPACE_PREFIX" in str(exc.value)
 
 
-def test_validate_workspace_rejects_missing_args_json(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_validate_workspace_rejects_missing_args_json(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     ws_root = tmp_path / "mpips-workspaces"
     ws_root.mkdir()
     monkeypatch.setattr(mpips_launcher, "WORKSPACE_ROOT", ws_root.resolve())
@@ -95,7 +103,9 @@ def test_build_docker_cmd_security_flags(tmp_path: Path) -> None:
     assert f"{ws}:{ws}:rw" in cmd_str
 
 
-def test_socket_launcher_client_flow(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_socket_launcher_client_flow(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     async def _test_body() -> None:
         ws_root = tmp_path / "mpips-workspaces"
         ws_root.mkdir()
@@ -114,12 +124,16 @@ def test_socket_launcher_client_flow(tmp_path: Path, monkeypatch: pytest.MonkeyP
         mock_proc = AsyncMock()
         mock_proc.wait.return_value = 0
 
-        with patch("asyncio.create_subprocess_exec", return_value=mock_proc) as mock_exec:
+        with patch(
+            "asyncio.create_subprocess_exec", return_value=mock_proc
+        ) as mock_exec:
             server = await asyncio.start_unix_server(handle_client, path=str(sock_path))
             async with server:
                 # Client connects to socket
                 reader, writer = await asyncio.open_unix_connection(str(sock_path))
-                payload = json.dumps({"job_id": job_id, "workspace_dir": str(job_ws)}).encode("utf-8")
+                payload = (
+                    json.dumps({"job_id": job_id, "workspace_dir": str(job_ws)}) + "\n"
+                ).encode("utf-8")
                 writer.write(payload)
                 await writer.drain()
 
