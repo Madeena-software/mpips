@@ -2,17 +2,17 @@
 # Project Context
 
 **Status:** Verified
-**Last verified:** 2026-07-19
-**Repository checkpoint:** `d8b7dec`
+**Last verified:** 2026-08-05
+**Repository checkpoint:** `5c3dcf9`
 
 ## Purpose and users
 
-MPIPS is a Python service and library for scientific image-processing
-pipelines. Madeena clients submit tenant-scoped DAG jobs to an HTTP API; Celery
-workers process images and publish state through Redis and optional signed
-webhooks. The package also exposes importable calibration and radiography
-workflows. Evidence: `pyproject.toml`, `mpips/api/application.py`,
-`mpips/api/schemas/jobs.py`, and `mpips/workflows/`.
+MPIPS is a Python service and library whose current production API surface is
+the synchronous MHCS radiograph conversion endpoint. It accepts one
+radiograph NPZ, its matching gain NPZ, and a JSON manifest, then returns a
+validated DICOM response. The package also exposes importable calibration and
+radiography workflows. Evidence: `mpips/api/application.py`,
+`mpips/api/routes/v1/dicom.py`, and `mpips/workflows/`.
 
 The intended consumers are Madeena services, internal processing tools, and
 Python/Colab users of the packaged workflows. End-user accounts, billing,
@@ -23,17 +23,18 @@ checkpoint `d8b7dec`.
 
 ## Current capabilities and flows
 
-- `GET /v1/nodes` exposes 25 registered processors. Jobs can be submitted,
-  read, listed, and cancelled under `/v1/jobs`; `/health` is public and API
-  documentation is served at `/docs` and `/redoc`. Evidence:
-  `mpips/api/application.py`, `mpips/api/routes/v1/router.py`, and an import
-  check of `NODE_CATALOG` at this checkpoint.
+- `POST /v1/radiographs/dicom` is the one current business endpoint. It runs
+  the calibrated image-processing flow synchronously, calls the approved
+  TIFF-to-DICOM converter, enriches and validates the DICOM, and returns it as
+  `application/dicom`. `GET /health` reports only MPIPS service status.
+  Evidence: `mpips/api/application.py`, `mpips/api/routes/v1/dicom.py`,
+  `mpips/api/routes/v1/health.py`, and `tests/api/test_api_surface.py`.
+- Generic DAG, Celery, S3, arbitrary URL, callback, webhook, and node-catalog
+  functionality is outside the current production release. Its source code
+  may remain in the repository for later work, but it is not registered by the
+  running FastAPI application.
 - Protected routes validate bearer tokens through JWKS/JWT scopes, with an
   explicit local-development bypass. Evidence: `mpips/api/security.py`.
-- Workers store `mpips:job:*` state in Redis, execute a topologically sorted
-  DAG, read and write S3-compatible storage, and sign callback payloads with
-  HMAC-SHA256. Evidence: `mpips/worker/tasks.py`, `mpips/engine/dag.py`,
-  `mpips/storage.py`, and `mpips/tenant_paths.py`.
 - The importable imager workflow resolves NPZ inputs, validates gain and
   radiograph metadata, and adapts arrays to the canonical TIFF pipeline.
   Evidence: `mpips/workflows/imager_pipeline/` and
@@ -47,10 +48,11 @@ checkpoint `d8b7dec`.
   Celery/Redis for jobs, boto3 for S3-compatible storage, and
   NumPy/OpenCV/SciPy/scikit-image/PyWavelets for processing. Evidence:
   `.python-version`, `pyproject.toml`, and `uv.lock`.
-- `mpips/api/` owns HTTP routes, schemas, auth, and health;
-  `mpips/worker/` owns queue execution and callbacks; `mpips/engine/` owns DAG
-  and processing logic; `mpips/workflows/` owns library-facing orchestration.
-  Evidence: package imports and tests under `tests/`.
+- `mpips/api/` owns the DICOM and health HTTP routes, schemas, auth, and
+  request controls; `mpips/conversion/` and `mpips/engine/` own the current
+  processing flow; `mpips/workflows/` owns library-facing orchestration.
+  Generic worker, DAG, storage, and catalog modules remain available in the
+  repository but are outside the current registered API surface.
 - Runtime entry points are `mpips.asgi:app`, `mpips-api`, and `mpips-worker`.
   Docker selects `api` or `worker` through `docker/entrypoint.sh`. Evidence:
   `mpips/asgi.py`, `mpips/cli.py`, `Dockerfile`, and `pyproject.toml`.
@@ -101,12 +103,10 @@ and `LICENSES/`; the ImageJ replication component carries GPL-v2 obligations.
 
 ## Data and integrations
 
-- Redis is transient job state and the Celery broker/result backend; no
-  application database or migration system is present. Evidence:
-  `mpips/worker/` and repository tree inspection.
-- Storage accepts S3 keys and presigned URLs. Direct keys and output prefixes
-  are checked against the job tenant. Evidence: `mpips/storage.py`,
-  `mpips/tenant_paths.py`, and `tests/test_storage.py`.
+- The current business flow receives NPZ files and a JSON manifest through the
+  DICOM endpoint; it does not expose generic S3, URL, callback, or webhook API
+  routes. Generic Redis, Celery, and S3 integration code remains outside this
+  production API surface.
 - Configuration names are documented in `.env.production.example`. Additional
   code-read names are `API_HOST`, `API_PORT`, `MPIPS_ENVIRONMENT`,
   `MPIPS_VERSION`, `MPIPS_WORKER_QUEUES`, `MPIPS_RADIOGRAPHY_ENV`, and
@@ -142,6 +142,10 @@ and `LICENSES/`; the ImageJ replication component carries GPL-v2 obligations.
   consolidated here to remove conflicting authorities.
 
 ## Deployment
+
+Production readiness is not yet claimed. Authentication hardening, isolated
+NPZ execution, calibration binding, idempotency, and deployment controls are
+separate tasks.
 
 The
 [Madeena deployment-template repository](https://github.com/Madeena-software/deploy-templates)

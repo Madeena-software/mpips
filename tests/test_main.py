@@ -4,12 +4,9 @@ from mpips.api import app
 client = TestClient(app)
 
 
-def test_read_root() -> None:
-    response = client.get("/")
+def test_read_health() -> None:
+    response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "running"
+    assert data["status"] == "healthy"
     assert data["service"] == "mpips"
-    assert "links" in data
-    assert data["links"]["docs"] == "/docs"
-    assert data["links"]["health"] == "/health"

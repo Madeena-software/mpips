@@ -1,62 +1,26 @@
-from contextlib import asynccontextmanager
-from typing import AsyncGenerator, Dict, Any
 import os
+from contextlib import asynccontextmanager
+from typing import AsyncGenerator
 
-from fastapi import Depends, FastAPI
-from fastapi.openapi.docs import (
-    get_swagger_ui_html,
-    get_redoc_html,
-)
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI
 
 from mpips.api.middleware import RequestBodySizeLimitMiddleware
+from mpips.api.routes.v1.dicom import router as dicom_router
 from mpips.api.routes.v1.health import get_health_report
-from mpips.api.routes.v1.router import router as api_v1_router
-from mpips.api.security import verify_token
 
 _DESCRIPTION = """\
-**MPIPS** is the scientific image-processing execution
-microservice of the Madeena Image Platform.
-
-It accepts Directed Acyclic Graph (DAG) pipelines of
-image-processing operations, executes them
-asynchronously on Celery workers, and streams results
-back to the control plane via signed webhooks.
-
-## Key Capabilities
-
-| Area | Details |
-|------|---------|
-| **Processing Nodes** | 25 built-in nodes across 6 categories |
-| **DAG Execution** | Topological sort with cycle detection |
-| **Storage** | S3-compatible object storage with tenant isolation |
-| **Quality Assessment** | CII, Entropy, EME, BRISQUE metrics |
-| **Security** | JWT/JWKS verification with scope enforcement |
-
-## Authentication
-
-All API endpoints require a **Bearer JWT** token in
-the `Authorization` header. In development mode,
-set `DEV_AUTH_BYPASS=true` and use the configured
-static token.
-
----
-
-*Built with FastAPI · Celery · OpenCV · Redis*
+MPIPS synchronously converts an MHCS radiograph NPZ, matching gain NPZ, and
+JSON manifest into a validated DICOM response.
 """
 
 _TAGS_METADATA = [
     {
-        "name": "Nodes",
-        "description": "Browse the catalog of available image-processing nodes.",
-    },
-    {
-        "name": "Jobs",
-        "description": "Submit, monitor, and cancel DAG jobs.",
+        "name": "Radiographs",
+        "description": "Convert MHCS radiograph uploads to validated DICOM.",
     },
     {
         "name": "Health",
-        "description": "Service health checks and observability.",
+        "description": "MPIPS service health.",
     },
 ]
 
@@ -163,98 +127,38 @@ async def lifespan(
     yield
 
 
-app = FastAPI(
-    title="Madeena Python Image Processing Services",
-    description=_DESCRIPTION,
-    version=os.getenv("MPIPS_VERSION", "0.1.0"),
-    contact={
-        "name": "Madeena Engineering",
-        "url": "https://madeena.com",
-    },
-    license_info={
-        "name": "Proprietary",
-    },
-    openapi_tags=_TAGS_METADATA,
-    docs_url=None,
-    redoc_url=None,
-    lifespan=lifespan,
-)
-
-app.add_middleware(RequestBodySizeLimitMiddleware)
-app.include_router(api_v1_router)
-
-
-@app.get("/docs", include_in_schema=False)
-async def custom_swagger_ui() -> HTMLResponse:
-    return get_swagger_ui_html(
-        openapi_url=app.openapi_url or "/openapi.json",
-        title=(f"{app.title} — API Documentation"),
-        swagger_css_url="https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css",
-        swagger_favicon_url="",
-        swagger_ui_parameters={
-            "docExpansion": "list",
-            "defaultModelsExpandDepth": 2,
-            "persistAuthorization": True,
-            "tryItOutEnabled": True,
-            "filter": True,
-            "syntaxHighlight.theme": "monokai",
-        },
-    )
-
-
-@app.get("/redoc", include_in_schema=False)
-async def custom_redoc() -> HTMLResponse:
-    return get_redoc_html(
-        openapi_url=app.openapi_url or "/openapi.json",
-        title=(f"{app.title} — API Reference"),
-        redoc_favicon_url="",
-    )
-
-
-@app.get(
-    "/",
-    summary="Service root",
-    tags=["Health"],
-    operation_id="getRoot",
-)
-def read_root() -> Dict[str, Any]:
-    return {
-        "service": "mpips",
-        "title": app.title,
-        "version": app.version,
-        "status": "running",
-        "links": {
-            "docs": "/docs",
-            "redoc": "/redoc",
-            "openapi": "/openapi.json",
-            "health": "/health",
-            "nodes": "/v1/nodes",
-        },
-    }
-
-
-@app.get(
-    "/health",
-    summary="Health check",
-    tags=["Health"],
-    operation_id="healthCheck",
-)
-def health_check() -> Dict[str, Any]:
+def health_check() -> dict[str, str]:
     return get_health_report()
 
 
-@app.get(
-    "/v1/secure-test",
-    summary="Auth verification test",
-    tags=["Health"],
-    operation_id="secureTest",
-)
-def secure_test(
-    payload: Dict[str, Any] = Depends(verify_token),
-) -> Dict[str, Any]:
-    return {
-        "message": "Authentication successful",
-        "client_id": payload.get("sub"),
-        "scopes": payload.get("scope"),
-        "tenant_id": payload.get("tenant_id"),
-    }
+def build_app() -> FastAPI:
+    production = os.getenv("MPIPS_ENVIRONMENT", "development").lower() == "production"
+    application = FastAPI(
+        title="Madeena Python Image Processing Services",
+        description=_DESCRIPTION,
+        version=os.getenv("MPIPS_VERSION", "0.1.0"),
+        contact={
+            "name": "Madeena Engineering",
+            "url": "https://madeena.com",
+        },
+        license_info={"name": "Proprietary"},
+        openapi_tags=_TAGS_METADATA,
+        docs_url=None if production else "/docs",
+        redoc_url=None if production else "/redoc",
+        openapi_url=None if production else "/openapi.json",
+        lifespan=lifespan,
+    )
+    application.add_middleware(RequestBodySizeLimitMiddleware)
+    application.include_router(dicom_router, prefix="/v1")
+    application.add_api_route(
+        "/health",
+        health_check,
+        methods=["GET"],
+        summary="Health check",
+        tags=["Health"],
+        operation_id="healthCheck",
+    )
+    return application
+
+
+app = build_app()
