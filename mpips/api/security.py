@@ -1,5 +1,8 @@
+from __future__ import annotations
+
 import os
-from typing import Dict, Any, List
+import time
+from typing import Any, Dict
 import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -20,6 +23,8 @@ def get_idp_config() -> Dict[str, Any]:
         "jwks_url": os.getenv(
             "MADEENA_IDP_JWKS_URL", "https://sso.madeena.com/.well-known/jwks.json"
         ),
+        "issuer": os.getenv("MADEENA_IDP_ISSUER", "https://sso.madeena.com"),
+        "audience": os.getenv("MADEENA_IDP_AUDIENCE", "https://api.madeena.com"),
         "scopes": [
             s.strip()
             for s in os.getenv(
@@ -47,7 +52,6 @@ class JWKSKeyResolver:
         return self.jwk_client.get_signing_key_from_jwt(token)
 
 
-# We instantiate the resolver lazily
 _resolver: JWKSKeyResolver | None = None
 
 
@@ -60,21 +64,41 @@ def get_key_resolver() -> JWKSKeyResolver:
 
 
 def decode_and_verify_token(token: str, resolver: JWKSKeyResolver) -> Dict[str, Any]:
+    idp_cfg = get_idp_config()
     try:
         signing_key = resolver.get_signing_key(token)
         payload = jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256"],
-            options={"verify_exp": True, "verify_iss": False},
+            issuer=idp_cfg["issuer"],
+            audience=idp_cfg["audience"],
+            options={
+                "verify_exp": True,
+                "verify_iss": True,
+                "verify_aud": True,
+            },
         )
+
+        # Require essential claims
+        required_claims = ["exp", "iss", "aud", "sub", "tenant_id", "scope"]
+        for claim in required_claims:
+            if claim not in payload or payload[claim] is None:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="INVALID_BEARER_TOKEN",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
         return payload
-    except jwt.PyJWTError as e:
+    except (jwt.PyJWTError, Exception) as exc:
+        if isinstance(exc, HTTPException):
+            raise exc
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token or signature: {str(e)}",
+            detail="INVALID_BEARER_TOKEN",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from exc
 
 
 async def verify_token_payload(
@@ -86,11 +110,13 @@ async def verify_token_payload(
 
     if bypass_cfg["bypass"]:
         if token == bypass_cfg["token"]:
-            # Returns a mock payload matching all default scopes plus image:convert
             idp_cfg = get_idp_config()
             scopes = set(idp_cfg["scopes"]) | {"image:convert"}
             return {
                 "sub": "mock-client-id",
+                "iss": idp_cfg["issuer"],
+                "aud": idp_cfg["audience"],
+                "exp": int(time.time()) + 3600,
                 "scope": " ".join(scopes),
                 "tenant_id": "default-tenant-id",
                 "bypass": True,
@@ -98,21 +124,22 @@ async def verify_token_payload(
         else:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid developer bypass token",
+                detail="INVALID_BEARER_TOKEN",
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
-    # Decode and verify against JWKS IDP
     return decode_and_verify_token(token, resolver)
 
 
 async def verify_token(
     payload: Dict[str, Any] = Depends(verify_token_payload),
 ) -> Dict[str, Any]:
-    # Scope validation for default routes
     idp_cfg = get_idp_config()
     scopes_str = payload.get("scope", "")
-    scopes: List[str] = [s.strip() for s in scopes_str.split(" ") if s.strip()]
+    if isinstance(scopes_str, list):
+        scopes = scopes_str
+    else:
+        scopes = [s.strip() for s in str(scopes_str).split(" ") if s.strip()]
 
     for required_scope in idp_cfg["scopes"]:
         if required_scope not in scopes:

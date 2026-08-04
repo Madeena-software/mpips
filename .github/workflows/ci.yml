@@ -1,0 +1,69 @@
+name: MPIPS CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-and-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: pip install uv
+
+      - name: Sync dependencies with uv
+        run: |
+          uv sync --frozen --extra service --extra dev --extra npz-worker
+
+      - name: Verify Converter SHA-256 Immutability
+        run: |
+          EXPECTED_HASH="a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0"
+          ACTUAL_HASH=$(sha256sum mpips/engine/imager_pipeline/tiff_json_to_dcm.py | awk '{print $1}')
+          if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
+            echo "Pak Andre's converter was modified!"
+            exit 1
+          fi
+
+      - name: Run Code Quality Checks
+        run: |
+          uv run black --check mpips tests
+          uv run flake8 mpips tests
+          uv run mypy mpips tests
+
+      - name: Run pytest Suite
+        run: |
+          uv run pytest -v
+
+      - name: Build API Docker Image
+        run: |
+          docker build -t mpips-api:latest -f Dockerfile .
+
+      - name: Build NPZ Worker Docker Image
+        run: |
+          docker build -t mpips-npz-worker:latest -f docker/Dockerfile.worker .
+
+      - name: Run Production Lifespan Container Smoke Test
+        run: |
+          docker run -d --name test-api \
+            -e MPIPS_ENVIRONMENT=production \
+            -e DEV_AUTH_BYPASS=false \
+            -e MPIPS_MANIFEST_HMAC_SECRET=c8e73f91d0a5491fb3421e89b70c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c \
+            -e MADEENA_IDP_JWKS_URL=https://sso.madeena.com/.well-known/jwks.json \
+            -e MADEENA_IDP_ISSUER=https://sso.madeena.com \
+            -e MADEENA_IDP_AUDIENCE=https://api.madeena.com \
+            -e REDIS_URL=redis://localhost:6379/0 \
+            -p 8000:8000 \
+            mpips-api:latest
+          
+          sleep 3
+          curl --fail http://localhost:8000/health || (docker logs test-api && exit 1)
+          docker rm -f test-api

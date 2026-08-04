@@ -51,7 +51,7 @@ def test_secure_endpoint_bypass_failure() -> None:
         headers={"Authorization": "Bearer wrong_bypass_token"},
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert "Invalid developer bypass token" in response.json().get("detail", "")
+    assert "INVALID_BEARER_TOKEN" in response.json().get("detail", "")
 
 
 @patch("mpips.api.security.decode_and_verify_token")
@@ -112,4 +112,4 @@ def test_decode_and_verify_token_invalid_signature(
         headers={"Authorization": "Bearer invalid_jwt_token"},
     )
     assert response.status_code == status.HTTP_401_UNAUTHORIZED
-    assert "Invalid token or signature" in response.json().get("detail", "")
+    assert "INVALID_BEARER_TOKEN" in response.json().get("detail", "")
