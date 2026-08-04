@@ -141,10 +141,16 @@ and `LICENSES/`; the ImageJ replication component carries GPL-v2 obligations.
 - Separate stack, server, testing-pyramid, and project-context documents were
   consolidated here to remove conflicting authorities.
 
-## Known gaps and open questions
+## Deployment
 
-- No CI workflow is present, so deployment and automated gate behavior are
-  unknown.
+The
+[Madeena deployment-template repository](https://github.com/Madeena-software/deploy-templates)
+is the external authority for environment-template implementation. Copy and
+specialize the applicable templates in `mpips`; do not duplicate their
+implementation details in this context.
+
+
+## Known gaps and open questions
 - Redis, Celery, S3, JWKS, and webhook behavior were tested with local
   doubles; live infrastructure was not contacted.
 - Wheel building remains unverified because the existing environment lacks the

@@ -3,7 +3,7 @@ name: MPIPS CI
 on:
   pull_request:
     branches: [ main, master ]
-    workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   test-and-verify:
