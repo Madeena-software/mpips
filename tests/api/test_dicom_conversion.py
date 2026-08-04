@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import tempfile
 import time
 from pathlib import Path
@@ -22,7 +23,7 @@ from mpips.api.manifest_security import (
 )
 from mpips.api.schemas.dicom import MHCSManifest
 from mpips.api.security import verify_token_payload
-from mpips.conversion.service import _validate_tiff_descriptor
+from mpips.conversion.service import _cleanup_workspace, _validate_tiff_descriptor
 from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
 from mpips.workflows.imager_pipeline.npz_io import sha256_file, write_tiff
 
@@ -464,6 +465,35 @@ def test_worker_passes_map_x_and_map_y_to_process_radiography_arrays(
     assert captured_kwargs["map_y"].shape == (64, 64)
 
 
+def test_worker_rejects_malformed_npz_as_validation_error(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    radiograph_path, gain_path, *_ = generate_test_npzs(str(tmp_path))
+    Path(radiograph_path).write_bytes(b"not-an-npz")
+    args_path = tmp_path / "args.json"
+    result_path = tmp_path / "result.json"
+    args_path.write_text(
+        json.dumps(
+            {
+                "radiograph_npz_path": radiograph_path,
+                "gain_npz_path": gain_path,
+                "calibration_dir": str(cal_dir),
+                "expected_gain_id": "GAIN-000042",
+                "output_tiff_path": str(tmp_path / "output.tiff"),
+                "result_path": str(result_path),
+            }
+        )
+    )
+
+    from mpips.conversion.worker import execute_conversion_worker
+
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_path), str(result_path))
+
+    assert json.loads(result_path.read_text())["sanitized_error_code"] == (
+        "NPZ_VALIDATION_ERROR"
+    )
+
+
 def test_missing_calibration_artifact_fails_closed(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -604,3 +634,17 @@ def test_no_dicom_conversion_until_parent_tiff_valid(
         assert exc_info.value.detail == "TIFF_VALIDATION_ERROR"
         # Converter MUST NOT be called!
         assert not mock_converter.called
+
+
+def test_workspace_cleanup_removes_read_only_nested_artifacts(tmp_path: Path) -> None:
+    workspace = tmp_path / "job-read-only"
+    nested = workspace / "calibration"
+    nested.mkdir(parents=True)
+    (nested / "metadata.json").write_text("{}", encoding="utf-8")
+    os.chmod(workspace, 0o700)
+    os.chmod(nested, 0o500)
+    os.chmod(nested / "metadata.json", 0o400)
+
+    _cleanup_workspace(workspace)
+
+    assert not workspace.exists()

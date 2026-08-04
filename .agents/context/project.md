@@ -152,6 +152,52 @@ Production readiness is not yet claimed. Authentication hardening, isolated
 NPZ execution, calibration binding, idempotency, and deployment controls are
 separate tasks.
 
+## Local DICOM burn-in evidence
+
+On 2026-08-05, the local DICOM-only deployment was verified from repository
+commit `45063e8479256795d0ea7e629daae840c7329e8a` using the existing virtual
+environment's `.venv/bin/python -m uv` equivalent because `uv` was not on
+`PATH`. The baseline focused suites were API surface 3 passed, authentication
+6 passed, conversion 15 passed, and host launcher 5 passed/1 failed; the full
+baseline was 100 passed/1 failed on the same launcher socket framing case. The
+smallest remediations corrected the newline-delimited launcher test, stale
+worker image copy paths, read-only workspace cleanup, production worker-result
+error mapping, and malformed/out-of-range NPZ classification.
+
+The final local stack used `docker-compose.local.yml` with `mpips-api` bound
+only to `127.0.0.1:8000`, private Redis without a published host port, a
+private JWKS double, a dedicated `mpips-local-private-v1` network, a read-only
+calibration mount, and a task-owned workspace plus launcher socket. Deterministic
+local images were `mpips-api:local-20260805` and
+`mpips-npz-worker:local-20260805`; the API image default user is `mpips` and the
+worker image defaults to UID/GID `10001:10001`. The local API service and
+launcher use the task-owned UID/GID for the mounted workspace. Rendered Compose
+and Docker inspection showed no
+`latest` service image, no Nginx/public ingress, no Redis port publication, and
+no secret environment values in either image configuration.
+
+The synthetic burn-in script under `scripts/local_dicom_burn_in.py` completed
+56 HTTP cases. It validated a 200 `application/dicom` response as explicit-VR
+little-endian, 64x64 uint16 DICOM with expected synthetic patient/study/UID
+values, `BurnedInAnnotation=NO`, `LossyImageCompression=00`, no private tags,
+and successful DICOM validation. Authentication, HMAC, multipart, NPZ,
+calibration, idempotency, worker failure, path, and concurrency cases all
+returned controlled results. Redis interruption returned
+`503 IDEMPOTENCY_STORAGE_UNAVAILABLE`; recovery and expired-lease reclaim
+returned 200; malformed cached state returned sanitized 409. API restart
+recovered health and valid conversion. The workspace directory returned to its
+pre-run 33 child directories, with no task worker container orphan.
+
+Final verification produced API surface 3 passed, authentication 6 passed,
+conversion 17 passed, host launcher 6 passed, and full repository 103 passed
+with only the existing warning set. Black, flake8, and mypy passed for the
+task-owned and active-path files; repository black and flake8 also passed. The
+protected converter SHA-256 remained
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0` before
+and after. Generated secrets and synthetic outputs stayed outside tracked
+files, and no production service, remote deployment, push, or workflow was
+used.
+
 The
 [Madeena deployment-template repository](https://github.com/Madeena-software/deploy-templates)
 is the external authority for environment-template implementation. Copy and

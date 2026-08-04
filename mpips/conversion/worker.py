@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import json
 import os
+import pickle
 import sys
+import zipfile
 from pathlib import Path
 
 import numpy as np
@@ -145,6 +147,10 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         dark = gain_record.dark
         flat = gain_record.flat
 
+        raw = to_uint16(raw, "radiograph raw")
+        dark = to_uint16(dark, "gain dark")
+        flat = to_uint16(flat, "gain flat")
+
         if raw.shape != dark.shape or raw.shape != flat.shape:
             raise NPZValidationError("Radiograph raw and gain dark/flat shapes differ")
 
@@ -235,6 +241,8 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         }
 
     except NPZValidationError:
+        result_data["sanitized_error_code"] = "NPZ_VALIDATION_ERROR"
+    except (OSError, EOFError, pickle.UnpicklingError, zipfile.BadZipFile):
         result_data["sanitized_error_code"] = "NPZ_VALIDATION_ERROR"
     except ValueError:
         result_data["sanitized_error_code"] = "MANIFEST_OR_DATA_ERROR"

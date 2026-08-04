@@ -185,6 +185,28 @@ def resolve_calibration_artifact_dir() -> Path:
     )
 
 
+def _cleanup_workspace(workspace_dir: Path) -> None:
+    """Remove a workspace after restoring owner write permission."""
+    if not workspace_dir.exists():
+        return
+    for root, directories, files in os.walk(workspace_dir, topdown=False):
+        for name in files:
+            try:
+                os.chmod(Path(root) / name, 0o600)
+            except OSError:
+                pass
+        for name in directories:
+            try:
+                os.chmod(Path(root) / name, 0o700)
+            except OSError:
+                pass
+        try:
+            os.chmod(root, 0o700)
+        except OSError:
+            pass
+    shutil.rmtree(str(workspace_dir), ignore_errors=True)
+
+
 def run_isolated_dicom_conversion(
     radiograph_npz_path: Path,
     gain_npz_path: Path,
@@ -311,10 +333,16 @@ def run_isolated_dicom_conversion(
 
                 resp_data = json.loads(resp_bytes.decode("utf-8"))
                 if resp_data.get("status") != "success":
-                    raise HTTPException(
-                        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                        detail="CONVERSION_WORKER_FAILURE",
-                    )
+                    if resp_data.get("exit_code") == 124:
+                        raise HTTPException(
+                            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
+                            detail="CONVERSION_TIMEOUT",
+                        )
+                    if not result_path.exists():
+                        raise HTTPException(
+                            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                            detail="CONVERSION_WORKER_FAILURE",
+                        )
             except HTTPException:
                 raise
             except Exception as exc:
@@ -440,4 +468,4 @@ def run_isolated_dicom_conversion(
 
     finally:
         if workspace_dir.exists():
-            shutil.rmtree(str(workspace_dir), ignore_errors=True)
+            _cleanup_workspace(workspace_dir)

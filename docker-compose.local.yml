@@ -1,0 +1,107 @@
+services:
+  mpips-api:
+    image: mpips-api:local-20260805
+    user: "${MPIPS_LOCAL_UID:?set local uid}:${MPIPS_LOCAL_GID:?set local gid}"
+    environment:
+      MPIPS_ENVIRONMENT: production
+      DEV_AUTH_BYPASS: "false"
+      MPIPS_API_WORKERS: "1"
+      PORT: "8000"
+      REDIS_URL: "redis://:${MPIPS_REDIS_PASSWORD:?set local redis password}@redis:6379/0"
+      MPIPS_LAUNCHER_SOCKET_PATH: /var/run/mpips-local/launcher.sock
+      MPIPS_CALIBRATION_ARTIFACT_DIR: /opt/mpips/calibration
+      MPIPS_MANIFEST_HMAC_SECRET: "${MPIPS_MANIFEST_HMAC_SECRET:?set local hmac secret}"
+      MPIPS_MANIFEST_MAX_CLOCK_SKEW_SECONDS: "60"
+      MADEENA_IDP_JWKS_URL: http://jwks:8765/jwks.json
+      MADEENA_IDP_ISSUER: https://local.test/issuer
+      MADEENA_IDP_AUDIENCE: https://local.test/api
+      MADEENA_REQUIRED_SCOPES: image:process,nodes:read
+      MPIPS_DICOM_MAX_MANIFEST_BYTES: "32768"
+      MPIPS_DICOM_MAX_RADIOGRAPH_BYTES: "700000"
+      MPIPS_DICOM_MAX_GAIN_BYTES: "700000"
+      MPIPS_DICOM_MAX_TOTAL_BYTES: "1000000"
+      MPIPS_MAX_HTTP_REQUEST_BODY_BYTES: "1100000"
+      MPIPS_DICOM_PROCESS_TIMEOUT_SECONDS: "30"
+      MPIPS_DICOM_IDEMPOTENCY_TTL_SECONDS: "60"
+      MPIPS_DICOM_WORKER_CPU_SECONDS: "20"
+      MPIPS_DICOM_WORKER_MEMORY_BYTES: "536870912"
+      MPIPS_DICOM_MAX_CONCURRENT_CONVERSIONS: "2"
+      MPIPS_DICOM_MAX_TIFF_BYTES: "2097152"
+    ports:
+      - "127.0.0.1:${MPIPS_LOCAL_PORT:?set local port}:8000"
+    volumes:
+      - /tmp/mpips-workspaces:/tmp/mpips-workspaces:rw
+      - ${MPIPS_CALIBRATION_DIR:?set calibration dir}:/opt/mpips/calibration:ro
+      - ${MPIPS_LAUNCHER_DIR:?set launcher dir}:/var/run/mpips-local:rw
+    networks:
+      - mpips-local-private
+    depends_on:
+      redis:
+        condition: service_healthy
+      jwks:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    cpus: "1.0"
+    mem_limit: 1g
+    restart: on-failure:3
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8000/health >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+
+  jwks:
+    image: mpips-api:local-20260805
+    user: "${MPIPS_LOCAL_UID:?set local uid}:${MPIPS_LOCAL_GID:?set local gid}"
+    entrypoint: ["python", "-m", "http.server"]
+    command: ["8765", "--bind", "0.0.0.0", "--directory", "/jwks"]
+    volumes:
+      - ${MPIPS_JWKS_DIR:?set jwks dir}:/jwks:ro
+    networks:
+      - mpips-local-private
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 64
+    cpus: "0.25"
+    mem_limit: 128m
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:8765/jwks.json\")'"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    command: ["redis-server", "--appendonly", "no", "--save", "", "--requirepass", "${MPIPS_REDIS_PASSWORD:?set local redis password}"]
+    environment:
+      REDISCLI_AUTH: "${MPIPS_REDIS_PASSWORD:?set local redis password}"
+    networks:
+      - mpips-local-private
+    tmpfs:
+      - /data:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    cpus: "0.5"
+    mem_limit: 256m
+    restart: on-failure:3
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+
+networks:
+  mpips-local-private:
+    name: mpips-local-private-v1

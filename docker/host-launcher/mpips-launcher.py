@@ -12,7 +12,6 @@ import json
 import logging
 import os
 import re
-import socket
 import sys
 import time
 from pathlib import Path
@@ -26,20 +25,25 @@ logging.basicConfig(
 )
 logger = logging.getLogger("mpips-host-launcher")
 
-SOCKET_PATH = Path(os.getenv("MPIPS_LAUNCHER_SOCKET_PATH", "/var/run/mpips-launcher.sock"))
-WORKSPACE_ROOT = Path(os.getenv("MPIPS_WORKSPACE_ROOT", "/tmp/mpips-workspaces")).resolve()
+SOCKET_PATH = Path(
+    os.getenv("MPIPS_LAUNCHER_SOCKET_PATH", "/var/run/mpips-launcher.sock")
+)
+WORKSPACE_ROOT = Path(
+    os.getenv("MPIPS_WORKSPACE_ROOT", "/tmp/mpips-workspaces")
+).resolve()
 WORKER_IMAGE = os.getenv("MPIPS_WORKER_IMAGE", "mpips-npz-worker:latest")
+WORKER_USER = os.getenv("MPIPS_WORKER_USER", "10001:10001")
 TIMEOUT_SECONDS = int(os.getenv("MPIPS_WORKER_TIMEOUT_SECONDS", "300"))
 JOB_ID_REGEX = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
 
 
 def validate_workspace(workspace_dir_str: str) -> Path:
-    """Strictly validates that workspace_dir is a safe, canonical path within WORKSPACE_ROOT."""
+    """Validate that workspace_dir is canonical and within WORKSPACE_ROOT."""
     if not workspace_dir_str:
         raise ValueError("INVALID_WORKSPACE_PATH")
 
     target_path = Path(workspace_dir_str).resolve()
-    
+
     # Path traversal check: target must be inside WORKSPACE_ROOT
     try:
         target_path.relative_to(WORKSPACE_ROOT)
@@ -83,7 +87,7 @@ def build_docker_cmd(job_id: str, workspace_dir: Path) -> list[str]:
         "--network=none",
         "--memory=2g",
         "--cpus=2",
-        "--user=10001:10001",
+        f"--user={WORKER_USER}",
         "--tmpfs",
         "/tmp:rw,noexec,nosuid,size=64m",
         "-v",
@@ -95,11 +99,13 @@ def build_docker_cmd(job_id: str, workspace_dir: Path) -> list[str]:
     return cmd
 
 
-async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+async def handle_client(
+    reader: asyncio.StreamReader, writer: asyncio.StreamWriter
+) -> None:
     """Handles an incoming socket request from mpips-api."""
     start_time = time.monotonic()
     job_id = "unknown"
-    
+
     try:
         raw_data = await asyncio.wait_for(reader.readline(), timeout=10.0)
         if not raw_data:
@@ -118,7 +124,8 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         docker_cmd = build_docker_cmd(job_id, validated_workspace)
 
         logger.info(
-            "Launching NPZ worker container job_id=%s container_name=mpips-worker-%s workspace=%s",
+            "Launching NPZ worker container job_id=%s container_name=mpips-worker-%s "
+            "workspace=%s",
             job_id,
             job_id,
             validated_workspace,
@@ -133,9 +140,16 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
         try:
             exit_code = await asyncio.wait_for(proc.wait(), timeout=TIMEOUT_SECONDS)
         except asyncio.TimeoutError:
-            logger.warning("Worker job_id=%s timed out after %ds, forcing removal", job_id, TIMEOUT_SECONDS)
+            logger.warning(
+                "Worker job_id=%s timed out after %ds, forcing removal",
+                job_id,
+                TIMEOUT_SECONDS,
+            )
             kill_proc = await asyncio.create_subprocess_exec(
-                "docker", "rm", "-f", f"mpips-worker-{job_id}",
+                "docker",
+                "rm",
+                "-f",
+                f"mpips-worker-{job_id}",
                 stdout=asyncio.subprocess.DEVNULL,
                 stderr=asyncio.subprocess.DEVNULL,
             )
@@ -146,7 +160,11 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
 
         if exit_code == 0:
             response = {"status": "success", "exit_code": 0, "job_id": job_id}
-            logger.info("Worker job_id=%s completed successfully status=0 duration_ms=%d", job_id, elapsed_ms)
+            logger.info(
+                "Worker job_id=%s completed successfully status=0 duration_ms=%d",
+                job_id,
+                elapsed_ms,
+            )
         else:
             response = {
                 "status": "error",
@@ -154,7 +172,12 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
                 "exit_code": exit_code,
                 "job_id": job_id,
             }
-            logger.error("Worker job_id=%s failed exit_code=%d duration_ms=%d", job_id, exit_code, elapsed_ms)
+            logger.error(
+                "Worker job_id=%s failed exit_code=%d duration_ms=%d",
+                job_id,
+                exit_code,
+                elapsed_ms,
+            )
 
         writer.write(json.dumps(response).encode("utf-8") + b"\n")
         await writer.drain()
@@ -162,7 +185,12 @@ async def handle_client(reader: asyncio.StreamReader, writer: asyncio.StreamWrit
     except Exception as exc:
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
         err_msg = str(exc)
-        logger.error("Request failed job_id=%s error=%s duration_ms=%d", job_id, err_msg, elapsed_ms)
+        logger.error(
+            "Request failed job_id=%s error=%s duration_ms=%d",
+            job_id,
+            err_msg,
+            elapsed_ms,
+        )
         err_response = {
             "status": "error",
             "error_code": "CONVERSION_WORKER_FAILURE",
