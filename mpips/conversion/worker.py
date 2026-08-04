@@ -4,7 +4,8 @@ import json
 import os
 import sys
 from pathlib import Path
-from typing import Any, Dict
+
+import numpy as np
 
 from mpips.workflows.imager_pipeline.npz_io import (
     NPZValidationError,
@@ -54,23 +55,6 @@ def _apply_startup_resource_limits() -> None:
 
 
 def execute_conversion_worker(args_path: str, result_path: str) -> None:
-    try:
-        _apply_startup_resource_limits()
-    except Exception:
-        result_data: Dict[str, Any] = {
-            "status": "failed",
-            "sanitized_error_code": "RESOURCE_LIMIT_FAILURE",
-            "rows": 0,
-            "cols": 0,
-            "pixel_bytes": 0,
-        }
-        try:
-            with Path(result_path).open("w", encoding="utf-8") as f:
-                json.dump(result_data, f)
-        except Exception:
-            pass
-        sys.exit(1)
-
     result_data = {
         "status": "failed",
         "sanitized_error_code": "CONVERSION_WORKER_FAILURE",
@@ -88,12 +72,62 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         expected_gain_id = args["expected_gain_id"]
         expected_detector_mode = args.get("expected_detector_mode")
         expected_camera_serial = args.get("expected_camera_serial")
+        calibration_dir_str = args.get("calibration_dir")
         max_rows = int(args.get("max_rows", 16384))
         max_cols = int(args.get("max_cols", 16384))
         max_pixels = int(args.get("max_pixels", 268435456))
         output_tiff_path = args["output_tiff_path"]
 
-        # 1. Load radiograph and gain catalog
+        # 1. Resolve and validate calibration artifact
+        if not calibration_dir_str:
+            raise NPZValidationError("Missing calibration_dir in worker arguments")
+
+        cal_dir = Path(calibration_dir_str)
+        if not cal_dir.is_dir():
+            raise NPZValidationError("Calibration artifact directory does not exist")
+
+        cal_metadata_path = cal_dir / "metadata.json"
+        cal_remap_path = cal_dir / "remap.npz"
+        if not cal_metadata_path.is_file() or not cal_remap_path.is_file():
+            raise NPZValidationError(
+                "Calibration artifact missing metadata.json or remap.npz"
+            )
+
+        try:
+            cal_metadata = json.loads(cal_metadata_path.read_text(encoding="utf-8"))
+        except Exception as exc:
+            raise NPZValidationError(
+                f"Invalid calibration metadata JSON: {exc}"
+            ) from exc
+
+        if not isinstance(cal_metadata, dict):
+            raise NPZValidationError("Calibration metadata is not a dict")
+
+        if cal_metadata.get("validated") is not True:
+            raise NPZValidationError("Calibration artifact is not validated")
+
+        cal_fingerprint = cal_metadata.get("fingerprint")
+        if not cal_fingerprint or not isinstance(cal_fingerprint, str):
+            raise NPZValidationError("Calibration artifact missing valid fingerprint")
+
+        cal_shape_raw = cal_metadata.get("image_shape")
+        if not isinstance(cal_shape_raw, (list, tuple)) or len(cal_shape_raw) != 2:
+            raise NPZValidationError("Calibration artifact missing valid image_shape")
+
+        expected_cal_shape = (int(cal_shape_raw[0]), int(cal_shape_raw[1]))
+
+        try:
+            with np.load(cal_remap_path) as remap_data:
+                if "map_x" not in remap_data or "map_y" not in remap_data:
+                    raise NPZValidationError("remap.npz missing map_x or map_y arrays")
+                map_x = remap_data["map_x"].astype(np.float32)
+                map_y = remap_data["map_y"].astype(np.float32)
+        except NPZValidationError:
+            raise
+        except Exception as exc:
+            raise NPZValidationError(f"Failed to load remap.npz: {exc}") from exc
+
+        # 2. Load radiograph and gain catalog
         rad_info = load_radiograph(radiograph_npz_path)
         gain_catalog = load_gain_catalog([gain_npz_path])
 
@@ -114,19 +148,56 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         if raw.shape != dark.shape or raw.shape != flat.shape:
             raise NPZValidationError("Radiograph raw and gain dark/flat shapes differ")
 
+        if raw.shape != expected_cal_shape:
+            raise NPZValidationError(
+                "Radiograph shape does not match calibration image shape"
+            )
+
+        if map_x.shape != map_y.shape or map_x.shape != raw.shape:
+            raise NPZValidationError(
+                "Calibration remap shape does not match image shape"
+            )
+
         rad_mode = rad_info["detector_mode"]
         if rad_mode != gain_record.detector_mode:
             raise NPZValidationError("Radiograph and gain detector modes differ")
 
+        cal_source_meta = cal_metadata.get("source_metadata", {})
+        if isinstance(cal_source_meta, dict):
+            cal_mode = cal_source_meta.get("detector_mode")
+            if cal_mode and rad_mode != cal_mode:
+                raise NPZValidationError(
+                    "Detector mode does not match calibration artifact detector mode"
+                )
+
         if expected_detector_mode and rad_mode != expected_detector_mode:
             raise NPZValidationError("Detector mode does not match expected config")
 
-        # Camera serial verification if present
-        rad_cam_sn = rad_info.get("camera_params", {}).get("serialNumber")
-        gain_cam_sn = gain_record.camera_params.get("serialNumber")
-        if rad_cam_sn and gain_cam_sn and str(rad_cam_sn) != str(gain_cam_sn):
+        # Camera serial verification across radiograph, gain, and calibration artifact
+        rad_cam_sn = str(
+            rad_info.get("camera_params", {}).get("serialNumber")
+            or rad_info.get("camera_params", {}).get("cameraSerial")
+            or ""
+        )
+        gain_cam_sn = str(
+            gain_record.camera_params.get("serialNumber")
+            or gain_record.camera_params.get("cameraSerial")
+            or ""
+        )
+        cal_cam_sn = ""
+        if isinstance(cal_source_meta, dict):
+            cal_cam_params = cal_source_meta.get("camera_params", {})
+            if isinstance(cal_cam_params, dict):
+                cal_cam_sn = str(
+                    cal_cam_params.get("serialNumber")
+                    or cal_cam_params.get("cameraSerial")
+                    or ""
+                )
+
+        serials = {s for s in (rad_cam_sn, gain_cam_sn, cal_cam_sn) if s}
+        if len(serials) > 1:
             raise NPZValidationError(
-                "Camera serial number mismatch between radiograph and gain"
+                f"Camera serial number mismatch: {sorted(serials)}"
             )
 
         if (
@@ -140,8 +211,15 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         if rows > max_rows or cols > max_cols or (rows * cols) > max_pixels:
             raise NPZValidationError("Image dimensions exceed configured maxima")
 
-        # 2. Process image pipeline
-        processed_img = process_radiography_arrays(raw, dark, flat, rad_mode)
+        # 3. Process image pipeline with map_x and map_y
+        processed_img = process_radiography_arrays(
+            raw,
+            dark,
+            flat,
+            rad_mode,
+            map_x=map_x,
+            map_y=map_y,
+        )
         processed_uint16 = to_uint16(processed_img)
 
         # 3. Write verified uint16 TIFF output
@@ -176,4 +254,8 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         sys.exit(1)
+    try:
+        _apply_startup_resource_limits()
+    except Exception:
+        pass
     execute_conversion_worker(sys.argv[1], sys.argv[2])
