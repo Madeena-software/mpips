@@ -43,7 +43,7 @@ def _validate_production_configuration() -> None:
             os.getenv("MPIPS_DICOM_MAX_MANIFEST_BYTES", str(1 * 1024 * 1024))
         )
         max_rad = int(
-            os.getenv("MPIPS_DICOM_MAX_RADIOGRAPH_BYTES", str(50 * 1024 * 1024))
+            os.getenv("MPIPS_DICOM_MAX_RADIOGRAPH_BYTES", str(100 * 1024 * 1024))
         )
         max_gain = int(os.getenv("MPIPS_DICOM_MAX_GAIN_BYTES", str(50 * 1024 * 1024)))
         max_total = int(

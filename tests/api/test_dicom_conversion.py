@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from mpips.api.application import app, _validate_production_configuration
 from mpips.api.api_key import API_KEY
 from mpips.api.idempotency import ClaimResult
+from mpips.api.routes.v1.dicom import _get_upload_limits
 from mpips.api.schemas.dicom import MHCSManifest
 from mpips.conversion.service import _cleanup_workspace, _validate_tiff_descriptor
 from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
@@ -301,6 +302,13 @@ def test_production_startup_validation_accepts_fixed_key_configuration(
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
 
     _validate_production_configuration()
+
+
+def test_default_radiograph_upload_limit_is_100_mib(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MPIPS_DICOM_MAX_RADIOGRAPH_BYTES", raising=False)
+    assert _get_upload_limits()[1] == 100 * 1024 * 1024
 
 
 # ── 5. OpenAPI Privacy Audit Test ────────────────────────────────────

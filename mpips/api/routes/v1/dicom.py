@@ -57,7 +57,7 @@ def _get_upload_limits() -> tuple[int, int, int, int]:
 
     try:
         max_rad = int(
-            os.getenv("MPIPS_DICOM_MAX_RADIOGRAPH_BYTES", str(50 * 1024 * 1024))
+            os.getenv("MPIPS_DICOM_MAX_RADIOGRAPH_BYTES", str(100 * 1024 * 1024))
         )
         if max_rad <= 0:
             max_rad = 50 * 1024 * 1024
