@@ -6,14 +6,12 @@ import re
 import shutil
 import tempfile
 from pathlib import Path
-from typing import Any, Dict, Optional
 
 import anyio
 from fastapi import (
     APIRouter,
     Depends,
     File,
-    Header,
     HTTPException,
     UploadFile,
     status,
@@ -25,10 +23,7 @@ from mpips.api.idempotency import (
     IdempotencyService,
     compute_manifest_fingerprint,
 )
-from mpips.api.manifest_security import (
-    verify_image_convert_scope,
-    verify_manifest_signature,
-)
+from mpips.api.api_key import require_api_key
 from mpips.api.schemas.dicom import MHCSManifest
 from mpips.conversion.service import run_isolated_dicom_conversion
 
@@ -93,7 +88,7 @@ def _get_upload_limits() -> tuple[int, int, int, int]:
     summary="Convert MHCS radiograph & gain NPZs to DICOM",
     description=(
         "Synchronously converts one radiograph NPZ and matching gain NPZ "
-        "with a signed MHCS metadata manifest into a validated DICOM response."
+        "with an MHCS metadata manifest into a validated DICOM response."
     ),
     response_class=FileResponse,
     responses={
@@ -102,8 +97,7 @@ def _get_upload_limits() -> tuple[int, int, int, int]:
             "description": "Validated DICOM file",
         },
         400: {"description": "Malformed multipart or invalid header"},
-        401: {"description": "Invalid token or signature"},
-        403: {"description": "Missing image:convert scope"},
+        401: {"description": "Invalid API key"},
         409: {"description": "Idempotency conflict or job in progress"},
         413: {"description": "Upload size limit exceeded"},
         422: {"description": "Validation error"},
@@ -116,15 +110,9 @@ async def convert_radiograph_to_dicom(
     radiograph_npz: UploadFile = File(...),
     gain_npz: UploadFile = File(...),
     manifest: UploadFile = File(...),
-    x_madeena_manifest_timestamp: Optional[str] = Header(
-        None, alias="X-Madeena-Manifest-Timestamp"
-    ),
-    x_madeena_manifest_signature: Optional[str] = Header(
-        None, alias="X-Madeena-Manifest-Signature"
-    ),
-    payload: Dict[str, Any] = Depends(verify_image_convert_scope),
+    _api_key: str = Depends(require_api_key),
 ) -> FileResponse:
-    tenant_id = str(payload.get("tenant_id", "")).strip()
+    tenant_id = "internal-beta"
 
     max_manifest, max_rad, max_gain, max_total = _get_upload_limits()
 
@@ -156,15 +144,7 @@ async def convert_radiograph_to_dicom(
 
         manifest_bytes = bytes(raw_manifest_bytes)
 
-        # 2. Verify signature over exact raw bytes with canonical tenant_id
-        verify_manifest_signature(
-            tenant_id,
-            manifest_bytes,
-            x_madeena_manifest_timestamp,
-            x_madeena_manifest_signature,
-        )
-
-        # 3. Decode UTF-8 & parse JSON with Pydantic
+        # 2. Decode UTF-8 & parse JSON with Pydantic
         try:
             manifest_text = manifest_bytes.decode("utf-8")
             mhcs_manifest = MHCSManifest.model_validate_json(manifest_text)
@@ -174,7 +154,7 @@ async def convert_radiograph_to_dicom(
                 detail="MANIFEST_SCHEMA_INVALID",
             ) from exc
 
-        # 4. Stream radiograph NPZ
+        # 3. Stream radiograph NPZ
         rad_path = stage_dir / "radiograph.npz"
         rad_hasher = hashlib.sha256()
         rad_size = 0
@@ -196,7 +176,7 @@ async def convert_radiograph_to_dicom(
 
         rad_sha256 = rad_hasher.hexdigest().lower()
 
-        # 5. Stream gain NPZ
+        # 4. Stream gain NPZ
         gain_path = stage_dir / "gain.npz"
         gain_hasher = hashlib.sha256()
         gain_size = 0
@@ -218,7 +198,7 @@ async def convert_radiograph_to_dicom(
 
         gain_sha256 = gain_hasher.hexdigest().lower()
 
-        # 6. Verify file hashes and byte sizes against manifest
+        # 5. Verify file hashes and byte sizes against manifest
         expected_rad = mhcs_manifest.capture.radiograph
         if rad_size != expected_rad.byte_size or rad_sha256 != expected_rad.sha256:
             raise HTTPException(
@@ -233,7 +213,7 @@ async def convert_radiograph_to_dicom(
                 detail="NPZ_VALIDATION_ERROR",
             )
 
-        # 7. Atomic Redis Idempotency Claim
+        # 6. Atomic Redis Idempotency Claim
         fp = compute_manifest_fingerprint(
             tenant_id,
             mhcs_manifest.manifest_version,
@@ -261,7 +241,7 @@ async def convert_radiograph_to_dicom(
 
         output_dicom_path = stage_dir / "output.dcm"
 
-        # 8. Bound process concurrency via process-wide CapacityLimiter
+        # 7. Bound process concurrency via process-wide CapacityLimiter
         limiter = get_concurrency_limiter()
         try:
             limiter.acquire_nowait()
@@ -302,7 +282,7 @@ async def convert_radiograph_to_dicom(
         finally:
             limiter.release()
 
-        # 9. Response preparation & Cleanup Ownership Transfer
+        # 8. Response preparation & Cleanup Ownership Transfer
         safe_cid = re.sub(r"[^a-zA-Z0-9_-]", "_", mhcs_manifest.capture.capture_id)
         filename = f"{safe_cid}.dcm"
 

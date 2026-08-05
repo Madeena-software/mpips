@@ -1,67 +1,77 @@
-version: '3.8'
-
 services:
   mpips-api:
-    image: mpips-api:latest
+    image: mpips-api:${MPIPS_VERSION:?set MPIPS_VERSION}
+    user: "${MPIPS_RUNTIME_UID:-10001}:${MPIPS_RUNTIME_GID:-10001}"
+    group_add:
+      - "${MPIPS_LAUNCHER_GID:?set MPIPS_LAUNCHER_GID}"
     environment:
-      - MPIPS_ENVIRONMENT=production
-      - DEV_AUTH_BYPASS=false
-      - MPIPS_API_WORKERS=1
-      - PORT=8000
-      - REDIS_URL=redis://redis:6379/0
-      - MPIPS_LAUNCHER_SOCKET_PATH=/var/run/mpips-launcher.sock
-      - MPIPS_MANIFEST_HMAC_SECRET=${MPIPS_MANIFEST_HMAC_SECRET:-c8e73f91d0a5491fb3421e89b70c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c}
-      - MADEENA_IDP_JWKS_URL=${MADEENA_IDP_JWKS_URL:-https://sso.madeena.com/.well-known/jwks.json}
-      - MADEENA_IDP_ISSUER=${MADEENA_IDP_ISSUER:-https://sso.madeena.com}
-      - MADEENA_IDP_AUDIENCE=${MADEENA_IDP_AUDIENCE:-https://api.madeena.com}
+      MPIPS_ENVIRONMENT: production
+      MPIPS_API_WORKERS: "1"
+      PORT: "8000"
+      MPIPS_VERSION: ${MPIPS_VERSION:?set MPIPS_VERSION}
+      REDIS_URL: redis://redis:6379/0
+      MPIPS_LAUNCHER_SOCKET_PATH: /var/run/mpips/launcher.sock
+      MPIPS_WORKER_IMAGE: mpips-npz-worker:${MPIPS_VERSION:?set MPIPS_VERSION}
+      MPIPS_CALIBRATION_ARTIFACT_DIR: /opt/mpips/calibration
+      MPIPS_DICOM_MAX_MANIFEST_BYTES: "1048576"
+      MPIPS_DICOM_MAX_RADIOGRAPH_BYTES: "52428800"
+      MPIPS_DICOM_MAX_GAIN_BYTES: "52428800"
+      MPIPS_DICOM_MAX_TOTAL_BYTES: "104857600"
+      MPIPS_MAX_HTTP_REQUEST_BODY_BYTES: "110100480"
+      MPIPS_DICOM_PROCESS_TIMEOUT_SECONDS: "300"
+      MPIPS_DICOM_IDEMPOTENCY_TTL_SECONDS: "86400"
+      MPIPS_DICOM_WORKER_CPU_SECONDS: "120"
+      MPIPS_DICOM_WORKER_MEMORY_BYTES: "2147483648"
+      MPIPS_DICOM_MAX_CONCURRENT_CONVERSIONS: "4"
+      MPIPS_DICOM_MAX_TIFF_BYTES: "104857600"
+    ports:
+      - "127.0.0.1:8015:8000"
     volumes:
       - /tmp/mpips-workspaces:/tmp/mpips-workspaces:rw
-      - /var/run/mpips-launcher.sock:/var/run/mpips-launcher.sock:rw
-    healthcheck:
-      test: ["CMD-SHELL", "curl --fail http://localhost:8000/health || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-      start_period: 10s
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-        delay: 5s
-        max_attempts: 3
-
-  nginx:
-    image: nginx:alpine
-    ports:
-      - "80:80"
-    volumes:
-      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ${REMOTE_PATH:?set REMOTE_PATH}/calibration:/opt/mpips/calibration:ro
+      - ${REMOTE_PATH:?set REMOTE_PATH}/launcher:/var/run/mpips:rw
+    networks:
+      - mpips-internal-beta
     depends_on:
-      - mpips-api
+      redis:
+        condition: service_healthy
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=256m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 256
+    cpus: "1.0"
+    mem_limit: 1g
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 80 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8000/health >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
-    command: redis-server --save 60 1 --loglevel notice
-    volumes:
-      - redis_data:/data
+    command: ["redis-server", "--appendonly", "no", "--save", ""]
+    networks:
+      - mpips-internal-beta
+    tmpfs:
+      - /data:rw,noexec,nosuid,size=64m
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    cpus: "0.5"
+    mem_limit: 256m
+    restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping | grep PONG || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 3
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
 
-volumes:
-  redis_data:
+networks:
+  mpips-internal-beta:
+    name: mpips-internal-beta-v1

@@ -30,45 +30,14 @@ def _validate_production_configuration() -> None:
     if env_mode != "production":
         return
 
-    # 1. DEV_AUTH_BYPASS must be false in production
-    if os.getenv("DEV_AUTH_BYPASS", "false").lower() == "true":
-        raise RuntimeError(
-            "Production configuration invalid: DEV_AUTH_BYPASS cannot be true"
-        )
-
-    # 2. HMAC Secret check
-    hmac_secret = os.getenv("MPIPS_MANIFEST_HMAC_SECRET", "").strip()
-    if not hmac_secret or "replace-with" in hmac_secret or len(hmac_secret) < 32:
-        raise RuntimeError(
-            "Production configuration invalid: "
-            "MPIPS_MANIFEST_HMAC_SECRET must be set and >= 32 chars"
-        )
-
-    # 3. IDP Configuration checks
-    jwks_url = os.getenv("MADEENA_IDP_JWKS_URL", "").strip()
-    issuer = os.getenv("MADEENA_IDP_ISSUER", "").strip()
-    audience = os.getenv("MADEENA_IDP_AUDIENCE", "").strip()
-    if not jwks_url or "replace-with" in jwks_url or not jwks_url.startswith("http"):
-        raise RuntimeError(
-            "Production configuration invalid: MADEENA_IDP_JWKS_URL must be a valid URL"
-        )
-    if not issuer or "replace-with" in issuer:
-        raise RuntimeError(
-            "Production configuration invalid: MADEENA_IDP_ISSUER must be set"
-        )
-    if not audience or "replace-with" in audience:
-        raise RuntimeError(
-            "Production configuration invalid: MADEENA_IDP_AUDIENCE must be set"
-        )
-
-    # 4. Redis URL check
+    # Redis URL check
     redis_url = os.getenv("REDIS_URL", "").strip()
     if not redis_url or "replace-with" in redis_url:
         raise RuntimeError(
             "Production configuration invalid: REDIS_URL must be configured"
         )
 
-    # 5. Upload limits & numeric checks
+    # Upload limits & numeric checks
     try:
         max_manifest = int(
             os.getenv("MPIPS_DICOM_MAX_MANIFEST_BYTES", str(1 * 1024 * 1024))

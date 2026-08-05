@@ -1,0 +1,195 @@
+name: Deploy MPIPS Internal Beta
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: mpips-internal-beta
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv and dependencies
+        run: |
+          python -m pip install uv
+          uv sync --frozen --extra service --extra dev --extra npz-worker
+
+      - name: Run focused checks
+        run: |
+          .venv/bin/python .agents/skills/agent-task/scripts/validate_task.py \
+            .agents/tasks/mpips-simple-key-cicd-internal-beta-v1.md
+          test "$(sha256sum mpips/engine/imager_pipeline/tiff_json_to_dcm.py | awk '{print $1}')" = \
+            "a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0"
+          uv run pytest \
+            tests/api/test_api_surface.py \
+            tests/api/test_dicom_authentication.py \
+            tests/api/test_dicom_conversion.py \
+            tests/test_host_launcher.py \
+            -q
+
+      - name: Set deployment variables
+        run: |
+          echo "REMOTE_PATH=/var/www/mpips-runtime" >> "$GITHUB_ENV"
+          echo "MPIPS_VERSION=$GITHUB_SHA" >> "$GITHUB_ENV"
+          echo "MPIPS_LAUNCHER_GID=$(id -g)" >> "$GITHUB_ENV"
+          echo "MPIPS_RUNTIME_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "MPIPS_RUNTIME_GID=$(id -g)" >> "$GITHUB_ENV"
+          echo "MPIPS_LAUNCHER_SOCKET_PATH=/var/www/mpips-runtime/launcher/launcher.sock" >> "$GITHUB_ENV"
+          echo "COMPOSE_PROJECT_NAME=mpips-internal-beta" >> "$GITHUB_ENV"
+
+      - name: Build immutable images
+        run: |
+          docker build -t "mpips-api:$MPIPS_VERSION" -f Dockerfile .
+          docker build -t "mpips-npz-worker:$MPIPS_VERSION" -f docker/Dockerfile.worker .
+
+      - name: Prepare runtime and rollback state
+        run: |
+          set -Eeuo pipefail
+          mkdir -p "$REMOTE_PATH/calibration" "$REMOTE_PATH/launcher" /tmp/mpips-workspaces
+          test -s "$REMOTE_PATH/calibration/metadata.json"
+          test -s "$REMOTE_PATH/calibration/remap.npz"
+          uv run python scripts/local_dicom_burn_in.py \
+            --base-dir "$REMOTE_PATH/burn-in" prepare
+          if [ -f "$REMOTE_PATH/docker-compose.prod.yml" ]; then
+            cp "$REMOTE_PATH/docker-compose.prod.yml" \
+              "$REMOTE_PATH/docker-compose.prod.yml.previous"
+            echo "MPIPS_HAS_PREVIOUS_COMPOSE=true" >> "$GITHUB_ENV"
+          else
+            echo "MPIPS_HAS_PREVIOUS_COMPOSE=false" >> "$GITHUB_ENV"
+          fi
+          if [ -f "$REMOTE_PATH/.mpips-version" ]; then
+            echo "MPIPS_PREVIOUS_VERSION=$(cat "$REMOTE_PATH/.mpips-version")" >> "$GITHUB_ENV"
+          else
+            echo "MPIPS_PREVIOUS_VERSION=" >> "$GITHUB_ENV"
+          fi
+          if [ -f "$REMOTE_PATH/.mpips-worker-image" ]; then
+            echo "MPIPS_PREVIOUS_WORKER_IMAGE=$(cat "$REMOTE_PATH/.mpips-worker-image")" >> "$GITHUB_ENV"
+          else
+            echo "MPIPS_PREVIOUS_WORKER_IMAGE=mpips-npz-worker:internal-beta" >> "$GITHUB_ENV"
+          fi
+          cp docker-compose.prod.yml "$REMOTE_PATH/docker-compose.prod.yml"
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+            --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" config >/dev/null
+
+      - name: Start versioned worker launcher
+        run: |
+          set -Eeuo pipefail
+          PID_FILE="$REMOTE_PATH/launcher.pid"
+          if [ -f "$PID_FILE" ]; then
+            old_pid=$(cat "$PID_FILE" || true)
+            if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+              kill "$old_pid"
+              for _ in $(seq 1 20); do
+                kill -0 "$old_pid" 2>/dev/null || break
+                sleep 1
+              done
+            fi
+          fi
+          rm -f "$REMOTE_PATH/launcher/launcher.sock" "$PID_FILE"
+          MPIPS_LAUNCHER_SOCKET_PATH="$REMOTE_PATH/launcher/launcher.sock" \
+          MPIPS_WORKSPACE_ROOT=/tmp/mpips-workspaces \
+          MPIPS_WORKER_IMAGE="mpips-npz-worker:$MPIPS_VERSION" \
+          MPIPS_WORKER_USER="$MPIPS_RUNTIME_UID:$MPIPS_RUNTIME_GID" \
+          nohup .venv/bin/python docker/host-launcher/mpips-launcher.py \
+            > "$REMOTE_PATH/launcher.log" 2>&1 &
+          echo $! > "$PID_FILE"
+          for _ in $(seq 1 20); do
+            test -S "$REMOTE_PATH/launcher/launcher.sock" && exit 0
+            sleep 1
+          done
+          echo "launcher socket did not appear" >&2
+          exit 1
+
+      - name: Deploy Compose services
+        run: |
+          set -Eeuo pipefail
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+            --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" up -d --remove-orphans
+
+      - name: Verify live beta and rollback on failure
+        run: |
+          set -Eeuo pipefail
+          COMPOSE=(docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+            --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml")
+          API_CONTAINER="$(${COMPOSE[@]} ps -q mpips-api)"
+          REDIS_CONTAINER="$(${COMPOSE[@]} ps -q redis)"
+          wait_for_health() {
+            for _ in $(seq 1 60); do
+              curl -fsS http://127.0.0.1:8015/health >/dev/null && return 0
+              sleep 2
+            done
+            return 1
+          }
+          verify_key_status() {
+            local header="$1"
+            local body_file="$2"
+            local status
+            status=$(curl -sS -o "$body_file" -w '%{http_code}' -X POST \
+              -H "$header" http://127.0.0.1:8015/v1/radiographs/dicom)
+            test "$status" = "401"
+            grep -Fq 'INVALID_API_KEY' "$body_file"
+          }
+          live_checks() {
+            wait_for_health
+            test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8015/health)" = "200"
+            verify_key_status "X-MPIPS-API-Key:" "$RUNNER_TEMP/mpips-missing-key.json"
+            verify_key_status "X-MPIPS-API-Key: wrong-key" "$RUNNER_TEMP/mpips-wrong-key.json"
+            test "$(docker port "$API_CONTAINER" 8000/tcp)" = "127.0.0.1:8015"
+            test -z "$(docker port "$REDIS_CONTAINER" || true)"
+            ! docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+              --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" config | \
+              grep -Eiq 'latest|nginx|jwks'
+            uv run python scripts/local_dicom_burn_in.py \
+              --base-dir "$REMOTE_PATH/burn-in" \
+              --url http://127.0.0.1:8015 run
+          }
+          if ! live_checks; then
+            echo "live verification failed; restoring the previous Compose deployment" >&2
+            "${COMPOSE[@]}" logs --no-color --tail=200 || true
+            "${COMPOSE[@]}" down --remove-orphans || true
+            if [ "$MPIPS_HAS_PREVIOUS_COMPOSE" = "true" ] && [ -n "$MPIPS_PREVIOUS_VERSION" ]; then
+              cp "$REMOTE_PATH/docker-compose.prod.yml.previous" "$REMOTE_PATH/docker-compose.prod.yml"
+              MPIPS_VERSION="$MPIPS_PREVIOUS_VERSION" "${COMPOSE[@]}" up -d || true
+              if [ -f "$REMOTE_PATH/launcher.pid" ]; then
+                old_pid=$(cat "$REMOTE_PATH/launcher.pid" || true)
+                if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
+                  kill "$old_pid" || true
+                fi
+              fi
+              rm -f "$REMOTE_PATH/launcher/launcher.sock"
+              MPIPS_LAUNCHER_SOCKET_PATH="$REMOTE_PATH/launcher/launcher.sock" \
+              MPIPS_WORKSPACE_ROOT=/tmp/mpips-workspaces \
+              MPIPS_WORKER_IMAGE="$MPIPS_PREVIOUS_WORKER_IMAGE" \
+              MPIPS_WORKER_USER="$MPIPS_RUNTIME_UID:$MPIPS_RUNTIME_GID" \
+              nohup .venv/bin/python docker/host-launcher/mpips-launcher.py \
+                > "$REMOTE_PATH/launcher.log" 2>&1 &
+              echo $! > "$REMOTE_PATH/launcher.pid"
+            fi
+            exit 1
+          fi
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+            --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" restart mpips-api
+          wait_for_health
+          uv run python scripts/local_dicom_burn_in.py \
+            --base-dir "$REMOTE_PATH/burn-in" \
+            --url http://127.0.0.1:8015 run
+          printf '%s\n' "$MPIPS_VERSION" > "$REMOTE_PATH/.mpips-version"
+          printf 'mpips-npz-worker:%s\n' "$MPIPS_VERSION" > "$REMOTE_PATH/.mpips-worker-image"
+
+      - name: Show failed deployment logs
+        if: failure()
+        run: |
+          docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+            --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" \
+            logs --no-color --tail=200 || true
+          test ! -f "$REMOTE_PATH/launcher.log" || tail -200 "$REMOTE_PATH/launcher.log"
