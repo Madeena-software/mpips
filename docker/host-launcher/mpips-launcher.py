@@ -31,7 +31,7 @@ SOCKET_PATH = Path(
 WORKSPACE_ROOT = Path(
     os.getenv("MPIPS_WORKSPACE_ROOT", "/tmp/mpips-workspaces")
 ).resolve()
-WORKER_IMAGE = os.getenv("MPIPS_WORKER_IMAGE", "mpips-npz-worker:latest")
+WORKER_IMAGE = os.getenv("MPIPS_WORKER_IMAGE", "mpips-npz-worker:internal-beta")
 WORKER_USER = os.getenv("MPIPS_WORKER_USER", "10001:10001")
 TIMEOUT_SECONDS = int(os.getenv("MPIPS_WORKER_TIMEOUT_SECONDS", "300"))
 JOB_ID_REGEX = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
