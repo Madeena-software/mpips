@@ -82,6 +82,7 @@ NODE_CATALOG = [
             ),
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="crop",
@@ -121,6 +122,7 @@ NODE_CATALOG = [
             ),
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="rotate",
@@ -144,6 +146,7 @@ NODE_CATALOG = [
             ),
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="flip",
@@ -163,6 +166,7 @@ NODE_CATALOG = [
             )
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="grayscale",
@@ -176,6 +180,7 @@ NODE_CATALOG = [
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="brightness_contrast",
@@ -201,6 +206,7 @@ NODE_CATALOG = [
             ),
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="thresholding",
@@ -230,6 +236,7 @@ NODE_CATALOG = [
             ),
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="gamma_correction",
@@ -249,6 +256,7 @@ NODE_CATALOG = [
             )
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="gaussian_blur",
@@ -275,6 +283,7 @@ NODE_CATALOG = [
             ),
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="median_blur",
@@ -296,6 +305,7 @@ NODE_CATALOG = [
             )
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="canny",
@@ -324,6 +334,7 @@ NODE_CATALOG = [
             ),
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="sobel",
@@ -359,6 +370,7 @@ NODE_CATALOG = [
             ),
         ],
         version="1.0.0",
+        executable_in_browser=True,
     ),
     ProcessorNodeSchema(
         id="nlm_denoising",

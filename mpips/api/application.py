@@ -5,8 +5,8 @@ from typing import AsyncGenerator
 from fastapi import FastAPI
 
 from mpips.api.middleware import RequestBodySizeLimitMiddleware
-from mpips.api.routes.v1.dicom import router as dicom_router
 from mpips.api.routes.v1.health import get_health_report
+from mpips.api.routes.v1.router import router as v1_router
 
 _DESCRIPTION = """\
 MPIPS synchronously converts an MHCS radiograph NPZ, matching gain NPZ, and
@@ -118,7 +118,7 @@ def build_app() -> FastAPI:
         lifespan=lifespan,
     )
     application.add_middleware(RequestBodySizeLimitMiddleware)
-    application.include_router(dicom_router, prefix="/v1")
+    application.include_router(v1_router)
     application.add_api_route(
         "/health",
         health_check,

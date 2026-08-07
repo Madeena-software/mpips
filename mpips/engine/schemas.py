@@ -154,3 +154,10 @@ class ProcessorNodeSchema(BaseModel):
         ...,
         description=("Semantic version of the node definition"),
     )
+    executable_in_browser: bool = Field(
+        False,
+        description=(
+            "Whether this node can execute client-side via opencv.js/WASM "
+            "instead of the mpips DAG executor."
+        ),
+    )

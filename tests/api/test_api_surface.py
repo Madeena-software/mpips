@@ -22,19 +22,19 @@ def _route_table(application: Any) -> set[tuple[str, str]]:
     }
 
 
-def test_dicom_only_routes_are_registered() -> None:
+def test_dicom_and_dag_routes_are_registered() -> None:
     routes = _route_table(app)
 
-    assert {("POST", "/v1/radiographs/dicom"), ("GET", "/health")} <= routes
     assert {
-        ("GET", "/"),
+        ("POST", "/v1/radiographs/dicom"),
+        ("GET", "/health"),
         ("GET", "/v1/nodes"),
         ("POST", "/v1/jobs"),
         ("GET", "/v1/jobs"),
         ("GET", "/v1/jobs/{id}"),
         ("DELETE", "/v1/jobs/{id}"),
-        ("GET", "/v1/secure-test"),
-    }.isdisjoint(routes)
+    } <= routes
+    assert {("GET", "/"), ("GET", "/v1/secure-test")}.isdisjoint(routes)
 
 
 def test_health_describes_only_mpips() -> None:

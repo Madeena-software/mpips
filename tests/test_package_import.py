@@ -21,3 +21,21 @@ def test_public_package_exports_engine_primitives() -> None:
     assert get_node_class("camera_calibration_warp").__name__ == (
         "CameraCalibrationWarpNode"
     )
+
+
+def test_only_pure_opencv_nodes_are_browser_executable() -> None:
+    browser_ids = {node.id for node in NODE_CATALOG if node.executable_in_browser}
+    assert browser_ids == {
+        "resize",
+        "crop",
+        "rotate",
+        "flip",
+        "grayscale",
+        "brightness_contrast",
+        "thresholding",
+        "gamma_correction",
+        "gaussian_blur",
+        "median_blur",
+        "canny",
+        "sobel",
+    }
