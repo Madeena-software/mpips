@@ -8,10 +8,10 @@ version: 1
 
 ## Task identity
 
-**Task title:** Local 100 MiB-per-file NPZ-to-DICOM deployment  
-**Task path:** .agents/tasks/mpips-local-npz-dicom-deployment.md  
-**Task contract state:** Validated/Published  
-**Delivery objective / Work Package / MVP:** Private local readiness of the active fixed-key NPZ-to-DICOM API before any production-release work.  
+**Task title:** Local 100 MiB-per-file NPZ-to-DICOM deployment
+**Task path:** .agents/tasks/mpips-local-npz-dicom-deployment.md
+**Task contract state:** Validated/Published
+**Delivery objective / Work Package / MVP:** Private local readiness of the active fixed-key NPZ-to-DICOM API before any production-release work.
 **Owner / designated planning authority:** Repository user direction on 2026-08-10: each radiograph and gain NPZ may be up to 100 MiB; local delivery precedes production.
 
 ## Delivery context
@@ -123,7 +123,7 @@ Make the active API and its local deployment configuration support one radiograp
 
 - Run the new focused limit/configuration tests first and confirm they fail against the baseline for the intended reason; rerun them after the minimal change.
 - In a task-created environment provisioned with --extra service --extra dev --extra npz-worker --extra imager, run:
-  
+
   pytest tests/api/test_api_surface.py tests/api/test_dicom_authentication.py \
     tests/api/test_dicom_conversion.py tests/test_host_launcher.py -v
 - Render both Compose files using non-secret placeholder environment values.
@@ -160,4 +160,3 @@ Git commits for implementation, pushes, workflow dispatches, production deployme
 ## Execution evidence
 
 The Executor must preserve the governing task path and publication revision, the implementation baseline, the exact implementation state, all observed verification evidence, and any remediation or stop result for Reviewer use.
-
