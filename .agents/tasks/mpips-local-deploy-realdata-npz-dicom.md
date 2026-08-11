@@ -228,3 +228,31 @@ A Planner/Reviewer must decide whether the result is acceptable and request sepa
 ## Execution evidence
 
 The Executor must preserve the governing task path and publication revision, the implementation baseline, the exact implementation state, all observed verification evidence, and any remediation or stop result for Reviewer use.
+
+---
+
+## Remediation
+
+**Review basis:** `3bb703c6d5102bf4016010cdacc118e5af8e46eb`
+
+### Finding
+
+The primary delivery — worker remap-shape fix, two new focused tests, synthetic burn-in (19/19), and real kambing NPZ-to-DICOM validation — is correct and all primary acceptance criteria are satisfied. Three bounded scope deviations were identified:
+
+1. **`docker-compose.local.yml`**: Timeout (`MPIPS_DICOM_PROCESS_TIMEOUT_SECONDS`), CPU limit (`MPIPS_DICOM_WORKER_CPU_SECONDS`), and TIFF size (`MPIPS_DICOM_MAX_TIFF_BYTES`) were changed from hardcoded local values to environment-variable substitutions with new defaults (120 s, 120 CPU-s, 32 MiB). These were required to allow the real 3000×4096 image to complete processing under the local stack and are consistent with `docker-compose.prod.yml` values. This Reviewer explicitly authorizes them as a bounded correction within the same delivery objective.
+
+2. **`docker/host-launcher/mpips-launcher.py`**: Added stderr capture for worker process and made `--memory` and tmpfs size configurable via environment variables. These are low-risk debugging and operational improvements that do not alter the security boundary or behavior on the critical path. This Reviewer explicitly authorizes them as a bounded correction.
+
+3. **`scripts/test_real_kambing_dicom.py`**: Committed as a persistent script rather than removed after the test. This script is useful for future re-runs. This Reviewer explicitly authorizes its continued presence in the repository.
+
+### Required corrections
+
+- Confirm `docker-compose.local.yml` still renders a loopback-only API port and no Redis host port under the new env-variable substitution syntax (run `docker compose -f docker-compose.local.yml config` with placeholder values).
+- Confirm `scripts/test_real_kambing_dicom.py` does not commit, log, or persist any patient or real-data NPZ array content (only file paths and DICOM metadata assertions).
+- Confirm no other out-of-scope files were modified beyond the six listed in the implementation commit.
+
+### Additional verification
+
+- Run `docker compose -f docker-compose.local.yml config` with `MPIPS_LOCAL_PORT=8000 MPIPS_CALIBRATION_DIR=/tmp/cal MPIPS_LAUNCHER_DIR=/tmp/sock MPIPS_VERSION=local` and confirm `ports:` shows only `127.0.0.1:8000:8000` and Redis has no `ports:` section.
+- Confirm the full focused test suite still passes (32 tests) at `3bb703c`.
+- Confirm converter SHA-256 is unchanged.

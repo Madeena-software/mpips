@@ -154,9 +154,12 @@ and `LICENSES/`; the ImageJ replication component carries GPL-v2 obligations.
 The internal-beta deployment is implemented by
 `.github/workflows/deploy-internal-beta.yml` and
 `docker-compose.prod.yml`. It builds commit-SHA API and NPZ-worker images,
-binds the API only to `127.0.0.1:8015`, keeps Redis private, mounts
+binds the API only to `127.0.0.1:8014` (the canonical approved host-side port
+for both local and production environments), keeps Redis private, mounts
 calibration read-only, and retains the host launcher plus isolated worker
-controls. Live workflow evidence is recorded by the executing task.
+controls. The container listens on internal port 8000; only the host-side
+published port 8014 is exposed on the loopback interface. Live workflow
+evidence is recorded by the executing task.
 
 ## Local DICOM burn-in evidence
 

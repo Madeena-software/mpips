@@ -4,8 +4,11 @@ from pathlib import Path
 import httpx
 import pydicom
 
+import os
+
 API_KEY = "mpips_access_api_m4d33n4"
-URL = "http://127.0.0.1:8000/v1/radiographs/dicom"
+PORT = os.getenv("MPIPS_LOCAL_PORT", "8014")
+URL = f"http://127.0.0.1:{PORT}/v1/radiographs/dicom"
 
 RAD_PATH = Path("research/kambing-260714/data/kambing/BED_1783222264263.npz")
 GAIN_PATH = Path("research/kambing-260714/data/gain/BED_1783219207291.npz")

@@ -25,7 +25,7 @@ services:
       MPIPS_DICOM_MAX_CONCURRENT_CONVERSIONS: "4"
       MPIPS_DICOM_MAX_TIFF_BYTES: "104857600"
     ports:
-      - "127.0.0.1:8015:8000"
+      - "127.0.0.1:8014:8000"
     volumes:
       - /tmp/mpips-workspaces:/tmp/mpips-workspaces:rw
       - ${REMOTE_PATH:?set REMOTE_PATH}/calibration:/opt/mpips/calibration:ro

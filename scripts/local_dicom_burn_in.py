@@ -435,7 +435,7 @@ class _Response:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-dir", type=Path, required=True)
-    parser.add_argument("--url", default="http://127.0.0.1:8015")
+    parser.add_argument("--url", default="http://127.0.0.1:8014")
     parser.add_argument("command", choices=("prepare", "run"))
     args = parser.parse_args()
     if args.command == "prepare":
