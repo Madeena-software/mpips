@@ -160,21 +160,13 @@ controls. Live workflow evidence is recorded by the executing task.
 
 ## Local DICOM burn-in evidence
 
-On 2026-08-05, the candidate Compose deployment used the existing virtual
-environment's `.venv/bin/python -m uv` equivalent because `uv` was not on
-`PATH`. It bound only to `127.0.0.1:8015`, used private Redis, mounted
-calibration read-only, and ran the API and host-launched worker as the
-self-hosted runner UID/GID so the private workspace mount remains writable
-without privileged setup. The candidate used immutable API and worker image
-tags and contained no Nginx, public ingress, JWKS, or published Redis port.
+On 2026-08-11, the local Compose stack deployment (`docker-compose.local.yml`) was executed and validated with both synthetic fixtures and real kambing radiograph NPZ data (`BED_1783222264263.npz` and `BED_1783219207291.npz`). The stack bound strictly to `127.0.0.1:8000`, used private Redis, mounted the real calibration cache read-only (`4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b`), and launched isolated worker containers via the host launcher (`docker/host-launcher/mpips-launcher.py`).
 
-The synthetic burn-in script completed 19 HTTP cases: health and absent-route
-checks, fixed-key authentication, valid DICOM conversion and validation,
-malformed input, idempotency, bounded concurrency, launcher rejection cases,
-and workspace cleanup. The focused suite passed 29 tests and the full suite
-passed 100 tests. Flake8 and mypy passed for the active task paths. The
-protected converter SHA-256 remained
-`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+The synthetic burn-in script completed 19/19 HTTP test cases (health, route checks, API key authentication, valid DICOM conversion, malformed input, idempotency, bounded concurrency, launcher error boundaries, and workspace cleanup).
+
+Real kambing NPZ POST verification was executed against the running API container (`http://127.0.0.1:8000/v1/radiographs/dicom`) and produced a valid DICOM output (`24,785,860` bytes) with exact dimensions `Rows == 3053`, `Columns == 4059`, `BitsAllocated == 16`, `PixelRepresentation == 0`, and zero private DICOM tags.
+
+The full focused test suite passed 32/32 tests. The protected converter SHA-256 remained `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
 
 The
 [Madeena deployment-template repository](https://github.com/Madeena-software/deploy-templates)

@@ -159,7 +159,7 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
                 "Radiograph shape does not match calibration image shape"
             )
 
-        if map_x.shape != map_y.shape or map_x.shape != raw.shape:
+        if map_x.shape != map_y.shape:
             raise NPZValidationError(
                 "Calibration remap shape does not match image shape"
             )

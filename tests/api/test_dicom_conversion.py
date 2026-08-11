@@ -466,6 +466,89 @@ def test_remap_shape_mismatch_fails(tmp_path: Path) -> None:
     assert res["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
 
 
+def test_map_x_map_y_shape_mismatch_fails(tmp_path: Path) -> None:
+    cal_dir = tmp_path / "calibration_mismatch"
+    cal_dir.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(
+        cal_dir / "remap.npz",
+        map_x=np.zeros((70, 70), dtype=np.float32),
+        map_y=np.zeros((64, 64), dtype=np.float32),
+    )
+    metadata = {
+        "validated": True,
+        "fingerprint": "test-cal-fp-mismatch",
+        "image_shape": [64, 64],
+        "source_metadata": {
+            "detector_mode": "BED",
+            "camera_params": {"serialNumber": "CAM123"},
+        },
+    }
+    (cal_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+
+    r_path, g_path, *_ = generate_test_npzs(str(tmp_path))
+    args_data = {
+        "radiograph_npz_path": r_path,
+        "gain_npz_path": g_path,
+        "calibration_dir": str(cal_dir),
+        "expected_gain_id": "GAIN-000042",
+        "output_tiff_path": str(tmp_path / "output.tiff"),
+        "result_path": str(tmp_path / "result.json"),
+    }
+    args_file = tmp_path / "args.json"
+    args_file.write_text(json.dumps(args_data))
+
+    from mpips.conversion.worker import execute_conversion_worker
+
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_file), str(tmp_path / "result.json"))
+
+    res = json.loads((tmp_path / "result.json").read_text())
+    assert res["status"] == "failed"
+    assert res["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
+
+
+def test_expanded_canvas_remap_shape_accepted(tmp_path: Path) -> None:
+    cal_dir = tmp_path / "calibration_expanded"
+    cal_dir.mkdir(parents=True, exist_ok=True)
+    y_vals, x_vals = np.indices((70, 70), dtype=np.float32)
+    np.savez_compressed(
+        cal_dir / "remap.npz",
+        map_x=x_vals,
+        map_y=y_vals,
+    )
+    metadata = {
+        "validated": True,
+        "fingerprint": "test-cal-fp-expanded",
+        "image_shape": [64, 64],
+        "source_metadata": {
+            "detector_mode": "BED",
+            "camera_params": {"serialNumber": "CAM123"},
+        },
+    }
+    (cal_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+
+    r_path, g_path, *_ = generate_test_npzs(str(tmp_path))
+    args_data = {
+        "radiograph_npz_path": r_path,
+        "gain_npz_path": g_path,
+        "calibration_dir": str(cal_dir),
+        "expected_gain_id": "GAIN-000042",
+        "output_tiff_path": str(tmp_path / "output.tiff"),
+        "result_path": str(tmp_path / "result.json"),
+    }
+    args_file = tmp_path / "args.json"
+    args_file.write_text(json.dumps(args_data))
+
+    from mpips.conversion.worker import execute_conversion_worker
+
+    execute_conversion_worker(str(args_file), str(tmp_path / "result.json"))
+
+    res = json.loads((tmp_path / "result.json").read_text())
+    assert res["status"] == "success"
+    assert Path(tmp_path / "output.tiff").exists()
+
+
+
 def test_detector_and_camera_mismatch_fails(tmp_path: Path) -> None:
     # Test A: detector mode mismatch
     cal_dir_det = create_test_calibration_artifact(

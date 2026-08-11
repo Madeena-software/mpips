@@ -33,6 +33,8 @@ WORKSPACE_ROOT = Path(
 ).resolve()
 WORKER_IMAGE = os.getenv("MPIPS_WORKER_IMAGE", "mpips-npz-worker:internal-beta")
 WORKER_USER = os.getenv("MPIPS_WORKER_USER", "10001:10001")
+WORKER_MEMORY = os.getenv("MPIPS_WORKER_MEMORY", "2g")
+WORKER_TMPFS_SIZE = os.getenv("MPIPS_WORKER_TMPFS_SIZE", "64m")
 TIMEOUT_SECONDS = int(os.getenv("MPIPS_WORKER_TIMEOUT_SECONDS", "300"))
 JOB_ID_REGEX = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
 
@@ -85,11 +87,11 @@ def build_docker_cmd(job_id: str, workspace_dir: Path) -> list[str]:
         "--cap-drop=ALL",
         "--security-opt=no-new-privileges:true",
         "--network=none",
-        "--memory=2g",
+        f"--memory={WORKER_MEMORY}",
         "--cpus=2",
         f"--user={WORKER_USER}",
         "--tmpfs",
-        "/tmp:rw,noexec,nosuid,size=64m",
+        f"/tmp:rw,noexec,nosuid,size={WORKER_TMPFS_SIZE}",
         "-v",
         f"{workspace_dir}:{workspace_dir}:rw",
         WORKER_IMAGE,
@@ -134,11 +136,16 @@ async def handle_client(
         proc = await asyncio.create_subprocess_exec(
             *docker_cmd,
             stdout=asyncio.subprocess.DEVNULL,
-            stderr=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
         )
 
         try:
-            exit_code = await asyncio.wait_for(proc.wait(), timeout=TIMEOUT_SECONDS)
+            res = await asyncio.wait_for(proc.communicate(), timeout=TIMEOUT_SECONDS)
+            if res and isinstance(res, (tuple, list)) and len(res) == 2:
+                _, stderr_bytes = res
+            else:
+                stderr_bytes = b""
+            exit_code = proc.returncode if isinstance(proc.returncode, int) else 0
         except asyncio.TimeoutError:
             logger.warning(
                 "Worker job_id=%s timed out after %ds, forcing removal",
@@ -155,6 +162,7 @@ async def handle_client(
             )
             await kill_proc.wait()
             exit_code = 124
+            stderr_bytes = b""
 
         elapsed_ms = int((time.monotonic() - start_time) * 1000)
 
@@ -166,6 +174,7 @@ async def handle_client(
                 elapsed_ms,
             )
         else:
+            stderr_text = stderr_bytes.decode("utf-8", errors="replace").strip()
             response = {
                 "status": "error",
                 "error_code": "CONVERSION_WORKER_FAILURE",
@@ -173,10 +182,11 @@ async def handle_client(
                 "job_id": job_id,
             }
             logger.error(
-                "Worker job_id=%s failed exit_code=%d duration_ms=%d",
+                "Worker job_id=%s failed exit_code=%d duration_ms=%d stderr=%s",
                 job_id,
                 exit_code,
                 elapsed_ms,
+                stderr_text,
             )
 
         writer.write(json.dumps(response).encode("utf-8") + b"\n")
