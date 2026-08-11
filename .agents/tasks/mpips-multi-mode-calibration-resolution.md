@@ -62,5 +62,6 @@ To support future Thorax/STAND images, the `/opt/mpips/calibration` root directo
 - [ ] `worker.py` preserves single-mode backwards compatibility.
 - [ ] The full test suite (`pytest -q`) passes cleanly.
 - [ ] A new test explicitly validates that the correct subdirectory is chosen based on the `detector_mode` of the NPZ payload.
+- [ ] Execute `scripts/test_real_kambing_dicom.py` (via `uv run`) against the local deployment to guarantee backward compatibility with the existing BED real-data workflow is 100% intact.
 
 The Executor must implement these changes and report all observed test results.
