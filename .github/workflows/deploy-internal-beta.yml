@@ -27,7 +27,7 @@ jobs:
       - name: Run focused checks
         run: |
           .venv/bin/python .agents/skills/agent-task/scripts/validate_task.py \
-            .agents/tasks/mpips-simple-key-cicd-internal-beta-v1.md
+            .agents/tasks/archive/mpips-simple-key-cicd-internal-beta-v1.md
           test "$(sha256sum mpips/engine/imager_pipeline/tiff_json_to_dcm.py | awk '{print $1}')" = \
             "a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0"
           uv run pytest \
