@@ -1,0 +1,36 @@
+name: Setup Production Runtime Directories
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-runtime:
+    runs-on: self-hosted
+    steps:
+      - name: Provision runtime directories and copy calibration artifacts
+        run: |
+          set -Eeuo pipefail
+          SOURCE_DIR="/var/www/mpips/research/kambing-260714/data/output/calibration-cache/4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b"
+          DEST_DIR="/var/www/mpips-runtime/calibration"
+          LAUNCHER_DIR="/var/www/mpips-runtime/launcher"
+          WORKSPACES_DIR="/tmp/mpips-workspaces"
+
+          echo "Provisioning directories..."
+          mkdir -p "$DEST_DIR" "$LAUNCHER_DIR" "$WORKSPACES_DIR"
+          chmod 755 "$LAUNCHER_DIR"
+
+          echo "Copying calibration artifacts from $SOURCE_DIR to $DEST_DIR..."
+          chmod -R u+w "$DEST_DIR" 2>/dev/null || true
+          cp -f "$SOURCE_DIR/metadata.json" "$DEST_DIR/metadata.json"
+          cp -f "$SOURCE_DIR/remap.npz" "$DEST_DIR/remap.npz"
+          chmod 444 "$DEST_DIR/metadata.json" "$DEST_DIR/remap.npz"
+
+          echo "Verifying files exist and are non-empty..."
+          test -s "$DEST_DIR/metadata.json"
+          test -s "$DEST_DIR/remap.npz"
+
+          echo "Confirmation of file sizes:"
+          ls -lh "$DEST_DIR/metadata.json" "$DEST_DIR/remap.npz"
+
+          echo "Confirmation of metadata.json validated field:"
+          grep -E '"validated"\s*:\s*true' "$DEST_DIR/metadata.json" || cat "$DEST_DIR/metadata.json"
