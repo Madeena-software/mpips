@@ -153,12 +153,24 @@ def _validate_tiff_descriptor(
     return img, (rows, cols)
 
 
+def _is_valid_calibration_dir(p: Path) -> bool:
+    """Checks if path is a valid calibration directory (single-mode or multi-mode root)."""
+    if not p.is_dir():
+        return False
+    if (p / "metadata.json").is_file():
+        return True
+    try:
+        return any(sub.is_dir() and (sub / "metadata.json").is_file() for sub in p.iterdir())
+    except OSError:
+        return False
+
+
 def resolve_calibration_artifact_dir() -> Path:
     """Resolves the pre-generated, validated calibration artifact directory."""
     env_dir = os.getenv("MPIPS_CALIBRATION_ARTIFACT_DIR")
     if env_dir:
         p = Path(env_dir).expanduser().resolve()
-        if p.is_dir() and (p / "metadata.json").is_file():
+        if _is_valid_calibration_dir(p):
             return p
 
     artifact_root_env = os.getenv("MPIPS_ARTIFACT_ROOT")
@@ -170,13 +182,13 @@ def resolve_calibration_artifact_dir() -> Path:
             root,
         ]
         for candidate in candidates:
-            if candidate.is_dir() and (candidate / "metadata.json").is_file():
+            if _is_valid_calibration_dir(candidate):
                 return candidate
 
     default_dir = Path(
         "/var/www/mpips/artifacts/camera-calibration-dotgrid/output/neural_model"
     )
-    if default_dir.is_dir() and (default_dir / "metadata.json").is_file():
+    if _is_valid_calibration_dir(default_dir):
         return default_dir
 
     raise HTTPException(
@@ -263,6 +275,15 @@ def run_isolated_dicom_conversion(
                 dest = staged_cal_dir / item.name
                 shutil.copyfile(item, dest)
                 os.chmod(dest, 0o400)
+            elif item.is_dir():
+                dest_dir = staged_cal_dir / item.name
+                shutil.copytree(item, dest_dir)
+                for root, dirs, files in os.walk(dest_dir):
+                    for d in dirs:
+                        os.chmod(Path(root) / d, 0o500)
+                    for f in files:
+                        os.chmod(Path(root) / f, 0o400)
+                os.chmod(dest_dir, 0o500)
         os.chmod(staged_cal_dir, 0o500)
 
         output_tiff = output_dir / "processed.tiff"

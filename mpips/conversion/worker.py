@@ -80,7 +80,7 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         max_pixels = int(args.get("max_pixels", 268435456))
         output_tiff_path = args["output_tiff_path"]
 
-        # 1. Resolve and validate calibration artifact
+        # 1. Load radiograph and gain catalog
         if not calibration_dir_str:
             raise NPZValidationError("Missing calibration_dir in worker arguments")
 
@@ -88,8 +88,39 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         if not cal_dir.is_dir():
             raise NPZValidationError("Calibration artifact directory does not exist")
 
-        cal_metadata_path = cal_dir / "metadata.json"
-        cal_remap_path = cal_dir / "remap.npz"
+        rad_info = load_radiograph(radiograph_npz_path)
+        gain_catalog = load_gain_catalog([gain_npz_path])
+        rad_mode = rad_info["detector_mode"]
+
+        # 2. Resolve calibration artifact directory (single-mode or multi-mode)
+        selected_cal_dir = None
+        if (cal_dir / "metadata.json").is_file():
+            selected_cal_dir = cal_dir
+        else:
+            for sub in sorted(cal_dir.iterdir()):
+                if sub.is_dir() and (sub / "metadata.json").is_file():
+                    try:
+                        sub_meta = json.loads(
+                            (sub / "metadata.json").read_text(encoding="utf-8")
+                        )
+                        if isinstance(sub_meta, dict):
+                            src_meta = sub_meta.get("source_metadata", {})
+                            if (
+                                isinstance(src_meta, dict)
+                                and src_meta.get("detector_mode") == rad_mode
+                            ):
+                                selected_cal_dir = sub
+                                break
+                    except Exception:
+                        continue
+
+        if not selected_cal_dir:
+            raise NPZValidationError(
+                "Calibration artifact missing metadata.json or remap.npz"
+            )
+
+        cal_metadata_path = selected_cal_dir / "metadata.json"
+        cal_remap_path = selected_cal_dir / "remap.npz"
         if not cal_metadata_path.is_file() or not cal_remap_path.is_file():
             raise NPZValidationError(
                 "Calibration artifact missing metadata.json or remap.npz"
@@ -128,10 +159,6 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
             raise
         except Exception as exc:
             raise NPZValidationError(f"Failed to load remap.npz: {exc}") from exc
-
-        # 2. Load radiograph and gain catalog
-        rad_info = load_radiograph(radiograph_npz_path)
-        gain_catalog = load_gain_catalog([gain_npz_path])
 
         if rad_info["gain_id"] != expected_gain_id:
             raise NPZValidationError(

@@ -661,3 +661,134 @@ def test_workspace_cleanup_removes_read_only_nested_artifacts(tmp_path: Path) ->
     _cleanup_workspace(workspace)
 
     assert not workspace.exists()
+
+
+def generate_custom_mode_npzs(
+    temp_dir: str, detector_mode: str = "TRX"
+) -> tuple[str, str, str, str, int, int]:
+    """Helper to generate valid dummy radiograph and gain NPZ files with a custom detector_mode."""
+    rad_dir = Path(temp_dir) / f"radiograph_{detector_mode}"
+    gain_dir = Path(temp_dir) / f"gain_{detector_mode}"
+    rad_dir.mkdir(parents=True, exist_ok=True)
+    gain_dir.mkdir(parents=True, exist_ok=True)
+
+    rad_path = rad_dir / "capture-001.npz"
+    gain_path = gain_dir / "gain-042.npz"
+
+    gain_id = f"GAIN-{detector_mode}-042"
+    rad_id = f"CAP-{detector_mode}-001"
+
+    raw_img = np.ones((64, 64), dtype=np.uint16) * 1000
+    dark_img = np.ones((64, 64), dtype=np.uint16) * 50
+    flat_img = np.ones((64, 64), dtype=np.uint16) * 2000
+
+    np.savez_compressed(
+        rad_path,
+        id=np.array(rad_id),
+        gainid=np.array(gain_id),
+        rawimage=raw_img,
+        xrayparams=np.array({"detectorMode": detector_mode}),
+        cameraparams=np.array({"serialNumber": "CAM123"}),
+    )
+
+    np.savez_compressed(
+        gain_path,
+        id=np.array(gain_id),
+        rawimage=flat_img,
+        darkimage=dark_img,
+        xrayparams=np.array({"detectorMode": detector_mode}),
+        cameraparams=np.array({"serialNumber": "CAM123"}),
+    )
+
+    rad_sha = sha256_file(rad_path)
+    gain_sha = sha256_file(gain_path)
+    rad_size = rad_path.stat().st_size
+    gain_size = gain_path.stat().st_size
+
+    return str(rad_path), str(gain_path), rad_sha, gain_sha, rad_size, gain_size
+
+
+def test_multi_mode_calibration_resolution(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    from mpips.conversion.service import resolve_calibration_artifact_dir
+    from mpips.conversion.worker import execute_conversion_worker
+
+    multi_cal_root = tmp_path / "multi_cal"
+    bed_cal_dir = multi_cal_root / "BED"
+    stand_cal_dir = multi_cal_root / "STAND"
+
+    create_test_calibration_artifact(
+        bed_cal_dir, shape=(64, 64), detector_mode="BED", camera_serial="CAM123"
+    )
+    create_test_calibration_artifact(
+        stand_cal_dir, shape=(64, 64), detector_mode="TRX", camera_serial="CAM123"
+    )
+
+    # 1. Verify resolve_calibration_artifact_dir accepts multi-mode root
+    monkeypatch.setenv("MPIPS_CALIBRATION_ARTIFACT_DIR", str(multi_cal_root))
+    assert resolve_calibration_artifact_dir() == multi_cal_root
+
+    # 2. Test BED radiograph payload selects BED calibration subdirectory
+    bed_r, bed_g, *_ = generate_test_npzs(str(tmp_path / "bed_npzs"))
+    args_data_bed = {
+        "radiograph_npz_path": bed_r,
+        "gain_npz_path": bed_g,
+        "calibration_dir": str(multi_cal_root),
+        "expected_gain_id": "GAIN-000042",
+        "output_tiff_path": str(tmp_path / "out_bed.tiff"),
+        "result_path": str(tmp_path / "result_bed.json"),
+    }
+    args_file_bed = tmp_path / "args_bed.json"
+    args_file_bed.write_text(json.dumps(args_data_bed))
+
+    execute_conversion_worker(str(args_file_bed), str(tmp_path / "result_bed.json"))
+    res_bed = json.loads((tmp_path / "result_bed.json").read_text())
+    assert res_bed["status"] == "success"
+    assert (tmp_path / "out_bed.tiff").exists()
+
+    # 3. Test TRX/STAND radiograph payload selects STAND calibration subdirectory (detector_mode=TRX)
+    trx_r, trx_g, *_ = generate_custom_mode_npzs(
+        str(tmp_path / "trx_npzs"), detector_mode="TRX"
+    )
+    args_data_trx = {
+        "radiograph_npz_path": trx_r,
+        "gain_npz_path": trx_g,
+        "calibration_dir": str(multi_cal_root),
+        "expected_gain_id": "GAIN-TRX-042",
+        "output_tiff_path": str(tmp_path / "out_trx.tiff"),
+        "result_path": str(tmp_path / "result_trx.json"),
+    }
+    args_file_trx = tmp_path / "args_trx.json"
+    args_file_trx.write_text(json.dumps(args_data_trx))
+
+    execute_conversion_worker(str(args_file_trx), str(tmp_path / "result_trx.json"))
+    res_trx = json.loads((tmp_path / "result_trx.json").read_text())
+    assert res_trx["status"] == "success"
+    assert (tmp_path / "out_trx.tiff").exists()
+
+    # 4. Test unmapped detector_mode payload fails when calibration artifact for mode is missing
+    multi_cal_only_bed = tmp_path / "multi_cal_only_bed"
+    create_test_calibration_artifact(
+        multi_cal_only_bed / "BED", shape=(64, 64), detector_mode="BED", camera_serial="CAM123"
+    )
+    args_data_unmapped = {
+        "radiograph_npz_path": trx_r,
+        "gain_npz_path": trx_g,
+        "calibration_dir": str(multi_cal_only_bed),
+        "expected_gain_id": "GAIN-TRX-042",
+        "output_tiff_path": str(tmp_path / "out_unmapped.tiff"),
+        "result_path": str(tmp_path / "result_unmapped.json"),
+    }
+    args_file_unmapped = tmp_path / "args_unmapped.json"
+    args_file_unmapped.write_text(json.dumps(args_data_unmapped))
+
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(
+            str(args_file_unmapped), str(tmp_path / "result_unmapped.json")
+        )
+
+    res_unmapped = json.loads((tmp_path / "result_unmapped.json").read_text())
+    assert res_unmapped["status"] == "failed"
+    assert res_unmapped["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
+
