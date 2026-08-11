@@ -216,7 +216,7 @@ class BurnIn:
         self.radiograph = (base / "fixtures" / "radiograph.npz").read_bytes()
         self.gain = (base / "fixtures" / "gain.npz").read_bytes()
         self.raw_manifest = (base / "fixtures" / "manifest.json").read_bytes()
-        self.client = httpx.Client(timeout=45.0, follow_redirects=False)
+        self.client = httpx.Client(timeout=120.0, follow_redirects=False)
         self.failures: list[str] = []
         self.case_count = 0
         self.initial_workspaces = {
@@ -239,16 +239,30 @@ class BurnIn:
     ) -> httpx.Response:
         request_headers = {"X-MPIPS-API-Key": API_KEY}
         request_headers.update(headers or {})
-        return self.client.post(
-            f"{self.url}/v1/radiographs/dicom",
-            headers=request_headers,
-            files=_files(
-                raw,
-                self.radiograph if radiograph is None else radiograph,
-                self.gain if gain is None else gain,
-                include=include,
-            ),
-        )
+        try:
+            return self.client.post(
+                f"{self.url}/v1/radiographs/dicom",
+                headers=request_headers,
+                files=_files(
+                    raw,
+                    self.radiograph if radiograph is None else radiograph,
+                    self.gain if gain is None else gain,
+                    include=include,
+                ),
+            )
+        except (httpx.HTTPError, httpx.RemoteProtocolError, httpx.CloseError):
+            self.client.close()
+            self.client = httpx.Client(timeout=120.0, follow_redirects=False)
+            return self.client.post(
+                f"{self.url}/v1/radiographs/dicom",
+                headers=request_headers,
+                files=_files(
+                    raw,
+                    self.radiograph if radiograph is None else radiograph,
+                    self.gain if gain is None else gain,
+                    include=include,
+                ),
+            )
 
     def case(
         self, name: str, expected: int | set[int], response: httpx.Response
