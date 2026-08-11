@@ -256,3 +256,17 @@ The primary delivery — worker remap-shape fix, two new focused tests, syntheti
 - Run `docker compose -f docker-compose.local.yml config` with `MPIPS_LOCAL_PORT=8000 MPIPS_CALIBRATION_DIR=/tmp/cal MPIPS_LAUNCHER_DIR=/tmp/sock MPIPS_VERSION=local` and confirm `ports:` shows only `127.0.0.1:8000:8000` and Redis has no `ports:` section.
 - Confirm the full focused test suite still passes (32 tests) at `3bb703c`.
 - Confirm converter SHA-256 is unchanged.
+
+---
+
+## Final Review
+
+**Review basis:** `923933ec09eeeb7dd5959f1415a4c9d7796508a6`
+
+### Finding
+
+The Executor executed the task and found that the local burn-in script required retry logic and the worker memory limit needed an increase (from 512 MiB to ~2 GiB) to process the real kambing images successfully under the local stack. These changes are functionally correct, bounded to the same operational objective, and explicitly authorized by this Reviewer.
+
+### Review Verdict: ACCEPTED
+
+All primary acceptance criteria remain satisfied, and tests pass (32/32) with no regressions. The baseline is advanced.
