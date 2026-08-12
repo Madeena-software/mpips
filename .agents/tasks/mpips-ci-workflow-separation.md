@@ -1,10 +1,13 @@
 ---
 title: Separate deployment from beta verification in GitHub Actions
 document_id: TASK-MPIPS-CI-WORKFLOW-SEP-001
-version: 1.0
+version: 1.1
 status: Validated/Published
 language: en-US
 last_updated: 2026-08-12
+review_verdict: REMEDIATION REQUIRED — bounded
+execution_attempt: 31557705541 (deploy SUCCESS), 31557823992 (verify FAILURE)
+remediation_baseline: e4166a0e3e2cf0c65a5d96e39af00fa9bb0c3af8
 ---
 
 <!-- antigravity-code-agent-template:managed -->
