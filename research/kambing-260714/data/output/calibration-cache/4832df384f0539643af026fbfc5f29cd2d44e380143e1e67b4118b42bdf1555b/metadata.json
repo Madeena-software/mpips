@@ -1,0 +1,53 @@
+{
+  "source_sha256": "2f8630d5ae21b4f062f371903ebb7332a2a740532fcbcbb82af5516b418c83be",
+  "config": {
+    "epochs": 5000,
+    "learning_rate": 0.001,
+    "target_loss": 5.0,
+    "hidden_dim": 64,
+    "seed": 42,
+    "smoothness_weight": 0.001,
+    "edge_balance_weight": 0.3,
+    "center_marker_min_ratio": 1.5,
+    "threshold": 128,
+    "minimum_contour_area": 10.0,
+    "row_tolerance": 50.0,
+    "remap_step": 4,
+    "inverse_iterations": 10,
+    "batch_size": 262144,
+    "device": "auto",
+    "canvas_mode": "expanded",
+    "expanded_bounds_step": 4,
+    "expanded_margin": 16,
+    "min_straightness_reduction": 50.0,
+    "min_reprojection_reduction": 50.0,
+    "min_spacing_reduction": 30.0,
+    "min_diameter_reduction": 0.0
+  },
+  "image_shape": [
+    3000,
+    4096
+  ],
+  "mpips_version": "0.1.0",
+  "fingerprint": "4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b",
+  "validated": true,
+  "source": "/var/www/mpips/research/kambing-260714/data/kalibrasi-gotri/BED_1783219960026.npz",
+  "source_metadata": {
+    "id": "1783219960996",
+    "gain_id": "1783219207291",
+    "camera_params": {
+      "cameraUserID": "DETECTOR-BED-MDN-AB007",
+      "cameraModel": "MV-CH120-10UM",
+      "cameraSerial": "DA5234480",
+      "pixelType": "Mono12",
+      "Exposure": 1000000.0,
+      "fps": 0.9990000128746033,
+      "gain": 0.0
+    },
+    "detector_mode": "BED"
+  },
+  "grid_shape": [
+    19,
+    26
+  ]
+}
