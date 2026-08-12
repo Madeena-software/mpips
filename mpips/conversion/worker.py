@@ -5,6 +5,7 @@ import os
 import pickle
 import sys
 import zipfile
+import traceback
 from pathlib import Path
 
 import numpy as np
@@ -267,14 +268,22 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
             "pixel_bytes": processed_uint16.nbytes,
         }
 
-    except NPZValidationError:
+    except NPZValidationError as exc:
         result_data["sanitized_error_code"] = "NPZ_VALIDATION_ERROR"
-    except (OSError, EOFError, pickle.UnpicklingError, zipfile.BadZipFile):
+        result_data["error_detail"] = str(exc)
+        sys.stderr.write(f"NPZValidationError: {exc}\n{traceback.format_exc()}\n")
+    except (OSError, EOFError, pickle.UnpicklingError, zipfile.BadZipFile) as exc:
         result_data["sanitized_error_code"] = "NPZ_VALIDATION_ERROR"
-    except ValueError:
+        result_data["error_detail"] = str(exc)
+        sys.stderr.write(f"NPZ OSError: {exc}\n{traceback.format_exc()}\n")
+    except ValueError as exc:
         result_data["sanitized_error_code"] = "MANIFEST_OR_DATA_ERROR"
-    except Exception:
+        result_data["error_detail"] = str(exc)
+        sys.stderr.write(f"ValueError: {exc}\n{traceback.format_exc()}\n")
+    except Exception as exc:
         result_data["sanitized_error_code"] = "CONVERSION_WORKER_FAILURE"
+        result_data["error_detail"] = str(exc)
+        sys.stderr.write(f"Worker Exception: {exc}\n{traceback.format_exc()}\n")
     finally:
         try:
             with Path(result_path).open("w", encoding="utf-8") as f:

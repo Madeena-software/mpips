@@ -451,6 +451,9 @@ def run_isolated_dicom_conversion(
             err_code = (
                 result_data.get("sanitized_error_code") or "CONVERSION_WORKER_FAILURE"
             )
+            err_detail = result_data.get("error_detail")
+            if err_detail or stderr_str:
+                logger.error(f"Worker process failed [{err_code}]: detail={err_detail} | stderr={stderr_str}")
             if err_code in ("NPZ_VALIDATION_ERROR", "MANIFEST_OR_DATA_ERROR"):
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
