@@ -388,8 +388,11 @@ def run_isolated_dicom_conversion(
             if "VIRTUAL_ENV" in os.environ:
                 clean_env["VIRTUAL_ENV"] = os.environ["VIRTUAL_ENV"]
 
+            venv_python = Path(sys.prefix) / "bin" / "python"
+            python_bin = str(venv_python) if venv_python.exists() else sys.executable
+
             cmd = [
-                sys.executable,
+                python_bin,
                 "-m",
                 "mpips.conversion.worker",
                 str(args_path),
