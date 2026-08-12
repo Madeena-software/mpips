@@ -246,6 +246,13 @@ async def convert_radiograph_to_dicom(
         try:
             limiter.acquire_nowait()
         except (anyio.WouldBlock, RuntimeError):
+            if claim.lease_token:
+                IdempotencyService.mark_failure(
+                    tenant_id,
+                    str(mhcs_manifest.conversion_job_id),
+                    claim.lease_token,
+                    "CONCURRENCY_LIMIT_EXCEEDED",
+                )
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="CONCURRENCY_LIMIT_EXCEEDED",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
+import pytest
 from fastapi.testclient import TestClient
 
 from mpips.api.api_key import API_KEY
@@ -59,3 +60,28 @@ def test_valid_api_key_reaches_request_validation() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_custom_env_api_key_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MPIPS_API_KEY", "custom-secret-key-123")
+    response = TestClient(app).post(
+        "/v1/radiographs/dicom",
+        files=_dicom_files(),
+        headers={"X-MPIPS-API-Key": "custom-secret-key-123"},
+    )
+    assert response.status_code == 422
+
+
+def test_production_without_api_key_fails_closed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MPIPS_ENVIRONMENT", "production")
+    monkeypatch.delenv("MPIPS_API_KEY", raising=False)
+    monkeypatch.delenv("API_KEY", raising=False)
+    response = TestClient(app).post(
+        "/v1/radiographs/dicom",
+        files=_dicom_files(),
+        headers={"X-MPIPS-API-Key": "mpips_access_api_m4d33n4"},
+    )
+    assert response.status_code == 401
+    assert response.json() == {"detail": "INVALID_API_KEY"}
