@@ -189,7 +189,11 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
                 )
 
         if expected_detector_mode:
-            exp_norm = "TRX" if expected_detector_mode.upper() == "THORAX" else expected_detector_mode.upper()
+            exp_norm = (
+                "TRX"
+                if expected_detector_mode.upper() == "THORAX"
+                else expected_detector_mode.upper()
+            )
             rad_norm = "TRX" if rad_mode.upper() == "THORAX" else rad_mode.upper()
             if rad_norm != exp_norm:
                 raise NPZValidationError("Detector mode does not match expected config")

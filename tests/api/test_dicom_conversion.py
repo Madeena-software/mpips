@@ -32,23 +32,13 @@ def setup_env_secrets(
     monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
 ) -> None:
     cal_dir = tmp_path_factory.mktemp("default_cal")
-    y_vals, x_vals = np.indices((64, 64), dtype=np.float32)
-    np.savez_compressed(cal_dir / "remap.npz", map_x=x_vals, map_y=y_vals)
-    metadata = {
-        "validated": True,
-        "fingerprint": "default-test-cal-fp",
-        "image_shape": [64, 64],
-        "source_metadata": {
-            "detector_mode": "BED",
-            "camera_params": {"serialNumber": "CAM123"},
-        },
-    }
-    (cal_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
-
+    create_test_calibration_artifact(cal_dir, detector_mode="BED")
     monkeypatch.setenv("MPIPS_CALIBRATION_ARTIFACT_DIR", str(cal_dir))
 
 
-def generate_test_npzs(temp_dir: str) -> tuple[str, str, str, str, int, int]:
+def generate_test_npzs(
+    temp_dir: str, detector_mode: str = "BED"
+) -> tuple[str, str, str, str, int, int]:
     """Helper to generate valid dummy radiograph and gain NPZ files."""
     rad_dir = Path(temp_dir) / "radiograph"
     gain_dir = Path(temp_dir) / "gain"
@@ -70,7 +60,7 @@ def generate_test_npzs(temp_dir: str) -> tuple[str, str, str, str, int, int]:
         id=np.array(rad_id),
         gainid=np.array(gain_id),
         rawimage=raw_img,
-        xrayparams=np.array({"detectorMode": "BED"}),
+        xrayparams=np.array({"detectorMode": detector_mode}),
         cameraparams=np.array({"serialNumber": "CAM123"}),
     )
 
@@ -79,7 +69,7 @@ def generate_test_npzs(temp_dir: str) -> tuple[str, str, str, str, int, int]:
         id=np.array(gain_id),
         rawimage=flat_img,
         darkimage=dark_img,
-        xrayparams=np.array({"detectorMode": "BED"}),
+        xrayparams=np.array({"detectorMode": detector_mode}),
         cameraparams=np.array({"serialNumber": "CAM123"}),
     )
 
@@ -684,7 +674,10 @@ def test_workspace_cleanup_removes_read_only_nested_artifacts(tmp_path: Path) ->
 def generate_custom_mode_npzs(
     temp_dir: str, detector_mode: str = "TRX"
 ) -> tuple[str, str, str, str, int, int]:
-    """Helper to generate valid dummy radiograph and gain NPZ files with a custom detector_mode."""
+    """
+    Helper to generate valid dummy radiograph and gain NPZ files with a
+    custom detector_mode.
+    """
     rad_dir = Path(temp_dir) / f"radiograph_{detector_mode}"
     gain_dir = Path(temp_dir) / f"gain_{detector_mode}"
     rad_dir.mkdir(parents=True, exist_ok=True)
@@ -726,6 +719,9 @@ def generate_custom_mode_npzs(
     return str(rad_path), str(gain_path), rad_sha, gain_sha, rad_size, gain_size
 
 
+# ── 7. Multi-Detector Calibration Resolution Tests ─────────────────
+
+
 def test_multi_mode_calibration_resolution(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
@@ -765,7 +761,8 @@ def test_multi_mode_calibration_resolution(
     assert res_bed["status"] == "success"
     assert (tmp_path / "out_bed.tiff").exists()
 
-    # 3. Test TRX/STAND radiograph payload selects STAND calibration subdirectory (detector_mode=TRX)
+    # 3. Test TRX/STAND radiograph payload selects STAND calibration
+    # subdirectory (detector_mode=TRX)
     trx_r, trx_g, *_ = generate_custom_mode_npzs(
         str(tmp_path / "trx_npzs"), detector_mode="TRX"
     )
@@ -785,7 +782,8 @@ def test_multi_mode_calibration_resolution(
     assert res_trx["status"] == "success"
     assert (tmp_path / "out_trx.tiff").exists()
 
-    # 4. Test unmapped detector_mode payload fails when calibration artifact for mode is missing
+    # 4. Test unmapped detector_mode payload fails when calibration
+    # artifact for mode is missing
     multi_cal_only_bed = tmp_path / "multi_cal_only_bed"
     create_test_calibration_artifact(
         multi_cal_only_bed / "BED",
@@ -817,7 +815,10 @@ def test_multi_mode_calibration_resolution(
 def test_input_shape_differs_from_remap_output_shape(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:
-    """Verifies that when remap map_x/map_y shape differs from input raw shape, the output canvas shape matches remap shape."""
+    """
+    Verifies that when remap map_x/map_y shape differs from input raw shape,
+    the output canvas shape matches remap shape.
+    """
     from mpips.conversion.worker import execute_conversion_worker
     import cv2
 
@@ -917,8 +918,13 @@ def test_minimal_manifest_dicom_conversion(tmp_path: Path) -> None:
 
     from mpips.conversion.service import run_isolated_dicom_conversion
 
-    with patch("mpips.conversion.service.resolve_calibration_artifact_dir", return_value=cal_dir):
-        result = run_isolated_dicom_conversion(Path(r_path), Path(g_path), manifest, out_dcm)
+    with patch(
+        "mpips.conversion.service.resolve_calibration_artifact_dir",
+        return_value=cal_dir,
+    ):
+        result = run_isolated_dicom_conversion(
+            Path(r_path), Path(g_path), manifest, out_dcm
+        )
 
     assert result["status"] == "success"
     assert out_dcm.is_file()
@@ -928,3 +934,506 @@ def test_minimal_manifest_dicom_conversion(tmp_path: Path) -> None:
     assert str(ds.StudyInstanceUID) != ""
     assert str(ds.SeriesInstanceUID) != ""
     assert str(ds.SOPInstanceUID) != ""
+
+
+def test_minimal_manifest_http_endpoint(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(
+        tmp_path / "calibration", detector_mode="TRX"
+    )
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(
+        str(tmp_path), detector_mode="TRX"
+    )
+
+    minimal_manifest_bytes = (
+        Path(__file__).resolve().parents[2]
+        / "docs"
+        / "integration"
+        / "examples"
+        / "mhcs-dicom-manifest.minimal.example.json"
+    ).read_bytes()
+
+    client = TestClient(app)
+    mock_claim = ClaimResult(status="CLAIMED", lease_token="lease_123")
+    with (
+        patch(
+            "mpips.conversion.service.resolve_calibration_artifact_dir",
+            return_value=cal_dir,
+        ),
+        patch(
+            "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
+            return_value=mock_claim,
+        ),
+        patch("mpips.api.routes.v1.dicom.IdempotencyService.mark_success"),
+    ):
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        minimal_manifest_bytes,
+                        "application/json",
+                    ),
+                },
+            )
+
+    assert (
+        resp.status_code == 200
+    ), f"Unexpected response {resp.status_code}: {resp.text}"
+    assert resp.headers["content-type"] == "application/dicom"
+    assert "X-Conversion-Job-ID" in resp.headers
+    assert "X-Correlation-ID" in resp.headers
+
+    ds = pydicom.dcmread(io.BytesIO(resp.content))
+    assert ds.PatientID == "MRN-90214810"
+    assert ds.PatientName == "JANE DOE"
+    assert ds.PatientSex == "F"
+    assert str(ds.StudyInstanceUID).startswith("2.25.")
+    assert str(ds.SeriesInstanceUID).startswith("2.25.")
+    assert str(ds.SOPInstanceUID).startswith("2.25.")
+    assert ds.file_meta.MediaStorageSOPInstanceUID == ds.SOPInstanceUID
+    assert ds.PresentationIntentType == "FOR PRESENTATION"
+    assert ds.BurnedInAnnotation == "NO"
+    assert ds.LossyImageCompression == "00"
+    assert ds.PixelSpacing == ["0.140000", "0.140000"]
+
+
+def test_minimal_manifest_retry_determinism(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+
+    minimal_manifest_bytes = json.dumps(
+        {
+            "patient": {
+                "medical_record_number": "MRN-RETRY-DET-99",
+                "name": "RETRY TESTER",
+            },
+            "capture": {
+                "detector_type": "BED",
+            },
+        }
+    ).encode("utf-8")
+
+    client = TestClient(app)
+    recorded_fingerprints: list[str] = []
+
+    def mock_claim(tenant_id: str, job_id: str, fp: str) -> ClaimResult:
+        recorded_fingerprints.append(fp)
+        return ClaimResult(status="CLAIMED", lease_token="test-lease-token")
+
+    with (
+        patch(
+            "mpips.conversion.service.resolve_calibration_artifact_dir",
+            return_value=cal_dir,
+        ),
+        patch(
+            "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
+            side_effect=mock_claim,
+        ),
+        patch("mpips.api.routes.v1.dicom.IdempotencyService.mark_success"),
+    ):
+        # First Request
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp1 = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        minimal_manifest_bytes,
+                        "application/json",
+                    ),
+                },
+            )
+
+        # Second Request (Identical retry)
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp2 = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        minimal_manifest_bytes,
+                        "application/json",
+                    ),
+                },
+            )
+
+    assert resp1.status_code == 200
+    assert resp2.status_code == 200
+
+    assert resp1.headers["X-Conversion-Job-ID"] == resp2.headers["X-Conversion-Job-ID"]
+    assert resp1.headers["X-Correlation-ID"] == resp2.headers["X-Correlation-ID"]
+
+    ds1 = pydicom.dcmread(io.BytesIO(resp1.content))
+    ds2 = pydicom.dcmread(io.BytesIO(resp2.content))
+
+    assert ds1.PatientID == ds2.PatientID
+    assert ds1.StudyInstanceUID == ds2.StudyInstanceUID
+    assert ds1.SeriesInstanceUID == ds2.SeriesInstanceUID
+    assert ds1.SOPInstanceUID == ds2.SOPInstanceUID
+
+    assert len(recorded_fingerprints) == 2
+    assert recorded_fingerprints[0] == recorded_fingerprints[1]
+
+
+def test_file_metadata_verification(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+
+    client = TestClient(app)
+    mock_claim = ClaimResult(status="CLAIMED", lease_token="lease_123")
+
+    # 1. Full manifest with correct metadata -> 200
+    full_manifest = make_test_manifest(r_sha, g_sha, r_sz, g_sz)
+    with (
+        patch(
+            "mpips.conversion.service.resolve_calibration_artifact_dir",
+            return_value=cal_dir,
+        ),
+        patch(
+            "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
+            return_value=mock_claim,
+        ),
+        patch("mpips.api.routes.v1.dicom.IdempotencyService.mark_success"),
+    ):
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        json.dumps(full_manifest),
+                        "application/json",
+                    ),
+                },
+            )
+    assert resp.status_code == 200
+
+    # 2. Incorrect radiograph byte_size -> 422 NPZ_VALIDATION_ERROR
+    bad_rad_size = make_test_manifest(r_sha, g_sha, r_sz + 10, g_sz)
+    with (
+        patch(
+            "mpips.conversion.service.resolve_calibration_artifact_dir",
+            return_value=cal_dir,
+        ),
+        patch(
+            "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
+            return_value=mock_claim,
+        ),
+        patch("mpips.api.routes.v1.dicom.IdempotencyService.mark_success"),
+    ):
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        json.dumps(bad_rad_size),
+                        "application/json",
+                    ),
+                },
+            )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "NPZ_VALIDATION_ERROR"
+
+    # 3. Incorrect radiograph sha256 -> 422 NPZ_VALIDATION_ERROR
+    bad_rad_sha = make_test_manifest("0" * 64, g_sha, r_sz, g_sz)
+    with (
+        patch(
+            "mpips.conversion.service.resolve_calibration_artifact_dir",
+            return_value=cal_dir,
+        ),
+        patch(
+            "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
+            return_value=mock_claim,
+        ),
+        patch("mpips.api.routes.v1.dicom.IdempotencyService.mark_success"),
+    ):
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        json.dumps(bad_rad_sha),
+                        "application/json",
+                    ),
+                },
+            )
+    assert resp.status_code == 422
+    assert resp.json()["detail"] == "NPZ_VALIDATION_ERROR"
+
+
+def test_explicit_identifier_preservation(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+
+    explicit_job_id = "97eeb9ef-d93c-43e7-aebe-c9ada5cc29fa"
+    explicit_sub_id = "86dda8de-c82b-42d6-9dad-b8bca4bb18e9"
+    explicit_corr_id = "75cc97cd-b71a-41c5-8c9c-a7ab93aa07d8"
+    explicit_study_uid = "2.25.12345678901234567890"
+    explicit_series_uid = "2.25.12345678901234567891"
+    explicit_sop_uid = "2.25.12345678901234567892"
+    explicit_cap_id = "CAP-EXPLICIT-99"
+
+    manifest_dict = {
+        "conversion_job_id": explicit_job_id,
+        "submission_id": explicit_sub_id,
+        "correlation_id": explicit_corr_id,
+        "patient": {
+            "medical_record_number": "MRN-EXPLICIT-01",
+            "name": "EXPLICIT TESTER",
+        },
+        "capture": {
+            "capture_id": explicit_cap_id,
+            "detector_type": "BED",
+        },
+        "dicom": {
+            "study_instance_uid": explicit_study_uid,
+            "series_instance_uid": explicit_series_uid,
+            "sop_instance_uid": explicit_sop_uid,
+        },
+    }
+
+    client = TestClient(app)
+    mock_claim = ClaimResult(status="CLAIMED", lease_token="lease_123")
+    with (
+        patch(
+            "mpips.conversion.service.resolve_calibration_artifact_dir",
+            return_value=cal_dir,
+        ),
+        patch(
+            "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
+            return_value=mock_claim,
+        ),
+        patch("mpips.api.routes.v1.dicom.IdempotencyService.mark_success"),
+    ):
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        json.dumps(manifest_dict),
+                        "application/json",
+                    ),
+                },
+            )
+
+    assert resp.status_code == 200
+    assert resp.headers["X-Conversion-Job-ID"] == explicit_job_id
+    assert resp.headers["X-Correlation-ID"] == explicit_corr_id
+    assert (
+        resp.headers["content-disposition"]
+        == f'attachment; filename="{explicit_cap_id}.dcm"'
+    )
+
+    ds = pydicom.dcmread(io.BytesIO(resp.content))
+    assert str(ds.StudyInstanceUID) == explicit_study_uid
+    assert str(ds.SeriesInstanceUID) == explicit_series_uid
+    assert str(ds.SOPInstanceUID) == explicit_sop_uid
+
+
+def test_new_logical_conversion_escape_hatch(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+
+    manifest_a = {
+        "patient": {"medical_record_number": "MRN-ESCAPE-01", "name": "ESCAPE A"},
+        "capture": {"detector_type": "BED"},
+    }
+    manifest_b = {
+        "conversion_job_id": "86dda8de-c82b-42d6-9dad-b8bca4bb18e9",
+        "patient": {"medical_record_number": "MRN-ESCAPE-01", "name": "ESCAPE A"},
+        "capture": {"detector_type": "BED"},
+    }
+
+    client = TestClient(app)
+    mock_claim = ClaimResult(status="CLAIMED", lease_token="lease_123")
+    with (
+        patch(
+            "mpips.conversion.service.resolve_calibration_artifact_dir",
+            return_value=cal_dir,
+        ),
+        patch(
+            "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
+            return_value=mock_claim,
+        ),
+        patch("mpips.api.routes.v1.dicom.IdempotencyService.mark_success"),
+    ):
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp_a = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        json.dumps(manifest_a),
+                        "application/json",
+                    ),
+                },
+            )
+
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp_b = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        json.dumps(manifest_b),
+                        "application/json",
+                    ),
+                },
+            )
+
+    assert resp_a.status_code == 200
+    assert resp_b.status_code == 200
+    assert (
+        resp_a.headers["X-Conversion-Job-ID"] != resp_b.headers["X-Conversion-Job-ID"]
+    )
+
+    ds_a = pydicom.dcmread(io.BytesIO(resp_a.content))
+    ds_b = pydicom.dcmread(io.BytesIO(resp_b.content))
+    assert ds_a.SOPInstanceUID != ds_b.SOPInstanceUID
+
+
+def test_detector_type_verification(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+
+    client = TestClient(app)
+    mock_claim = ClaimResult(status="CLAIMED", lease_token="lease_123")
+
+    # 1. BED detector_type + BED NPZ -> success 200
+    manifest_bed = {
+        "patient": {"medical_record_number": "MRN-DET-01", "name": "DET TESTER"},
+        "capture": {"detector_type": "BED"},
+    }
+    with (
+        patch(
+            "mpips.conversion.service.resolve_calibration_artifact_dir",
+            return_value=cal_dir,
+        ),
+        patch(
+            "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
+            return_value=mock_claim,
+        ),
+        patch("mpips.api.routes.v1.dicom.IdempotencyService.mark_success"),
+    ):
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        json.dumps(manifest_bed),
+                        "application/json",
+                    ),
+                },
+            )
+    assert resp.status_code == 200
+
+    # 2. THORAX detector_type + BED NPZ -> 422 NPZ_VALIDATION_ERROR
+    manifest_trx = {
+        "patient": {"medical_record_number": "MRN-DET-01", "name": "DET TESTER"},
+        "capture": {"detector_type": "THORAX"},
+    }
+    with (
+        patch(
+            "mpips.conversion.service.resolve_calibration_artifact_dir",
+            return_value=cal_dir,
+        ),
+        patch(
+            "mpips.api.routes.v1.dicom.IdempotencyService.claim_job",
+            return_value=mock_claim,
+        ),
+        patch("mpips.api.routes.v1.dicom.IdempotencyService.mark_success"),
+    ):
+        with open(r_path, "rb") as f_rad, open(g_path, "rb") as f_gain:
+            resp = client.post(
+                "/v1/radiographs/dicom",
+                headers={"X-MPIPS-API-Key": API_KEY},
+                files={
+                    "radiograph_npz": (
+                        "radiograph.npz",
+                        f_rad,
+                        "application/octet-stream",
+                    ),
+                    "gain_npz": ("gain.npz", f_gain, "application/octet-stream"),
+                    "manifest": (
+                        "manifest.json",
+                        json.dumps(manifest_trx),
+                        "application/json",
+                    ),
+                },
+            )
+    assert resp.status_code == 422

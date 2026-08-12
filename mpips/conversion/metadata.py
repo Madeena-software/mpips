@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from mpips.api.schemas.dicom import MHCSManifest, PersonNameSchema
+from mpips.api.schemas.dicom import MHCSManifest, PersonNameSchema, ResolvedMHCSManifest
 
 
 def format_person_name(name_input: PersonNameSchema | Dict[str, Any] | Any) -> str:
@@ -39,22 +39,41 @@ def format_person_name(name_input: PersonNameSchema | Dict[str, Any] | Any) -> s
     return full_name
 
 
-def build_converter_metadata_json(manifest: MHCSManifest) -> Dict[str, Any]:
+def build_converter_metadata_json(
+    manifest: MHCSManifest | ResolvedMHCSManifest,
+) -> Dict[str, Any]:
     """Builds Pak Andre's approved converter metadata JSON dictionary."""
     patient_pn = format_person_name(manifest.patient.name)
-    birthdate_str = manifest.patient.birth_date.strftime("%Y%m%d") if manifest.patient.birth_date else ""
-    if manifest.capture and manifest.capture.captured_at:
-        time_str = manifest.capture.captured_at.strftime("%y%m%d%H%M%S")
+    birthdate_str = (
+        manifest.patient.birth_date.strftime("%Y%m%d")
+        if manifest.patient.birth_date
+        else ""
+    )
+
+    capture = getattr(manifest, "capture", None)
+    if capture and capture.captured_at:
+        time_str = capture.captured_at.strftime("%y%m%d%H%M%S")
     else:
         from datetime import datetime, timezone
+
         time_str = datetime.now(timezone.utc).strftime("%y%m%d%H%M%S")
 
-    if hasattr(manifest.capture, "image_spacing") and getattr(manifest.capture, "image_spacing", None):
-        scale_x = float(manifest.capture.image_spacing.column_um)
-        scale_y = float(manifest.capture.image_spacing.row_um)
+    image_spacing = getattr(capture, "image_spacing", None)
+    if image_spacing is not None:
+        scale_x = float(image_spacing.column_um)
+        scale_y = float(image_spacing.row_um)
     else:
         scale_x = 140.0
         scale_y = 140.0
+
+    examination = getattr(manifest, "examination", None)
+    dicom = getattr(manifest, "dicom", None)
+    study_desc = (
+        getattr(examination, "study_description", None) if examination else None
+    ) or "CHEST RADIOGRAPH"
+    series_desc = (
+        getattr(dicom, "series_description", None) if dicom else None
+    ) or study_desc
 
     return {
         "Patient Name": patient_pn,
@@ -64,6 +83,6 @@ def build_converter_metadata_json(manifest: MHCSManifest) -> Dict[str, Any]:
         "Scale X": scale_x,
         "Scale Y": scale_y,
         "Time": time_str,
-        "StudyDescription": manifest.examination.study_description or "CHEST RADIOGRAPH",
-        "SeriesDescription": manifest.dicom.series_description or manifest.examination.study_description or "CHEST RADIOGRAPH",
+        "StudyDescription": study_desc,
+        "SeriesDescription": series_desc,
     }

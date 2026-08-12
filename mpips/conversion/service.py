@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import cv2
+import hashlib
 import json
 import logging
 import numpy as np
@@ -18,7 +19,11 @@ from typing import Any, Dict
 
 from fastapi import HTTPException, status
 
-from mpips.api.schemas.dicom import MHCSManifest
+from mpips.api.schemas.dicom import (
+    MHCSManifest,
+    ResolvedMHCSManifest,
+    resolve_mhcs_manifest,
+)
 from mpips.conversion.dicom_enrichment import enrich_dicom_file
 from mpips.conversion.metadata import build_converter_metadata_json
 from mpips.conversion.validation import validate_dicom_dataset
@@ -227,10 +232,23 @@ def _cleanup_workspace(workspace_dir: Path) -> None:
 def run_isolated_dicom_conversion(
     radiograph_npz_path: Path,
     gain_npz_path: Path,
-    manifest: MHCSManifest,
+    manifest: MHCSManifest | ResolvedMHCSManifest,
     output_dicom_path: Path,
 ) -> Dict[str, Any]:
     """Launches worker child process with isolation and descriptor verification."""
+    if not isinstance(manifest, ResolvedMHCSManifest):
+        rad_bytes = radiograph_npz_path.read_bytes()
+        gain_bytes = gain_npz_path.read_bytes()
+        rad_sha = hashlib.sha256(rad_bytes).hexdigest()
+        gain_sha = hashlib.sha256(gain_bytes).hexdigest()
+        manifest = resolve_mhcs_manifest(
+            raw_manifest_text=manifest.model_dump_json(),
+            input_manifest=manifest,
+            rad_bytes_len=len(rad_bytes),
+            rad_sha256_hex=rad_sha,
+            gain_bytes_len=len(gain_bytes),
+            gain_sha256_hex=gain_sha,
+        )
     env_mode = os.getenv("MPIPS_ENVIRONMENT", "development").lower()
 
     try:
@@ -247,11 +265,16 @@ def run_isolated_dicom_conversion(
 
     cal_src_dir = resolve_calibration_artifact_dir()
 
-    workspace_base = Path("/tmp/mpips-workspaces")
+    root_str = os.getenv("MPIPS_WORKSPACE_ROOT", "/tmp/mpips-workspaces")
+    workspace_base = Path(root_str)
     try:
         workspace_base.mkdir(parents=True, exist_ok=True)
         os.chmod(workspace_base, 0o700)
-    except PermissionError:
+    except PermissionError as exc:
+        if env_mode == "production":
+            raise RuntimeError(
+                f"Configured workspace root {workspace_base} is unwritable: {exc}"
+            ) from exc
         workspace_base = Path(tempfile.gettempdir()) / f"mpips-workspaces-{os.getuid()}"
         workspace_base.mkdir(parents=True, exist_ok=True)
 

@@ -6,7 +6,7 @@ from typing import Any, Dict, Tuple
 import numpy as np
 import pydicom
 
-from mpips.api.schemas.dicom import MHCSManifest
+from mpips.api.schemas.dicom import MHCSManifest, ResolvedMHCSManifest
 from mpips.conversion.metadata import format_person_name
 
 
@@ -16,7 +16,7 @@ class DICOMValidationError(ValueError):
 
 def validate_dicom_dataset(
     dicom_path: str | Path,
-    manifest: MHCSManifest,
+    manifest: MHCSManifest | ResolvedMHCSManifest,
     expected_shape: Tuple[int, int],
 ) -> Dict[str, Any]:
     """Validates generated DICOM dataset against specifications and signed manifest."""
@@ -41,10 +41,17 @@ def validate_dicom_dataset(
             f"SOPClassUID mismatch with MediaStorageSOPClassUID: {sop_class!r}"
         )
 
+    dicom = getattr(manifest, "dicom", None)
+    examination = getattr(manifest, "examination", None)
+    site = getattr(manifest, "site", None)
+    capture = getattr(manifest, "capture", None)
+    operator = getattr(manifest, "operator", None)
+
     sop_instance = str(getattr(ds, "SOPInstanceUID", ""))
-    if manifest.dicom.sop_instance_uid and sop_instance != manifest.dicom.sop_instance_uid:
+    sop_instance_uid = getattr(dicom, "sop_instance_uid", None) if dicom else None
+    if sop_instance_uid and sop_instance != sop_instance_uid:
         raise DICOMValidationError(
-            f"SOPInstanceUID {sop_instance!r} != {manifest.dicom.sop_instance_uid!r}"
+            f"SOPInstanceUID {sop_instance!r} != {sop_instance_uid!r}"
         )
     elif not sop_instance:
         raise DICOMValidationError("SOPInstanceUID is missing")
@@ -55,16 +62,28 @@ def validate_dicom_dataset(
             "SOPInstanceUID mismatch with MediaStorageSOPInstanceUID"
         )
 
-    if manifest.dicom.study_instance_uid and str(getattr(ds, "StudyInstanceUID", "")) != manifest.dicom.study_instance_uid:
+    study_instance_uid = getattr(dicom, "study_instance_uid", None) if dicom else None
+    if (
+        study_instance_uid
+        and str(getattr(ds, "StudyInstanceUID", "")) != study_instance_uid
+    ):
         raise DICOMValidationError("StudyInstanceUID mismatch")
 
-    if manifest.dicom.series_instance_uid and str(getattr(ds, "SeriesInstanceUID", "")) != manifest.dicom.series_instance_uid:
+    series_instance_uid = getattr(dicom, "series_instance_uid", None) if dicom else None
+    if (
+        series_instance_uid
+        and str(getattr(ds, "SeriesInstanceUID", "")) != series_instance_uid
+    ):
         raise DICOMValidationError("SeriesInstanceUID mismatch")
 
-    if manifest.examination.accession_number and str(getattr(ds, "AccessionNumber", "")) != manifest.examination.accession_number:
+    accession_number = (
+        getattr(examination, "accession_number", None) if examination else None
+    )
+    if accession_number and str(getattr(ds, "AccessionNumber", "")) != accession_number:
         raise DICOMValidationError("AccessionNumber mismatch")
 
-    if manifest.examination.study_id and str(getattr(ds, "StudyID", "")) != manifest.examination.study_id:
+    study_id = getattr(examination, "study_id", None) if examination else None
+    if study_id and str(getattr(ds, "StudyID", "")) != study_id:
         raise DICOMValidationError("StudyID mismatch")
 
     if str(getattr(ds, "PatientID", "")) != manifest.patient.medical_record_number:
@@ -74,21 +93,30 @@ def validate_dicom_dataset(
     if str(getattr(ds, "PatientName", "")) != expected_patient_pn:
         raise DICOMValidationError("PatientName mismatch")
 
-    if manifest.operator and manifest.operator.name:
-        expected_operator_pn = format_person_name(manifest.operator.name)
+    if operator and getattr(operator, "name", None):
+        expected_operator_pn = format_person_name(operator.name)
         if str(getattr(ds, "OperatorsName", "")) != expected_operator_pn:
             raise DICOMValidationError("OperatorsName mismatch")
 
-    if manifest.site.institution_name and str(getattr(ds, "InstitutionName", "")) != manifest.site.institution_name:
+    institution_name = getattr(site, "institution_name", None) if site else None
+    if institution_name and str(getattr(ds, "InstitutionName", "")) != institution_name:
         raise DICOMValidationError("InstitutionName mismatch")
 
-    if str(getattr(ds, "BodyPartExamined", "")) != manifest.capture.body_part_examined:
+    body_part_examined = (
+        getattr(capture, "body_part_examined", None) if capture else None
+    )
+    if (
+        body_part_examined
+        and str(getattr(ds, "BodyPartExamined", "")) != body_part_examined
+    ):
         raise DICOMValidationError("BodyPartExamined mismatch")
 
-    if str(getattr(ds, "ImageLaterality", "")) != manifest.capture.laterality:
+    laterality = getattr(capture, "laterality", None) if capture else None
+    if laterality and str(getattr(ds, "ImageLaterality", "")) != laterality:
         raise DICOMValidationError("ImageLaterality mismatch")
 
-    if str(getattr(ds, "ViewPosition", "")) != manifest.capture.projection:
+    projection = getattr(capture, "projection", None) if capture else None
+    if projection and str(getattr(ds, "ViewPosition", "")) != projection:
         raise DICOMValidationError("ViewPosition mismatch")
 
     if str(getattr(ds, "PresentationIntentType", "")) != "FOR PRESENTATION":
@@ -103,9 +131,10 @@ def validate_dicom_dataset(
     if getattr(ds, "SamplesPerPixel", 1) == 1 and hasattr(ds, "PlanarConfiguration"):
         raise DICOMValidationError("PlanarConfiguration present on monochrome image")
 
-    if hasattr(manifest.capture, "image_spacing") and getattr(manifest.capture, "image_spacing", None):
-        expected_row_mm = manifest.capture.image_spacing.row_um / 1000.0
-        expected_col_mm = manifest.capture.image_spacing.column_um / 1000.0
+    image_spacing = getattr(capture, "image_spacing", None) if capture else None
+    if image_spacing is not None:
+        expected_row_mm = image_spacing.row_um / 1000.0
+        expected_col_mm = image_spacing.column_um / 1000.0
     else:
         expected_row_mm = 0.140
         expected_col_mm = 0.140

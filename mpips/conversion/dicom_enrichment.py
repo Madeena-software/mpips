@@ -4,11 +4,13 @@ from pathlib import Path
 import pydicom
 from pydicom.uid import UID, generate_uid
 
-from mpips.api.schemas.dicom import MHCSManifest
+from mpips.api.schemas.dicom import MHCSManifest, ResolvedMHCSManifest
 from mpips.conversion.metadata import format_person_name
 
 
-def enrich_dicom_file(dicom_path: str | Path, manifest: MHCSManifest) -> None:
+def enrich_dicom_file(
+    dicom_path: str | Path, manifest: MHCSManifest | ResolvedMHCSManifest
+) -> None:
     """Enriches and synchronizes DICOM dataset with signed MHCS manifest fields."""
     target_path = Path(dicom_path)
     ds = pydicom.dcmread(str(target_path))
@@ -28,45 +30,78 @@ def enrich_dicom_file(dicom_path: str | Path, manifest: MHCSManifest) -> None:
     else:
         ds.OperatorsName = "SYSTEM OPERATOR"
 
+    dicom = getattr(manifest, "dicom", None)
+    examination = getattr(manifest, "examination", None)
+    site = getattr(manifest, "site", None)
+    capture = getattr(manifest, "capture", None)
+
     # Examination & Study
-    if manifest.examination.accession_number:
-        ds.AccessionNumber = manifest.examination.accession_number
+    accession_number = (
+        getattr(examination, "accession_number", None) if examination else None
+    )
+    if accession_number:
+        ds.AccessionNumber = accession_number
     else:
-        ds.AccessionNumber = f"ACC-{manifest.conversion_job_id.hex[:10].upper()}"
+        job_id = getattr(manifest, "conversion_job_id", None)
+        job_hex = str(getattr(job_id, "hex", job_id or ""))
+        ds.AccessionNumber = f"ACC-{job_hex[:10].upper()}"
 
-    if manifest.examination.study_id:
-        ds.StudyID = manifest.examination.study_id
+    study_id = getattr(examination, "study_id", None) if examination else None
+    if study_id:
+        ds.StudyID = study_id
 
-    ds.StudyDescription = manifest.examination.study_description or "CHEST RADIOGRAPH"
-    if manifest.examination.protocol_name:
-        ds.ProtocolName = manifest.examination.protocol_name
+    study_desc = (
+        getattr(examination, "study_description", None) if examination else None
+    ) or "CHEST RADIOGRAPH"
+    ds.StudyDescription = study_desc
+
+    protocol_name = getattr(examination, "protocol_name", None) if examination else None
+    if protocol_name:
+        ds.ProtocolName = protocol_name
 
     # Site details
-    ds.InstitutionName = manifest.site.institution_name or "MADEENA MEDICAL CENTER"
-    if manifest.site.department_name:
-        ds.InstitutionalDepartmentName = manifest.site.department_name
-    if manifest.site.station_name:
-        ds.StationName = manifest.site.station_name[:16]
+    institution_name = getattr(site, "institution_name", None) if site else None
+    ds.InstitutionName = institution_name or "MADEENA MEDICAL CENTER"
+
+    dept_name = getattr(site, "department_name", None) if site else None
+    if dept_name:
+        ds.InstitutionalDepartmentName = dept_name
+
+    station_name = getattr(site, "station_name", None) if site else None
+    if station_name:
+        ds.StationName = station_name[:16]
 
     # Anatomy & Projection
-    ds.BodyPartExamined = manifest.capture.body_part_examined or "CHEST"
-    ds.ImageLaterality = manifest.capture.laterality or "U"
-    ds.ViewPosition = manifest.capture.projection or "PA"
+    body_part = getattr(capture, "body_part_examined", None) if capture else None
+    laterality = getattr(capture, "laterality", None) if capture else None
+    projection = getattr(capture, "projection", None) if capture else None
+
+    ds.BodyPartExamined = body_part or "CHEST"
+    ds.ImageLaterality = laterality or "U"
+    ds.ViewPosition = projection or "PA"
 
     # Series & Instance
-    ds.SeriesDescription = (
-        manifest.dicom.series_description
-        or manifest.examination.study_description
-        or "CHEST RADIOGRAPH"
-    )
-    ds.SeriesNumber = manifest.dicom.series_number or 1
-    ds.InstanceNumber = manifest.dicom.instance_number or 1
+    series_desc = (
+        getattr(dicom, "series_description", None) if dicom else None
+    ) or study_desc
+    series_number = getattr(dicom, "series_number", None) if dicom else None
+    instance_number = getattr(dicom, "instance_number", None) if dicom else None
+
+    ds.SeriesDescription = series_desc
+    ds.SeriesNumber = series_number or 1
+    ds.InstanceNumber = instance_number or 1
     ds.PresentationIntentType = "FOR PRESENTATION"
 
     # UIDs & File Meta sync
-    study_uid = manifest.dicom.study_instance_uid or generate_uid()
-    series_uid = manifest.dicom.series_instance_uid or generate_uid()
-    sop_uid = manifest.dicom.sop_instance_uid or generate_uid()
+    study_uid = (
+        getattr(dicom, "study_instance_uid", None) if dicom else None
+    ) or generate_uid()
+    series_uid = (
+        getattr(dicom, "series_instance_uid", None) if dicom else None
+    ) or generate_uid()
+    sop_uid = (
+        getattr(dicom, "sop_instance_uid", None) if dicom else None
+    ) or generate_uid()
 
     ds.StudyInstanceUID = UID(study_uid)
     ds.SeriesInstanceUID = UID(series_uid)
@@ -77,9 +112,10 @@ def enrich_dicom_file(dicom_path: str | Path, manifest: MHCSManifest) -> None:
         ds.file_meta.MediaStorageSOPClassUID = ds.SOPClassUID
 
     # Pixel Spacing in row_mm, column_mm order
-    if hasattr(manifest.capture, "image_spacing") and getattr(manifest.capture, "image_spacing", None):
-        row_mm = manifest.capture.image_spacing.row_um / 1000.0
-        col_mm = manifest.capture.image_spacing.column_um / 1000.0
+    image_spacing = getattr(capture, "image_spacing", None) if capture else None
+    if image_spacing is not None:
+        row_mm = image_spacing.row_um / 1000.0
+        col_mm = image_spacing.column_um / 1000.0
     else:
         row_mm = 0.140
         col_mm = 0.140

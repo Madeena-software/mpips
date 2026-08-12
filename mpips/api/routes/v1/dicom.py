@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import re
 import shutil
@@ -24,7 +25,10 @@ from mpips.api.idempotency import (
     compute_manifest_fingerprint,
 )
 from mpips.api.api_key import require_api_key
-from mpips.api.schemas.dicom import MHCSManifest
+from mpips.api.schemas.dicom import (
+    MHCSManifest,
+    resolve_mhcs_manifest,
+)
 from mpips.conversion.service import run_isolated_dicom_conversion
 
 router = APIRouter(prefix="", tags=["Radiographs"])
@@ -198,33 +202,40 @@ async def convert_radiograph_to_dicom(
 
         gain_sha256 = gain_hasher.hexdigest().lower()
 
-        # 5. Verify file hashes and byte sizes against manifest
-        expected_rad = mhcs_manifest.capture.radiograph
-        if rad_size != expected_rad.byte_size or rad_sha256 != expected_rad.sha256:
+        # 5. Resolve & Materialize Manifest
+        try:
+            resolved_manifest = resolve_mhcs_manifest(
+                raw_manifest_text=manifest_text,
+                input_manifest=mhcs_manifest,
+                rad_bytes_len=rad_size,
+                rad_sha256_hex=rad_sha256,
+                gain_bytes_len=gain_size,
+                gain_sha256_hex=gain_sha256,
+            )
+        except ValueError as exc:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="NPZ_VALIDATION_ERROR",
-            )
-
-        expected_gain = mhcs_manifest.capture.gain
-        if gain_size != expected_gain.byte_size or gain_sha256 != expected_gain.sha256:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="NPZ_VALIDATION_ERROR",
-            )
+            ) from exc
 
         # 6. Atomic Redis Idempotency Claim
+        canonical_manifest_str = json.dumps(
+            resolved_manifest.model_dump(mode="json"),
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+
         fp = compute_manifest_fingerprint(
             tenant_id,
-            mhcs_manifest.manifest_version,
-            str(mhcs_manifest.conversion_job_id),
-            mhcs_manifest.model_dump_json(),
+            resolved_manifest.manifest_version,
+            str(resolved_manifest.conversion_job_id),
+            canonical_manifest_str,
             rad_sha256,
             gain_sha256,
         )
 
         claim = IdempotencyService.claim_job(
-            tenant_id, str(mhcs_manifest.conversion_job_id), fp
+            tenant_id, str(resolved_manifest.conversion_job_id), fp
         )
 
         if claim.status == "IN_PROGRESS":
@@ -249,7 +260,7 @@ async def convert_radiograph_to_dicom(
             if claim.lease_token:
                 IdempotencyService.mark_failure(
                     tenant_id,
-                    str(mhcs_manifest.conversion_job_id),
+                    str(resolved_manifest.conversion_job_id),
                     claim.lease_token,
                     "CONCURRENCY_LIMIT_EXCEEDED",
                 )
@@ -265,23 +276,31 @@ async def convert_radiograph_to_dicom(
                 run_isolated_dicom_conversion,
                 rad_path,
                 gain_path,
-                mhcs_manifest,
+                resolved_manifest,
                 output_dicom_path,
             )
 
             if claim.lease_token:
                 IdempotencyService.mark_success(
                     tenant_id,
-                    str(mhcs_manifest.conversion_job_id),
+                    str(resolved_manifest.conversion_job_id),
                     claim.lease_token,
-                    {"sop_instance_uid": mhcs_manifest.dicom.sop_instance_uid},
+                    {
+                        "study_instance_uid": (
+                            resolved_manifest.dicom.study_instance_uid
+                        ),
+                        "series_instance_uid": (
+                            resolved_manifest.dicom.series_instance_uid
+                        ),
+                        "sop_instance_uid": (resolved_manifest.dicom.sop_instance_uid),
+                    },
                 )
         except Exception as exc:
             if claim.lease_token:
                 err_detail = getattr(exc, "detail", "CONVERSION_FAILED")
                 IdempotencyService.mark_failure(
                     tenant_id,
-                    str(mhcs_manifest.conversion_job_id),
+                    str(resolved_manifest.conversion_job_id),
                     claim.lease_token,
                     str(err_detail),
                 )
@@ -290,12 +309,12 @@ async def convert_radiograph_to_dicom(
             limiter.release()
 
         # 8. Response preparation & Cleanup Ownership Transfer
-        safe_cid = re.sub(r"[^a-zA-Z0-9_-]", "_", mhcs_manifest.capture.capture_id)
+        safe_cid = re.sub(r"[^a-zA-Z0-9_-]", "_", resolved_manifest.capture.capture_id)
         filename = f"{safe_cid}.dcm"
 
         headers = {
-            "X-Correlation-ID": str(mhcs_manifest.correlation_id),
-            "X-Conversion-Job-ID": str(mhcs_manifest.conversion_job_id),
+            "X-Correlation-ID": str(resolved_manifest.correlation_id),
+            "X-Conversion-Job-ID": str(resolved_manifest.conversion_job_id),
         }
 
         cleanup_transferred = True
