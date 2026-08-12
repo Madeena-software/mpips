@@ -7,10 +7,13 @@ jobs:
   setup-runtime:
     runs-on: self-hosted
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Provision runtime directories and copy calibration artifacts
         run: |
           set -Eeuo pipefail
-          SOURCE_DIR="/var/www/mpips/research/kambing-260714/data/output/calibration-cache/4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b"
+          SOURCE_DIR="$GITHUB_WORKSPACE/research/kambing-260714/data/output/calibration-cache/4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b"
           DEST_DIR="/var/www/mpips-runtime/calibration"
           LAUNCHER_DIR="/var/www/mpips-runtime/launcher"
           WORKSPACES_DIR="/tmp/mpips-workspaces"
