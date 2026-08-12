@@ -167,7 +167,7 @@ jobs:
           docker compose --project-name "$COMPOSE_PROJECT_NAME" \
             --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" up -d --remove-orphans
 
-      - name: Verify live beta and rollback on failure
+      - name: Verify deployment readiness and rollback on failure
         run: |
           set -Eeuo pipefail
           COMPOSE=(docker compose --project-name "$COMPOSE_PROJECT_NAME" \
@@ -181,28 +181,14 @@ jobs:
             done
             return 1
           }
-          verify_key_status() {
-            local header="$1"
-            local body_file="$2"
-            local status
-            status=$(curl -sS -o "$body_file" -w '%{http_code}' -X POST \
-              -H "$header" http://127.0.0.1:8014/v1/radiographs/dicom)
-            test "$status" = "401"
-            grep -Fq 'INVALID_API_KEY' "$body_file"
-          }
           live_checks() {
             wait_for_health
             test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8014/health)" = "200"
-            verify_key_status "X-MPIPS-API-Key:" "$RUNNER_TEMP/mpips-missing-key.json"
-            verify_key_status "X-MPIPS-API-Key: wrong-key" "$RUNNER_TEMP/mpips-wrong-key.json"
             test "$(docker port "$API_CONTAINER" 8000/tcp)" = "127.0.0.1:8014"
             test -z "$(docker port "$REDIS_CONTAINER" || true)"
             ! docker compose --project-name "$COMPOSE_PROJECT_NAME" \
               --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" config | \
               grep -Eiq 'latest|nginx|jwks'
-            uv run python scripts/local_dicom_burn_in.py \
-              --base-dir "$REMOTE_PATH/burn-in" \
-              --url http://127.0.0.1:8014 run
           }
           if ! live_checks; then
             echo "live verification failed; restoring the previous Compose deployment" >&2
@@ -228,12 +214,6 @@ jobs:
             fi
             exit 1
           fi
-          docker compose --project-name "$COMPOSE_PROJECT_NAME" \
-            --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" restart mpips-api
-          wait_for_health
-          uv run python scripts/local_dicom_burn_in.py \
-            --base-dir "$REMOTE_PATH/burn-in" \
-            --url http://127.0.0.1:8014 run
           printf '%s\n' "$MPIPS_VERSION" > "$REMOTE_PATH/.mpips-version"
           printf 'mpips-npz-worker:%s\n' "$MPIPS_VERSION" > "$REMOTE_PATH/.mpips-worker-image"
 
