@@ -192,7 +192,9 @@ def prepare(base: Path) -> None:
                 input_shape = tuple(meta["image_shape"])
             cam_params = meta.get("source_metadata", {}).get("camera_params", {})
             if isinstance(cam_params, dict):
-                cam_sn = cam_params.get("serialNumber") or cam_params.get("cameraSerial")
+                cam_sn = cam_params.get("serialNumber") or cam_params.get(
+                    "cameraSerial"
+                )
                 if cam_sn:
                     target_camera = str(cam_sn)
         except Exception:
@@ -207,12 +209,8 @@ def prepare(base: Path) -> None:
         except Exception:
             pass
 
-    radiograph = _npz_bytes(
-        radiograph=True, shape=input_shape, camera=target_camera
-    )
-    gain = _npz_bytes(
-        radiograph=False, shape=input_shape, camera=target_camera
-    )
+    radiograph = _npz_bytes(radiograph=True, shape=input_shape, camera=target_camera)
+    gain = _npz_bytes(radiograph=False, shape=input_shape, camera=target_camera)
     fixture_dir = base / "fixtures"
     (fixture_dir / "radiograph.npz").write_bytes(radiograph)
     (fixture_dir / "gain.npz").write_bytes(gain)
@@ -259,8 +257,16 @@ class BurnIn:
         self.target_shape = SHAPE
         parent_remap = base.parent / "calibration" / "remap.npz"
         parent_meta = base.parent / "calibration" / "metadata.json"
-        remap_file = parent_remap if parent_remap.is_file() else base / "calibration" / "remap.npz"
-        cal_meta_file = parent_meta if parent_meta.is_file() else base / "calibration" / "metadata.json"
+        remap_file = (
+            parent_remap
+            if parent_remap.is_file()
+            else base / "calibration" / "remap.npz"
+        )
+        cal_meta_file = (
+            parent_meta
+            if parent_meta.is_file()
+            else base / "calibration" / "metadata.json"
+        )
 
         if remap_file.is_file():
             try:
@@ -317,10 +323,12 @@ class BurnIn:
                 ),
             )
 
-    def case(
-        self, name: str, expected: int | set[int], response: httpx.Response
-    ) -> None:
-        expected_set = {expected} if isinstance(expected, int) else expected
+    def case(self, name: str, expected: Any, response: Any) -> None:
+        expected_set = (
+            {expected}
+            if not isinstance(expected, (set, list, tuple))
+            else set(expected)
+        )
         self.case_count += 1
         detail = ""
         if response.headers.get("content-type", "").startswith("application/json"):
@@ -400,14 +408,23 @@ class BurnIn:
         assert dataset.file_meta.TransferSyntaxUID == ExplicitVRLittleEndian
         assert dataset.SOPInstanceUID == manifest.dicom.sop_instance_uid
         assert dataset.PatientID == manifest.patient.medical_record_number
-        assert dataset.Rows == self.target_shape[0] and dataset.Columns == self.target_shape[1]
+        assert (
+            dataset.Rows == self.target_shape[0]
+            and dataset.Columns == self.target_shape[1]
+        )
         assert dataset.BitsAllocated == 16 and dataset.PixelRepresentation == 0
         assert dataset.BurnedInAnnotation == "NO"
         assert dataset.LossyImageCompression == "00"
         assert dataset.pixel_array.dtype == np.uint16
         assert not any(element.tag.is_private for element in dataset.iterall())
-        assert validate_dicom_dataset(path, manifest, self.target_shape).get("valid") is True
-        print(f"valid DICOM: explicit-vr-little-endian, {self.target_shape[0]}x{self.target_shape[1]} uint16, no private tags")
+        assert (
+            validate_dicom_dataset(path, manifest, self.target_shape).get("valid")
+            is True
+        )
+        h, w = self.target_shape
+        print(
+            f"valid DICOM: explicit-vr-little-endian, {h}x{w} uint16, no private tags"
+        )
 
     def idempotency_cases(self) -> None:
         raw = _with_files(self.template, self.radiograph, self.gain, job_id=_uuid())
@@ -423,18 +440,72 @@ class BurnIn:
         )
         self.case("idempotency conflict", 409, self.request(conflict))
 
-    def bounded_concurrency(self) -> None:
-        raws = [
-            _with_files(self.template, self.radiograph, self.gain, job_id=_uuid())
-            for _ in range(8)
-        ]
-        with ThreadPoolExecutor(max_workers=8) as executor:
-            statuses = list(
-                executor.map(lambda raw: self.request(raw).status_code, raws)
-            )
+    def bounded_concurrency(self, total_requests: int = 8) -> None:
+        results: list[dict[str, Any]] = []
+
+        def _execute_single_request(idx: int) -> dict[str, Any]:
+            job_id = _uuid()
+            raw = _with_files(self.template, self.radiograph, self.gain, job_id=job_id)
+            res = self.request(raw)
+            status_code = res.status_code
+            cid = res.headers.get("X-Correlation-ID", "")
+            conv_job_id = res.headers.get("X-Conversion-Job-ID", "")
+            detail = ""
+            if status_code != 200:
+                try:
+                    if res.headers.get("content-type", "").startswith(
+                        "application/json"
+                    ):
+                        data = res.json()
+                        detail = str(data.get("detail", ""))[:120]
+                    else:
+                        detail = res.text[:120]
+                except Exception:
+                    detail = "unparseable-response"
+            return {
+                "job_id": job_id,
+                "status_code": status_code,
+                "correlation_id": cid,
+                "conversion_job_id": conv_job_id,
+                "detail": detail,
+            }
+
+        with ThreadPoolExecutor(max_workers=total_requests) as executor:
+            futures = [
+                executor.submit(_execute_single_request, i)
+                for i in range(total_requests)
+            ]
+            results = [f.result() for f in futures]
+
+        statuses: list[int] = []
+        for item in results:
+            st = item["status_code"]
+            statuses.append(st)
+            log_line = f"job={item['job_id']} status={st}"
+            if item["correlation_id"]:
+                log_line += f" cid={item['correlation_id']}"
+            if item["detail"]:
+                log_line += f" detail={item['detail']}"
+            print(log_line)
+
         print(f"bounded concurrency statuses: {sorted(statuses)}")
+
+        unexpected = [s for s in statuses if s not in {200, 429}]
+        if unexpected:
+            unexp_str = sorted(unexpected)
+            self.failures.append(
+                f"concurrency verification failed with unexpected HTTP status(es) "
+                f"{unexp_str}: {statuses}"
+            )
+        if 200 not in statuses:
+            self.failures.append(
+                f"concurrency verification failed: no 200 status returned in {statuses}"
+            )
         if 429 not in statuses:
-            self.failures.append(f"concurrency limit did not return 429: {statuses}")
+            self.failures.append(
+                f"concurrency verification failed: no 429 status returned in {statuses}"
+            )
+
         self.case(
             "health after concurrent activity",
             200,

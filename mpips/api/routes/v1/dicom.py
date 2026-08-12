@@ -36,11 +36,11 @@ def get_concurrency_limiter() -> anyio.CapacityLimiter:
     global _concurrency_limiter
     if _concurrency_limiter is None:
         try:
-            max_conc = int(os.getenv("MPIPS_DICOM_MAX_CONCURRENT_CONVERSIONS", "4"))
+            max_conc = int(os.getenv("MPIPS_DICOM_MAX_CONCURRENT_CONVERSIONS", "2"))
             if max_conc <= 0:
-                max_conc = 4
+                max_conc = 2
         except ValueError:
-            max_conc = 4
+            max_conc = 2
         _concurrency_limiter = anyio.CapacityLimiter(max_conc)
     return _concurrency_limiter
 

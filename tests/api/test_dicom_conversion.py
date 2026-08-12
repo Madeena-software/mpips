@@ -548,7 +548,6 @@ def test_expanded_canvas_remap_shape_accepted(tmp_path: Path) -> None:
     assert Path(tmp_path / "output.tiff").exists()
 
 
-
 def test_detector_and_camera_mismatch_fails(tmp_path: Path) -> None:
     # Test A: detector mode mismatch
     cal_dir_det = create_test_calibration_artifact(
@@ -770,7 +769,10 @@ def test_multi_mode_calibration_resolution(
     # 4. Test unmapped detector_mode payload fails when calibration artifact for mode is missing
     multi_cal_only_bed = tmp_path / "multi_cal_only_bed"
     create_test_calibration_artifact(
-        multi_cal_only_bed / "BED", shape=(64, 64), detector_mode="BED", camera_serial="CAM123"
+        multi_cal_only_bed / "BED",
+        shape=(64, 64),
+        detector_mode="BED",
+        camera_serial="CAM123",
     )
     args_data_unmapped = {
         "radiograph_npz_path": trx_r,
@@ -846,3 +848,29 @@ def test_input_shape_differs_from_remap_output_shape(
     assert out_img.shape == remap_output_shape
 
 
+def test_bounded_concurrency_rejects_unexpected_500_response(
+    tmp_path: Path,
+) -> None:
+    import httpx
+    from scripts.local_dicom_burn_in import BurnIn, prepare
+
+    prepare(tmp_path)
+    burn_in = BurnIn(tmp_path, "http://127.0.0.1:8014")
+    try:
+
+        def mock_request(*args: Any, **kwargs: Any) -> httpx.Response:
+            return httpx.Response(
+                status_code=500,
+                headers={"content-type": "application/json"},
+                json={"detail": "CONVERSION_WORKER_FAILURE"},
+            )
+
+        def mock_get(*args: Any, **kwargs: Any) -> httpx.Response:
+            return httpx.Response(status_code=200)
+
+        burn_in.request = mock_request  # type: ignore[method-assign]
+        burn_in.client.get = mock_get  # type: ignore[method-assign]
+        burn_in.bounded_concurrency(total_requests=4)
+        assert any("unexpected HTTP status" in f for f in burn_in.failures)
+    finally:
+        burn_in.close()

@@ -90,7 +90,11 @@ with httpx.Client(timeout=120.0) as client:
     with open(RAD_PATH, "rb") as rad_f, open(GAIN_PATH, "rb") as gain_f:
         files = {
             "manifest": ("manifest.json", manifest_json_str, "application/json"),
-            "radiograph_npz": ("BED_1783222264263.npz", rad_f, "application/octet-stream"),
+            "radiograph_npz": (
+                "BED_1783222264263.npz",
+                rad_f,
+                "application/octet-stream",
+            ),
             "gain_npz": ("BED_1783219207291.npz", gain_f, "application/octet-stream"),
         }
         response = client.post(URL, headers=headers, files=files)
@@ -118,7 +122,9 @@ print(f"DICOM PixelRepresentation: {ds.PixelRepresentation}")
 assert ds.Rows == 3053, f"Expected Rows == 3053, got {ds.Rows}"
 assert ds.Columns == 4059, f"Expected Columns == 4059, got {ds.Columns}"
 assert ds.BitsAllocated == 16, f"Expected BitsAllocated == 16, got {ds.BitsAllocated}"
-assert ds.PixelRepresentation == 0, f"Expected PixelRepresentation == 0, got {ds.PixelRepresentation}"
+assert (
+    ds.PixelRepresentation == 0
+), f"Expected PixelRepresentation == 0, got {ds.PixelRepresentation}"
 
 private_tags = [elem for elem in ds if elem.tag.is_private]
 print(f"Private tags count: {len(private_tags)}")

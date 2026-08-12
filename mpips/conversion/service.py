@@ -157,13 +157,15 @@ def _validate_tiff_descriptor(
 
 
 def _is_valid_calibration_dir(p: Path) -> bool:
-    """Checks if path is a valid calibration directory (single-mode or multi-mode root)."""
+    """Checks if path is a valid calibration directory."""
     if not p.is_dir():
         return False
     if (p / "metadata.json").is_file():
         return True
     try:
-        return any(sub.is_dir() and (sub / "metadata.json").is_file() for sub in p.iterdir())
+        return any(
+            sub.is_dir() and (sub / "metadata.json").is_file() for sub in p.iterdir()
+        )
     except OSError:
         return False
 
@@ -308,8 +310,8 @@ def run_isolated_dicom_conversion(
         }
 
         args_path = workspace_dir / "args.json"
-        with args_path.open("w", encoding="utf-8") as f:
-            json.dump(args_data, f)
+        with args_path.open("w", encoding="utf-8") as f_args:
+            json.dump(args_data, f_args)
         os.chmod(args_path, 0o400)
 
         stderr_str = ""
@@ -445,8 +447,8 @@ def run_isolated_dicom_conversion(
             )
 
         try:
-            with result_path.open("r", encoding="utf-8") as f:
-                result_data = json.load(f)
+            with result_path.open("r", encoding="utf-8") as f_res:
+                result_data = json.load(f_res)
         except Exception as exc:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -459,7 +461,12 @@ def run_isolated_dicom_conversion(
             )
             err_detail = result_data.get("error_detail")
             if err_detail or stderr_str:
-                logger.error(f"Worker process failed [{err_code}]: detail={err_detail} | stderr={stderr_str}")
+                logger.error(
+                    "Worker process failed [%s]: detail=%s | stderr=%s",
+                    err_code,
+                    err_detail,
+                    stderr_str,
+                )
             if err_code in ("NPZ_VALIDATION_ERROR", "MANIFEST_OR_DATA_ERROR"):
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -484,8 +491,8 @@ def run_isolated_dicom_conversion(
             shutil.copyfile(output_tiff, stage_tiff)
 
             converter_dict = build_converter_metadata_json(manifest)
-            with stage_json.open("w", encoding="utf-8") as f:
-                json.dump(converter_dict, f)
+            with stage_json.open("w", encoding="utf-8") as f_stage:
+                json.dump(converter_dict, f_stage)
 
             tiff_json_to_dcm(
                 str(stage_tiff), str(stage_json), str(output_dicom_path)

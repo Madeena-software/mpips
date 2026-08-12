@@ -58,7 +58,7 @@ def _validate_production_configuration() -> None:
         worker_mem = int(
             os.getenv("MPIPS_DICOM_WORKER_MEMORY_BYTES", str(2 * 1024 * 1024 * 1024))
         )
-        max_concurrency = int(os.getenv("MPIPS_DICOM_MAX_CONCURRENT_CONVERSIONS", "4"))
+        max_concurrency = int(os.getenv("MPIPS_DICOM_MAX_CONCURRENT_CONVERSIONS", "2"))
     except ValueError as exc:
         raise RuntimeError(
             f"Production configuration invalid: numeric parameter error: {exc}"
