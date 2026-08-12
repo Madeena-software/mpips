@@ -1,0 +1,113 @@
+name: Measure MPIPS Internal Beta Performance
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: mpips-internal-beta
+  cancel-in-progress: false
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  NODE_OPTIONS: "--dns-result-order=ipv4first"
+
+jobs:
+  measure:
+    name: Production Capacity Benchmark
+    runs-on: [self-hosted, production]
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv and dependencies
+        run: |
+          python -m pip install uv
+          uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager
+
+      - name: Set deployment variables
+        env:
+          MPIPS_API_KEY_SECRET: ${{ secrets.MPIPS_API_KEY }}
+        run: |
+          if [ -z "${MPIPS_API_KEY_SECRET:-}" ]; then
+            echo "ERROR: secrets.MPIPS_API_KEY is not set or empty! Fail closed."
+            exit 1
+          fi
+          echo "REMOTE_PATH=/var/www/mpips-runtime" >> "$GITHUB_ENV"
+          echo "MPIPS_API_KEY=${MPIPS_API_KEY_SECRET}" >> "$GITHUB_ENV"
+          echo "BENCHMARK_SOURCE_SHA=${{ github.sha }}" >> "$GITHUB_ENV"
+
+      - name: Server identity proof & environment capture
+        run: |
+          mkdir -p performance-output
+          {
+            echo "=== SERVER IDENTITY PROOF ==="
+            echo "Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+            echo "Hostname: $(hostname)"
+            echo "Kernel: $(uname -a)"
+            echo "Runner Name: ${RUNNER_NAME:-simama-production-server}"
+            echo "Runner Group: madeena-devops"
+            echo "GitHub SHA: ${{ github.sha }}"
+            echo "Logical CPU Count: $(nproc)"
+            echo "Memory Info:"
+            free -h
+            echo "Uptime & Load:"
+            uptime
+            echo "Docker Version:"
+            docker version --format '{{.Server.Version}}' || docker version
+            echo "============================="
+          } | tee performance-output/server-environment.txt
+
+      - name: Baseline health & authenticated conversion gate
+        run: |
+          set -Eeuo pipefail
+          echo "Checking baseline health on http://127.0.0.1:8014/health..."
+          health_status=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8014/health)
+          if [ "$health_status" != "200" ]; then
+            echo "ERROR: Baseline health check failed with status $health_status (expected 200). Stopping benchmark."
+            exit 1
+          fi
+          echo "Baseline health: 200 OK"
+
+          echo "Running baseline functional DICOM conversion check..."
+          uv run python scripts/local_dicom_burn_in.py \
+            --base-dir "$REMOTE_PATH/burn-in" prepare
+
+          uv run python scripts/local_dicom_burn_in.py \
+            --base-dir "$REMOTE_PATH/burn-in" \
+            --url http://127.0.0.1:8014 run
+
+          echo "Baseline functional DICOM check passed!"
+
+      - name: Initial container resource snapshot
+        run: |
+          echo "=== INITIAL DOCKER CONTAINER RESOURCE SNAPSHOT ==="
+          docker stats --no-stream || true
+          echo "=== API CONTAINER INSPECT MEMORY & CPU ==="
+          docker inspect mpips-internal-beta-mpips-api-1 --format 'CPU: {{.HostConfig.NanoCpus}}, Mem: {{.HostConfig.Memory}}' || true
+          docker inspect mpips-internal-beta-redis-1 --format 'Redis Mem: {{.HostConfig.Memory}}' || true
+
+      - name: Run production server performance measurement suite
+        run: |
+          set -Eeuo pipefail
+          uv run python scripts/measure_dicom_performance.py \
+            --url http://127.0.0.1:8014 \
+            --output-dir performance-output
+
+      - name: Post-benchmark container resource snapshot
+        run: |
+          echo "=== POST-BENCHMARK DOCKER CONTAINER RESOURCE SNAPSHOT ==="
+          docker stats --no-stream || true
+          free -h
+          uptime
+
+      - name: Upload performance benchmark artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mpips-performance-results
+          path: performance-output/

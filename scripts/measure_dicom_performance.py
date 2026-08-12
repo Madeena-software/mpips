@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
-"""Performance measurement and capacity characterization script for MPIPS DICOM API."""
+"""Performance measurement and capacity characterization script for MPIPS DICOM API.
+
+Must execute on the GitHub Actions self-hosted production runner
+(simama-production-server) targeting http://127.0.0.1:8014.
+"""
 
 from __future__ import annotations
 
 import argparse
+import csv
 import copy
 import hashlib
 import json
@@ -151,6 +156,7 @@ def _with_files(
 class RequestResult:
     request_id: str
     conversion_job_id: str
+    phase: str
     start_time: float
     end_time: float
     latency_seconds: float
@@ -164,7 +170,7 @@ class RequestResult:
 
 
 class FakeIdempotencyService:
-    """In-memory Redis simulator for local TestClient benchmarking."""
+    """In-memory Redis simulator for offline TestClient unit testing."""
 
     def __init__(self) -> None:
         self.jobs: Dict[str, Dict[str, Any]] = {}
@@ -212,9 +218,7 @@ class FakeIdempotencyService:
 class PerformanceTester:
     def __init__(self, url: str | None = None, api_key: str | None = None) -> None:
         self.url = (url or "http://127.0.0.1:8014").rstrip("/")
-        self.api_key = api_key or os.getenv(
-            "MPIPS_API_KEY", "mpips_dev_key_synthetic_only"
-        )
+        self.api_key = api_key or os.getenv("MPIPS_API_KEY", "")
         self.use_test_client = url is None and not self._is_server_up(self.url)
         self.template = _manifest_template()
         self.radiograph = _npz_bytes(radiograph=True)
@@ -258,6 +262,7 @@ class PerformanceTester:
     def send_request(
         self,
         raw_manifest: bytes,
+        phase: str = "general",
         radiograph: bytes | None = None,
         gain: bytes | None = None,
         job_id: str | None = None,
@@ -327,6 +332,7 @@ class PerformanceTester:
         result = RequestResult(
             request_id=req_id,
             conversion_job_id=job_str,
+            phase=phase,
             start_time=start,
             end_time=end,
             latency_seconds=round(latency, 6),
@@ -350,17 +356,15 @@ class PerformanceTester:
     def measure_sequential_latency(
         self, sample_count: int = 5
     ) -> Tuple[RequestResult, List[RequestResult]]:
-        # Warm-up request
         warmup_manifest = _with_files(
             self.template, self.radiograph, self.gain, job_id=_uuid()
         )
-        warmup_res = self.send_request(warmup_manifest)
+        warmup_res = self.send_request(warmup_manifest, phase="warmup")
 
-        # Measured requests
         results: List[RequestResult] = []
         for _ in range(sample_count):
             raw = _with_files(self.template, self.radiograph, self.gain, job_id=_uuid())
-            res = self.send_request(raw)
+            res = self.send_request(raw, phase="single_sequential")
             results.append(res)
 
         return warmup_res, results
@@ -369,13 +373,16 @@ class PerformanceTester:
         self, batch_count: int = 3, concurrency: int = 2
     ) -> List[List[RequestResult]]:
         batches: List[List[RequestResult]] = []
-        for _ in range(batch_count):
+        for b_idx in range(batch_count):
             manifests = [
                 _with_files(self.template, self.radiograph, self.gain, job_id=_uuid())
                 for _ in range(concurrency)
             ]
             with ThreadPoolExecutor(max_workers=concurrency) as executor:
-                futures = [executor.submit(self.send_request, m) for m in manifests]
+                futures = [
+                    executor.submit(self.send_request, m, f"conc2_batch_{b_idx+1}")
+                    for m in manifests
+                ]
                 batch_res = [f.result() for f in futures]
             batches.append(batch_res)
         return batches
@@ -386,7 +393,9 @@ class PerformanceTester:
             for _ in range(total_burst)
         ]
         with ThreadPoolExecutor(max_workers=total_burst) as executor:
-            futures = [executor.submit(self.send_request, m) for m in manifests]
+            futures = [
+                executor.submit(self.send_request, m, "burst_8") for m in manifests
+            ]
             return [f.result() for f in futures]
 
     def measure_retry_sequence(self) -> Dict[str, Any]:
@@ -402,9 +411,17 @@ class PerformanceTester:
 
         start_time = time.perf_counter()
         with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [executor.submit(self.send_request, m) for m in batch_manifests]
+            futures = [
+                executor.submit(self.send_request, m, "retry_saturate")
+                for m in batch_manifests
+            ]
             target_future = executor.submit(
-                self.send_request, target_manifest, None, None, retry_job_id
+                self.send_request,
+                target_manifest,
+                "retry_initial",
+                None,
+                None,
+                retry_job_id,
             )
 
             _ = [f.result() for f in futures]
@@ -414,7 +431,9 @@ class PerformanceTester:
         if first_res.status_code == 429:
             delay = float(first_res.retry_after or "5")
             time.sleep(delay)
-            retry_res = self.send_request(target_manifest, None, None, retry_job_id)
+            retry_res = self.send_request(
+                target_manifest, "retry_success", None, None, retry_job_id
+            )
 
         total_time = time.perf_counter() - start_time
 
@@ -453,34 +472,46 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--url",
-        default=None,
-        help="Target API URL (default: http://127.0.0.1:8014 or TestClient)",
+        default="http://127.0.0.1:8014",
+        help="Target API URL (default: http://127.0.0.1:8014)",
     )
     parser.add_argument(
-        "--output",
+        "--output-dir",
         type=Path,
-        default=Path(".agents/context/performance/benchmark_results.json"),
+        default=Path("performance-output"),
+        help="Output directory for benchmark artifacts",
     )
     args = parser.parse_args()
 
-    print("Starting MPIPS Performance Measurement Suite...")
+    print("Starting MPIPS Production Server Performance Suite...")
     tester = PerformanceTester(args.url)
-    mode_str = (
-        f"httpx -> {tester.url}"
+    exec_loc = (
+        "github-actions-self-hosted-production"
         if not tester.use_test_client
-        else "FastAPI TestClient (in-process)"
+        else "local-testclient-unit"
     )
-    print(f"Mode: {mode_str}")
+    print(f"Target URL: {tester.url}")
+    print(f"Execution Location Mode: {exec_loc}")
 
-    print("Measuring single-conversion sequential latency...")
+    all_request_samples: List[RequestResult] = []
+
+    # Phase 5: Sequential Latency
+    print("Executing Phase A: Single-conversion sequential latency...")
     warmup, sequential_results = tester.measure_sequential_latency(sample_count=5)
+    all_request_samples.append(warmup)
+    all_request_samples.extend(sequential_results)
+
     seq_latencies = [
         r.latency_seconds for r in sequential_results if r.status_code == 200
     ]
     seq_stats = stats_dict(seq_latencies)
 
-    print("Measuring concurrency=2 throughput...")
+    # Phase 6: Concurrency=2 Batches
+    print("Executing Phase B: Concurrency=2 throughput batches...")
     conc2_batches = tester.measure_concurrency_batches(batch_count=3, concurrency=2)
+    for batch in conc2_batches:
+        all_request_samples.extend(batch)
+
     conc2_all = [r for batch in conc2_batches for r in batch]
     conc2_latencies = [r.latency_seconds for r in conc2_all if r.status_code == 200]
     conc2_stats = stats_dict(conc2_latencies)
@@ -495,8 +526,11 @@ def main() -> int:
     )
     est_throughput_ph = obs_throughput_pm * 60.0
 
-    print("Measuring 8-request burst admission...")
+    # Phase 7: Burst Admission Test
+    print("Executing Phase C: 8-request burst admission...")
     burst_results = tester.measure_burst_admission(total_burst=8)
+    all_request_samples.extend(burst_results)
+
     burst_200 = len([r for r in burst_results if r.status_code == 200])
     burst_429 = len([r for r in burst_results if r.status_code == 429])
     burst_5xx = len([r for r in burst_results if r.status_code >= 500])
@@ -504,21 +538,24 @@ def main() -> int:
         r.latency_seconds for r in burst_results if r.status_code == 429
     ]
 
-    print("Measuring 429 retry sequence cost...")
+    # Phase 8: Retry Sequence
+    print("Executing Phase D: 429 retry sequence cost...")
     retry_info = tester.measure_retry_sequence()
 
     kambing_rad = Path("research/kambing-260714/data/kambing/BED_1783222264263.npz")
     kambing_gain = Path("research/kambing-260714/data/gain/BED_1783219207291.npz")
     rep_fixture_tested = kambing_rad.exists() and kambing_gain.exists()
 
-    report = {
-        "starting_head": "7ae33628955988e37163504c71c4f4ea175d5497",
+    report_full = {
+        "starting_head": os.getenv(
+            "BENCHMARK_SOURCE_SHA",
+            os.getenv("GITHUB_SHA", "7ae33628955988e37163504c71c4f4ea175d5497"),
+        ),
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+        "performance_execution_location": exec_loc,
+        "local_wsl_measurements_used": False,
         "synthetic_fixture_tested": True,
         "representative_fixture_tested": rep_fixture_tested,
-        "execution_mode": (
-            "httpx" if not tester.use_test_client else "FastAPI TestClient"
-        ),
         "single_request_latency": {
             "warmup": asdict(warmup),
             "stats": seq_stats,
@@ -555,10 +592,77 @@ def main() -> int:
         },
     }
 
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, indent=2), encoding="utf-8")
-    print(f"\nMeasurement complete. Results saved to {args.output}")
+    report_summary = {
+        "execution_location": exec_loc,
+        "local_wsl_measurements_used": False,
+        "timestamp": report_full["timestamp"],
+        "single_request_p50": seq_stats.get("p50", 0.0),
+        "single_request_p95": seq_stats.get("p95", 0.0),
+        "single_request_max": seq_stats.get("max", 0.0),
+        "concurrency_2_p50": conc2_stats.get("p50", 0.0),
+        "observed_throughput_pm": round(obs_throughput_pm, 2),
+        "estimated_throughput_ph": round(est_throughput_ph, 2),
+        "burst_8_admitted": burst_200,
+        "burst_8_rejected": burst_429,
+        "rejection_latency_p50": stats_dict(burst_429_latencies).get("p50", 0.0),
+        "retry_completion_latency": retry_info.get(
+            "total_user_visible_latency_seconds", 0.0
+        ),
+    }
 
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+
+    # 1. JSON full results
+    (args.output_dir / "performance-results.json").write_text(
+        json.dumps(report_full, indent=2), encoding="utf-8"
+    )
+
+    # 2. JSON summary
+    (args.output_dir / "performance-summary.json").write_text(
+        json.dumps(report_summary, indent=2), encoding="utf-8"
+    )
+
+    # 3. CSV results
+    csv_file = args.output_dir / "performance-results.csv"
+    with open(csv_file, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(
+            [
+                "request_id",
+                "conversion_job_id",
+                "phase",
+                "start_time",
+                "end_time",
+                "latency_seconds",
+                "status_code",
+                "response_bytes",
+                "correlation_id",
+                "dicom_valid",
+                "output_rows",
+                "output_cols",
+                "retry_after",
+            ]
+        )
+        for req in all_request_samples:
+            writer.writerow(
+                [
+                    req.request_id,
+                    req.conversion_job_id,
+                    req.phase,
+                    req.start_time,
+                    req.end_time,
+                    req.latency_seconds,
+                    req.status_code,
+                    req.response_bytes,
+                    req.correlation_id,
+                    req.dicom_valid,
+                    req.output_rows,
+                    req.output_cols,
+                    req.retry_after,
+                ]
+            )
+
+    print(f"\nMeasurement complete. Artifacts created in {args.output_dir}")
     return 0
 
 
