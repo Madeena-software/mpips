@@ -376,6 +376,7 @@ def run_isolated_dicom_conversion(
             clean_env = {
                 "LANG": "C.UTF-8",
                 "LC_ALL": "C.UTF-8",
+                "PYTHONPATH": os.pathsep.join(sys.path),
                 "MPIPS_DICOM_WORKER_CPU_SECONDS": os.getenv(
                     "MPIPS_DICOM_WORKER_CPU_SECONDS", "120"
                 ),
