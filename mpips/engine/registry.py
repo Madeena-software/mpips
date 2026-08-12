@@ -24,6 +24,7 @@ from mpips.engine.nodes.scientific import (
     HomomorphicFilterNode,
     WaveletDenoisingNode,
     FlatFieldCorrectionNode,
+    LevelingNode,
     CameraCalibrationNode,
     FABEMDNode,
 )
@@ -63,6 +64,7 @@ NODE_CLASSES: Dict[str, Type[BaseNode]] = {
     "homomorphic_filter": HomomorphicFilterNode,
     "wavelet_denoising": WaveletDenoisingNode,
     "flat_field_correction": FlatFieldCorrectionNode,
+    "leveling": LevelingNode,
     "camera_calibration": CameraCalibrationNode,
     "camera_calibration_warp": CameraCalibrationWarpNode,
     "fabemd": FABEMDNode,

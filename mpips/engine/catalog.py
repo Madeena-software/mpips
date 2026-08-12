@@ -503,6 +503,41 @@ NODE_CATALOG = [
         version="1.0.0",
     ),
     ProcessorNodeSchema(
+        id="leveling",
+        name="Leveling",
+        category="advanced",
+        description=(
+            "Rescales overall brightness so a background region matches a "
+            "reference mean, correcting exposure/intensity drift between "
+            "captures in a batch." + PRESERVES_BIT_DEPTH
+        ),
+        inputs=[InputSlot(name="input_image", type="image")],
+        outputs=[OutputSlot(name="output_image", type="image")],
+        parameters=[
+            Parameter(
+                name="roi",
+                type="array",
+                default=None,
+                description=(
+                    "Background ROI as [y1, y2, x1, x2] pixel coordinates, "
+                    "chosen to stay inside a clear/open-beam area"
+                ),
+            ),
+            Parameter(
+                name="target_mean",
+                type="float",
+                default=0.0,
+                description=(
+                    "Reference brightness for the ROI (the background ROI mean "
+                    "measured from the batch's baseline image); the image is "
+                    "scaled so its own ROI mean matches this value"
+                ),
+                min=0.0,
+            ),
+        ],
+        version="1.0.0",
+    ),
+    ProcessorNodeSchema(
         id="camera_calibration",
         name="Camera Calibration",
         category="advanced",

@@ -254,6 +254,53 @@ class FlatFieldCorrectionNode(BaseNode):
         return {"output_image": corrected}
 
 
+class LevelingNode(BaseNode):
+    """Rescales brightness so a background ROI matches a reference mean.
+
+    Promoted from the "Global Brightness Leveling" step in
+    research/leveling.py, which equalizes intensity drift across a batch of
+    radiographs by comparing each image's background ROI mean against a
+    baseline mean established from the batch's first image. Here the
+    baseline is passed in as ``target_mean`` instead of being tracked across
+    a batch, since nodes execute one image at a time.
+    """
+
+    def execute(self, inputs: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
+        image = inputs.get("input_image")
+        if image is None:
+            raise ValueError("LevelingNode requires 'input_image' input.")
+
+        roi = params.get("roi")
+        if roi is None or len(roi) != 4:
+            raise ValueError(
+                "LevelingNode requires a 'roi' parameter of [y1, y2, x1, x2] "
+                "identifying a background region."
+            )
+        y1, y2, x1, x2 = (int(v) for v in roi)
+
+        target_mean = float(params.get("target_mean", 0.0))
+        if target_mean <= 0:
+            raise ValueError(
+                "target_mean must be a positive reference brightness "
+                "(the background ROI mean of the batch's baseline image)."
+            )
+
+        roi_zone = image[y1:y2, x1:x2]
+        if roi_zone.size == 0:
+            raise ValueError(
+                f"ROI [{y1}:{y2}, {x1}:{x2}] is empty for image shape {image.shape}."
+            )
+
+        current_mean = float(np.mean(roi_zone))
+        if current_mean <= 0:
+            return {"output_image": image.copy()}
+
+        scale_factor = target_mean / current_mean
+        leveled = image.astype(np.float64) * scale_factor
+
+        return {"output_image": clip_to_input_dtype(leveled, image)}
+
+
 class CameraCalibrationNode(BaseNode):
     """Corrects lens distortion using camera matrix files (.npz)."""
 

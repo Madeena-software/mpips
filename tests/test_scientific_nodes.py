@@ -8,6 +8,7 @@ from mpips.engine.nodes.scientific import (
     HomomorphicFilterNode,
     WaveletDenoisingNode,
     FlatFieldCorrectionNode,
+    LevelingNode,
     CameraCalibrationNode,
     FABEMDNode,
 )
@@ -111,6 +112,43 @@ def test_flat_field_correction(
     assert "output_image" in res
     assert res["output_image"].shape == dummy_gray_image.shape
     assert mock_download.call_count == 2
+
+
+def test_leveling_scales_to_target_mean() -> None:
+    node = LevelingNode()
+    image = np.full((20, 20), 50, dtype=np.uint8)
+    # ROI mean is 50; scaling to target_mean=100 should double the whole image
+    res = node.execute(
+        {"input_image": image}, {"roi": [0, 20, 0, 20], "target_mean": 100.0}
+    )
+    out_img = res["output_image"]
+    assert out_img.dtype == np.uint8
+    assert np.all(out_img == 100)
+
+
+def test_leveling_preserves_uint16() -> None:
+    node = LevelingNode()
+    image = np.full((10, 10), 1000, dtype=np.uint16)
+    res = node.execute(
+        {"input_image": image}, {"roi": [0, 10, 0, 10], "target_mean": 500.0}
+    )
+    out_img = res["output_image"]
+    assert out_img.dtype == np.uint16
+    assert np.all(out_img == 500)
+
+
+def test_leveling_requires_roi() -> None:
+    node = LevelingNode()
+    image = np.ones((10, 10), dtype=np.uint8)
+    with pytest.raises(ValueError, match="roi"):
+        node.execute({"input_image": image}, {"target_mean": 100.0})
+
+
+def test_leveling_requires_positive_target_mean() -> None:
+    node = LevelingNode()
+    image = np.ones((10, 10), dtype=np.uint8)
+    with pytest.raises(ValueError, match="target_mean"):
+        node.execute({"input_image": image}, {"roi": [0, 10, 0, 10]})
 
 
 @patch("mpips.engine.nodes.scientific.download_image")
