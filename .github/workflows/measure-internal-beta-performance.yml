@@ -79,10 +79,10 @@ jobs:
             --base-dir "$REMOTE_PATH/burn-in" prepare
 
           echo "3. Executing ONE single baseline authenticated DICOM conversion..."
-          sample_job_id=$(python3 -c "import uuid; print(uuid.uuid4())")
+          sample_job_id=$(uv run python -c "import uuid; print(uuid.uuid4())")
           raw_json="$REMOTE_PATH/burn-in/fixtures/manifest.json"
           prep_json="$RUNNER_TEMP/baseline_manifest.json"
-          python3 -c "import json, copy; m=json.load(open('$raw_json')); m['conversion_job_id']='$sample_job_id'; open('$prep_json','w').write(json.dumps(m))"
+          uv run python -c "import json, copy; m=json.load(open('$raw_json')); m['conversion_job_id']='$sample_job_id'; open('$prep_json','w').write(json.dumps(m))"
 
           resp_headers="$RUNNER_TEMP/baseline_headers.txt"
           resp_body="$RUNNER_TEMP/baseline_output.dcm"
@@ -101,7 +101,7 @@ jobs:
           fi
 
           echo "4. Validating baseline returned DICOM..."
-          python3 -c "
+          uv run python -c "
           import pydicom
           ds = pydicom.dcmread('$resp_body')
           assert ds.BitsAllocated == 16 and ds.PixelRepresentation == 0, 'Must be uint16'
