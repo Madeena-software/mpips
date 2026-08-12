@@ -183,10 +183,20 @@ def prepare(base: Path) -> None:
     target_shape = SHAPE
     target_camera = CAMERA
     cal_meta_file = base.parent / "calibration" / "metadata.json"
+    remap_file = base.parent / "calibration" / "remap.npz"
+
+    if remap_file.is_file():
+        try:
+            with np.load(remap_file) as remap_data:
+                if "map_x" in remap_data:
+                    target_shape = tuple(remap_data["map_x"].shape)
+        except Exception:
+            pass
+
     if cal_meta_file.is_file():
         try:
             meta = json.loads(cal_meta_file.read_text("utf-8"))
-            if "image_shape" in meta and len(meta["image_shape"]) == 2:
+            if target_shape == SHAPE and "image_shape" in meta and len(meta["image_shape"]) == 2:
                 target_shape = tuple(meta["image_shape"])
             cam_params = meta.get("source_metadata", {}).get("camera_params", {})
             if isinstance(cam_params, dict):
@@ -247,9 +257,21 @@ class BurnIn:
         }
         self.target_shape = SHAPE
         cal_meta_file = base / "calibration" / "metadata.json"
+        remap_file = base / "calibration" / "remap.npz"
         if not cal_meta_file.is_file():
             cal_meta_file = base.parent / "calibration" / "metadata.json"
-        if cal_meta_file.is_file():
+        if not remap_file.is_file():
+            remap_file = base.parent / "calibration" / "remap.npz"
+
+        if remap_file.is_file():
+            try:
+                with np.load(remap_file) as remap_data:
+                    if "map_x" in remap_data:
+                        self.target_shape = tuple(remap_data["map_x"].shape)
+            except Exception:
+                pass
+
+        if self.target_shape == SHAPE and cal_meta_file.is_file():
             try:
                 meta = json.loads(cal_meta_file.read_text("utf-8"))
                 if "image_shape" in meta and len(meta["image_shape"]) == 2:

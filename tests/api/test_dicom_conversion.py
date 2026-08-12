@@ -792,3 +792,57 @@ def test_multi_mode_calibration_resolution(
     assert res_unmapped["status"] == "failed"
     assert res_unmapped["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
 
+
+def test_input_shape_differs_from_remap_output_shape(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Verifies that when remap map_x/map_y shape differs from input raw shape, the output canvas shape matches remap shape."""
+    from mpips.conversion.worker import execute_conversion_worker
+    import cv2
+
+    cal_dir = tmp_path / "custom_remap_cal"
+    cal_dir.mkdir(parents=True, exist_ok=True)
+
+    input_shape = (64, 64)
+    remap_output_shape = (48, 52)
+
+    y_vals, x_vals = np.indices(remap_output_shape, dtype=np.float32)
+    np.savez_compressed(cal_dir / "remap.npz", map_x=x_vals, map_y=y_vals)
+    metadata = {
+        "validated": True,
+        "fingerprint": "remap-diff-test-fp",
+        "image_shape": list(input_shape),
+        "source_metadata": {
+            "detector_mode": "BED",
+            "camera_params": {"serialNumber": "CAM123"},
+        },
+    }
+    (cal_dir / "metadata.json").write_text(json.dumps(metadata), encoding="utf-8")
+
+    rad_path, gain_path, *_ = generate_test_npzs(str(tmp_path / "npzs"))
+    out_tiff = tmp_path / "out_remap_diff.tiff"
+    res_path = tmp_path / "result_remap_diff.json"
+
+    args_data = {
+        "radiograph_npz_path": rad_path,
+        "gain_npz_path": gain_path,
+        "calibration_dir": str(cal_dir),
+        "expected_gain_id": "GAIN-000042",
+        "output_tiff_path": str(out_tiff),
+        "result_path": str(res_path),
+    }
+    args_file = tmp_path / "args_remap_diff.json"
+    args_file.write_text(json.dumps(args_data), encoding="utf-8")
+
+    execute_conversion_worker(str(args_file), str(res_path))
+
+    res = json.loads(res_path.read_text(encoding="utf-8"))
+    assert res["status"] == "success"
+    assert res["rows"] == remap_output_shape[0]
+    assert res["cols"] == remap_output_shape[1]
+
+    out_img = cv2.imread(str(out_tiff), cv2.IMREAD_UNCHANGED)
+    assert out_img is not None
+    assert out_img.shape == remap_output_shape
+
+
