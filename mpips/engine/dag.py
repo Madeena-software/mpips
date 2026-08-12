@@ -7,6 +7,24 @@ from mpips.storage import S3StorageBackend, StorageBackend
 from mpips.engine.registry import get_node_class
 
 
+def load_npz_image(path: str) -> np.ndarray:
+    """Loads a single 2D/3D image array from an NPZ file for use as a DAG image slot."""
+    with np.load(path) as data:
+        if "image" in data.files:
+            return cast(np.ndarray, data["image"])
+        if len(data.files) == 1:
+            return cast(np.ndarray, data[data.files[0]])
+        raise ValueError(
+            f"NPZ '{path}' has no 'image' key and contains multiple arrays "
+            f"{data.files}; ambiguous which one is the image."
+        )
+
+
+def save_npz_image(path: str, image: np.ndarray) -> None:
+    """Saves a single image array to an NPZ file under the 'image' key."""
+    np.savez(path, image=image)
+
+
 def topological_sort(
     nodes: List[Dict[str, Any]], edges: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
@@ -147,10 +165,11 @@ class DAGExecutor:
                             ".gif",
                             ".svg",
                             ".bmp",
+                            ".npz",
                         ]
                         else ".png"
                     )
-                    if parsed_ext.lower() in [".tiff", ".tif"]:
+                    if parsed_ext.lower() in [".tiff", ".tif", ".npz"]:
                         input_ext = parsed_ext.lower()
 
                     fd, temp_path = tempfile.mkstemp(suffix=ext)
@@ -163,7 +182,11 @@ class DAGExecutor:
                             temp_path,
                             is_presigned_url=is_presigned,
                         )
-                        img = cv2.imread(temp_path, cv2.IMREAD_UNCHANGED)
+                        img: Optional[np.ndarray]
+                        if ext == ".npz":
+                            img = load_npz_image(temp_path)
+                        else:
+                            img = cv2.imread(temp_path, cv2.IMREAD_UNCHANGED)
                         if img is None:
                             raise ValueError(
                                 f"Failed to read downloaded image at '{temp_path}'."
@@ -236,12 +259,17 @@ class DAGExecutor:
                         )
 
                     # Save image to temp path using dynamic extension
-                    out_ext = input_ext if input_ext in [".tiff", ".tif"] else ".png"
+                    out_ext = (
+                        input_ext if input_ext in [".tiff", ".tif", ".npz"] else ".png"
+                    )
                     fd, temp_path = tempfile.mkstemp(suffix=out_ext)
                     os.close(fd)
                     temp_files.append(temp_path)
 
-                    cv2.imwrite(temp_path, output_img)
+                    if out_ext == ".npz":
+                        save_npz_image(temp_path, output_img)
+                    else:
+                        cv2.imwrite(temp_path, output_img)
 
                     # Upload output
                     dest_type = output_config.get("destination_type", "s3")
@@ -268,7 +296,11 @@ class DAGExecutor:
                             mime_type=(
                                 "image/tiff"
                                 if out_ext in [".tiff", ".tif"]
-                                else "image/png"
+                                else (
+                                    "application/octet-stream"
+                                    if out_ext == ".npz"
+                                    else "image/png"
+                                )
                             ),
                         )
 
@@ -324,7 +356,11 @@ class DAGExecutor:
                                 "mime_type": (
                                     "image/tiff"
                                     if out_ext in [".tiff", ".tif"]
-                                    else "image/png"
+                                    else (
+                                        "application/octet-stream"
+                                        if out_ext == ".npz"
+                                        else "image/png"
+                                    )
                                 ),
                                 "size_bytes": size_bytes,
                                 "checksum": checksum,
