@@ -42,6 +42,7 @@
   "capture": {
     "capture_id": "CAP-20260812-9901",
     "protocol_version": "1.0.0",
+    "detector_type": "THORAX",
     "body_part_examined": "CHEST",
     "laterality": "U",
     "projection": "PA",
@@ -54,12 +55,7 @@
     "gain": {
       "filename": "gain.npz",
       "byte_size": 12392930,
-      "sha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
-      "gain_id": "GAIN-DETECTOR-CAL-2026A"
-    },
-    "image_spacing": {
-      "row_um": 140.0,
-      "column_um": 140.0
+      "sha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
     }
   },
   "dicom": {

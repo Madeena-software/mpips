@@ -248,8 +248,12 @@ def run_isolated_dicom_conversion(
     cal_src_dir = resolve_calibration_artifact_dir()
 
     workspace_base = Path("/tmp/mpips-workspaces")
-    workspace_base.mkdir(parents=True, exist_ok=True)
-    os.chmod(workspace_base, 0o700)
+    try:
+        workspace_base.mkdir(parents=True, exist_ok=True)
+        os.chmod(workspace_base, 0o700)
+    except PermissionError:
+        workspace_base = Path(tempfile.gettempdir()) / f"mpips-workspaces-{os.getuid()}"
+        workspace_base.mkdir(parents=True, exist_ok=True)
 
     workspace_dir = Path(
         tempfile.mkdtemp(
@@ -299,8 +303,10 @@ def run_isolated_dicom_conversion(
             "radiograph_npz_path": str(input_rad),
             "gain_npz_path": str(input_gain),
             "calibration_dir": str(staged_cal_dir),
-            "expected_gain_id": manifest.capture.gain.gain_id,
-            "expected_detector_mode": None,
+            "expected_gain_id": None,
+            "expected_detector_mode": (
+                manifest.capture.detector_type if manifest.capture else None
+            ),
             "expected_camera_serial": None,
             "max_rows": 16384,
             "max_cols": 16384,

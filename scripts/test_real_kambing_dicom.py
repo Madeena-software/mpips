@@ -66,12 +66,10 @@ manifest_data = {
             "sha256": "1a1436b6aab20a2161e862617afe7f951e4483a35b869bb7df2539d16cdc64f0",
         },
         "gain": {
-            "gain_id": "1783219207291",
             "filename": "BED_1783219207291.npz",
             "byte_size": 16371836,
             "sha256": "2467d0e0efd81f7441053fc8bfdc7d246db457cd31d9d56be44b4239c22719c0",
         },
-        "image_spacing": {"row_um": 140.0, "column_um": 140.0},
     },
     "dicom": {
         "study_instance_uid": "1.2.826.0.1.3680043.10.1356.1.1.100",

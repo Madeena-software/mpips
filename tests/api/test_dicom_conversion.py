@@ -146,12 +146,10 @@ def make_test_manifest(
                 "sha256": rad_sha,
             },
             "gain": {
-                "gain_id": "GAIN-000042",
                 "filename": "gain-042.npz",
                 "byte_size": gain_size,
                 "sha256": gain_sha,
             },
-            "image_spacing": {"row_um": 140.0, "column_um": 140.0},
         },
         "dicom": {
             "study_instance_uid": "1.2.826.0.1.3680043.10.1356.1.1.1",
@@ -895,3 +893,38 @@ def test_bounded_concurrency_rejects_unexpected_500_response(
         assert any("unexpected HTTP status" in f for f in burn_in.failures)
     finally:
         burn_in.close()
+
+
+def test_minimal_manifest_dicom_conversion(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, r_sha, g_sha, r_sz, g_sz = generate_test_npzs(str(tmp_path))
+    minimal_manifest = {
+        "patient": {
+            "medical_record_number": "MRN-MINIMAL-01",
+            "name": "JANE MINIMAL",
+            "sex": "female",
+            "birth_date": "1995-05-20",
+        },
+        "capture": {
+            "detector_type": "BED",
+            "body_part_examined": "CHEST",
+            "laterality": "U",
+            "projection": "PA",
+        },
+    }
+    manifest = MHCSManifest.model_validate(minimal_manifest)
+    out_dcm = tmp_path / "output_minimal.dcm"
+
+    from mpips.conversion.service import run_isolated_dicom_conversion
+
+    with patch("mpips.conversion.service.resolve_calibration_artifact_dir", return_value=cal_dir):
+        result = run_isolated_dicom_conversion(Path(r_path), Path(g_path), manifest, out_dcm)
+
+    assert result["status"] == "success"
+    assert out_dcm.is_file()
+    ds = pydicom.dcmread(str(out_dcm))
+    assert ds.PatientID == "MRN-MINIMAL-01"
+    assert ds.PatientName == "JANE MINIMAL"
+    assert str(ds.StudyInstanceUID) != ""
+    assert str(ds.SeriesInstanceUID) != ""
+    assert str(ds.SOPInstanceUID) != ""

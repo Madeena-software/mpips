@@ -144,6 +144,7 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         except Exception as exc:
             raise NPZValidationError(f"Failed to load remap.npz: {exc}") from exc
 
+        expected_gain_id = args.get("expected_gain_id") or rad_info["gain_id"]
         if rad_info["gain_id"] != expected_gain_id:
             raise NPZValidationError(
                 "Radiograph gain_id does not match expected gain_id"
@@ -187,8 +188,11 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
                     "Detector mode does not match calibration artifact detector mode"
                 )
 
-        if expected_detector_mode and rad_mode != expected_detector_mode:
-            raise NPZValidationError("Detector mode does not match expected config")
+        if expected_detector_mode:
+            exp_norm = "TRX" if expected_detector_mode.upper() == "THORAX" else expected_detector_mode.upper()
+            rad_norm = "TRX" if rad_mode.upper() == "THORAX" else rad_mode.upper()
+            if rad_norm != exp_norm:
+                raise NPZValidationError("Detector mode does not match expected config")
 
         # Camera serial verification across radiograph, gain, and calibration artifact
         rad_cam_sn = str(

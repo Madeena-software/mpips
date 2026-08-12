@@ -118,8 +118,7 @@ def _manifest_template() -> dict[str, Any]:
             "projection": "PA",
             "captured_at": "2026-08-05T10:00:00+00:00",
             "radiograph": {"filename": "synthetic-radiograph.npz"},
-            "gain": {"filename": "synthetic-gain.npz", "gain_id": GAIN_ID},
-            "image_spacing": {"row_um": 140.0, "column_um": 140.0},
+            "gain": {"filename": "synthetic-gain.npz"},
         },
         "dicom": {
             "study_instance_uid": "1.2.826.0.1.3680043.10.1356.20260805.1",

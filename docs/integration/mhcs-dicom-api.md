@@ -181,24 +181,21 @@ The `manifest` field MUST be a valid JSON object strictly adhering to Pydantic s
 - `timezone` (str, 1–64 chars): IANA Timezone string (e.g., `"Asia/Jakarta"`).
 
 #### `capture` (`CaptureSchema`)
-- `capture_id` (str, 1–64 chars): Unique image capture identifier. Used to generate response file name (`<safe_capture_id>.dcm`).
-- `protocol_version` (str, 1–64 chars): Hardware/software capture protocol version.
-- `body_part_examined` (str, 1–16 chars): Body part examined (DICOM `(0018,0015)`, e.g., `"CHEST"`).
-- `laterality` (str): Enum `["R", "L", "U", "B"]` (Right, Left, Unpaired, Both; DICOM `(0020,0060)`).
-- `projection` (str, 1–16 chars): Projection view (e.g., `"PA"`, `"AP"`, `"LATERAL"`).
-- `captured_at` (datetime string): Timestamp of exposure with explicit timezone offset.
+- `capture_id` (optional str, 1–64 chars): Unique image capture identifier.
+- `protocol_version` (optional str, 1–64 chars): Hardware/software capture protocol version (defaults to `"1.0.0"`).
+- `detector_type` (optional str, max 16 chars): Detector calibration mode selection (`"BED"` or `"THORAX"` / `"TRX"`).
+- `body_part_examined` (str, 1–16 chars): Body part examined (DICOM `(0018,0015)`, defaults to `"CHEST"`).
+- `laterality` (str): Enum `["R", "L", "U", "B"]` (Right, Left, Unpaired, Both; DICOM `(0020,0060)`, defaults to `"U"`).
+- `projection` (str, 1–16 chars): Projection view (e.g., `"PA"`, `"AP"`, `"LATERAL"`, defaults to `"PA"`).
+- `captured_at` (optional datetime string): Timestamp of exposure with explicit timezone offset.
 - `radiograph` (`FileManifestSchema`):
   - `filename` (str, 1–128 chars): Original filename (`"radiograph.npz"`).
   - `byte_size` (int, > 0): Exact byte size of `radiograph_npz`.
   - `sha256` (str, 64 hex chars): Lowercase SHA-256 hex digest of `radiograph_npz`.
-- `gain` (`GainManifestSchema`):
+- `gain` (`FileManifestSchema`):
   - `filename` (str, 1–128 chars): Original filename (`"gain.npz"`).
   - `byte_size` (int, > 0): Exact byte size of `gain_npz`.
   - `sha256` (str, 64 hex chars): Lowercase SHA-256 hex digest of `gain_npz`.
-  - `gain_id` (str, 1–64 chars): Detector gain map identifier.
-- `image_spacing` (`ImageSpacingSchema`):
-  - `row_um` (float, > 0.0): Row pixel spacing in micrometers ($\mu m$). Converted to mm in DICOM Imager Pixel Spacing `(0018,1164)`.
-  - `column_um` (float, > 0.0): Column pixel spacing in micrometers ($\mu m$).
 
 #### `dicom` (`DICOMManifestSchema`)
 - `study_instance_uid` (str, max 64 chars): Valid DICOM UID (`regex: ^[0-9](\.[0-9]+)+$`). DICOM `(0020,000D)`.

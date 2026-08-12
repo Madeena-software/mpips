@@ -42,10 +42,12 @@ def validate_dicom_dataset(
         )
 
     sop_instance = str(getattr(ds, "SOPInstanceUID", ""))
-    if sop_instance != manifest.dicom.sop_instance_uid:
+    if manifest.dicom.sop_instance_uid and sop_instance != manifest.dicom.sop_instance_uid:
         raise DICOMValidationError(
             f"SOPInstanceUID {sop_instance!r} != {manifest.dicom.sop_instance_uid!r}"
         )
+    elif not sop_instance:
+        raise DICOMValidationError("SOPInstanceUID is missing")
 
     file_meta_sop_inst = str(getattr(ds.file_meta, "MediaStorageSOPInstanceUID", ""))
     if sop_instance != file_meta_sop_inst:
@@ -53,16 +55,16 @@ def validate_dicom_dataset(
             "SOPInstanceUID mismatch with MediaStorageSOPInstanceUID"
         )
 
-    if str(getattr(ds, "StudyInstanceUID", "")) != manifest.dicom.study_instance_uid:
+    if manifest.dicom.study_instance_uid and str(getattr(ds, "StudyInstanceUID", "")) != manifest.dicom.study_instance_uid:
         raise DICOMValidationError("StudyInstanceUID mismatch")
 
-    if str(getattr(ds, "SeriesInstanceUID", "")) != manifest.dicom.series_instance_uid:
+    if manifest.dicom.series_instance_uid and str(getattr(ds, "SeriesInstanceUID", "")) != manifest.dicom.series_instance_uid:
         raise DICOMValidationError("SeriesInstanceUID mismatch")
 
-    if str(getattr(ds, "AccessionNumber", "")) != manifest.examination.accession_number:
+    if manifest.examination.accession_number and str(getattr(ds, "AccessionNumber", "")) != manifest.examination.accession_number:
         raise DICOMValidationError("AccessionNumber mismatch")
 
-    if str(getattr(ds, "StudyID", "")) != manifest.examination.study_id:
+    if manifest.examination.study_id and str(getattr(ds, "StudyID", "")) != manifest.examination.study_id:
         raise DICOMValidationError("StudyID mismatch")
 
     if str(getattr(ds, "PatientID", "")) != manifest.patient.medical_record_number:
@@ -72,11 +74,12 @@ def validate_dicom_dataset(
     if str(getattr(ds, "PatientName", "")) != expected_patient_pn:
         raise DICOMValidationError("PatientName mismatch")
 
-    expected_operator_pn = format_person_name(manifest.operator.name)
-    if str(getattr(ds, "OperatorsName", "")) != expected_operator_pn:
-        raise DICOMValidationError("OperatorsName mismatch")
+    if manifest.operator and manifest.operator.name:
+        expected_operator_pn = format_person_name(manifest.operator.name)
+        if str(getattr(ds, "OperatorsName", "")) != expected_operator_pn:
+            raise DICOMValidationError("OperatorsName mismatch")
 
-    if str(getattr(ds, "InstitutionName", "")) != manifest.site.institution_name:
+    if manifest.site.institution_name and str(getattr(ds, "InstitutionName", "")) != manifest.site.institution_name:
         raise DICOMValidationError("InstitutionName mismatch")
 
     if str(getattr(ds, "BodyPartExamined", "")) != manifest.capture.body_part_examined:
@@ -100,8 +103,12 @@ def validate_dicom_dataset(
     if getattr(ds, "SamplesPerPixel", 1) == 1 and hasattr(ds, "PlanarConfiguration"):
         raise DICOMValidationError("PlanarConfiguration present on monochrome image")
 
-    expected_row_mm = manifest.capture.image_spacing.row_um / 1000.0
-    expected_col_mm = manifest.capture.image_spacing.column_um / 1000.0
+    if hasattr(manifest.capture, "image_spacing") and getattr(manifest.capture, "image_spacing", None):
+        expected_row_mm = manifest.capture.image_spacing.row_um / 1000.0
+        expected_col_mm = manifest.capture.image_spacing.column_um / 1000.0
+    else:
+        expected_row_mm = 0.140
+        expected_col_mm = 0.140
     spacing = [float(x) for x in getattr(ds, "PixelSpacing", [0, 0])]
     if (
         len(spacing) != 2

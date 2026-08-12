@@ -26,6 +26,27 @@ def test_mhcs_example_manifest_validates_cleanly() -> None:
     assert parsed_manifest.dicom.presentation_intent == "FOR PRESENTATION"
 
 
+def test_mhcs_minimal_example_manifest_validates_cleanly() -> None:
+    repo_root = Path(__file__).resolve().parents[2]
+    example_path = (
+        repo_root
+        / "docs"
+        / "integration"
+        / "examples"
+        / "mhcs-dicom-manifest.minimal.example.json"
+    )
+    assert example_path.exists(), f"Minimal example manifest missing at {example_path}"
+
+    manifest_text = example_path.read_text(encoding="utf-8")
+    parsed_manifest = MHCSManifest.model_validate_json(manifest_text)
+
+    assert str(parsed_manifest.manifest_version) == "1.0"
+    assert parsed_manifest.patient.medical_record_number == "MRN-90214810"
+    assert parsed_manifest.patient.name.full_name == "JANE DOE"
+    assert parsed_manifest.capture.detector_type == "THORAX"
+    assert parsed_manifest.capture.body_part_examined == "CHEST"
+
+
 def test_mhcs_integration_doc_exists_and_is_populated() -> None:
     repo_root = Path(__file__).resolve().parents[2]
     doc_path = repo_root / "docs" / "integration" / "mhcs-dicom-api.md"

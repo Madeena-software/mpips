@@ -42,17 +42,28 @@ def format_person_name(name_input: PersonNameSchema | Dict[str, Any] | Any) -> s
 def build_converter_metadata_json(manifest: MHCSManifest) -> Dict[str, Any]:
     """Builds Pak Andre's approved converter metadata JSON dictionary."""
     patient_pn = format_person_name(manifest.patient.name)
-    birthdate_str = manifest.patient.birth_date.strftime("%Y%m%d")
-    time_str = manifest.capture.captured_at.strftime("%y%m%d%H%M%S")
+    birthdate_str = manifest.patient.birth_date.strftime("%Y%m%d") if manifest.patient.birth_date else ""
+    if manifest.capture and manifest.capture.captured_at:
+        time_str = manifest.capture.captured_at.strftime("%y%m%d%H%M%S")
+    else:
+        from datetime import datetime, timezone
+        time_str = datetime.now(timezone.utc).strftime("%y%m%d%H%M%S")
+
+    if hasattr(manifest.capture, "image_spacing") and getattr(manifest.capture, "image_spacing", None):
+        scale_x = float(manifest.capture.image_spacing.column_um)
+        scale_y = float(manifest.capture.image_spacing.row_um)
+    else:
+        scale_x = 140.0
+        scale_y = 140.0
 
     return {
         "Patient Name": patient_pn,
         "NIK": manifest.patient.medical_record_number,
         "Gender": manifest.patient.sex,
         "Birthdate": birthdate_str,
-        "Scale X": float(manifest.capture.image_spacing.column_um),
-        "Scale Y": float(manifest.capture.image_spacing.row_um),
+        "Scale X": scale_x,
+        "Scale Y": scale_y,
         "Time": time_str,
-        "StudyDescription": manifest.examination.study_description,
-        "SeriesDescription": manifest.dicom.series_description,
+        "StudyDescription": manifest.examination.study_description or "CHEST RADIOGRAPH",
+        "SeriesDescription": manifest.dicom.series_description or manifest.examination.study_description or "CHEST RADIOGRAPH",
     }
