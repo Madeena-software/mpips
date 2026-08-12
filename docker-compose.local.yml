@@ -72,5 +72,6 @@ services:
       retries: 12
 
 networks:
-  mpips-local-private:
-    name: mpips-local-private-v1
+  madeena-software-network:
+    external: true
+    name: madeena-software-network
