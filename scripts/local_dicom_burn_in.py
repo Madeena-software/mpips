@@ -179,8 +179,18 @@ def prepare(base: Path) -> None:
     for name in ("fixtures", "calibration", "results"):
         (base / name).mkdir(exist_ok=True)
 
-    radiograph = _npz_bytes(radiograph=True)
-    gain = _npz_bytes(radiograph=False)
+    target_shape = SHAPE
+    cal_meta_file = base.parent / "calibration" / "metadata.json"
+    if cal_meta_file.is_file():
+        try:
+            meta = json.loads(cal_meta_file.read_text("utf-8"))
+            if "image_shape" in meta and len(meta["image_shape"]) == 2:
+                target_shape = tuple(meta["image_shape"])
+        except Exception:
+            pass
+
+    radiograph = _npz_bytes(radiograph=True, shape=target_shape)
+    gain = _npz_bytes(radiograph=False, shape=target_shape)
     fixture_dir = base / "fixtures"
     (fixture_dir / "radiograph.npz").write_bytes(radiograph)
     (fixture_dir / "gain.npz").write_bytes(gain)
@@ -188,7 +198,7 @@ def prepare(base: Path) -> None:
         _with_files(_manifest_template(), radiograph, gain, job_id=BASE_JOB_ID)
     )
 
-    y_values, x_values = np.indices(SHAPE, dtype=np.float32)
+    y_values, x_values = np.indices(target_shape, dtype=np.float32)
     np.savez_compressed(
         base / "calibration" / "remap.npz", map_x=x_values, map_y=y_values
     )
@@ -197,7 +207,7 @@ def prepare(base: Path) -> None:
             {
                 "validated": True,
                 "fingerprint": "synthetic-local-calibration-v1",
-                "image_shape": list(SHAPE),
+                "image_shape": list(target_shape),
                 "source_metadata": {
                     "detector_mode": "BED",
                     "camera_params": {"serialNumber": CAMERA},
