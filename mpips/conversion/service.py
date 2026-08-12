@@ -377,7 +377,6 @@ def run_isolated_dicom_conversion(
                 "LANG": "C.UTF-8",
                 "LC_ALL": "C.UTF-8",
                 "PATH": os.getenv("PATH", ""),
-                "PYTHONPATH": os.pathsep.join(sys.path),
                 "MPIPS_DICOM_WORKER_CPU_SECONDS": os.getenv(
                     "MPIPS_DICOM_WORKER_CPU_SECONDS", "120"
                 ),
@@ -387,6 +386,8 @@ def run_isolated_dicom_conversion(
             }
             if "VIRTUAL_ENV" in os.environ:
                 clean_env["VIRTUAL_ENV"] = os.environ["VIRTUAL_ENV"]
+            if "PYTHONPATH" in os.environ:
+                clean_env["PYTHONPATH"] = os.environ["PYTHONPATH"]
 
             venv_python = Path(sys.prefix) / "bin" / "python"
             python_bin = str(venv_python) if venv_python.exists() else sys.executable
