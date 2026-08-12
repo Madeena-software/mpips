@@ -66,7 +66,7 @@ jobs:
       - name: Baseline health & authenticated conversion gate
         run: |
           set -Eeuo pipefail
-          echo "Checking baseline health on http://127.0.0.1:8014/health..."
+          echo "1. Checking baseline health on http://127.0.0.1:8014/health..."
           health_status=$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8014/health)
           if [ "$health_status" != "200" ]; then
             echo "ERROR: Baseline health check failed with status $health_status (expected 200). Stopping benchmark."
@@ -74,37 +74,85 @@ jobs:
           fi
           echo "Baseline health: 200 OK"
 
-          echo "Running baseline functional DICOM conversion check..."
+          echo "2. Preparing production-shaped burn-in fixtures..."
           uv run python scripts/local_dicom_burn_in.py \
             --base-dir "$REMOTE_PATH/burn-in" prepare
 
-          uv run python scripts/local_dicom_burn_in.py \
-            --base-dir "$REMOTE_PATH/burn-in" \
-            --url http://127.0.0.1:8014 run
+          echo "3. Executing ONE single baseline authenticated DICOM conversion..."
+          sample_job_id=$(python3 -c "import uuid; print(uuid.uuid4())")
+          raw_json="$REMOTE_PATH/burn-in/fixtures/manifest.json"
+          prep_json="$RUNNER_TEMP/baseline_manifest.json"
+          python3 -c "import json, copy; m=json.load(open('$raw_json')); m['conversion_job_id']='$sample_job_id'; open('$prep_json','w').write(json.dumps(m))"
 
-          echo "Baseline functional DICOM check passed!"
+          resp_headers="$RUNNER_TEMP/baseline_headers.txt"
+          resp_body="$RUNNER_TEMP/baseline_output.dcm"
 
-      - name: Initial container resource snapshot
-        run: |
-          echo "=== INITIAL DOCKER CONTAINER RESOURCE SNAPSHOT ==="
-          docker stats --no-stream || true
-          echo "=== API CONTAINER INSPECT MEMORY & CPU ==="
-          docker inspect mpips-internal-beta-mpips-api-1 --format 'CPU: {{.HostConfig.NanoCpus}}, Mem: {{.HostConfig.Memory}}' || true
-          docker inspect mpips-internal-beta-redis-1 --format 'Redis Mem: {{.HostConfig.Memory}}' || true
+          status_code=$(curl -sS -D "$resp_headers" -o "$resp_body" -w '%{http_code}' \
+            -H "X-MPIPS-API-Key: $MPIPS_API_KEY" \
+            -F "radiograph_npz=@$REMOTE_PATH/burn-in/fixtures/radiograph.npz" \
+            -F "gain_npz=@$REMOTE_PATH/burn-in/fixtures/gain.npz" \
+            -F "manifest=@$prep_json" \
+            http://127.0.0.1:8014/v1/radiographs/dicom)
 
-      - name: Run production server performance measurement suite
+          if [ "$status_code" != "200" ]; then
+            echo "ERROR: Baseline conversion check failed with status $status_code (expected 200)."
+            cat "$resp_headers" || true
+            exit 1
+          fi
+
+          echo "4. Validating baseline returned DICOM..."
+          python3 -c "
+          import pydicom
+          ds = pydicom.dcmread('$resp_body')
+          assert ds.BitsAllocated == 16 and ds.PixelRepresentation == 0, 'Must be uint16'
+          assert not any(el.tag.is_private for el in ds.iterall()), 'No private tags'
+          print(f'Baseline DICOM Valid: {ds.Rows}x{ds.Columns} uint16, TransferSyntax={ds.file_meta.TransferSyntaxUID}')
+          "
+          echo "Baseline health & valid conversion gate PASSED!"
+
+      - name: Run production server performance measurement suite with background sampling
         run: |
           set -Eeuo pipefail
+
+          echo "Starting background resource sampler..."
+          LOG_FILE="performance-output/resource-samples.log"
+          {
+            echo "=== SERVER RESOURCE SAMPLING LOG ==="
+            echo "Start Time: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          } > "$LOG_FILE"
+
+          (
+            while true; do
+              {
+                echo "--- SAMPLE $(date -u +'%Y-%m-%dT%H:%M:%SZ') ---"
+                echo "LOAD: $(uptime)"
+                echo "MEM: $(free -h | grep Mem:)"
+                echo "DOCKER STATS:"
+                docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" || true
+                echo "RUNNING WORKERS: $(docker ps --filter 'name=mpips' --format '{{.Names}} ({{.Status}})' | tr '\n' ' ')"
+                echo ""
+              } >> "$LOG_FILE" 2>&1
+              sleep 2
+            done
+          ) &
+          SAMPLER_PID=$!
+
+          cleanup_sampler() {
+            echo "Stopping background resource sampler (PID $SAMPLER_PID)..."
+            kill "$SAMPLER_PID" || true
+            wait "$SAMPLER_PID" 2>/dev/null || true
+          }
+          trap cleanup_sampler EXIT
+
+          echo "Running benchmark measurement suite..."
           uv run python scripts/measure_dicom_performance.py \
             --url http://127.0.0.1:8014 \
+            --fixture-dir "$REMOTE_PATH/burn-in/fixtures" \
             --output-dir performance-output
 
-      - name: Post-benchmark container resource snapshot
-        run: |
-          echo "=== POST-BENCHMARK DOCKER CONTAINER RESOURCE SNAPSHOT ==="
-          docker stats --no-stream || true
-          free -h
-          uptime
+          cleanup_sampler
+          trap - EXIT
+          echo "Performance measurement suite completed successfully!"
 
       - name: Upload performance benchmark artifacts
         uses: actions/upload-artifact@v4

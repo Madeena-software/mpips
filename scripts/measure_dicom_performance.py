@@ -8,8 +8,8 @@ Must execute on the GitHub Actions self-hosted production runner
 from __future__ import annotations
 
 import argparse
-import csv
 import copy
+import csv
 import hashlib
 import json
 import math
@@ -167,6 +167,9 @@ class RequestResult:
     output_rows: Optional[int] = None
     output_cols: Optional[int] = None
     retry_after: Optional[str] = None
+    raw_manifest: Optional[bytes] = None
+    radiograph_bytes: Optional[bytes] = None
+    gain_bytes: Optional[bytes] = None
 
 
 class FakeIdempotencyService:
@@ -216,15 +219,20 @@ class FakeIdempotencyService:
 
 
 class PerformanceTester:
-    def __init__(self, url: str | None = None, api_key: str | None = None) -> None:
+    def __init__(
+        self,
+        url: str | None = None,
+        api_key: str | None = None,
+        fixture_dir: Path | None = None,
+    ) -> None:
         self.url = (url or "http://127.0.0.1:8014").rstrip("/")
         self.api_key = api_key or os.getenv("MPIPS_API_KEY", "")
         self.use_test_client = url is None and not self._is_server_up(self.url)
-        self.template = _manifest_template()
-        self.radiograph = _npz_bytes(radiograph=True)
-        self.gain = _npz_bytes(radiograph=False)
         self._test_client = None
         self.fake_idempotency = FakeIdempotencyService()
+
+        # Resolve fixture directory (production runtime or local synthetic fallback)
+        self.template, self.radiograph, self.gain = self._load_fixtures(fixture_dir)
 
         if self.use_test_client:
             self._setup_calibration_dir()
@@ -232,6 +240,42 @@ class PerformanceTester:
             from mpips.api.application import app
 
             self._test_client = TestClient(app)
+
+    def _load_fixtures(
+        self, fixture_dir: Path | None
+    ) -> Tuple[dict[str, Any], bytes, bytes]:
+        search_dirs: List[Path] = []
+        if fixture_dir:
+            search_dirs.append(fixture_dir)
+            search_dirs.append(fixture_dir / "fixtures")
+        search_dirs.extend(
+            [
+                Path("/var/www/mpips-runtime/burn-in/fixtures"),
+                Path("burn-in/fixtures"),
+                Path("fixtures"),
+            ]
+        )
+
+        for d in search_dirs:
+            rad_p = d / "radiograph.npz"
+            gain_p = d / "gain.npz"
+            man_p = d / "manifest.json"
+            if rad_p.is_file() and gain_p.is_file() and man_p.is_file():
+                try:
+                    tmpl = json.loads(man_p.read_text("utf-8"))
+                    rad_b = rad_p.read_bytes()
+                    gain_b = gain_p.read_bytes()
+                    print(f"Loaded production-shaped fixture from {d}")
+                    return tmpl, rad_b, gain_b
+                except Exception as ex:
+                    print(f"Warning: Failed to load fixture from {d}: {ex}")
+
+        print("Using synthetic local fixture (64x64 fallback)")
+        return (
+            _manifest_template(),
+            _npz_bytes(radiograph=True),
+            _npz_bytes(radiograph=False),
+        )
 
     def _setup_calibration_dir(self) -> None:
         if not os.getenv("MPIPS_CALIBRATION_ARTIFACT_DIR"):
@@ -258,6 +302,11 @@ class PerformanceTester:
             return r.status_code == 200
         except Exception:
             return False
+
+    def build_manifest_bytes(self, job_id: str | None = None) -> bytes:
+        return _with_files(
+            self.template, self.radiograph, self.gain, job_id=job_id or _uuid()
+        )
 
     def send_request(
         self,
@@ -314,7 +363,7 @@ class PerformanceTester:
                 content = res.content
                 resp_headers = res.headers
         else:
-            with httpx.Client(timeout=120.0, follow_redirects=False) as client:
+            with httpx.Client(timeout=360.0, follow_redirects=False) as client:
                 res = client.post(
                     f"{self.url}/v1/radiographs/dicom",
                     headers=headers,
@@ -340,6 +389,9 @@ class PerformanceTester:
             response_bytes=len(content),
             correlation_id=cid,
             retry_after=retry_after,
+            raw_manifest=raw_manifest,
+            radiograph_bytes=rad_bytes,
+            gain_bytes=gain_bytes,
         )
 
         if status_code == 200:
@@ -356,14 +408,12 @@ class PerformanceTester:
     def measure_sequential_latency(
         self, sample_count: int = 5
     ) -> Tuple[RequestResult, List[RequestResult]]:
-        warmup_manifest = _with_files(
-            self.template, self.radiograph, self.gain, job_id=_uuid()
-        )
+        warmup_manifest = self.build_manifest_bytes()
         warmup_res = self.send_request(warmup_manifest, phase="warmup")
 
         results: List[RequestResult] = []
         for _ in range(sample_count):
-            raw = _with_files(self.template, self.radiograph, self.gain, job_id=_uuid())
+            raw = self.build_manifest_bytes()
             res = self.send_request(raw, phase="single_sequential")
             results.append(res)
 
@@ -374,10 +424,7 @@ class PerformanceTester:
     ) -> List[List[RequestResult]]:
         batches: List[List[RequestResult]] = []
         for b_idx in range(batch_count):
-            manifests = [
-                _with_files(self.template, self.radiograph, self.gain, job_id=_uuid())
-                for _ in range(concurrency)
-            ]
+            manifests = [self.build_manifest_bytes() for _ in range(concurrency)]
             with ThreadPoolExecutor(max_workers=concurrency) as executor:
                 futures = [
                     executor.submit(self.send_request, m, f"conc2_batch_{b_idx+1}")
@@ -388,58 +435,56 @@ class PerformanceTester:
         return batches
 
     def measure_burst_admission(self, total_burst: int = 8) -> List[RequestResult]:
-        manifests = [
-            _with_files(self.template, self.radiograph, self.gain, job_id=_uuid())
-            for _ in range(total_burst)
-        ]
+        manifests = [self.build_manifest_bytes() for _ in range(total_burst)]
         with ThreadPoolExecutor(max_workers=total_burst) as executor:
             futures = [
                 executor.submit(self.send_request, m, "burst_8") for m in manifests
             ]
             return [f.result() for f in futures]
 
-    def measure_retry_sequence(self) -> Dict[str, Any]:
-        batch_manifests = [
-            _with_files(self.template, self.radiograph, self.gain, job_id=_uuid())
-            for _ in range(4)
-        ]
+    def measure_retry_sequence(
+        self, burst_results: List[RequestResult]
+    ) -> Dict[str, Any]:
+        # Identify an ACTUAL request from burst that returned 429
+        rejected_sample = next((r for r in burst_results if r.status_code == 429), None)
 
-        retry_job_id = _uuid()
-        target_manifest = _with_files(
-            self.template, self.radiograph, self.gain, job_id=retry_job_id
+        if not rejected_sample:
+            print("Notice: No 429 during burst; 429 retry not applicable.")
+            return {
+                "retry_test_not_applicable": True,
+                "total_user_visible_latency_seconds": None,
+            }
+
+        delay_seconds = float(rejected_sample.retry_after or "5")
+        j_id = rejected_sample.conversion_job_id
+        print(f"Deterministic 429 retry: waiting {delay_seconds}s for job {j_id}...")
+        time.sleep(delay_seconds)
+
+        retry_res = self.send_request(
+            rejected_sample.raw_manifest
+            or self.build_manifest_bytes(rejected_sample.conversion_job_id),
+            phase="retry_execution",
+            radiograph=rejected_sample.radiograph_bytes,
+            gain=rejected_sample.gain_bytes,
+            job_id=rejected_sample.conversion_job_id,
         )
+        total_time = time.perf_counter() - rejected_sample.start_time
 
-        start_time = time.perf_counter()
-        with ThreadPoolExecutor(max_workers=5) as executor:
-            futures = [
-                executor.submit(self.send_request, m, "retry_saturate")
-                for m in batch_manifests
-            ]
-            target_future = executor.submit(
-                self.send_request,
-                target_manifest,
-                "retry_initial",
-                None,
-                None,
-                retry_job_id,
-            )
+        clean_rej = asdict(rejected_sample)
+        clean_rej.pop("raw_manifest", None)
+        clean_rej.pop("radiograph_bytes", None)
+        clean_rej.pop("gain_bytes", None)
 
-            _ = [f.result() for f in futures]
-            first_res = target_future.result()
-
-        retry_res = None
-        if first_res.status_code == 429:
-            delay = float(first_res.retry_after or "5")
-            time.sleep(delay)
-            retry_res = self.send_request(
-                target_manifest, "retry_success", None, None, retry_job_id
-            )
-
-        total_time = time.perf_counter() - start_time
+        clean_ret = asdict(retry_res)
+        clean_ret.pop("raw_manifest", None)
+        clean_ret.pop("radiograph_bytes", None)
+        clean_ret.pop("gain_bytes", None)
 
         return {
-            "initial_rejection": asdict(first_res),
-            "retry_result": asdict(retry_res) if retry_res else None,
+            "retry_test_not_applicable": False,
+            "initial_rejection": clean_rej,
+            "retry_result": clean_ret,
+            "retry_status_code": retry_res.status_code,
             "total_user_visible_latency_seconds": round(total_time, 6),
         }
 
@@ -468,12 +513,58 @@ def stats_dict(latencies: List[float]) -> Dict[str, float]:
     }
 
 
+def model_queue_scenarios(
+    p50_service_time: float, total_burst: int = 8, concurrency: int = 2
+) -> Dict[str, Any]:
+    scenarios = {}
+    for queue_depth in (0, 2, 4, 6):
+        capacity = concurrency + queue_depth
+        admitted_immediate = min(total_burst, concurrency)
+        queued = min(max(0, total_burst - concurrency), queue_depth)
+        rejected = max(0, total_burst - capacity)
+
+        processing_waves = (
+            math.ceil((concurrency + queued) / concurrency)
+            if (concurrency + queued) > 0
+            else 0
+        )
+        max_queue_wait = (
+            (processing_waves - 1) * p50_service_time if processing_waves > 1 else 0.0
+        )
+        max_completion = processing_waves * p50_service_time
+
+        scenarios[f"QUEUE_DEPTH_{queue_depth}"] = {
+            "queue_depth": queue_depth,
+            "immediately_processing": admitted_immediate,
+            "queued": queued,
+            "rejected": rejected,
+            "processing_waves": processing_waves,
+            "estimated_max_queue_wait_seconds": round(max_queue_wait, 4),
+            "estimated_max_completion_seconds": round(max_completion, 4),
+        }
+    return scenarios
+
+
+def clean_sample_dict(sample: RequestResult) -> Dict[str, Any]:
+    d = asdict(sample)
+    d.pop("raw_manifest", None)
+    d.pop("radiograph_bytes", None)
+    d.pop("gain_bytes", None)
+    return d
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument(
         "--url",
         default="http://127.0.0.1:8014",
         help="Target API URL (default: http://127.0.0.1:8014)",
+    )
+    parser.add_argument(
+        "--fixture-dir",
+        type=Path,
+        default=None,
+        help="Path to prepared production fixtures directory",
     )
     parser.add_argument(
         "--output-dir",
@@ -484,7 +575,7 @@ def main() -> int:
     args = parser.parse_args()
 
     print("Starting MPIPS Production Server Performance Suite...")
-    tester = PerformanceTester(args.url)
+    tester = PerformanceTester(args.url, fixture_dir=args.fixture_dir)
     exec_loc = (
         "github-actions-self-hosted-production"
         if not tester.use_test_client
@@ -495,7 +586,7 @@ def main() -> int:
 
     all_request_samples: List[RequestResult] = []
 
-    # Phase 5: Sequential Latency
+    # Phase A: Sequential Latency
     print("Executing Phase A: Single-conversion sequential latency...")
     warmup, sequential_results = tester.measure_sequential_latency(sample_count=5)
     all_request_samples.append(warmup)
@@ -506,7 +597,7 @@ def main() -> int:
     ]
     seq_stats = stats_dict(seq_latencies)
 
-    # Phase 6: Concurrency=2 Batches
+    # Phase B: Concurrency=2 Batches
     print("Executing Phase B: Concurrency=2 throughput batches...")
     conc2_batches = tester.measure_concurrency_batches(batch_count=3, concurrency=2)
     for batch in conc2_batches:
@@ -526,7 +617,7 @@ def main() -> int:
     )
     est_throughput_ph = obs_throughput_pm * 60.0
 
-    # Phase 7: Burst Admission Test
+    # Phase C: Burst Admission Test
     print("Executing Phase C: 8-request burst admission...")
     burst_results = tester.measure_burst_admission(total_burst=8)
     all_request_samples.extend(burst_results)
@@ -538,13 +629,18 @@ def main() -> int:
         r.latency_seconds for r in burst_results if r.status_code == 429
     ]
 
-    # Phase 8: Retry Sequence
-    print("Executing Phase D: 429 retry sequence cost...")
-    retry_info = tester.measure_retry_sequence()
+    # Phase D: Retry Sequence (Deterministic 429 Retry)
+    print("Executing Phase D: Deterministic 429 retry sequence cost...")
+    retry_info = tester.measure_retry_sequence(burst_results)
 
+    # Queue Modeling
+    p50_service_time = seq_stats.get("p50", 2.35)
+    queue_models = model_queue_scenarios(p50_service_time)
+
+    # Representative Fixture Reporting
     kambing_rad = Path("research/kambing-260714/data/kambing/BED_1783222264263.npz")
     kambing_gain = Path("research/kambing-260714/data/gain/BED_1783219207291.npz")
-    rep_fixture_tested = kambing_rad.exists() and kambing_gain.exists()
+    rep_fixture_avail = kambing_rad.exists() and kambing_gain.exists()
 
     report_full = {
         "starting_head": os.getenv(
@@ -555,15 +651,18 @@ def main() -> int:
         "performance_execution_location": exec_loc,
         "local_wsl_measurements_used": False,
         "synthetic_fixture_tested": True,
-        "representative_fixture_tested": rep_fixture_tested,
+        "representative_fixture_available": rep_fixture_avail,
+        "representative_fixture_tested": False,
         "single_request_latency": {
-            "warmup": asdict(warmup),
+            "warmup": clean_sample_dict(warmup),
             "stats": seq_stats,
-            "samples": [asdict(r) for r in sequential_results],
+            "samples": [clean_sample_dict(r) for r in sequential_results],
         },
         "concurrency_2_results": {
             "stats": conc2_stats,
-            "batches": [[asdict(r) for r in batch] for batch in conc2_batches],
+            "batches": [
+                [clean_sample_dict(r) for r in batch] for batch in conc2_batches
+            ],
             "observed_throughput_per_minute": round(obs_throughput_pm, 2),
             "estimated_throughput_per_hour": round(est_throughput_ph, 2),
         },
@@ -573,9 +672,10 @@ def main() -> int:
             "rejected_429": burst_429,
             "unexpected_5xx": burst_5xx,
             "rejection_latency_stats": stats_dict(burst_429_latencies),
-            "samples": [asdict(r) for r in burst_results],
+            "samples": [clean_sample_dict(r) for r in burst_results],
         },
         "retry_sequence_cost": retry_info,
+        "queue_modeling": queue_models,
         "capacity_envelope": {
             "current_concurrency": 2,
             "single_conversion_p50_seconds": seq_stats.get("p50", 0.0),
