@@ -376,6 +376,7 @@ def run_isolated_dicom_conversion(
             clean_env = {
                 "LANG": "C.UTF-8",
                 "LC_ALL": "C.UTF-8",
+                "PATH": os.getenv("PATH", ""),
                 "PYTHONPATH": os.pathsep.join(sys.path),
                 "MPIPS_DICOM_WORKER_CPU_SECONDS": os.getenv(
                     "MPIPS_DICOM_WORKER_CPU_SECONDS", "120"
@@ -384,6 +385,8 @@ def run_isolated_dicom_conversion(
                     "MPIPS_DICOM_WORKER_MEMORY_BYTES", str(2 * 1024 * 1024 * 1024)
                 ),
             }
+            if "VIRTUAL_ENV" in os.environ:
+                clean_env["VIRTUAL_ENV"] = os.environ["VIRTUAL_ENV"]
 
             cmd = [
                 sys.executable,
@@ -397,11 +400,13 @@ def run_isolated_dicom_conversion(
                 proc = subprocess.Popen(
                     cmd,
                     start_new_session=True,
-                    stdout=subprocess.DEVNULL,
-                    stderr=subprocess.DEVNULL,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
                     env=clean_env,
                 )
-                proc.communicate(timeout=timeout_seconds)
+                _, stderr = proc.communicate(timeout=timeout_seconds)
+                if stderr and not result_path.exists():
+                    sys.stderr.write(f"Worker process stderr: {stderr.decode('utf-8', errors='replace')}\n")
             except subprocess.TimeoutExpired:
                 if proc.pid:
                     try:
