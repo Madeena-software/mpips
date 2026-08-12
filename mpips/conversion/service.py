@@ -372,26 +372,21 @@ def run_isolated_dicom_conversion(
                     detail="CONVERSION_WORKER_FAILURE",
                 ) from exc
         else:
-            # Development/test adapter with empty environment
-            clean_env = {
-                "LANG": "C.UTF-8",
-                "LC_ALL": "C.UTF-8",
-                "PATH": os.getenv("PATH", ""),
-                "MPIPS_DICOM_WORKER_CPU_SECONDS": os.getenv(
-                    "MPIPS_DICOM_WORKER_CPU_SECONDS", "120"
-                ),
-                "MPIPS_DICOM_WORKER_MEMORY_BYTES": os.getenv(
-                    "MPIPS_DICOM_WORKER_MEMORY_BYTES", str(2 * 1024 * 1024 * 1024)
-                ),
-            }
-            if "VIRTUAL_ENV" in os.environ:
-                clean_env["VIRTUAL_ENV"] = os.environ["VIRTUAL_ENV"]
-            if "PYTHONPATH" in os.environ:
-                clean_env["PYTHONPATH"] = os.environ["PYTHONPATH"]
-            if "LD_LIBRARY_PATH" in os.environ:
-                clean_env["LD_LIBRARY_PATH"] = os.environ["LD_LIBRARY_PATH"]
-            if "LIBRARY_PATH" in os.environ:
-                clean_env["LIBRARY_PATH"] = os.environ["LIBRARY_PATH"]
+            # Development/test adapter inheriting environment
+            clean_env = dict(os.environ)
+            clean_env.update(
+                {
+                    "LANG": "C.UTF-8",
+                    "LC_ALL": "C.UTF-8",
+                    "MPIPS_DICOM_WORKER_CPU_SECONDS": os.getenv(
+                        "MPIPS_DICOM_WORKER_CPU_SECONDS", "120"
+                    ),
+                    "MPIPS_DICOM_WORKER_MEMORY_BYTES": os.getenv(
+                        "MPIPS_DICOM_WORKER_MEMORY_BYTES",
+                        str(2 * 1024 * 1024 * 1024),
+                    ),
+                }
+            )
 
             venv_python = Path(sys.prefix) / "bin" / "python"
             python_bin = str(venv_python) if venv_python.exists() else sys.executable
