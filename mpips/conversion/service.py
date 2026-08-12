@@ -269,7 +269,7 @@ def run_isolated_dicom_conversion(
     workspace_base = Path(root_str)
     try:
         workspace_base.mkdir(parents=True, exist_ok=True)
-        os.chmod(workspace_base, 0o700)
+        os.chmod(workspace_base, 0o755)
     except PermissionError as exc:
         if env_mode == "production":
             raise RuntimeError(
@@ -284,11 +284,11 @@ def run_isolated_dicom_conversion(
             dir=workspace_base,
         )
     )
-    os.chmod(workspace_dir, 0o700)
+    os.chmod(workspace_dir, 0o755)
 
     output_dir = workspace_dir / "output"
     output_dir.mkdir(parents=True, exist_ok=True)
-    os.chmod(output_dir, 0o700)
+    os.chmod(output_dir, 0o777)
 
     try:
         # Copy input files to private workspace with fixed names
@@ -296,8 +296,8 @@ def run_isolated_dicom_conversion(
         input_gain = workspace_dir / "gain.npz"
         shutil.copyfile(radiograph_npz_path, input_rad)
         shutil.copyfile(gain_npz_path, input_gain)
-        os.chmod(input_rad, 0o400)
-        os.chmod(input_gain, 0o400)
+        os.chmod(input_rad, 0o444)
+        os.chmod(input_gain, 0o444)
 
         # Stage calibration artifact into worker workspace read-only
         staged_cal_dir = workspace_dir / "calibration"
@@ -306,17 +306,17 @@ def run_isolated_dicom_conversion(
             if item.is_file():
                 dest = staged_cal_dir / item.name
                 shutil.copyfile(item, dest)
-                os.chmod(dest, 0o400)
+                os.chmod(dest, 0o444)
             elif item.is_dir():
                 dest_dir = staged_cal_dir / item.name
                 shutil.copytree(item, dest_dir)
                 for root, dirs, files in os.walk(dest_dir):
                     for d in dirs:
-                        os.chmod(Path(root) / d, 0o500)
+                        os.chmod(Path(root) / d, 0o555)
                     for f in files:
-                        os.chmod(Path(root) / f, 0o400)
-                os.chmod(dest_dir, 0o500)
-        os.chmod(staged_cal_dir, 0o500)
+                        os.chmod(Path(root) / f, 0o444)
+                os.chmod(dest_dir, 0o555)
+        os.chmod(staged_cal_dir, 0o555)
 
         output_tiff = output_dir / "processed.tiff"
         result_path = output_dir / "worker-result.json"
@@ -341,7 +341,7 @@ def run_isolated_dicom_conversion(
         args_path = workspace_dir / "args.json"
         with args_path.open("w", encoding="utf-8") as f_args:
             json.dump(args_data, f_args)
-        os.chmod(args_path, 0o400)
+        os.chmod(args_path, 0o444)
 
         stderr_str = ""
         # Launch worker
