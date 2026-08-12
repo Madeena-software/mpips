@@ -2,7 +2,7 @@
 title: Trigger and verify production internal-beta deployment
 document_id: TASK-MPIPS-PROD-DEPLOY-LIVE-001
 version: 2.0
-status: Validated/Published
+status: Superseded
 language: en-US
 last_updated: 2026-08-12
 ---
