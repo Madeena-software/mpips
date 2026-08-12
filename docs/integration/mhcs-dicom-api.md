@@ -112,11 +112,11 @@ The request body MUST be formatted as `multipart/form-data` containing exactly t
 | Form Field Name | Required Data Type | Filename Convention | Max Allowed Size | Description |
 |---|---|---|---|---|
 | `radiograph_npz` | Binary file (`UploadFile`) | `radiograph.npz` | `100 MiB` (`104,857,600` B) | Compressed NumPy NPZ archive containing raw radiograph image array. |
-| `gain_npz` | Binary file (`UploadFile`) | `gain.npz` | `50 MiB` (`52,428,800` B) | Compressed NumPy NPZ archive containing flat-field gain calibration array. |
-| `manifest` | JSON file (`UploadFile`) | `manifest.json` | `1 MiB` (`1,048,576` B) | UTF-8 encoded JSON document conforming to `MHCSManifest` schema. |
+| `gain_npz` | Binary file (`UploadFile`) | `gain.npz` | `100 MiB` (`104,857,600` B) | Compressed NumPy NPZ archive containing flat-field gain calibration array. |
+| `manifest` | JSON file (`UploadFile`) | `manifest.json` | `100 MiB` (`104,857,600` B) | UTF-8 encoded JSON document conforming to `MHCSManifest` schema. |
 
 ### Global Upload Limits
-- **Max Total Request Body Size:** `100 MiB` (`104,857,600` bytes via `MPIPS_DICOM_MAX_TOTAL_BYTES`, or `110,100,480` bytes HTTP body limit).
+- **Max Total Request Body Size:** `300 MiB` (`314,572,800` bytes via `MPIPS_DICOM_MAX_TOTAL_BYTES`, or `325,058,560` bytes HTTP body limit).
 - Exceeding any individual field limit or total payload size returns `HTTP 413 Payload Too Large` with body `{"detail": "UPLOAD_SIZE_EXCEEDED"}`.
 
 ---

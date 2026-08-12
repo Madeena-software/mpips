@@ -40,17 +40,17 @@ def _validate_production_configuration() -> None:
     # Upload limits & numeric checks
     try:
         max_manifest = int(
-            os.getenv("MPIPS_DICOM_MAX_MANIFEST_BYTES", str(1 * 1024 * 1024))
+            os.getenv("MPIPS_DICOM_MAX_MANIFEST_BYTES", str(100 * 1024 * 1024))
         )
         max_rad = int(
             os.getenv("MPIPS_DICOM_MAX_RADIOGRAPH_BYTES", str(100 * 1024 * 1024))
         )
-        max_gain = int(os.getenv("MPIPS_DICOM_MAX_GAIN_BYTES", str(50 * 1024 * 1024)))
+        max_gain = int(os.getenv("MPIPS_DICOM_MAX_GAIN_BYTES", str(100 * 1024 * 1024)))
         max_total = int(
-            os.getenv("MPIPS_DICOM_MAX_TOTAL_BYTES", str(100 * 1024 * 1024))
+            os.getenv("MPIPS_DICOM_MAX_TOTAL_BYTES", str(300 * 1024 * 1024))
         )
         body_limit = int(
-            os.getenv("MPIPS_MAX_HTTP_REQUEST_BODY_BYTES", str(105 * 1024 * 1024))
+            os.getenv("MPIPS_MAX_HTTP_REQUEST_BODY_BYTES", str(310 * 1024 * 1024))
         )
         process_timeout = int(os.getenv("MPIPS_DICOM_PROCESS_TIMEOUT_SECONDS", "300"))
         idempotency_ttl = int(os.getenv("MPIPS_DICOM_IDEMPOTENCY_TTL_SECONDS", "86400"))

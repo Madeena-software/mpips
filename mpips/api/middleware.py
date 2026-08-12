@@ -10,13 +10,13 @@ from starlette.middleware.base import BaseHTTPMiddleware
 def get_max_request_body_bytes() -> int:
     try:
         limit = int(
-            os.getenv("MPIPS_MAX_HTTP_REQUEST_BODY_BYTES", str(105 * 1024 * 1024))
+            os.getenv("MPIPS_MAX_HTTP_REQUEST_BODY_BYTES", str(310 * 1024 * 1024))
         )
         if limit <= 0:
-            return 105 * 1024 * 1024
+            return 310 * 1024 * 1024
         return limit
     except ValueError:
-        return 105 * 1024 * 1024
+        return 310 * 1024 * 1024
 
 
 class RequestBodySizeLimitMiddleware(BaseHTTPMiddleware):

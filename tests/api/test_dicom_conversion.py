@@ -304,11 +304,32 @@ def test_production_startup_validation_accepts_fixed_key_configuration(
     _validate_production_configuration()
 
 
+def test_default_manifest_upload_limit_is_100_mib(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MPIPS_DICOM_MAX_MANIFEST_BYTES", raising=False)
+    assert _get_upload_limits()[0] == 100 * 1024 * 1024
+
+
 def test_default_radiograph_upload_limit_is_100_mib(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.delenv("MPIPS_DICOM_MAX_RADIOGRAPH_BYTES", raising=False)
     assert _get_upload_limits()[1] == 100 * 1024 * 1024
+
+
+def test_default_gain_upload_limit_is_100_mib(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MPIPS_DICOM_MAX_GAIN_BYTES", raising=False)
+    assert _get_upload_limits()[2] == 100 * 1024 * 1024
+
+
+def test_default_total_upload_limit_is_300_mib(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("MPIPS_DICOM_MAX_TOTAL_BYTES", raising=False)
+    assert _get_upload_limits()[3] == 300 * 1024 * 1024
 
 
 # ── 5. OpenAPI Privacy Audit Test ────────────────────────────────────

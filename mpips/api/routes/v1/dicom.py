@@ -48,37 +48,37 @@ def get_concurrency_limiter() -> anyio.CapacityLimiter:
 def _get_upload_limits() -> tuple[int, int, int, int]:
     try:
         max_manifest = int(
-            os.getenv("MPIPS_DICOM_MAX_MANIFEST_BYTES", str(1 * 1024 * 1024))
+            os.getenv("MPIPS_DICOM_MAX_MANIFEST_BYTES", str(100 * 1024 * 1024))
         )
         if max_manifest <= 0:
-            max_manifest = 1 * 1024 * 1024
+            max_manifest = 100 * 1024 * 1024
     except ValueError:
-        max_manifest = 1 * 1024 * 1024
+        max_manifest = 100 * 1024 * 1024
 
     try:
         max_rad = int(
             os.getenv("MPIPS_DICOM_MAX_RADIOGRAPH_BYTES", str(100 * 1024 * 1024))
         )
         if max_rad <= 0:
-            max_rad = 50 * 1024 * 1024
+            max_rad = 100 * 1024 * 1024
     except ValueError:
-        max_rad = 50 * 1024 * 1024
+        max_rad = 100 * 1024 * 1024
 
     try:
-        max_gain = int(os.getenv("MPIPS_DICOM_MAX_GAIN_BYTES", str(50 * 1024 * 1024)))
+        max_gain = int(os.getenv("MPIPS_DICOM_MAX_GAIN_BYTES", str(100 * 1024 * 1024)))
         if max_gain <= 0:
-            max_gain = 50 * 1024 * 1024
+            max_gain = 100 * 1024 * 1024
     except ValueError:
-        max_gain = 50 * 1024 * 1024
+        max_gain = 100 * 1024 * 1024
 
     try:
         max_total = int(
-            os.getenv("MPIPS_DICOM_MAX_TOTAL_BYTES", str(100 * 1024 * 1024))
+            os.getenv("MPIPS_DICOM_MAX_TOTAL_BYTES", str(300 * 1024 * 1024))
         )
         if max_total <= 0:
-            max_total = 100 * 1024 * 1024
+            max_total = 300 * 1024 * 1024
     except ValueError:
-        max_total = 100 * 1024 * 1024
+        max_total = 300 * 1024 * 1024
 
     return max_manifest, max_rad, max_gain, max_total
 
