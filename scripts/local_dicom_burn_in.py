@@ -245,6 +245,17 @@ class BurnIn:
             for path in Path("/tmp/mpips-workspaces").glob("job-*")
             if path.is_dir()
         }
+        self.target_shape = SHAPE
+        cal_meta_file = base / "calibration" / "metadata.json"
+        if not cal_meta_file.is_file():
+            cal_meta_file = base.parent / "calibration" / "metadata.json"
+        if cal_meta_file.is_file():
+            try:
+                meta = json.loads(cal_meta_file.read_text("utf-8"))
+                if "image_shape" in meta and len(meta["image_shape"]) == 2:
+                    self.target_shape = tuple(meta["image_shape"])
+            except Exception:
+                pass
 
     def close(self) -> None:
         self.client.close()
@@ -368,14 +379,14 @@ class BurnIn:
         assert dataset.file_meta.TransferSyntaxUID == ExplicitVRLittleEndian
         assert dataset.SOPInstanceUID == manifest.dicom.sop_instance_uid
         assert dataset.PatientID == manifest.patient.medical_record_number
-        assert dataset.Rows == SHAPE[0] and dataset.Columns == SHAPE[1]
+        assert dataset.Rows == self.target_shape[0] and dataset.Columns == self.target_shape[1]
         assert dataset.BitsAllocated == 16 and dataset.PixelRepresentation == 0
         assert dataset.BurnedInAnnotation == "NO"
         assert dataset.LossyImageCompression == "00"
         assert dataset.pixel_array.dtype == np.uint16
         assert not any(element.tag.is_private for element in dataset.iterall())
-        assert validate_dicom_dataset(path, manifest, SHAPE).get("valid") is True
-        print("valid DICOM: explicit-vr-little-endian, 64x64 uint16, no private tags")
+        assert validate_dicom_dataset(path, manifest, self.target_shape).get("valid") is True
+        print(f"valid DICOM: explicit-vr-little-endian, {self.target_shape[0]}x{self.target_shape[1]} uint16, no private tags")
 
     def idempotency_cases(self) -> None:
         raw = _with_files(self.template, self.radiograph, self.gain, job_id=_uuid())
