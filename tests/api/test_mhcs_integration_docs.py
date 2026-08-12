@@ -36,3 +36,7 @@ def test_mhcs_integration_doc_exists_and_is_populated() -> None:
     assert "MHCS INTEGRATION CONTRACT & IMPLEMENTATION GUIDE" in content
     assert "POST /v1/radiographs/dicom" in content
     assert "CONCURRENCY_LIMIT_EXCEEDED" in content
+    assert "PROPOSED_MHCS_RETRY_POLICY" in content
+    assert "MHCS_HTTP_TIMEOUT_UNKNOWN=true" in content
+    assert "NPZ_UNTRUSTED_INPUT_SECURITY_POSTURE=OPEN" in content
+    assert "SUCCEEDED_SAME" in content

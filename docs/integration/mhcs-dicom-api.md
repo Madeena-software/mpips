@@ -3,8 +3,8 @@
 **Repository:** [MPIPS](https://github.com/Madeena-software/mpips)  
 **Target Consumer:** `mhcs-core` (Madeena Health Care Services)  
 **API Surface:** Synchronous DICOM Conversion Endpoint (`POST /v1/radiographs/dicom`)  
-**Contract Version:** 1.0  
-**Baseline Commit SHA:** `7acf893cf98ba6be89e371aaf3c023dcfae831ff`  
+**Contract Version:** 1.1  
+**Baseline Commit SHA:** `cb58c662817e651363df43fe591d60d26ba5c741`  
 **Document Status:** Authoritative Integration Contract  
 
 ---
@@ -125,20 +125,24 @@ The request body MUST be formatted as `multipart/form-data` containing exactly t
 
 The `manifest` field MUST be a valid JSON object strictly adhering to Pydantic schema version `1.0`. Extra fields are forbidden (`extra="forbid"`).
 
+> [!WARNING]
+> **SYNTHETIC MANIFEST SAFETY NOTICE:**  
+> The provided example manifest (`mhcs-dicom-manifest.example.json`) is a **schema-valid synthetic manifest example**. Its `byte_size` and `sha256` fields are illustrative. Before submitting a real request, MHCS MUST calculate the exact byte size and SHA-256 hex digest of the raw NPZ files being uploaded, otherwise MPIPS will reject the request with `422 NPZ_VALIDATION_ERROR`.
+
 ### Root Object (`MHCSManifest`)
 
 | Field | Type | Required | Ownership | Retry Stability | Description / Validation |
 |---|---|---|---|---|---|
-| `manifest_version` | String | Yes | MHCS | Stable | Must be exactly `"1.0"`. |
+| `manifest_version` | String | Yes | MHCS | **STABLE** | Must be exactly `"1.0"`. |
 | `conversion_job_id` | UUID (str) | Yes | MHCS | **STABLE** | Unique logical job ID. **MUST be preserved across all retries.** |
-| `submission_id` | UUID (str) | Yes | MHCS | Stable | ID of the specific upload submission attempt. |
-| `correlation_id` | UUID (str) | Yes | MHCS | Stable | Distributed tracing correlation ID. Returned in response header. |
-| `examination` | Object | Yes | MHCS | Stable | Examination & scheduling metadata (`ExaminationSchema`). |
-| `patient` | Object | Yes | MHCS | Stable | Patient demographic metadata (`PatientSchema`). |
-| `operator` | Object | Yes | MHCS | Stable | Radiographer/operator metadata (`OperatorSchema`). |
-| `site` | Object | Yes | MHCS | Stable | Imaging site & station metadata (`SiteSchema`). |
-| `capture` | Object | Yes | MHCS | Stable | Image capture technical metadata & file hashes (`CaptureSchema`). |
-| `dicom` | Object | Yes | MHCS | Stable | DICOM UIDs and target attributes (`DICOMManifestSchema`). |
+| `submission_id` | UUID (str) | Yes | MHCS | **STABLE** | Submission ID of the logical conversion. **MUST NOT be mutated per retry attempt.** |
+| `correlation_id` | UUID (str) | Yes | MHCS | **STABLE** | Distributed tracing correlation ID. Returned in response header. |
+| `examination` | Object | Yes | MHCS | **STABLE** | Examination & scheduling metadata (`ExaminationSchema`). |
+| `patient` | Object | Yes | MHCS | **STABLE** | Patient demographic metadata (`PatientSchema`). |
+| `operator` | Object | Yes | MHCS | **STABLE** | Radiographer/operator metadata (`OperatorSchema`). |
+| `site` | Object | Yes | MHCS | **STABLE** | Imaging site & station metadata (`SiteSchema`). |
+| `capture` | Object | Yes | MHCS | **STABLE** | Image capture technical metadata & file hashes (`CaptureSchema`). |
+| `dicom` | Object | Yes | MHCS | **STABLE** | DICOM UIDs and target attributes (`DICOMManifestSchema`). |
 
 ---
 
@@ -179,7 +183,7 @@ The `manifest` field MUST be a valid JSON object strictly adhering to Pydantic s
 #### `capture` (`CaptureSchema`)
 - `capture_id` (str, 1–64 chars): Unique image capture identifier. Used to generate response file name (`<safe_capture_id>.dcm`).
 - `protocol_version` (str, 1–64 chars): Hardware/software capture protocol version.
-- `body_part_examined` (str, 1–16 chars): Body part examined (DICOM `(018,0015)`, e.g., `"CHEST"`).
+- `body_part_examined` (str, 1–16 chars): Body part examined (DICOM `(0018,0015)`, e.g., `"CHEST"`).
 - `laterality` (str): Enum `["R", "L", "U", "B"]` (Right, Left, Unpaired, Both; DICOM `(0020,0060)`).
 - `projection` (str, 1–16 chars): Projection view (e.g., `"PA"`, `"AP"`, `"LATERAL"`).
 - `captured_at` (datetime string): Timestamp of exposure with explicit timezone offset.
@@ -207,7 +211,32 @@ The `manifest` field MUST be a valid JSON object strictly adhering to Pydantic s
 
 ---
 
-## 7. File Integrity Contract
+## 7. Retry Identity & Payload Stability Contract
+
+> [!CRITICAL]
+> **FULL PAYLOAD STABILITY REQUIREMENT ON RETRY:**  
+> The MPIPS Redis idempotency fingerprint (`fp`) is calculated from:
+> $$\text{fp} = \text{SHA256}(\text{tenant\_id} + \text{manifest\_version} + \text{conversion\_job\_id} + \text{canonical\_manifest\_json} + \text{radiograph\_sha256} + \text{gain\_sha256})$$
+>
+> Because `canonical_manifest_json` includes the entire JSON payload, **mutating ANY field in the manifest between retries of the SAME logical request changes the fingerprint**.
+>
+> Changing `submission_id` or `correlation_id` on a retry will cause:
+> 1. `HTTP 409 IDEMPOTENCY_CONFLICT` (if a previous attempt succeeded).
+> 2. Re-claiming the job under a different fingerprint (if previous attempt failed/timed out), breaking execution idempotency.
+
+### Retry Field Preservation Checklist
+When retrying a transiently failed request (e.g. on HTTP 429, 503, timeout, or network drop), MHCS **MUST PRESERVE IDENTICAL VALUES** for:
+- `conversion_job_id`
+- `submission_id` (Do NOT increment or mutate per retry attempt; retry attempt numbers belong strictly in MHCS client logs/telemetry)
+- `correlation_id`
+- All `examination`, `patient`, `operator`, `site`, `capture`, and `dicom` metadata
+- Exact `radiograph_npz` and `gain_npz` file bytes, byte sizes, and SHA-256 hex digests
+
+A new `conversion_job_id` and new manifest identity should only be generated for a **genuinely new logical conversion attempt**.
+
+---
+
+## 8. File Integrity Contract
 
 MPIPS streams and validates uploaded files against the manifest before initiating conversion:
 
@@ -215,19 +244,16 @@ MPIPS streams and validates uploaded files against the manifest before initiatin
 2. **SHA-256 Digest Verification:** MPIPS computes the streaming SHA-256 of `radiograph_npz` and `gain_npz`. The lower-case hex output must match `manifest.capture.radiograph.sha256` and `manifest.capture.gain.sha256` character-for-character.
 3. **Validation Failure Response:** Mismatch in size or hash immediately aborts processing and returns `HTTP 422 Unprocessable Entity` with `{"detail": "NPZ_VALIDATION_ERROR"}`.
 
-### Client Responsibility
-MHCS MUST compute the exact file byte size and SHA-256 checksum of raw file bytes prior to constructing the JSON manifest. When retrying a request, MHCS MUST send the identical file bytes and matching manifest checksums.
-
 ---
 
-## 8. DICOM Identifier Ownership
+## 9. DICOM Identifier Ownership
 
 - **Ownership:** MHCS owns the allocation and assignment of DICOM UIDs (`StudyInstanceUID`, `SeriesInstanceUID`, `SOPInstanceUID`), `SeriesNumber`, and `InstanceNumber`. MPIPS does **not** auto-generate or overwrite DICOM UIDs provided in the manifest.
 - **Retry Rule:** For retries of the SAME conversion job, MHCS MUST preserve the identical `study_instance_uid`, `series_instance_uid`, and `sop_instance_uid`. Regenerating UIDs on retry breaks DICOM study structure and idempotency indexing in PACS.
 
 ---
 
-## 9. Success Response Specification
+## 10. Success Response Specification
 
 When conversion succeeds, MPIPS returns a binary DICOM file.
 
@@ -241,7 +267,7 @@ When conversion succeeds, MPIPS returns a binary DICOM file.
 
 ---
 
-## 10. Error Contract
+## 11. Error Contract
 
 Error responses return structured JSON with an explicit error detail code:
 
@@ -251,11 +277,14 @@ Error responses return structured JSON with an explicit error detail code:
 }
 ```
 
+> [!NOTE]
+> `HTTP 400 Bad Request` is framework-dependent (FastAPI / Starlette multipart parsing or missing request boundary) and does not promise a specific application detail string. MHCS should treat HTTP 400 as a terminal request-construction error.
+
 ### Complete Error Code Reference
 
 | Status Code | Detail Code (`detail`) | Root Cause | Client Retryability |
 |---|---|---|---|
-| **400** | `BAD_REQUEST` | Malformed multipart body or invalid request headers. | No |
+| **400** | Framework dependent | Malformed multipart structure or invalid request boundary. | No (terminal error) |
 | **401** | `INVALID_API_KEY` | Missing, empty, or mismatched `X-MPIPS-API-Key`. | No |
 | **409** | `IDEMPOTENCY_IN_PROGRESS` | Another request with the same `conversion_job_id` is currently converting. | **Yes** (exponential backoff) |
 | **409** | `IDEMPOTENCY_CONFLICT` | Payload/fingerprint mismatch for an existing `conversion_job_id`. | No (data error) |
@@ -270,112 +299,99 @@ Error responses return structured JSON with an explicit error detail code:
 
 ---
 
-## 11. Complete Error & Retry Matrix
+## 12. Complete Error & Retry Matrix
 
-| Status | Detail Code | Meaning | Retryable by MHCS? | Preserve `conversion_job_id`? | Recommended MHCS Action | Operator / Dev Action |
+| Status | Detail Code | Meaning | Retryable by MHCS? | Preserve Full Payload & `conversion_job_id`? | Recommended MHCS Action | Operator / Dev Action |
 |---|---|---|---|---|---|---|
 | `200` | None | Success | No | N/A | Store/forward DICOM file. | None. |
-| `400` | `BAD_REQUEST` | Malformed multipart structure | No | No | Surface integration bug. Do not retry. | Audit client HTTP multipart encoding. |
+| `400` | Framework dep. | Malformed multipart | No | No | Surface integration bug. Do not retry. | Audit client HTTP multipart encoding. |
 | `401` | `INVALID_API_KEY` | Authentication failure | No | No | Halt execution. Alert configuration. | Verify `MPIPS_API_KEY` secret configuration. |
-| `409` | `IDEMPOTENCY_IN_PROGRESS` | Job already active | **Yes** | **YES** | Backoff and poll/retry with SAME `conversion_job_id`. | Monitor Redis lease TTL. |
-| `409` | `IDEMPOTENCY_CONFLICT` | Payload mismatch | No | No | Terminal data error. Generate NEW job ID if payload changed. | Check MHCS job ID generation logic. |
+| `409` | `IDEMPOTENCY_IN_PROGRESS` | Job already active | **Yes** | **YES** | Backoff and retry with IDENTICAL payload. | Monitor Redis lease TTL. |
+| `409` | `IDEMPOTENCY_CONFLICT` | Payload mismatch | No | No | Terminal data error. Generate NEW job ID if payload changed. | Check MHCS job ID & payload generation logic. |
 | `413` | `UPLOAD_SIZE_EXCEEDED` | Payload size limit exceeded | No | No | Reject capture at MHCS side. | Check NPZ file compression / sizing. |
 | `422` | `MANIFEST_SCHEMA_INVALID` | Schema validation error | No | No | Fix JSON manifest formatting. | Verify schema against `MHCSManifest`. |
 | `422` | `NPZ_VALIDATION_ERROR` | Byte/SHA-256 mismatch | No | No | Re-compute file byte size and SHA-256. | Audit manifest builder hash calculation. |
 | `429` | `CONCURRENCY_LIMIT_EXCEEDED` | Transient backpressure | **Yes** | **YES** | **Apply exponential backoff with full jitter.** | Monitor MPIPS concurrency capacity. |
-| `503` | `IDEMPOTENCY_STORAGE_` | Redis unavailable | **Yes** | **YES** | Apply exponential backoff. Retry. | Check Redis cluster health. |
+| `503` | `IDEMPOTENCY_STORAGE_...` | Redis unavailable | **Yes** | **YES** | Apply exponential backoff. Retry. | Check Redis cluster health. |
 | `504` | `CONVERSION_TIMEOUT` | Process timed out (>300s) | **Yes** | **YES** | Bounded retry after timeout window. | Check worker container CPU/memory limits. |
-| `Net Err` | N/A | Socket/HTTP timeout | **Yes** | **YES** | Retry request with SAME `conversion_job_id`. | Inspect ingress network connectivity. |
+| `Net Err` | N/A | Socket/HTTP timeout | **Yes** | **YES** | Retry request with IDENTICAL payload. | Inspect ingress network connectivity. |
 
 ---
 
-## 12. 429 Retry Policy & Exponential Backoff
+## 13. Proposed MHCS 429 Retry Policy (`PROPOSED_MHCS_RETRY_POLICY`)
 
-### Distinction: Server Behavior vs. MHCS Client Policy
+### Distinction: Current Server Behavior vs. Proposed Client Policy
 - `CURRENT_MPIPS_SERVER_BEHAVIOR`: MPIPS returns `Retry-After: 5` header on HTTP 429.
-- `PROPOSED_MHCS_RETRY_POLICY`: Because production conversions take 85–105 seconds, MHCS **MUST NOT** blindly retry every 5 seconds indefinitely. MHCS MUST implement exponential backoff with full jitter capped by a total retry budget.
+- `PROPOSED_MHCS_RETRY_POLICY`: Because production conversions take 85–105 seconds, MHCS **MUST NOT** blindly retry every 5 seconds indefinitely. MHCS SHOULD implement exponential backoff with full jitter where the actual delay is **guaranteed to be $\ge \text{Retry-After}$**.
 
 ```text
-Backoff Formula (Full Jitter):
-  Base Delay = max(Retry-After hint, 5.0 seconds)
-  Cap Delay  = 60.0 seconds
-  Calculated Delay = min(Cap Delay, Base Delay * (2 ^ attempt))
-  Actual Sleep = random_uniform(0, Calculated Delay)
+PROPOSED MHCS Backoff Formula:
+  Base Floor = max(5.0, float(Retry-After header))
+  Backoff Range = min(60.0, 5.0 * (2 ^ (attempt - 1)))
+  Actual Delay = Base Floor + random_uniform(0, Backoff Range)
 ```
 
-### Recommended Retry Schedule Progression
+### Proposed Retry Schedule Progression Example
 
-| Attempt | Base Wait | Backoff Range (Full Jitter) | Cumulative Elapsed (approx) |
+| Attempt | Base Floor | Added Jitter Range | Total Sleep Range |
 |---|---|---|---|
-| **Attempt 1** | Immediate | 0s | 0s |
-| **Attempt 2 (429)** | 5.0s hint | 0.0s – 5.0s | ~ 3.5s |
-| **Attempt 3 (429)** | 10.0s | 0.0s – 10.0s | ~ 8.5s |
-| **Attempt 4 (429)** | 20.0s | 0.0s – 20.0s | ~ 18.5s |
-| **Attempt 5 (429)** | 40.0s | 0.0s – 40.0s | ~ 38.5s |
-| **Attempt 6 (429)** | 60.0s cap | 0.0s – 60.0s | ~ 68.5s |
+| **Attempt 1** | Immediate (0s) | 0s | 0s |
+| **Attempt 2 (429)** | 5.0s | 0.0s – 5.0s | **5.0s – 10.0s** (e.g. ~7.5s) |
+| **Attempt 3 (429)** | 5.0s | 0.0s – 10.0s | **5.0s – 15.0s** (e.g. ~10.0s) |
+| **Attempt 4 (429)** | 5.0s | 0.0s – 20.0s | **5.0s – 25.0s** (e.g. ~15.0s) |
+| **Attempt 5 (429)** | 5.0s | 0.0s – 40.0s | **5.0s – 45.0s** (e.g. ~25.0s) |
+| **Attempt 6 (429)** | 5.0s | 0.0s – 60.0s (cap) | **5.0s – 65.0s** (e.g. ~35.0s) |
 
 ---
 
-## 13. Retry Budget & Timeout Boundaries
-
-To prevent infinite execution loops and cascading failures, MHCS MUST configure explicit retry budget limits:
-
-- **Maximum Attempts (`MAX_ATTEMPTS`):** Recommended `6` attempts.
-- **Maximum Total Elapsed Time (`MAX_ELAPSED_SECONDS`):** Recommended `300` seconds (5 minutes).
-- **Per-Request HTTP Timeout (`MHCS_HTTP_CLIENT_TIMEOUT`):** Minimum `330` seconds (5.5 minutes).
-
-> [!IMPORTANT]
-> `MHCS_HTTP_TIMEOUT_UNKNOWN=true`: The exact default HTTP client timeout in `mhcs-core` is currently unconfirmed in repository context. The MHCS core team MUST explicitly configure `MHCS_HTTP_CLIENT_TIMEOUT >= 330` seconds for the MPIPS HTTP client client instance.
-
----
-
-## 14. HTTP Timeout Guidance
+## 14. HTTP Timeout Guidance & Infrastructure Boundaries
 
 | Level | Control Variable / Setting | Value | Rationale |
 |---|---|---|---|
-| **MPIPS Worker Timeout** | `MPIPS_DICOM_PROCESS_TIMEOUT_SECONDS` | `300s` | Maximum time allowed for isolated NPZ worker conversion. |
-| **MPIPS API Gateway / Proxy** | Reverse-Proxy Timeout (Nginx/Traefik) | `330s` | 30s buffer beyond worker timeout to allow response serialization. |
-| **MHCS HTTP Client Timeout** | `MHCS_MPIPS_HTTP_TIMEOUT` | `330s` | Client socket timeout MUST exceed server process timeout. |
+| **MPIPS Worker Timeout** | `MPIPS_DICOM_PROCESS_TIMEOUT_SECONDS` | `300s` | Configured maximum time allowed for isolated NPZ worker conversion. |
+| **Reverse Proxy / Gateway** | Nginx / Traefik / Mesh Timeout | Proposed `330s – 360s` | Buffer beyond worker timeout to allow response serialization. |
+| **MHCS HTTP Client Timeout** | `MHCS_MPIPS_HTTP_TIMEOUT` | `MHCS_HTTP_TIMEOUT_UNKNOWN=true` | Proposed starting recommendation: `330s – 360s`. Must be confirmed in `mhcs-core`. |
 | **Measured Conversion Time** | Internal Beta Benchmark | `85s – 105s` | Measured p50 single/concurrency=2 conversion duration. |
 
-> [!WARNING]
-> DO NOT set the MHCS client HTTP timeout to short standard defaults (such as 30s or 60s). Conversions under load take ~100s. A 30s timeout will cause client disconnects while server processing is still underway.
+> [!IMPORTANT]
+> `MHCS_HTTP_TIMEOUT_UNKNOWN=true`: The exact default HTTP client timeout in `mhcs-core` is currently unconfirmed in repository context. The MHCS HTTP timeout, reverse-proxy timeout, maximum retry attempts, and total retry budget MUST be explicitly confirmed in `mhcs-core` client/infrastructure configuration.
 
 ---
 
 ## 15. Concurrency & Fail-Fast Backpressure Contract
 
 - **Configured Server Concurrency:** `MPIPS_DICOM_MAX_CONCURRENT_CONVERSIONS=2`.
-- **Server Behavior:** When 2 conversions are actively processing, any incoming 3rd simultaneous request receives an immediate `HTTP 429 CONCURRENCY_LIMIT_EXCEEDED` response (< 10ms response time).
+- **Server Behavior:** When 2 conversions are actively processing, any incoming 3rd simultaneous request receives an immediate `HTTP 429 CONCURRENCY_LIMIT_EXCEEDED` response.
 - **Contract Interpretation:** MHCS MUST interpret HTTP 429 as **transient capacity backpressure**, NOT a conversion failure or corrupted radiograph.
 
 ---
 
-## 16. Idempotency Mechanics (`IdempotencyService`)
+## 16. Idempotency Mechanics & `SUCCEEDED_SAME` Semantics
 
 MPIPS implements atomic Redis-backed idempotency using a 64-character SHA-256 payload fingerprint.
 
-```text
-Fingerprint Input = SHA256(
-    tenant_id ("internal-beta") +
-    manifest_version ("1.0") +
-    conversion_job_id +
-    canonical_manifest_json +
-    radiograph_sha256 +
-    gain_sha256
-)
-```
-
-### Redis Claim States (`CLAIM_LUA`)
-
-1. `CLAIMED`: First execution attempt or retry of a previously failed attempt with the **same** fingerprint. MPIPS issues a lease token and begins processing.
+### Redis Claim States (`CLAIM_LUA`) & Conversion Route Execution
+1. `CLAIMED`: First execution attempt or retry of a previously failed attempt with the **same** fingerprint. MPIPS issues a lease token and begins conversion.
 2. `IN_PROGRESS`: Job with the same `conversion_job_id` is currently converting in another process. MPIPS returns `HTTP 409 IDEMPOTENCY_IN_PROGRESS`.
-3. `SUCCEEDED_SAME`: Job with the same `conversion_job_id` and **identical fingerprint** already completed successfully within TTL (86,400s). Returns cached DICOM metadata/UIDs.
+3. `SUCCEEDED_SAME`: Job with the same `conversion_job_id` and **identical fingerprint** previously completed successfully.
 4. `SUCCEEDED_DIFF`: Job with the same `conversion_job_id` exists, but payload fingerprint **differs**. MPIPS returns `HTTP 409 IDEMPOTENCY_CONFLICT`.
+
+> [!WARNING]
+> **`SUCCEEDED_SAME` DOES NOT RETURN A CACHED DICOM BINARY FROM REDIS:**  
+> Redis stores idempotency state and `cached_uids` metadata, **NOT the completed DICOM response binary**.  
+> If an identical request is re-submitted after completion (`SUCCEEDED_SAME`), MPIPS issues a lease token and re-executes conversion to produce and return the DICOM file. MPIPS does not return a cached DICOM binary from Redis.
 
 ---
 
-## 17. Observability Contract
+## 17. Network Timeout / 504 Semantics & Result Retrieval Limitations
+
+If MHCS times out or experiences a network disconnect while MPIPS is converting:
+1. **Transient In-Progress State:** Retrying the request immediately may return `HTTP 409 IDEMPOTENCY_IN_PROGRESS` if the server worker is still active. MHCS should preserve the identical payload, back off, and retry.
+2. **Result Retrieval Limitation:** The current synchronous v1 API has **no independent result-retrieval endpoint** (e.g. `GET /v1/radiographs/dicom/{job_id}`). If the HTTP 200 response was lost in transit after server completion, retrying the request with identical payload will re-execute conversion (`SUCCEEDED_SAME`) to re-generate the DICOM file.
+
+---
+
+## 18. Observability Contract
 
 MHCS MUST log structured operational events for all MPIPS API calls.
 
@@ -397,13 +413,13 @@ MHCS MUST log structured operational events for all MPIPS API calls.
 
 ---
 
-## 18. Retry Observability & Alerting
+## 19. Retry Observability & Alerting
 
 MHCS SHOULD track retry metrics to distinguish transient capacity backpressure from persistent server failures.
 
 ```text
 Log Event Format:
-[WARN] MPIPS API Backpressure Received | job_id=a1b2c3d4... | status=429 | attempt=2/6 | backoff_delay=4.2s | cumulative_elapsed=4.2s
+[WARN] MPIPS API Backpressure Received | job_id=a1b2c3d4... | status=429 | attempt=2/6 | backoff_delay=7.5s | cumulative_elapsed=7.5s
 ```
 
 ### Recommended Operations Alerting Thresholds
@@ -412,7 +428,7 @@ Log Event Format:
 
 ---
 
-## 19. Client-Side Backpressure Optimization (Optional)
+## 20. Client-Side Backpressure Optimization (Optional Future Optimization)
 
 To minimize unnecessary HTTP 429 round-trips, `mhcs-core` MAY implement client-side concurrency control:
 
@@ -421,7 +437,7 @@ To minimize unnecessary HTTP 429 round-trips, `mhcs-core` MAY implement client-s
 
 ---
 
-## 20. Integration Failure Scenarios & MHCS Handling
+## 21. Integration Failure Scenarios & MHCS Handling
 
 | Scenario | Server Response | MHCS Expected Handling |
 |---|---|---|
@@ -429,19 +445,19 @@ To minimize unnecessary HTTP 429 round-trips, `mhcs-core` MAY implement client-s
 | **2. Malformed Manifest** | `422 MANIFEST_SCHEMA_INVALID` | Abort immediately. Log schema validation details. |
 | **3. SHA-256 Mismatch** | `422 NPZ_VALIDATION_ERROR` | Abort immediately. Re-read source NPZ files. |
 | **4. Oversized File** | `413 UPLOAD_SIZE_EXCEEDED` | Abort immediately. Reject image payload at MHCS API. |
-| **5. Job In Progress** | `409 IDEMPOTENCY_IN_PROGRESS` | Wait 5–10s with SAME `conversion_job_id`. Retry. |
-| **6. Payload Conflict** | `409 IDEMPOTENCY_CONFLICT` | Abort immediately. Log job ID collision. |
-| **7. Server Capacity Full** | `429 CONCURRENCY_LIMIT_EXCEEDED` | **Apply exponential backoff + jitter. Retry with SAME job ID.** |
-| **8. Redis Unavailable** | `503 IDEMPOTENCY_STORAGE_...` | Apply exponential backoff + jitter. Retry with SAME job ID. |
-| **9. Worker Timeout** | `504 CONVERSION_TIMEOUT` | Wait > 30s. Retry with SAME `conversion_job_id`. |
-| **10. Network Drop** | Socket Timeout / Reset | Retry request with SAME `conversion_job_id`. |
-| **11. Client Timeout** | HTTP Client Timeout | Retry request with SAME `conversion_job_id`. |
+| **5. Job In Progress** | `409 IDEMPOTENCY_IN_PROGRESS` | Wait with IDENTICAL payload. Retry. |
+| **6. Payload Conflict** | `409 IDEMPOTENCY_CONFLICT` | Abort immediately. Log job ID / payload collision. |
+| **7. Server Capacity Full** | `429 CONCURRENCY_LIMIT_EXCEEDED` | **Apply exponential backoff + jitter. Retry with IDENTICAL payload.** |
+| **8. Redis Unavailable** | `503 IDEMPOTENCY_STORAGE_...` | Apply exponential backoff + jitter. Retry with IDENTICAL payload. |
+| **9. Worker Timeout** | `504 CONVERSION_TIMEOUT` | Wait > 30s. Retry with IDENTICAL payload. |
+| **10. Network Drop** | Socket Timeout / Reset | Retry request with IDENTICAL payload. |
+| **11. Client Timeout** | HTTP Client Timeout | Retry request with IDENTICAL payload. |
 | **12. Corrupted DICOM** | 200 OK (invalid DICOM bytes) | Treat as `500`. Log error. Surface bug report. |
 | **13. Successful DICOM** | 200 OK (valid DICOM bytes) | Store DICOM to PACS/S3. Complete job. |
 
 ---
 
-## 21. Success Response Validation
+## 22. Success Response Validation
 
 Upon receiving `HTTP 200 OK`, MHCS client MUST validate:
 
@@ -452,7 +468,7 @@ Upon receiving `HTTP 200 OK`, MHCS client MUST validate:
 
 ---
 
-## 22. Integration State Machine
+## 23. Integration State Machine
 
 ```mermaid
 stateDiagram-v2
@@ -462,7 +478,7 @@ stateDiagram-v2
     SUBMITTING --> SUCCEEDED: HTTP 200 (Receive Valid DICOM)
     
     SUBMITTING --> RETRY_WAIT: HTTP 429 / HTTP 409 In Progress / HTTP 503 / Net Timeout
-    RETRY_WAIT --> SUBMITTING: Backoff Expired (Retry with SAME conversion_job_id)
+    RETRY_WAIT --> SUBMITTING: Backoff Expired (Retry with IDENTICAL payload)
     
     SUBMITTING --> FAILED: HTTP 400 / 401 / 413 / 422 / 409 Conflict (Terminal Error)
     RETRY_WAIT --> FAILED_EXHAUSTED: Max Retry Budget Exceeded (Attempts > 6 or Time > 300s)
@@ -474,7 +490,7 @@ stateDiagram-v2
 
 ---
 
-## 23. Document Future Async Migration (Non-Normative)
+## 24. Document Future Async Migration (Non-Normative)
 
 > [!NOTE]
 > The following describes a potential future asynchronous job model. **IT IS NOT IMPLEMENTED IN THE CURRENT V1 API.**
@@ -488,7 +504,7 @@ Future Asynchronous API Sketch (NOT CURRENT BEHAVIOR):
 
 ---
 
-## 24. Request Example (`curl`)
+## 25. Request Example (`curl`)
 
 ```bash
 #!/usr/bin/env bash
@@ -518,12 +534,13 @@ echo "DICOM conversion completed successfully: ${OUTPUT_DICOM_PATH}"
 
 ---
 
-## 25. MHCS Client Implementation Pseudocode
+## 26. MHCS Client Implementation Pseudocode
 
 ```python
 import time
 import random
 import uuid
+import json
 import requests
 
 class MPIPSClientError(Exception): pass
@@ -544,8 +561,9 @@ class MHCSMPIPSClient:
         max_attempts: int = 6,
         max_elapsed_seconds: float = 300.0
     ) -> bytes:
-        # 1. Enforce stable conversion_job_id across retries
+        # Enforce full payload preservation across retries
         conversion_job_id = str(manifest_dict["conversion_job_id"])
+        manifest_json_str = json.dumps(manifest_dict)
         url = f"{self.base_url}/v1/radiographs/dicom"
         headers = {"X-MPIPS-API-Key": self.api_key}
 
@@ -561,7 +579,7 @@ class MHCSMPIPSClient:
             files = {
                 "radiograph_npz": ("radiograph.npz", radiograph_bytes, "application/octet-stream"),
                 "gain_npz": ("gain.npz", gain_bytes, "application/octet-stream"),
-                "manifest": ("manifest.json", json.dumps(manifest_dict), "application/json"),
+                "manifest": ("manifest.json", manifest_json_str, "application/json"),
             }
 
             try:
@@ -580,24 +598,24 @@ class MHCSMPIPSClient:
                     detail = response.json().get("detail", "")
                     if detail == "IDEMPOTENCY_CONFLICT":
                         raise MPIPSTerminalError("Idempotency conflict: payload mismatch for job_id.")
-                    # IDEMPOTENCY_IN_PROGRESS -> Retryable
+                    # IDEMPOTENCY_IN_PROGRESS -> Retryable with IDENTICAL payload
 
                 # 429 Concurrency Limit Exceeded or Retryable Server Errors (503, 504)
                 if response.status_code in (429, 409, 503, 504):
                     retry_after = float(response.headers.get("Retry-After", 5.0))
-                    base_delay = max(retry_after, 5.0)
-                    cap_delay = 60.0
-                    calculated_delay = min(cap_delay, base_delay * (2 ** (attempt - 1)))
-                    actual_sleep = random.uniform(0, calculated_delay)
+                    base_floor = max(5.0, retry_after)
+                    backoff_range = min(60.0, 5.0 * (2 ** (attempt - 1)))
+                    actual_sleep = base_floor + random.uniform(0, backoff_range)
                     time.sleep(actual_sleep)
                     continue
 
                 raise MPIPSTerminalError(f"Unexpected status code HTTP {response.status_code}")
 
             except (requests.Timeout, requests.ConnectionError) as net_err:
-                # Network ambiguity -> Retry with SAME conversion_job_id
-                base_delay = 5.0
-                actual_sleep = random.uniform(0, min(60.0, base_delay * (2 ** (attempt - 1))))
+                # Network ambiguity -> Retry with IDENTICAL payload
+                base_floor = 5.0
+                backoff_range = min(60.0, 5.0 * (2 ** (attempt - 1)))
+                actual_sleep = base_floor + random.uniform(0, backoff_range)
                 time.sleep(actual_sleep)
                 continue
 
@@ -606,7 +624,7 @@ class MHCSMPIPSClient:
 
 ---
 
-## 26. Operational Performance Notes (Internal-Beta Observations)
+## 27. Operational Performance Notes (Internal-Beta Observations)
 
 *Source: Production Benchmark Run ID `31572779655`, Commit `7acf893cf98ba6be89e371aaf3c023dcfae831ff` on `simama-production-server`.*
 
@@ -616,7 +634,6 @@ class MHCSMPIPSClient:
   - Admitted: `2` requests processed (HTTP 200).
   - Rejected: `6` requests rejected immediately (HTTP 429).
   - Unexpected 5xx Errors: `0`.
-  - HTTP 429 Latency: Sub-second ($< 10\text{ ms}$).
 - **Resource Constraints:** Worker process memory reaches $\sim 2\text{ GiB}$ container limit (`MPIPS_DICOM_WORKER_MEMORY_BYTES=2147483648`). API service container memory limit is $1\text{ GiB}$. Host retains ample memory headroom.
 
 > [!NOTE]
@@ -624,22 +641,20 @@ class MHCSMPIPSClient:
 
 ---
 
-## 27. Security Requirements
+## 28. Security Requirements & Residual Risks
 
 1. **Network Boundary:** `mpips-api` MUST run strictly inside private networks (`madeena-software-network`). Public exposure is prohibited.
 2. **Secret Management:** `MPIPS_API_KEY` MUST be managed via secure environment files or vault solutions.
 3. **Data Protection:** Temporary processing files in `/tmp/mpips-workspaces` are created with strict `0700` directory permissions and `0400`/`0600` file permissions, cleaned up immediately upon completion.
 4. **PHI Isolation:** Raw pixel data and patient identifiers MUST NOT be emitted into application logs or metric tags.
 
----
-
-## 28. Residual Risks
-
-1. **Small Performance Sample Size:** Benchmark evidence is based on internal-beta test runs. Real-world clinical throughput may vary under different image matrix sizes.
-2. **Worker Memory Limits:** High-resolution NPZ inputs (> 4000x4000) push worker memory usage close to the 2 GiB container memory limit.
-3. **Retry-After Header vs. Conversion Time:** Server returns `Retry-After: 5` while conversions take ~100s. Client must use exponential backoff rather than naive 5-second polling.
-4. **Unconfirmed MHCS Default Timeout (`MHCS_HTTP_TIMEOUT_UNKNOWN=true`):** MHCS HTTP client configuration must be verified to ensure timeouts are $\ge 330\text{ seconds}$.
-5. **CI Action Warnings:** GitHub Actions Node.js 20 runtime deprecation warnings are present in upstream workflow runners.
+### Residual Risks
+1. **`NPZ_UNTRUSTED_INPUT_SECURITY_POSTURE=OPEN`:** `mpips/workflows/imager_pipeline/npz_io.py` loads NPZ files using `np.load(path, allow_pickle=True)`. Process/container isolation (`mpips-npz-worker`) reduces host blast radius, but `allow_pickle=True` still permits pickle/object-array deserialization inside the worker process if untrusted NPZ files are submitted.
+2. **Small Performance Sample Size:** Benchmark evidence is based on internal-beta test fixtures; real-world clinical throughput may vary under different image matrix sizes.
+3. **Worker Memory Limits:** High-resolution NPZ inputs (> 4000x4000) push worker memory usage close to the 2 GiB container memory limit.
+4. **Retry-After Header vs. Conversion Time:** Server returns `Retry-After: 5` while conversions take ~100s. Client must use exponential backoff rather than naive 5-second polling.
+5. **Unconfirmed MHCS Default Timeout (`MHCS_HTTP_TIMEOUT_UNKNOWN=true`):** MHCS HTTP client configuration must be verified to ensure timeouts are $\ge 330\text{ seconds}$.
+6. **CI Action Warnings:** GitHub Actions Node.js 20 runtime deprecation warnings are present in upstream workflow runners.
 
 ---
 
@@ -648,8 +663,8 @@ class MHCSMPIPSClient:
 - [ ] `mhcs-core` client sets `X-MPIPS-API-Key` header from secure configuration.
 - [ ] Multipart upload includes `radiograph_npz`, `gain_npz`, and `manifest` form fields.
 - [ ] Manifest conforms to `MHCSManifest` JSON schema v1.0.
-- [ ] Client computes exact byte sizes and lowercase SHA-256 hex hashes before submission.
-- [ ] Client preserves the SAME `conversion_job_id` across retries.
-- [ ] Client implements exponential backoff with full jitter for HTTP 429, 409 (in progress), 503, and network timeouts.
-- [ ] Client HTTP timeout is configured to $\ge 330$ seconds.
+- [ ] Client computes exact byte sizes and lowercase SHA-256 hex hashes from source NPZ bytes before submission.
+- [ ] Client preserves the IDENTICAL payload (`conversion_job_id`, `submission_id`, metadata, NPZ hashes) across retries.
+- [ ] Client implements exponential backoff with full jitter guarantees ($\text{sleep} \ge \text{Retry-After}$) for HTTP 429, 409 (in progress), 503, and network timeouts.
+- [ ] Client HTTP timeout and reverse-proxy timeouts are confirmed and configured ($\ge 330$ seconds).
 - [ ] Client validates HTTP 200 response headers and DICOM file structure.
