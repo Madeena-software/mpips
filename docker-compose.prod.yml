@@ -6,6 +6,7 @@ services:
       - "${MPIPS_LAUNCHER_GID:?set MPIPS_LAUNCHER_GID}"
     environment:
       MPIPS_ENVIRONMENT: production
+      MPIPS_API_KEY: ${MPIPS_API_KEY:?set MPIPS_API_KEY}
       MPIPS_API_WORKERS: "1"
       PORT: "8000"
       MPIPS_VERSION: ${MPIPS_VERSION:?set MPIPS_VERSION}

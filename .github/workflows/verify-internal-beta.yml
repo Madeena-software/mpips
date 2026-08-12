@@ -37,10 +37,13 @@ jobs:
           uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager
 
       - name: Set deployment variables
+        env:
+          MPIPS_API_KEY_SECRET: ${{ secrets.MPIPS_API_KEY }}
         run: |
           echo "REMOTE_PATH=/var/www/mpips-runtime" >> "$GITHUB_ENV"
           echo "MPIPS_LAUNCHER_SOCKET_PATH=/var/www/mpips-runtime/launcher/launcher.sock" >> "$GITHUB_ENV"
           echo "COMPOSE_PROJECT_NAME=mpips-internal-beta" >> "$GITHUB_ENV"
+          echo "MPIPS_API_KEY=${MPIPS_API_KEY_SECRET}" >> "$GITHUB_ENV"
 
       - name: Run burn-in verification
         run: |

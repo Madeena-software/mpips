@@ -23,7 +23,7 @@ from pydicom.uid import ExplicitVRLittleEndian
 from mpips.api.schemas.dicom import MHCSManifest
 from mpips.conversion.validation import validate_dicom_dataset
 
-API_KEY = os.getenv("MPIPS_API_KEY", "mpips_access_api_m4d33n4")
+API_KEY = os.getenv("MPIPS_API_KEY", "")
 SHAPE = (64, 64)
 GAIN_ID = "SYNTH-GAIN-001"
 CAMERA = "SYNTH-CAMERA-001"
@@ -254,6 +254,7 @@ class BurnIn:
             for path in Path("/tmp/mpips-workspaces").glob("job-*")
             if path.is_dir()
         }
+        self.api_key = os.getenv("MPIPS_API_KEY") or os.getenv("API_KEY") or ""
         self.target_shape = SHAPE
         parent_remap = base.parent / "calibration" / "remap.npz"
         parent_meta = base.parent / "calibration" / "metadata.json"
@@ -296,7 +297,7 @@ class BurnIn:
         headers: dict[str, str] | None = None,
         include: tuple[str, ...] = ("radiograph_npz", "gain_npz", "manifest"),
     ) -> httpx.Response:
-        request_headers = {"X-MPIPS-API-Key": API_KEY}
+        request_headers = {"X-MPIPS-API-Key": self.api_key}
         request_headers.update(headers or {})
         try:
             return self.client.post(
@@ -343,6 +344,10 @@ class BurnIn:
             )
 
     def run(self) -> None:
+        if not self.api_key:
+            raise RuntimeError(
+                "MPIPS_API_KEY environment variable is required for burn-in run operation"
+            )
         health = self.client.get(f"{self.url}/health")
         self.case("health", 200, health)
 

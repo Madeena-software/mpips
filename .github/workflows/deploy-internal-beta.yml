@@ -80,6 +80,8 @@ jobs:
           uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager
 
       - name: Set deployment variables
+        env:
+          MPIPS_API_KEY_SECRET: ${{ secrets.MPIPS_API_KEY }}
         run: |
           echo "REMOTE_PATH=/var/www/mpips-runtime" >> "$GITHUB_ENV"
           echo "MPIPS_VERSION=${{ needs.build.outputs.app_version }}" >> "$GITHUB_ENV"
@@ -88,11 +90,12 @@ jobs:
           echo "MPIPS_RUNTIME_GID=$(id -g)" >> "$GITHUB_ENV"
           echo "MPIPS_LAUNCHER_SOCKET_PATH=/var/www/mpips-runtime/launcher/launcher.sock" >> "$GITHUB_ENV"
           echo "COMPOSE_PROJECT_NAME=mpips-internal-beta" >> "$GITHUB_ENV"
+          echo "MPIPS_API_KEY=${MPIPS_API_KEY_SECRET}" >> "$GITHUB_ENV"
 
       - name: Validate environment variables (require_env)
         run: |
           set -Eeuo pipefail
-          for var in REMOTE_PATH MPIPS_VERSION; do
+          for var in REMOTE_PATH MPIPS_VERSION MPIPS_API_KEY; do
             if [ -z "${!var:-}" ]; then
               echo "Error: Required environment variable $var is missing or empty." >&2
               exit 1

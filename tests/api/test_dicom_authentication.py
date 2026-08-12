@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import secrets
 from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
 
-from mpips.api.api_key import API_KEY
+from mpips.api.api_key import require_api_key
 from mpips.api.application import app
 
 
@@ -52,24 +53,42 @@ def test_bearer_token_without_api_key_returns_401() -> None:
     assert response.json() == {"detail": "INVALID_API_KEY"}
 
 
-def test_valid_api_key_reaches_request_validation() -> None:
+def test_production_configured_key_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MPIPS_ENVIRONMENT", "production")
+    monkeypatch.setenv("MPIPS_API_KEY", "prod-secret-key-999")
     response = TestClient(app).post(
         "/v1/radiographs/dicom",
         files=_dicom_files(),
-        headers={"X-MPIPS-API-Key": API_KEY},
+        headers={"X-MPIPS-API-Key": "prod-secret-key-999"},
     )
-
     assert response.status_code == 422
 
 
-def test_custom_env_api_key_accepted(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("MPIPS_API_KEY", "custom-secret-key-123")
+def test_production_configured_key_wrong_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MPIPS_ENVIRONMENT", "production")
+    monkeypatch.setenv("MPIPS_API_KEY", "prod-secret-key-999")
     response = TestClient(app).post(
         "/v1/radiographs/dicom",
         files=_dicom_files(),
-        headers={"X-MPIPS-API-Key": "custom-secret-key-123"},
+        headers={"X-MPIPS-API-Key": "wrong-key"},
     )
-    assert response.status_code == 422
+    assert response.status_code == 401
+    assert response.json() == {"detail": "INVALID_API_KEY"}
+
+
+def test_production_configured_key_missing_header(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MPIPS_ENVIRONMENT", "production")
+    monkeypatch.setenv("MPIPS_API_KEY", "prod-secret-key-999")
+    response = TestClient(app).post(
+        "/v1/radiographs/dicom",
+        files=_dicom_files(),
+    )
+    assert response.status_code == 401
+    assert response.json() == {"detail": "INVALID_API_KEY"}
 
 
 def test_production_without_api_key_fails_closed(
@@ -81,7 +100,38 @@ def test_production_without_api_key_fails_closed(
     response = TestClient(app).post(
         "/v1/radiographs/dicom",
         files=_dicom_files(),
-        headers={"X-MPIPS-API-Key": "mpips_access_api_m4d33n4"},
+        headers={"X-MPIPS-API-Key": "any-key"},
     )
     assert response.status_code == 401
     assert response.json() == {"detail": "INVALID_API_KEY"}
+
+
+def test_dev_config_does_not_depend_on_historical_production_credential(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MPIPS_ENVIRONMENT", "development")
+    monkeypatch.setenv("MPIPS_API_KEY", "test-synthetic-dev-key")
+    assert require_api_key("test-synthetic-dev-key") == "test-synthetic-dev-key"
+
+
+def test_whitespace_and_empty_values_rejected(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("MPIPS_ENVIRONMENT", "production")
+    monkeypatch.setenv("MPIPS_API_KEY", "valid-key-123")
+
+    for empty_val in ["", "   ", "\t\n"]:
+        response = TestClient(app).post(
+            "/v1/radiographs/dicom",
+            files=_dicom_files(),
+            headers={"X-MPIPS-API-Key": empty_val},
+        )
+        assert response.status_code == 401
+        assert response.json() == {"detail": "INVALID_API_KEY"}
+
+
+def test_constant_time_comparison_used(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MPIPS_API_KEY", "my-secret-key")
+    with patch("secrets.compare_digest", wraps=secrets.compare_digest) as mock_cmp:
+        require_api_key("my-secret-key")
+        mock_cmp.assert_called_once_with("my-secret-key", "my-secret-key")

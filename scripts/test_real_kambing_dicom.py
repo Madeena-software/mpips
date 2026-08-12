@@ -6,7 +6,9 @@ import pydicom
 
 import os
 
-API_KEY = "mpips_access_api_m4d33n4"
+API_KEY = os.getenv("MPIPS_API_KEY", "")
+if not API_KEY:
+    raise RuntimeError("MPIPS_API_KEY environment variable is required")
 PORT = os.getenv("MPIPS_LOCAL_PORT", "8014")
 URL = f"http://127.0.0.1:{PORT}/v1/radiographs/dicom"
 
