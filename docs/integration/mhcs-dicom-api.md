@@ -459,3 +459,37 @@ curl -s -i -X POST "http://127.0.0.1:8014/v1/radiographs/dicom" \
 3. **Upload Limits:** Enforced via streaming middleware (`300 MiB` total request cap).
 4. **Execution Isolation:** Conversion runs in non-root worker process/container without egress network access.
 5. **Residual Security Risk:** `NPZ_UNTRUSTED_INPUT_SECURITY_POSTURE=OPEN` (`allow_pickle=True` in NumPy loading). Untrusted input NPZs must be sanitized at ingress boundary before reaching storage.
+
+---
+
+## 16. Container Network Topology & Inter-Service Communication
+
+### Shared Container Network (`madeena-software-network`)
+Both **MHCS** (`mhcs-core`) and **MPIPS** (`mpips-api`) services are attached to the external shared Docker bridge network named `madeena-software-network`.
+
+```text
++-----------------------------------------------------------------------------------+
+|                           madeena-software-network                                |
+|                                                                                   |
+|  +--------------------+    POST /v1/radiographs/dicom    +---------------------+  |
+|  |     MHCS CORE      | -------------------------------> |      MPIPS API      |  |
+|  |    (mhcs-core)     |  http://mpips-api:8000/v1/...    |   (mpips-api:8000)  |  |
+|  +--------------------+                                  +---------------------+  |
+|                                                                     |             |
+|                                                          Spawns     | isolated    |
+|                                                          worker     v process     |
+|                                                         +----------------------+  |
+|                                                         |  mpips-npz-worker    |  |
+|                                                         |  (--network=none)    |  |
+|                                                         +----------------------+  |
++-----------------------------------------------------------------------------------+
+```
+
+### Inter-Service Communication Details
+* **Internal Service Address**: `http://mpips-api:8000`
+* **Network Driver**: Docker external bridge (`name: madeena-software-network`).
+* **Host Loopback Exposure**:
+  * Local Compose: `127.0.0.1:8000` $\rightarrow$ container `8000`
+  * Prod Compose: `127.0.0.1:8014` $\rightarrow$ container `8000`
+* **Worker Egress Isolation**: Child conversion workers (`mpips-npz-worker`) execute with strict network isolation (`--network=none`). They do not possess egress network access to external networks or sibling containers.
+
