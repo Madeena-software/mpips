@@ -388,6 +388,10 @@ def run_isolated_dicom_conversion(
                 clean_env["VIRTUAL_ENV"] = os.environ["VIRTUAL_ENV"]
             if "PYTHONPATH" in os.environ:
                 clean_env["PYTHONPATH"] = os.environ["PYTHONPATH"]
+            if "LD_LIBRARY_PATH" in os.environ:
+                clean_env["LD_LIBRARY_PATH"] = os.environ["LD_LIBRARY_PATH"]
+            if "LIBRARY_PATH" in os.environ:
+                clean_env["LIBRARY_PATH"] = os.environ["LIBRARY_PATH"]
 
             venv_python = Path(sys.prefix) / "bin" / "python"
             python_bin = str(venv_python) if venv_python.exists() else sys.executable
