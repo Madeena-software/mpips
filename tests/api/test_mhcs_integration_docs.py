@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from mpips.api.schemas.dicom import MHCSManifest
+from mpips.api.schemas.dicom import MHCSManifest, resolve_mhcs_manifest
 
 
 def test_mhcs_example_manifest_validates_cleanly() -> None:
@@ -54,6 +54,24 @@ def test_mhcs_minimal_example_manifest_validates_cleanly() -> None:
     assert parsed_manifest.capture.detector_type == "THORAX"
     assert parsed_manifest.capture.body_part_examined == "CHEST"
 
+    # Test exact resolution semantics for precision fallback rules
+    resolved = resolve_mhcs_manifest(
+        raw_manifest_text=manifest_text,
+        input_manifest=parsed_manifest,
+        rad_bytes_len=1000,
+        rad_sha256_hex="a" * 64,
+        gain_bytes_len=1000,
+        gain_sha256_hex="b" * 64,
+    )
+    assert resolved.examination.study_id == "STUDY01"
+    assert resolved.examination.protocol_name is None
+    assert resolved.patient.member_id is None
+    assert resolved.site.department_name is None
+    assert resolved.site.station_name is None
+    assert resolved.capture.image_spacing is None
+    assert resolved.capture.capture_id.startswith("CAP-")
+    assert len(resolved.capture.capture_id) == 16  # "CAP-" + 12 hex chars
+
 
 def test_mhcs_integration_doc_exists_and_is_populated() -> None:
     repo_root = Path(__file__).resolve().parents[2]
@@ -68,12 +86,10 @@ def test_mhcs_integration_doc_exists_and_is_populated() -> None:
     assert "PROPOSED_MHCS_RETRY_POLICY" in content
     assert "MINIMAL MANIFEST" in content
     assert "ResolvedMHCSManifest" in content
-    assert "SERVER COMPUTED" in content
-    assert "SERVER DERIVED" in content
-    assert "deterministic conversion_job_id" in content.lower()
-    assert "dicom uids" in content.lower()
-    assert "X-Conversion-Job-ID" in content
-    assert "X-Correlation-ID" in content
+    assert "STUDY01" in content
+    assert "DOWNSTREAM DICOM FALLBACK" in content
+    assert "CAP-<conversion_job_id.hex[:12].upper()>" in content
+    assert "SERVER FALLBACK TECHNICAL VALUE" in content
     assert "MHCS_HTTP_TIMEOUT_UNKNOWN=true" in content
     assert "NPZ_UNTRUSTED_INPUT_SECURITY_POSTURE=OPEN" in content
     assert "CLINICAL_TIMESTAMP_FALLBACK_POLICY" in content

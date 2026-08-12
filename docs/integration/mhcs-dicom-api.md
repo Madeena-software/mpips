@@ -43,7 +43,7 @@ The objective is to provide complete, unambiguous technical specifications, sche
 |     - Stream/Compute file byte sizes & SHA-256 hashes if omitted              |
 |     - Derive deterministic conversion_job_id, submission_id, correlation_id  |
 |     - Derive deterministic DICOM UIDs (2.25.<decimal_uuid>) if omitted       |
-|     - Default operator, site, capture, and image spacing metadata             |
+|     - Default operator, site, capture, and study_id metadata                 |
 |  5. Claim Redis Idempotency Lease (mpips:dicom_idempotency:...)               |
 |  6. Acquire Process Concurrency Limiter (CapacityLimiter max=2)               |
 +-------------------------------------------------------------------------------+
@@ -138,20 +138,20 @@ To eliminate ambiguity, payload fields are classified using strict terminology:
 | `correlation_id` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (UUIDv5 from job ID + `"correlation"`) | Distributed tracing correlation ID. |
 | `examination` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (Section defaults applied) | Examination metadata block. |
 | `examination.accession_number` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (`ACC-<job_hex[:10]>`) | **SERVER FALLBACK TECHNICAL VALUE.** RIS Accession Number. |
-| `examination.study_id` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (`STD-<job_hex[:10]>`) | **SERVER FALLBACK TECHNICAL VALUE.** Study ID. |
+| `examination.study_id` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`"STUDY01"`) | **SERVER FALLBACK TECHNICAL VALUE.** Study ID (defaults to `"STUDY01"`). |
 | `examination.performed_at` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (Deterministic ISO timestamp) | **SERVER-GENERATED TECHNICAL FALLBACK TIMESTAMP.** |
 | `examination.study_description` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`"CHEST RADIOGRAPH"`) | Study description (DICOM `(0008,1030)`). |
-| `examination.protocol_name` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`"CHEST RADIOGRAPH"`) | Imaging protocol name. |
+| `examination.protocol_name` | `OPTIONAL FROM CLIENT` | Remains `None` if omitted | Imaging protocol name (no default string invented). |
 | `patient` | `REQUIRED FROM CLIENT` | None | Patient demographic block. |
-| `patient.member_id` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (UUIDv5 from job ID + `"member"`) | System member UUID. |
+| `patient.member_id` | `OPTIONAL FROM CLIENT` | Remains `None` if omitted | System member UUID (never synthesized). |
 | `patient.medical_record_number` | `REQUIRED FROM CLIENT` | None | Patient MRN / ID (DICOM `(0010,0020)`). **Required.** |
 | `patient.name` | `REQUIRED FROM CLIENT` | None | Patient name (DICOM `(0010,0010)`). String or `PersonNameSchema`. **Required.** |
 | `patient.sex` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`"unknown"` -> DICOM `"O"`) | Enum `["male", "female", "other", "unknown"]`. |
 | `patient.birth_date` | `OPTIONAL FROM CLIENT` | None | Format `YYYY-MM-DD` (DICOM `(0010,0030)` `YYYYMMDD`). |
 | `operator` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`OP-SYSTEM` / `SYSTEM OPERATOR`) | Technologist metadata. |
-| `site` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`ORG-MADEENA` / `SITE-DEFAULT` / `MADEENA MEDICAL CENTER` / `RADIOLOGY` / `STATION-01` / `Asia/Jakarta`) | Imaging site metadata. |
+| `site` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`ORG-MADEENA` / `SITE-DEFAULT` / `MADEENA MEDICAL CENTER` / `Asia/Jakarta`) | Imaging site metadata (`department_name` & `station_name` remain `None` if omitted). |
 | `capture` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (Section defaults applied) | Image acquisition metadata block. |
-| `capture.capture_id` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (`CAP-<job_digest[:12]>`) | Capture identifier. |
+| `capture.capture_id` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (`CAP-<conversion_job_id.hex[:12].upper()>`) | Capture identifier. |
 | `capture.detector_type` | `OPTIONAL FROM CLIENT` | Auto-resolved from calibration / NPZ | Detector mode (`"BED"`, `"THORAX"`, `"TRX"`). |
 | `capture.body_part_examined` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`"CHEST"`) | Body part examined (DICOM `(0018,0015)`). |
 | `capture.laterality` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`"U"`) | Laterality (`"R"`, `"L"`, `"U"`, `"B"`). |
@@ -159,14 +159,14 @@ To eliminate ambiguity, payload fields are classified using strict terminology:
 | `capture.captured_at` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (Deterministic ISO timestamp) | **SERVER-GENERATED TECHNICAL FALLBACK TIMESTAMP.** |
 | `capture.radiograph` | `OPTIONAL FROM CLIENT` | `SERVER COMPUTED` | Radiograph file metadata (`byte_size`, `sha256`). |
 | `capture.gain` | `OPTIONAL FROM CLIENT` | `SERVER COMPUTED` | Gain file metadata (`byte_size`, `sha256`). |
-| `capture.image_spacing` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`140 µm × 140 µm` = `0.140 mm × 0.140 mm`) | Pixel spacing (`row_um`, `column_um`). |
+| `capture.image_spacing` | `OPTIONAL FROM CLIENT` | Remains `None` in resolved manifest | `row_um` & `column_um`. If omitted, **DOWNSTREAM DICOM FALLBACK** applies `140 µm × 140 µm` (`0.140 mm × 0.140 mm`). |
 | `dicom` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (Section defaults applied) | DICOM UIDs and instance sequence. |
 | `dicom.study_instance_uid` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (`2.25.<decimal_uuid>`) | DICOM Study Instance UID `(0020,000D)`. |
 | `dicom.series_instance_uid` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (`2.25.<decimal_uuid>`) | DICOM Series Instance UID `(0020,000E)`. |
 | `dicom.sop_instance_uid` | `OPTIONAL FROM CLIENT` | `SERVER DERIVED` (`2.25.<decimal_uuid>`) | DICOM SOP Instance UID `(0008,0018)`. |
 | `dicom.series_number` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`1`) | Series Number `(0020,0011)`. |
 | `dicom.instance_number` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`1`) | Instance Number `(0020,0013)`. |
-| `dicom.series_description` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`"CHEST RADIOGRAPH"`) | Series Description `(0008,103E)`. |
+| `dicom.series_description` | `OPTIONAL FROM CLIENT` | Precedence fallback | `dicom.series_description` -> `examination.study_description` -> `"CHEST RADIOGRAPH"`. |
 | `dicom.presentation_intent` | `OPTIONAL FROM CLIENT` | `SERVER DEFAULTED` (`"FOR PRESENTATION"`) | Must be `"FOR PRESENTATION"`. |
 
 ---
@@ -209,7 +209,7 @@ Where `canonical_client_json` is produced by parsing the client JSON and seriali
   - `IF OMITTED`: Derived via UUIDv5 (`"mpips:correlation:<conversion_job_id>"`).
 - **`capture_id`**:
   - `IF SUPPLIED`: Preserved.
-  - `IF OMITTED`: Derived as `CAP-<digest[:12].upper()>`. Used to format the response filename (`CAP-XXXXXXXXXXXX.dcm`).
+  - `IF OMITTED`: Derived as `CAP-<conversion_job_id.hex[:12].upper()>`. Used to format the response filename (`CAP-XXXXXXXXXXXX.dcm`).
 
 ### Key Property of Deterministic Identifiers
 - **JSON Formatting Independence:** Whitespace, key indentation, or property ordering in client JSON does NOT change the derived `conversion_job_id`.
@@ -223,9 +223,9 @@ Where `canonical_client_json` is produced by parsing the client JSON and seriali
 - **IF SUPPLIED**: MHCS retains full ownership of DICOM UIDs (`study_instance_uid`, `series_instance_uid`, `sop_instance_uid`). MPIPS preserves them unchanged.
 - **IF OMITTED**: MPIPS derives valid, deterministic DICOM UIDs using the standard `2.25` root namespace:
 
-$$\text{study\_instance\_uid} = \text{"2.25."} + \text{str}(\text{int}(\text{UUIDv5}(\text{MPIPS\_STABLE\_NAMESPACE}, \text{"mpips:dicom:study:"} + \text{conversion\_job\_id})))$$
-$$\text{series\_instance\_uid} = \text{"2.25."} + \text{str}(\text{int}(\text{UUIDv5}(\text{MPIPS\_STABLE\_NAMESPACE}, \text{"mpips:dicom:series:"} + \text{conversion\_job\_id})))$$
-$$\text{sop\_instance\_uid} = \text{"2.25."} + \text{str}(\text{int}(\text{UUIDv5}(\text{MPIPS\_STABLE\_NAMESPACE}, \text{"mpips:dicom:sop:"} + \text{conversion\_job\_id})))$$
+$$\text{study\_instance\_uid} = \text{"2.25."} + \text{str}(\text{int}(\text{UUIDv5}(\text{MPIPS\_STABLE\_NAMESPACE}, \text{"mpips:study:"} + \text{conversion\_job\_id})))$$
+$$\text{series\_instance\_uid} = \text{"2.25."} + \text{str}(\text{int}(\text{UUIDv5}(\text{MPIPS\_STABLE\_NAMESPACE}, \text{"mpips:series:"} + \text{conversion\_job\_id})))$$
+$$\text{sop\_instance\_uid} = \text{"2.25."} + \text{str}(\text{int}(\text{UUIDv5}(\text{MPIPS\_STABLE\_NAMESPACE}, \text{"mpips:sop:"} + \text{conversion\_job\_id})))$$
 
 > [!TIP]
 > Generated DICOM UIDs are **valid DICOM UIDs**, **deterministic**, **$\le 64$ characters**, and **stable across retries**. They are resolved BEFORE DICOM conversion and enrichment.
@@ -235,9 +235,17 @@ $$\text{sop\_instance\_uid} = \text{"2.25."} + \text{str}(\text{int}(\text{UUIDv
 ## 8. Clinical Metadata Fallbacks & Open Integration Decisions
 
 ### Accession Number & Study ID
-- `IF SUPPLIED`: Preserved.
-- `IF OMITTED`: Fallback technical values are generated: `accession_number = "ACC-<job_hex[:10]>"` and `study_id = "STD-<job_hex[:10]>"`.
-- **Note:** These are **SERVER FALLBACK TECHNICAL VALUES**, not authoritative RIS accession numbers.
+- `accession_number`:
+  - `IF SUPPLIED`: Preserved.
+  - `IF OMITTED`: Fallback technical value generated: `ACC-<job_hex[:10].upper()>`.
+- `study_id`:
+  - `IF SUPPLIED`: Preserved.
+  - `IF OMITTED`: Resolved value is `"STUDY01"`.
+- **Note:** `"STUDY01"` and `ACC-<job_hex[:10]>` are **SERVER FALLBACK TECHNICAL VALUES**, not authoritative RIS study identifiers.
+
+### Protocol Name & Patient Member ID
+- `examination.protocol_name`: Preserved if supplied; if omitted, remains `None` / absent (no protocol name string is invented).
+- `patient.member_id`: Preserved if supplied; if omitted, remains `None`. MPIPS MUST NOT be documented as synthesizing patient or member identity.
 
 ### Timestamp Semantics & Residual Decision
 - `IF SUPPLIED`: `capture.captured_at` and `examination.performed_at` are preserved as source clinical timestamps.
@@ -253,7 +261,7 @@ $$\text{sop\_instance\_uid} = \text{"2.25."} + \text{str}(\text{int}(\text{UUIDv
 
 ### Operator & Site Defaults
 - `operator`: Default fallback is `operator_id="OP-SYSTEM"`, `name="SYSTEM OPERATOR"`. (Technical fallback, not an actual technologist).
-- `site`: Default fallback is `organization_id="ORG-MADEENA"`, `site_id="SITE-DEFAULT"`, `institution_name="MADEENA MEDICAL CENTER"`, `department_name="RADIOLOGY"`, `station_name="STATION-01"`, `timezone="Asia/Jakarta"`.
+- `site`: Default fallback is `organization_id="ORG-MADEENA"`, `site_id="SITE-DEFAULT"`, `institution_name="MADEENA MEDICAL CENTER"`, `timezone="Asia/Jakarta"`. (`department_name` and `station_name` remain `None` if omitted).
 
 ---
 
@@ -266,8 +274,8 @@ $$\text{sop\_instance\_uid} = \text{"2.25."} + \text{str}(\text{int}(\text{UUIDv
 
 ### Image Spacing (`image_spacing`)
 - Optional: `capture.image_spacing.row_um`, `capture.image_spacing.column_um`.
-- `IF SUPPLIED`: Converted to mm (`row_um / 1000.0`, `column_um / 1000.0`) and populated in DICOM `PixelSpacing`.
-- `IF OMITTED`: Fallback default is `140 µm × 140 µm` = `0.140 mm × 0.140 mm`. (Technical fallback default).
+- `IF SUPPLIED`: Preserved in `ResolvedMHCSManifest`, converted to mm (`row_um / 1000.0`, `column_um / 1000.0`), and populated in DICOM `PixelSpacing`.
+- `IF OMITTED`: `ResolvedMHCSManifest.capture.image_spacing` remains `None`. During metadata generation, DICOM enrichment, and validation, MPIPS applies a **DOWNSTREAM DICOM FALLBACK** of `140 µm × 140 µm` = `0.140 mm × 0.140 mm`.
 
 ### Gain ID (`gain_id`)
 - Optional: `capture.gain.gain_id`.
@@ -276,7 +284,13 @@ $$\text{sop\_instance\_uid} = \text{"2.25."} + \text{str}(\text{int}(\text{UUIDv
 
 ---
 
-## 10. Retry & Idempotency Contract
+## 10. Series Description Precedence & Retry Contract
+
+### Series Description Fallback Precedence
+When populating DICOM `SeriesDescription`, MPIPS evaluates fields in exact order of precedence:
+1. Explicit `dicom.series_description` (if provided)
+2. `examination.study_description` (if provided)
+3. `"CHEST RADIOGRAPH"` (default fallback)
 
 ### Minimal Manifest Retry Contract
 When retrying a transiently failed request (HTTP 429, 503, timeout, or network drop), MHCS MUST preserve:
@@ -354,18 +368,18 @@ $$\text{fp} = \text{SHA256}(\text{tenant\_id} + \text{manifest\_version} + \text
   "submission_id": "a46c3061-220a-4a1f-babe-a99f446439e5",
   "correlation_id": "29722404-a494-46ca-960b-537255d37982",
   "examination": {
-    "examination_id": "EXM-AUTO-97EEB9EF",
-    "booking_id": "BKG-AUTO-97EEB9EF",
-    "service_request_id": "SR-AUTO-97EEB9EF",
-    "encounter_id": "ENC-AUTO-97EEB9EF",
+    "examination_id": "EXAM-97EEB9EF",
+    "booking_id": null,
+    "service_request_id": null,
+    "encounter_id": null,
     "accession_number": "ACC-97EEB9EFD9",
-    "study_id": "STD-97EEB9EFD9",
+    "study_id": "STUDY01",
     "performed_at": "2026-08-12T00:00:00+00:00",
     "study_description": "CHEST RADIOGRAPH",
-    "protocol_name": "CHEST RADIOGRAPH"
+    "protocol_name": null
   },
   "patient": {
-    "member_id": "4e1837b7-5f12-5b23-93d4-bf67243ad910",
+    "member_id": null,
     "medical_record_number": "MRN-90214810",
     "name": {
       "full_name": "JANE DOE",
@@ -385,8 +399,8 @@ $$\text{fp} = \text{SHA256}(\text{tenant\_id} + \text{manifest\_version} + \text
     "organization_id": "ORG-MADEENA",
     "site_id": "SITE-DEFAULT",
     "institution_name": "MADEENA MEDICAL CENTER",
-    "department_name": "RADIOLOGY",
-    "station_name": "STATION-01",
+    "department_name": null,
+    "station_name": null,
     "timezone": "Asia/Jakarta"
   },
   "capture": {
@@ -409,10 +423,7 @@ $$\text{fp} = \text{SHA256}(\text{tenant\_id} + \text{manifest\_version} + \text
       "sha256": "b5b419772fcf9f529ccfde7g41be45b0fbf4ff120gd5367c14c434cf4d7817f1",
       "gain_id": null
     },
-    "image_spacing": {
-      "row_um": 140.0,
-      "column_um": 140.0
-    }
+    "image_spacing": null
   },
   "dicom": {
     "study_instance_uid": "2.25.12345678901234567890123456789012345678",
