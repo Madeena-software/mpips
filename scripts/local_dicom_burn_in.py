@@ -46,6 +46,7 @@ def _npz_bytes(
     *,
     radiograph: bool,
     shape: tuple[int, int] = SHAPE,
+    camera: str = CAMERA,
     missing: Iterable[str] = (),
 ) -> bytes:
     raw = np.full(shape, 1000, dtype=np.uint16)
@@ -56,7 +57,7 @@ def _npz_bytes(
             "gainid": np.array(GAIN_ID),
             "rawimage": raw,
             "xrayparams": np.array({"detectorMode": "BED"}, dtype=object),
-            "cameraparams": np.array({"serialNumber": CAMERA}, dtype=object),
+            "cameraparams": np.array({"serialNumber": camera}, dtype=object),
         }
     else:
         values = {
@@ -64,7 +65,7 @@ def _npz_bytes(
             "rawimage": np.full(shape, 2000, dtype=np.uint16),
             "darkimage": np.full(shape, 50, dtype=np.uint16),
             "xrayparams": np.array({"detectorMode": "BED"}, dtype=object),
-            "cameraparams": np.array({"serialNumber": CAMERA}, dtype=object),
+            "cameraparams": np.array({"serialNumber": camera}, dtype=object),
         }
     for key in missing:
         values.pop(key, None)
