@@ -16,6 +16,10 @@ jobs:
           WORKSPACES_DIR="/tmp/mpips-workspaces"
 
           echo "Provisioning directories..."
+          if [ ! -d "/var/www/mpips-runtime" ]; then
+            sudo mkdir -p "/var/www/mpips-runtime"
+            sudo chown -R "$(id -u):$(id -g)" "/var/www/mpips-runtime"
+          fi
           mkdir -p "$DEST_DIR" "$LAUNCHER_DIR" "$WORKSPACES_DIR"
           chmod 755 "$LAUNCHER_DIR"
 

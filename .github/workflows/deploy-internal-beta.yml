@@ -102,6 +102,10 @@ jobs:
       - name: Prepare runtime and rollback state
         run: |
           set -Eeuo pipefail
+          if [ ! -d "$REMOTE_PATH" ]; then
+            sudo mkdir -p "$REMOTE_PATH"
+            sudo chown -R "$(id -u):$(id -g)" "$REMOTE_PATH"
+          fi
           mkdir -p "$REMOTE_PATH/calibration" "$REMOTE_PATH/launcher" /tmp/mpips-workspaces
           test -s "$REMOTE_PATH/calibration/metadata.json"
           test -s "$REMOTE_PATH/calibration/remap.npz"
