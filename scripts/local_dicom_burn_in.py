@@ -181,17 +181,27 @@ def prepare(base: Path) -> None:
         (base / name).mkdir(exist_ok=True)
 
     target_shape = SHAPE
+    target_camera = CAMERA
     cal_meta_file = base.parent / "calibration" / "metadata.json"
     if cal_meta_file.is_file():
         try:
             meta = json.loads(cal_meta_file.read_text("utf-8"))
             if "image_shape" in meta and len(meta["image_shape"]) == 2:
                 target_shape = tuple(meta["image_shape"])
+            cam_params = meta.get("source_metadata", {}).get("camera_params", {})
+            if isinstance(cam_params, dict):
+                cam_sn = cam_params.get("serialNumber") or cam_params.get("cameraSerial")
+                if cam_sn:
+                    target_camera = str(cam_sn)
         except Exception:
             pass
 
-    radiograph = _npz_bytes(radiograph=True, shape=target_shape)
-    gain = _npz_bytes(radiograph=False, shape=target_shape)
+    radiograph = _npz_bytes(
+        radiograph=True, shape=target_shape, camera=target_camera
+    )
+    gain = _npz_bytes(
+        radiograph=False, shape=target_shape, camera=target_camera
+    )
     fixture_dir = base / "fixtures"
     (fixture_dir / "radiograph.npz").write_bytes(radiograph)
     (fixture_dir / "gain.npz").write_bytes(gain)
@@ -211,7 +221,7 @@ def prepare(base: Path) -> None:
                 "image_shape": list(target_shape),
                 "source_metadata": {
                     "detector_mode": "BED",
-                    "camera_params": {"serialNumber": CAMERA},
+                    "camera_params": {"serialNumber": target_camera},
                 },
             }
         ),
