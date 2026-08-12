@@ -30,7 +30,7 @@ jobs:
       - name: Install uv and dependencies
         run: |
           python -m pip install uv
-          uv sync --frozen --extra service --extra dev --extra npz-worker
+          uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager
 
       - name: Run focused checks
         run: |
@@ -75,7 +75,7 @@ jobs:
       - name: Install uv and dependencies
         run: |
           python -m pip install uv
-          uv sync --frozen --extra service --extra dev --extra npz-worker
+          uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager
 
       - name: Set deployment variables
         run: |
