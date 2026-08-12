@@ -312,6 +312,7 @@ def run_isolated_dicom_conversion(
             json.dump(args_data, f)
         os.chmod(args_path, 0o400)
 
+        stderr_str = ""
         # Launch worker
         if env_mode == "production":
             # Production host supervisor container launcher via narrow Unix socket
@@ -356,6 +357,7 @@ def run_isolated_dicom_conversion(
                     )
 
                 resp_data = json.loads(resp_bytes.decode("utf-8"))
+                stderr_str = resp_data.get("stderr", "")
                 if resp_data.get("status") != "success":
                     if resp_data.get("exit_code") == 124:
                         raise HTTPException(
