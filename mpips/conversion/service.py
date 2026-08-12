@@ -411,8 +411,9 @@ def run_isolated_dicom_conversion(
                     env=clean_env,
                 )
                 _, stderr = proc.communicate(timeout=timeout_seconds)
-                if stderr and not result_path.exists():
-                    sys.stderr.write(f"Worker process stderr: {stderr.decode('utf-8', errors='replace')}\n")
+                stderr_str = stderr.decode("utf-8", errors="replace") if stderr else ""
+                if stderr_str and not result_path.exists():
+                    sys.stderr.write(f"Worker process stderr: {stderr_str}\n")
             except subprocess.TimeoutExpired:
                 if proc.pid:
                     try:
