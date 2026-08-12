@@ -149,6 +149,7 @@ jobs:
             fi
           fi
           rm -f "$REMOTE_PATH/launcher/launcher.sock" "$PID_FILE"
+          RUNNER_TRACKING_ID="" \
           MPIPS_LAUNCHER_SOCKET_PATH="$REMOTE_PATH/launcher/launcher.sock" \
           MPIPS_WORKSPACE_ROOT=/tmp/mpips-workspaces \
           MPIPS_WORKER_IMAGE="mpips-npz-worker:$MPIPS_VERSION" \
@@ -211,6 +212,7 @@ jobs:
                 fi
               fi
               rm -f "$REMOTE_PATH/launcher/launcher.sock"
+              RUNNER_TRACKING_ID="" \
               MPIPS_LAUNCHER_SOCKET_PATH="$REMOTE_PATH/launcher/launcher.sock" \
               MPIPS_WORKSPACE_ROOT=/tmp/mpips-workspaces \
               MPIPS_WORKER_IMAGE="$MPIPS_PREVIOUS_WORKER_IMAGE" \
