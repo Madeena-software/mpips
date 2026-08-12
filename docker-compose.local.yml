@@ -6,6 +6,7 @@ services:
       - "${MPIPS_LAUNCHER_GID:-1000}"
     environment:
       MPIPS_ENVIRONMENT: production
+      MPIPS_API_KEY: ${MPIPS_API_KEY:-m4d3n4sukses2026}
       MPIPS_API_WORKERS: "1"
       PORT: "8000"
       REDIS_URL: redis://redis:6379/0
@@ -30,7 +31,7 @@ services:
       - ${MPIPS_CALIBRATION_DIR:?set calibration dir}:/opt/mpips/calibration:ro
       - ${MPIPS_LAUNCHER_DIR:?set launcher dir}:/var/run/mpips-local:rw
     networks:
-      - mpips-local-private
+      - madeena-software-network
     depends_on:
       redis:
         condition: service_healthy
@@ -56,7 +57,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "no", "--save", ""]
     networks:
-      - mpips-local-private
+      - madeena-software-network
     tmpfs:
       - /data:rw,noexec,nosuid,size=64m
     security_opt:
