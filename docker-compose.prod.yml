@@ -31,7 +31,7 @@ services:
       - ${REMOTE_PATH:?set REMOTE_PATH}/calibration:/opt/mpips/calibration:ro
       - ${REMOTE_PATH:?set REMOTE_PATH}/launcher:/var/run/mpips:rw
     networks:
-      - mpips-internal-beta
+      - madeena-software-network
     depends_on:
       redis:
         condition: service_healthy
@@ -57,7 +57,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "no", "--save", ""]
     networks:
-      - mpips-internal-beta
+      - madeena-software-network
     tmpfs:
       - /data:rw,noexec,nosuid,size=64m
     security_opt:
@@ -73,5 +73,6 @@ services:
       retries: 12
 
 networks:
-  mpips-internal-beta:
-    name: mpips-internal-beta-v1
+  madeena-software-network:
+    external: true
+    name: madeena-software-network

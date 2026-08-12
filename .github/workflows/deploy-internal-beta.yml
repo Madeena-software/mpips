@@ -102,6 +102,8 @@ jobs:
       - name: Prepare runtime and rollback state
         run: |
           set -Eeuo pipefail
+          docker network inspect madeena-software-network >/dev/null 2>&1 || \
+            docker network create madeena-software-network
           if [ ! -d "$REMOTE_PATH" ]; then
             sudo mkdir -p "$REMOTE_PATH"
             sudo chown -R "$(id -u):$(id -g)" "$REMOTE_PATH"
@@ -186,6 +188,11 @@ jobs:
             test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8014/health)" = "200"
             test "$(docker port "$API_CONTAINER" 8000/tcp)" = "127.0.0.1:8014"
             test -z "$(docker port "$REDIS_CONTAINER" || true)"
+            docker network inspect madeena-software-network >/dev/null 2>&1
+            docker inspect "$API_CONTAINER" | grep -Fq 'madeena-software-network'
+            docker run --rm --network madeena-software-network \
+              "mpips-api:$MPIPS_VERSION" \
+              curl -fsS http://mpips-api:8000/health >/dev/null
             ! docker compose --project-name "$COMPOSE_PROJECT_NAME" \
               --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" config | \
               grep -Eiq 'latest|nginx|jwks'

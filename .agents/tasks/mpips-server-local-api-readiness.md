@@ -2,7 +2,7 @@
 title: MPIPS server-local API readiness on shared Madeena network
 document_id: TASK-MPIPS-SERVER-LOCAL-API-001
 version: 1.0
-status: Draft
+status: Validated/Published
 language: en-US
 last_updated: 2026-08-12
 ---
