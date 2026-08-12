@@ -21,14 +21,11 @@ from mpips.workflows.imager_pipeline.pipeline import process_radiography_arrays
 
 
 def _apply_startup_resource_limits() -> None:
-    """Enforces Linux RLIMIT_CPU and RLIMIT_AS before opening NPZ files."""
+    """Enforces Linux RLIMIT_CPU before opening NPZ files."""
     try:
         import resource
 
         cpu_limit = int(os.getenv("MPIPS_DICOM_WORKER_CPU_SECONDS", "120"))
-        mem_limit = int(
-            os.getenv("MPIPS_DICOM_WORKER_MEMORY_BYTES", str(2 * 1024 * 1024 * 1024))
-        )
 
         if cpu_limit > 0 and hasattr(resource, "RLIMIT_CPU"):
             try:
@@ -38,15 +35,6 @@ def _apply_startup_resource_limits() -> None:
                     raise RuntimeError(
                         f"Failed to set RLIMIT_CPU on Linux: {exc}"
                     ) from exc
-
-        if mem_limit > 0 and hasattr(resource, "RLIMIT_AS"):
-            try:
-                # Use 8GB virtual address space for 64-bit Python C extensions
-                # while cgroups limit physical RAM
-                as_limit = max(mem_limit, 8 * 1024 * 1024 * 1024)
-                resource.setrlimit(resource.RLIMIT_AS, (as_limit, as_limit))
-            except (ValueError, OSError):
-                pass
     except ImportError:
         if sys.platform.startswith("linux"):
             raise RuntimeError("resource module unavailable on Linux")
