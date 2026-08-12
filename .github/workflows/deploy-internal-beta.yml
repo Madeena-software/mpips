@@ -33,6 +33,8 @@ jobs:
           uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager
 
       - name: Run focused checks
+        env:
+          MPIPS_ENVIRONMENT: development
         run: |
           test ! -f .agents/skills/agent-task/scripts/validate_task.py || \
             .venv/bin/python .agents/skills/agent-task/scripts/validate_task.py \
