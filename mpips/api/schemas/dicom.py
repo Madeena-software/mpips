@@ -63,7 +63,7 @@ class SiteSchema(BaseModel):
     site_id: str = Field(..., min_length=1, max_length=64)
     institution_name: str = Field(..., min_length=1, max_length=64)
     department_name: Optional[str] = Field(None, max_length=64)
-    station_name: Optional[str] = Field(None, max_length=64)
+    station_name: Optional[str] = Field(None, max_length=16)
     timezone: str = Field(..., min_length=1, max_length=64)
 
 

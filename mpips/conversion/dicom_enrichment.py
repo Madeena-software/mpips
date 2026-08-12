@@ -35,7 +35,7 @@ def enrich_dicom_file(dicom_path: str | Path, manifest: MHCSManifest) -> None:
     if manifest.site.department_name:
         ds.InstitutionalDepartmentName = manifest.site.department_name
     if manifest.site.station_name:
-        ds.StationName = manifest.site.station_name
+        ds.StationName = manifest.site.station_name[:16]
 
     # Anatomy & Projection
     ds.BodyPartExamined = manifest.capture.body_part_examined

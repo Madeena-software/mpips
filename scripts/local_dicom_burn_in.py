@@ -23,7 +23,7 @@ from pydicom.uid import ExplicitVRLittleEndian
 from mpips.api.schemas.dicom import MHCSManifest
 from mpips.conversion.validation import validate_dicom_dataset
 
-API_KEY = "mpips_access_api_m4d33n4"
+API_KEY = os.getenv("MPIPS_API_KEY", "mpips_access_api_m4d33n4")
 SHAPE = (64, 64)
 GAIN_ID = "SYNTH-GAIN-001"
 CAMERA = "SYNTH-CAMERA-001"
@@ -107,7 +107,7 @@ def _manifest_template() -> dict[str, Any]:
             "site_id": "SYNTH-SITE-001",
             "institution_name": "Synthetic Local Test Site",
             "department_name": "Synthetic Radiology",
-            "station_name": "SYNTH-STATION-001",
+            "station_name": "SYNTH-STATION-01",
             "timezone": "UTC",
         },
         "capture": {
@@ -505,6 +505,19 @@ class BurnIn:
             self.failures.append(
                 f"concurrency verification failed: no 429 status returned in {statuses}"
             )
+
+        rejected_item = next(
+            (item for item in results if item["status_code"] == 429), None
+        )
+        if rejected_item:
+            retry_raw = _with_files(
+                self.template,
+                self.radiograph,
+                self.gain,
+                job_id=rejected_item["job_id"],
+            )
+            retry_res = self.request(retry_raw)
+            self.case("429 retry after capacity available", 200, retry_res)
 
         self.case(
             "health after concurrent activity",
