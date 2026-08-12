@@ -39,16 +39,11 @@ def _apply_startup_resource_limits() -> None:
                         f"Failed to set RLIMIT_CPU on Linux: {exc}"
                     ) from exc
 
-        if mem_limit > 0 and hasattr(resource, "RLIMIT_DATA"):
+        if mem_limit > 0 and hasattr(resource, "RLIMIT_AS"):
             try:
-                resource.setrlimit(resource.RLIMIT_DATA, (mem_limit, mem_limit))
-            except (ValueError, OSError):
-                pass
-        elif mem_limit > 0 and hasattr(resource, "RLIMIT_AS"):
-            try:
-                # Use 4GB virtual address space for 64-bit Python C extensions
+                # Use 8GB virtual address space for 64-bit Python C extensions
                 # while cgroups limit physical RAM
-                as_limit = max(mem_limit, 4 * 1024 * 1024 * 1024)
+                as_limit = max(mem_limit, 8 * 1024 * 1024 * 1024)
                 resource.setrlimit(resource.RLIMIT_AS, (as_limit, as_limit))
             except (ValueError, OSError):
                 pass
