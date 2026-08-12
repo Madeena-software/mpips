@@ -245,7 +245,12 @@ class BurnIn:
         self.template = _manifest_template()
         self.radiograph = (base / "fixtures" / "radiograph.npz").read_bytes()
         self.gain = (base / "fixtures" / "gain.npz").read_bytes()
-        self.raw_manifest = (base / "fixtures" / "manifest.json").read_bytes()
+        self.raw_manifest = _with_files(
+            self.template,
+            self.radiograph,
+            self.gain,
+            job_id=_uuid(),
+        )
         self.client = httpx.Client(timeout=120.0, follow_redirects=False)
         self.failures: list[str] = []
         self.case_count = 0
