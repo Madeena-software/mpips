@@ -1,0 +1,74 @@
+{
+  "manifest_version": "1.0",
+  "conversion_job_id": "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+  "submission_id": "f81d4fae-7dec-11d0-a765-00a0c91e6bf6",
+  "correlation_id": "c9bf9e57-1685-4c89-bafb-ff5af830be8a",
+  "examination": {
+    "examination_id": "EXAM-2026-0812-001",
+    "booking_id": "BOOK-8839102",
+    "service_request_id": "SR-9940129",
+    "encounter_id": "ENC-4029104",
+    "accession_number": "ACC-2026081201",
+    "study_id": "ST-100294",
+    "performed_at": "2026-08-12T14:30:00+07:00",
+    "study_description": "CHEST X-RAY PA/LAT",
+    "protocol_name": "CHEST_STANDARD_V1"
+  },
+  "patient": {
+    "member_id": "123e4567-e89b-12d3-a456-426614174000",
+    "medical_record_number": "MRN-90214810",
+    "name": {
+      "full_name": "JANE DOE",
+      "family_name": "DOE"
+    },
+    "sex": "female",
+    "birth_date": "1988-03-15"
+  },
+  "operator": {
+    "operator_id": "OP-7731",
+    "name": {
+      "full_name": "ALEX SMITH",
+      "family_name": "SMITH"
+    }
+  },
+  "site": {
+    "organization_id": "ORG-MADEENA-HEALTH",
+    "site_id": "SITE-JAKARTA-01",
+    "institution_name": "MADEENA MEDICAL CENTER",
+    "department_name": "RADIOLOGY",
+    "station_name": "RAD-STATION-01",
+    "timezone": "Asia/Jakarta"
+  },
+  "capture": {
+    "capture_id": "CAP-20260812-9901",
+    "protocol_version": "1.0.0",
+    "body_part_examined": "CHEST",
+    "laterality": "U",
+    "projection": "PA",
+    "captured_at": "2026-08-12T14:28:15+07:00",
+    "radiograph": {
+      "filename": "radiograph.npz",
+      "byte_size": 24785860,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "gain": {
+      "filename": "gain.npz",
+      "byte_size": 12392930,
+      "sha256": "ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb",
+      "gain_id": "GAIN-DETECTOR-CAL-2026A"
+    },
+    "image_spacing": {
+      "row_um": 140.0,
+      "column_um": 140.0
+    }
+  },
+  "dicom": {
+    "study_instance_uid": "1.2.840.113619.2.55.3.283115947.881.1691234567.100",
+    "series_instance_uid": "1.2.840.113619.2.55.3.283115947.881.1691234567.101",
+    "sop_instance_uid": "1.2.840.113619.2.55.3.283115947.881.1691234567.102",
+    "series_number": 1,
+    "instance_number": 1,
+    "series_description": "CHEST RADIOGRAPH",
+    "presentation_intent": "FOR PRESENTATION"
+  }
+}
