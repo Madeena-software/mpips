@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import cv2
 import json
+import logging
 import numpy as np
 import os
 import shutil
@@ -22,6 +23,8 @@ from mpips.conversion.dicom_enrichment import enrich_dicom_file
 from mpips.conversion.metadata import build_converter_metadata_json
 from mpips.conversion.validation import validate_dicom_dataset
 from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
+
+logger = logging.getLogger(__name__)
 
 
 def _validate_tiff_descriptor(
