@@ -175,7 +175,8 @@ def to_uint16(image: np.ndarray, name: str = "image") -> np.ndarray:
 
 def write_tiff(path: str | Path, image: np.ndarray) -> Path:
     target = Path(path)
-    target.parent.mkdir(parents=True, exist_ok=True)
+    if not target.parent.is_dir():
+        target.parent.mkdir(parents=True, exist_ok=True)
     if not cv2.imwrite(str(target), image):
         raise OSError(f"Could not write TIFF: {target}")
     return target

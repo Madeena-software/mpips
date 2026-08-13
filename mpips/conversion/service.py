@@ -284,7 +284,7 @@ def run_isolated_dicom_conversion(
             dir=workspace_base,
         )
     )
-    os.chmod(workspace_dir, 0o755)
+    os.chmod(workspace_dir, 0o777)
 
     output_dir = workspace_dir / "output"
     output_dir.mkdir(parents=True, exist_ok=True)

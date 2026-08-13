@@ -33,7 +33,7 @@ WORKSPACE_ROOT = Path(
 ).resolve()
 WORKER_IMAGE = os.getenv("MPIPS_WORKER_IMAGE", "mpips-npz-worker:internal-beta")
 WORKER_USER = os.getenv("MPIPS_WORKER_USER", "10001:10001")
-WORKER_MEMORY = os.getenv("MPIPS_WORKER_MEMORY", "2g")
+WORKER_MEMORY = os.getenv("MPIPS_WORKER_MEMORY", "4g")
 WORKER_TMPFS_SIZE = os.getenv("MPIPS_WORKER_TMPFS_SIZE", "512m")
 TIMEOUT_SECONDS = int(os.getenv("MPIPS_WORKER_TIMEOUT_SECONDS", "300"))
 JOB_ID_REGEX = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")

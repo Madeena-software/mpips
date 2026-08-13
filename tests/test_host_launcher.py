@@ -96,7 +96,7 @@ def test_build_docker_cmd_security_flags(tmp_path: Path) -> None:
     assert "--cap-drop=ALL" in cmd
     assert "--security-opt=no-new-privileges:true" in cmd
     assert "--network=none" in cmd
-    assert "--memory=2g" in cmd
+    assert "--memory=4g" in cmd
     assert "--cpus=2" in cmd
     assert "--user=10001:10001" in cmd
     assert f"mpips-worker-{job_id}" in cmd
