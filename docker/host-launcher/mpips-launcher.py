@@ -97,9 +97,6 @@ def build_docker_cmd(job_id: str, workspace_dir: Path) -> list[str]:
         "-v",
         f"{workspace_dir}:{workspace_dir}:rw",
         WORKER_IMAGE,
-        "python",
-        "-m",
-        "mpips.conversion.worker",
         str(args_path_in_container),
         str(result_path_in_container),
     ]
