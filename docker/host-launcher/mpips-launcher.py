@@ -87,6 +87,8 @@ def build_docker_cmd(job_id: str, workspace_dir: Path) -> list[str]:
         "--cap-drop=ALL",
         "--security-opt=no-new-privileges:true",
         "--network=none",
+        "-e",
+        "MPLCONFIGDIR=/tmp",
         f"--memory={WORKER_MEMORY}",
         "--cpus=2",
         f"--user={WORKER_USER}",
