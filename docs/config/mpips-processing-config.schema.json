@@ -77,7 +77,17 @@
           "enum": ["auto", "valley", "otsu", "knee", "percentile_25", "secondary_peak", "none", "off", "skip", "no"]
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "enabled": { "const": false } }
+          },
+          "then": {
+            "properties": { "method": { "enum": ["none", "off", "skip", "no"] } }
+          }
+        }
+      ]
     },
     "invert": {
       "type": "object",
@@ -111,7 +121,33 @@
           "additionalProperties": false
         }
       },
-      "additionalProperties": false
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": { "enabled": { "const": false } }
+          },
+          "then": {
+            "properties": { "mode": { "const": "disabled" } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "mode": { "const": "disabled" } }
+          },
+          "then": {
+            "properties": { "enabled": { "const": false } }
+          }
+        },
+        {
+          "if": {
+            "properties": { "enabled": { "const": true } }
+          },
+          "then": {
+            "properties": { "mode": { "enum": ["equalize", "stretch"] } }
+          }
+        }
+      ]
     },
     "clahe": {
       "type": "object",

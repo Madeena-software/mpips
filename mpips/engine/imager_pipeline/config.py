@@ -80,6 +80,7 @@ class ImagerPipelineConfig:
     crop_bottom: int = 0
     crop_left: int = 0
     crop_right: int = 0
+    use_crop_rotate: bool = True
 
     # Wavelet denoise parameters
     use_denoise: bool = True
@@ -92,7 +93,8 @@ class ImagerPipelineConfig:
     use_normalize: bool = False
     normalize_saturated_pixels: float = 0.35
 
-    # Auto threshold parameter
+    # Auto threshold parameters
+    use_threshold: bool = True
     threshold_method: str = "auto"
 
     # Invert parameter
@@ -102,8 +104,6 @@ class ImagerPipelineConfig:
     use_contrast_enhancement: bool = True
     contrast_mode: str = "equalize"
     contrast_saturated_pixels: float = 5.0
-    contrast_normalize: bool = True
-    contrast_equalize: bool = True
     contrast_classic_equalization: bool = False
 
     # CLAHE parameters
@@ -125,18 +125,130 @@ class ImagerPipelineConfig:
     # Debug flag
     debug: bool = False
 
-    def __post_init__(self) -> None:
-        # Reconcile contrast mode semantics with legacy fields
-        if not self.use_contrast_enhancement:
-            object.__setattr__(self, "contrast_mode", ContrastMode.DISABLED.value)
-        elif self.contrast_equalize:
-            object.__setattr__(self, "contrast_mode", ContrastMode.EQUALIZE.value)
-        elif self.contrast_normalize:
-            object.__setattr__(self, "contrast_mode", ContrastMode.STRETCH.value)
-        else:
-            object.__setattr__(self, "contrast_mode", ContrastMode.DISABLED.value)
+    def __init__(
+        self,
+        *,
+        crop_top: int = 0,
+        crop_bottom: int = 0,
+        crop_left: int = 0,
+        crop_right: int = 0,
+        use_crop_rotate: bool = True,
+        use_denoise: bool = True,
+        wavelet: str = "sym4",
+        wavelet_level: int = 3,
+        wavelet_method: str = "BayesShrink",
+        wavelet_mode: str = "soft",
+        use_normalize: bool = False,
+        normalize_saturated_pixels: float = 0.35,
+        use_threshold: bool = True,
+        threshold_method: str = "auto",
+        use_invert: bool = True,
+        use_contrast_enhancement: bool = True,
+        contrast_mode: str | ContrastMode | None = None,
+        contrast_saturated_pixels: float = 5.0,
+        contrast_classic_equalization: bool = False,
+        use_clahe: bool = True,
+        clahe_blocksize: int = 127,
+        clahe_histogram_bins: int = 256,
+        clahe_max_slope: float = 0.6,
+        clahe_fast: bool = False,
+        clahe_composite: bool = True,
+        use_final_denoise: bool = False,
+        use_median_filter: bool = True,
+        median_filter_type: str = "hybrid_imagej",
+        median_filter_radius: int = 2,
+        debug: bool = False,
+        **kwargs: Any,
+    ) -> None:
+        self.crop_top = crop_top
+        self.crop_bottom = crop_bottom
+        self.crop_left = crop_left
+        self.crop_right = crop_right
+        self.use_crop_rotate = use_crop_rotate
+        self.use_denoise = use_denoise
+        self.wavelet = wavelet
+        self.wavelet_level = wavelet_level
+        self.wavelet_method = wavelet_method
+        self.wavelet_mode = wavelet_mode
+        self.use_normalize = use_normalize
+        self.normalize_saturated_pixels = normalize_saturated_pixels
+        self.use_threshold = use_threshold
+        self.threshold_method = threshold_method
+        self.use_invert = use_invert
+        self.contrast_saturated_pixels = contrast_saturated_pixels
+        self.contrast_classic_equalization = contrast_classic_equalization
+        self.use_clahe = use_clahe
+        self.clahe_blocksize = clahe_blocksize
+        self.clahe_histogram_bins = clahe_histogram_bins
+        self.clahe_max_slope = clahe_max_slope
+        self.clahe_fast = clahe_fast
+        self.clahe_composite = clahe_composite
+        self.use_final_denoise = use_final_denoise
+        self.use_median_filter = use_median_filter
+        self.median_filter_type = median_filter_type
+        self.median_filter_radius = median_filter_radius
+        self.debug = debug
 
-        # Validate range and types
+        # Resolve threshold method vs enabled
+        if threshold_method.lower() in ("none", "off", "skip", "no"):
+            self.use_threshold = False
+        elif "use_threshold" in kwargs:
+            self.use_threshold = bool(kwargs["use_threshold"])
+
+        # Determine contrast_mode authority
+        if contrast_mode is not None:
+            mode_str = (
+                contrast_mode.value
+                if isinstance(contrast_mode, ContrastMode)
+                else str(contrast_mode)
+            )
+            if mode_str == ContrastMode.DISABLED.value or not use_contrast_enhancement:
+                self.contrast_mode = ContrastMode.DISABLED.value
+                self.use_contrast_enhancement = False
+            else:
+                self.contrast_mode = mode_str
+                self.use_contrast_enhancement = True
+        else:
+            # Check legacy boolean keyword arguments if contrast_mode was not
+            # explicitly provided
+            has_eq = kwargs.get("contrast_equalize")
+
+            has_norm = kwargs.get("contrast_normalize")
+            if not use_contrast_enhancement:
+                self.contrast_mode = ContrastMode.DISABLED.value
+                self.use_contrast_enhancement = False
+            elif has_eq is True:
+                self.contrast_mode = ContrastMode.EQUALIZE.value
+                self.use_contrast_enhancement = True
+            elif has_eq is False and has_norm is True:
+                self.contrast_mode = ContrastMode.STRETCH.value
+                self.use_contrast_enhancement = True
+            elif has_eq is False and has_norm is False:
+                self.contrast_mode = ContrastMode.DISABLED.value
+                self.use_contrast_enhancement = False
+            else:
+                self.contrast_mode = ContrastMode.EQUALIZE.value
+                self.use_contrast_enhancement = use_contrast_enhancement
+
+        self._validate()
+
+    @property
+    def contrast_equalize(self) -> bool:
+        """Derived property indicating if equalization branch is active."""  # noqa: E501
+        return (
+            self.use_contrast_enhancement
+            and self.contrast_mode == ContrastMode.EQUALIZE.value
+        )
+
+    @property
+    def contrast_normalize(self) -> bool:
+        """Derived property indicating if contrast stretch branch is active."""
+        return (
+            self.use_contrast_enhancement
+            and self.contrast_mode == ContrastMode.STRETCH.value
+        )
+
+    def _validate(self) -> None:
         if (
             self.crop_top < 0
             or self.crop_bottom < 0
@@ -182,7 +294,6 @@ class ImagerPipelineConfig:
                 f"median_filter_radius must be > 0, got {self.median_filter_radius}"
             )
 
-        # Validate enums
         thresh_lower = self.threshold_method.lower()
         if thresh_lower not in VALID_THRESHOLD_METHODS:
             raise ValueError(
@@ -221,7 +332,7 @@ class ImagerPipelineConfig:
             "USE_GPU": False,
             "USE_IMAGEJ": True,
             "USE_DENOISE": self.use_denoise,
-            "USE_CROP_ROTATE": True,
+            "USE_CROP_ROTATE": self.use_crop_rotate,
             "USE_CLAHE": self.use_clahe,
             "USE_CONTRAST_ENHANCEMENT": self.use_contrast_enhancement,
             "USE_NORMALIZE": self.use_normalize,
@@ -230,7 +341,7 @@ class ImagerPipelineConfig:
             "USE_MEDIAN_FILTER": self.use_median_filter,
             "MEDIAN_FILTER_RADIUS": self.median_filter_radius,
             "MEDIAN_FILTER_TYPE": self.median_filter_type,
-            "THRESHOLD_METHOD": self.threshold_method,
+            "THRESHOLD_METHOD": self.threshold_method if self.use_threshold else "none",
             "WAVELET_TYPE": self.wavelet,
             "WAVELET_LEVEL": self.wavelet_level,
             "WAVELET_METHOD": self.wavelet_method,
@@ -271,7 +382,7 @@ class ImagerPipelineConfig:
                 },
             },
             "crop_rotate": {
-                "enabled": True,
+                "enabled": self.use_crop_rotate,
                 "crop": {
                     "top": self.crop_top,
                     "bottom": self.crop_bottom,
@@ -284,9 +395,9 @@ class ImagerPipelineConfig:
                 "saturated_pixels": self.normalize_saturated_pixels,
             },
             "threshold": {
-                "enabled": self.threshold_method.lower()
-                not in ("none", "off", "skip", "no"),
-                "method": self.threshold_method,
+                "enabled": self.use_threshold
+                and self.threshold_method.lower() not in ("none", "off", "skip", "no"),
+                "method": self.threshold_method if self.use_threshold else "none",
             },
             "invert": {
                 "enabled": self.use_invert,
@@ -324,11 +435,24 @@ class ImagerPipelineConfig:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> ImagerPipelineConfig:
         """Construct ImagerPipelineConfig from a structured dict or flat dict."""
-        if "schema_version" in data or "denoise" in data:
-            # Structured dict
+        structured_sections = {
+            "schema_version",
+            "denoise",
+            "crop_rotate",
+            "early_normalize",
+            "threshold",
+            "invert",
+            "contrast",
+            "clahe",
+            "final_denoise",
+            "median_filter",
+        }
+        if any(k in data for k in structured_sections):
+
             denoise = data.get("denoise", {})
             wavelet = denoise.get("wavelet", {})
-            crop = data.get("crop_rotate", {}).get("crop", {})
+            crop_rotate = data.get("crop_rotate", {})
+            crop = crop_rotate.get("crop", {})
             early_norm = data.get("early_normalize", {})
             threshold = data.get("threshold", {})
             contrast = data.get("contrast", {})
@@ -336,13 +460,31 @@ class ImagerPipelineConfig:
             stretch = contrast.get("stretch", {})
             clahe = data.get("clahe", {})
             median = data.get("median_filter", {})
-            mode = contrast.get("mode", "equalize")
+
+            c_enabled = contrast.get("enabled", True)
+            c_mode = contrast.get("mode", "equalize")
+            if not c_enabled or c_mode == "disabled":
+                resolved_c_mode = "disabled"
+                resolved_c_enabled = False
+            else:
+                resolved_c_mode = c_mode
+                resolved_c_enabled = True
+
+            t_enabled = threshold.get("enabled", True)
+            t_method = threshold.get("method", "auto")
+            if not t_enabled:
+                resolved_t_method = "none"
+                resolved_use_t = False
+            else:
+                resolved_t_method = t_method
+                resolved_use_t = t_method.lower() not in ("none", "off", "skip", "no")
 
             return cls(
                 crop_top=crop.get("top", 0),
                 crop_bottom=crop.get("bottom", 0),
                 crop_left=crop.get("left", 0),
                 crop_right=crop.get("right", 0),
+                use_crop_rotate=crop_rotate.get("enabled", True),
                 use_denoise=denoise.get("enabled", True),
                 wavelet=wavelet.get("type", "sym4"),
                 wavelet_level=wavelet.get("level", 3),
@@ -350,13 +492,12 @@ class ImagerPipelineConfig:
                 wavelet_mode=wavelet.get("mode", "soft"),
                 use_normalize=early_norm.get("enabled", False),
                 normalize_saturated_pixels=early_norm.get("saturated_pixels", 0.35),
-                threshold_method=threshold.get("method", "auto"),
+                use_threshold=resolved_use_t,
+                threshold_method=resolved_t_method,
                 use_invert=data.get("invert", {}).get("enabled", True),
-                use_contrast_enhancement=contrast.get("enabled", True),
-                contrast_mode=mode,
+                use_contrast_enhancement=resolved_c_enabled,
+                contrast_mode=resolved_c_mode,
                 contrast_saturated_pixels=stretch.get("saturated_pixels", 5.0),
-                contrast_normalize=stretch.get("normalize", True),
-                contrast_equalize=(mode == "equalize"),
                 contrast_classic_equalization=eq.get("classic", False),
                 use_clahe=clahe.get("enabled", True),
                 clahe_blocksize=clahe.get("blocksize", 127),
@@ -371,16 +512,7 @@ class ImagerPipelineConfig:
                 debug=data.get("debug", False),
             )
         else:
-            # Flat dict or kwargs
-            kwargs: dict[str, Any] = {}
-            field_names = {f for f in cls.__dataclass_fields__}
-            for k, v in data.items():
-                k_lower = k.lower()
-                if k_lower in field_names:
-                    kwargs[k_lower] = v
-                elif k in field_names:
-                    kwargs[k] = v
-            return cls(**kwargs)
+            return cls(**data)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> ImagerPipelineConfig:
@@ -396,6 +528,7 @@ class ImagerPipelineConfig:
         env_mappings: dict[str, tuple[str, str]] = {
             "DEBUG": ("debug", "bool"),
             "USE_DENOISE": ("use_denoise", "bool"),
+            "USE_CROP_ROTATE": ("use_crop_rotate", "bool"),
             "WAVELET_TYPE": ("wavelet", "str"),
             "WAVELET_LEVEL": ("wavelet_level", "int"),
             "WAVELET_METHOD": ("wavelet_method", "str"),
@@ -408,10 +541,7 @@ class ImagerPipelineConfig:
             "NORMALIZE_SATURATED_PIXELS": ("normalize_saturated_pixels", "float"),
             "THRESHOLD_METHOD": ("threshold_method", "str"),
             "USE_INVERT": ("use_invert", "bool"),
-            "USE_CONTRAST_ENHANCEMENT": ("use_contrast_enhancement", "bool"),
             "CONTRAST_SATURATED_PIXELS": ("contrast_saturated_pixels", "float"),
-            "CONTRAST_NORMALIZE": ("contrast_normalize", "bool"),
-            "CONTRAST_EQUALIZE": ("contrast_equalize", "bool"),
             "CONTRAST_CLASSIC_EQUALIZATION": ("contrast_classic_equalization", "bool"),
             "USE_CLAHE": ("use_clahe", "bool"),
             "CLAHE_BLOCKSIZE": ("clahe_blocksize", "int"),
@@ -436,6 +566,27 @@ class ImagerPipelineConfig:
                     parsed[field_name] = float(raw_val)
                 else:
                     parsed[field_name] = raw_val
+
+        # Handle contrast legacy env variables deterministically
+        has_c_enh = "USE_CONTRAST_ENHANCEMENT" in env
+        c_enh = parse_bool(env["USE_CONTRAST_ENHANCEMENT"]) if has_c_enh else True
+        has_eq = "CONTRAST_EQUALIZE" in env
+        eq_val = parse_bool(env["CONTRAST_EQUALIZE"]) if has_eq else True
+        has_norm = "CONTRAST_NORMALIZE" in env
+        norm_val = parse_bool(env["CONTRAST_NORMALIZE"]) if has_norm else True
+
+        if has_c_enh and not c_enh:
+            parsed["contrast_mode"] = ContrastMode.DISABLED.value
+            parsed["use_contrast_enhancement"] = False
+        elif has_eq and eq_val:
+            parsed["contrast_mode"] = ContrastMode.EQUALIZE.value
+            parsed["use_contrast_enhancement"] = True
+        elif has_eq and not eq_val and norm_val:
+            parsed["contrast_mode"] = ContrastMode.STRETCH.value
+            parsed["use_contrast_enhancement"] = True
+        elif has_eq and not eq_val and not norm_val:
+            parsed["contrast_mode"] = ContrastMode.DISABLED.value
+            parsed["use_contrast_enhancement"] = False
 
         return cls(**parsed)
 

@@ -37,9 +37,11 @@ def test_characterize_imager_pipeline_config_defaults() -> None:
     assert config.use_invert is True
     assert config.use_contrast_enhancement is True
     assert config.contrast_saturated_pixels == 5.0
-    assert config.contrast_normalize is True
+    assert config.contrast_mode == "equalize"
     assert config.contrast_equalize is True
+    assert config.contrast_normalize is False
     assert config.contrast_classic_equalization is False
+
     assert config.use_clahe is True
     assert config.clahe_blocksize == 127
     assert config.clahe_histogram_bins == 256

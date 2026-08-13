@@ -1065,21 +1065,24 @@ def process_single_image(
         print("  [3/10] Neural calibration skipped (no remap provided)")
 
     # Step 4: Crop and rotate images
-    print(f"  [4/10] Cropping and rotating ({detector_type})...")
+    if CONFIG.get("USE_CROP_ROTATE", True):
+        print(f"  [4/10] Cropping and rotating ({detector_type})...")
 
-    ffc_result = crop_and_rotate_by_detector(ffc_result, detector_type)
-    if valid_remap_mask is not None:
-        valid_remap_mask = (
-            crop_and_rotate_by_detector(valid_remap_mask, detector_type) > 0
-        )
+        ffc_result = crop_and_rotate_by_detector(ffc_result, detector_type)
+        if valid_remap_mask is not None:
+            valid_remap_mask = (
+                crop_and_rotate_by_detector(valid_remap_mask, detector_type) > 0
+            )
 
-    crop_info = f"top={CONFIG['CROP_TOP']}, bottom={CONFIG['CROP_BOTTOM']}, left={CONFIG['CROP_LEFT']}, right={CONFIG['CROP_RIGHT']}"
-    if detector_type == "TRX":
-        print(f"    Image: cropped ({crop_info}), rotated 90° CCW")
+        crop_info = f"top={CONFIG['CROP_TOP']}, bottom={CONFIG['CROP_BOTTOM']}, left={CONFIG['CROP_LEFT']}, right={CONFIG['CROP_RIGHT']}"
+        if detector_type == "TRX":
+            print(f"    Image: cropped ({crop_info}), rotated 90° CCW")
+        else:
+            print(f"    Image: cropped ({crop_info})")
+
+        print(f"    Final shape: {ffc_result.shape}")
     else:
-        print(f"    Image: cropped ({crop_info})")
-
-    print(f"    Final shape: {ffc_result.shape}")
+        print("  [4/10] Cropping and rotation skipped (USE_CROP_ROTATE=False)")
 
     save_histogram(
         ffc_result / ffc_result.max() if ffc_result.max() > 0 else ffc_result,

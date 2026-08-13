@@ -37,7 +37,7 @@
     },
     "stretch": {
       "saturated_pixels": 5.0,
-      "normalize": true
+      "normalize": false
     }
   },
   "clahe": {

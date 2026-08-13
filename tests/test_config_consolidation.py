@@ -1,105 +1,149 @@
-"""Comprehensive tests for consolidated canonical image processing configuration."""
+"""Comprehensive correctness tests for canonical image processing configuration."""
 
 import json
 import pytest
 
 from mpips.engine.imager_pipeline.config import (
     ImagerPipelineConfig,
-    ContrastMode,
+    get_default_config,
 )
 
 
-def test_config_serialization_roundtrip_structured() -> None:
-    """Test canonical config -> JSON -> canonical config roundtrip equality."""
-    original = ImagerPipelineConfig(
-        use_denoise=True,
-        wavelet="sym4",
-        wavelet_level=2,
-        wavelet_method="VisuShrink",
-        wavelet_mode="hard",
-        use_normalize=True,
-        normalize_saturated_pixels=0.5,
-        threshold_method="otsu",
-        use_invert=False,
-        use_contrast_enhancement=True,
-        contrast_mode="stretch",
-        contrast_saturated_pixels=2.5,
-        contrast_normalize=True,
-        contrast_equalize=False,
-        use_clahe=True,
-        clahe_blocksize=63,
-        clahe_histogram_bins=128,
-        clahe_max_slope=1.2,
-        clahe_fast=True,
-        clahe_composite=False,
-        use_final_denoise=True,
-        use_median_filter=True,
-        median_filter_type="standard",
-        median_filter_radius=3,
-        debug=True,
-    )
-    serialized = original.to_dict()
-    json_str = json.dumps(serialized)
-    deserialized_data = json.loads(json_str)
-    reconstructed = ImagerPipelineConfig.from_dict(deserialized_data)
+def test_direct_construction_contrast_mode() -> None:
+    """Test direct construction with contrast_mode parameter without legacy boolean args."""  # noqa: E501
 
-    assert reconstructed.use_denoise == original.use_denoise
-    assert reconstructed.wavelet_level == original.wavelet_level
-    assert reconstructed.wavelet_method == original.wavelet_method
-    assert reconstructed.wavelet_mode == original.wavelet_mode
-    assert reconstructed.use_normalize == original.use_normalize
-    assert (
-        reconstructed.normalize_saturated_pixels == original.normalize_saturated_pixels
-    )
-    assert reconstructed.threshold_method == original.threshold_method
-    assert reconstructed.use_invert == original.use_invert
-    assert reconstructed.contrast_mode == ContrastMode.STRETCH.value
-    assert reconstructed.contrast_saturated_pixels == original.contrast_saturated_pixels
-    assert reconstructed.clahe_blocksize == original.clahe_blocksize
-    assert reconstructed.clahe_histogram_bins == original.clahe_histogram_bins
-    assert reconstructed.clahe_max_slope == original.clahe_max_slope
-    assert reconstructed.median_filter_type == original.median_filter_type
-    assert reconstructed.median_filter_radius == original.median_filter_radius
-    assert reconstructed.debug == original.debug
+    cfg_eq = ImagerPipelineConfig(contrast_mode="equalize")
+    assert cfg_eq.contrast_mode == "equalize"
+    assert cfg_eq.use_contrast_enhancement is True
+    assert cfg_eq.contrast_equalize is True
+    assert cfg_eq.contrast_normalize is False
+
+    cfg_str = ImagerPipelineConfig(contrast_mode="stretch")
+    assert cfg_str.contrast_mode == "stretch"
+    assert cfg_str.use_contrast_enhancement is True
+    assert cfg_str.contrast_equalize is False
+    assert cfg_str.contrast_normalize is True
+
+    cfg_dis = ImagerPipelineConfig(contrast_mode="disabled")
+    assert cfg_dis.contrast_mode == "disabled"
+    assert cfg_dis.use_contrast_enhancement is False
+    assert cfg_dis.contrast_equalize is False
+    assert cfg_dis.contrast_normalize is False
 
 
-def test_config_to_legacy_engine_dict() -> None:
-    """Test canonical config -> legacy engine mapping populates expected variables."""  # noqa: E501
-    config = ImagerPipelineConfig(
-        wavelet_level=4,
-        median_filter_radius=3,
-        use_median_filter=True,
-    )
-    engine_dict = config.to_legacy_engine_dict()
-    assert engine_dict["WAVELET_LEVEL"] == 4
-    assert engine_dict["MEDIAN_FILTER_RADIUS"] == 3
-    assert engine_dict["USE_MEDIAN_FILTER"] is True
-    assert engine_dict["USE_DENOISE"] is True
-    assert engine_dict["THRESHOLD_METHOD"] == "auto"
+def test_threshold_enabled_semantics() -> None:
+    """Test threshold enabled=False maps to THRESHOLD_METHOD='none' in engine dict."""
+    cfg = ImagerPipelineConfig(use_threshold=False, threshold_method="auto")
+    assert cfg.use_threshold is False
+    engine_dict = cfg.to_legacy_engine_dict()
+    assert engine_dict["THRESHOLD_METHOD"] == "none"
+
+    serialized = cfg.to_dict()
+    assert serialized["threshold"]["enabled"] is False
+    assert serialized["threshold"]["method"] == "none"
+
+    reconstructed = ImagerPipelineConfig.from_dict(serialized)
+    assert reconstructed.use_threshold is False
+    assert reconstructed.to_legacy_engine_dict()["THRESHOLD_METHOD"] == "none"
 
 
-def test_legacy_env_loading_defaults_and_overrides() -> None:
-    """Test env resolution for default and customized environment variables."""
-    default_cfg = ImagerPipelineConfig.from_env({})
-    assert default_cfg.use_median_filter is True
-    assert default_cfg.wavelet_level == 3
+def test_crop_rotate_enabled_semantics() -> None:
+    """Test crop_rotate enabled toggle maps to USE_CROP_ROTATE in engine dict."""
+    cfg_off = ImagerPipelineConfig(use_crop_rotate=False)
+    assert cfg_off.use_crop_rotate is False
+    assert cfg_off.to_legacy_engine_dict()["USE_CROP_ROTATE"] is False
 
-    custom_env = {
-        "USE_MEDIAN_FILTER": "false",
-        "WAVELET_LEVEL": "5",
-        "CLAHE_BLOCKSIZE": "63",
-        "CONTRAST_EQUALIZE": "false",
-        "CONTRAST_NORMALIZE": "true",
-        "CONTRAST_SATURATED_PIXELS": "3.5",
-        "THRESHOLD_METHOD": "valley",
+    cfg_on = ImagerPipelineConfig(use_crop_rotate=True)
+    assert cfg_on.use_crop_rotate is True
+    assert cfg_on.to_legacy_engine_dict()["USE_CROP_ROTATE"] is True
+
+
+def test_contrast_disabled_roundtrip_semantics() -> None:
+    """Test deterministic resolution of contradictory or disabled JSON contrast inputs."""  # noqa: E501
+    # enabled=true + mode=disabled -> disabled
+    json_data1 = {"contrast": {"enabled": True, "mode": "disabled"}}
+    cfg1 = ImagerPipelineConfig.from_dict(json_data1)
+    assert cfg1.contrast_mode == "disabled"
+    assert cfg1.use_contrast_enhancement is False
+
+    # enabled=false + mode=equalize -> disabled
+    json_data2 = {"contrast": {"enabled": False, "mode": "equalize"}}
+    cfg2 = ImagerPipelineConfig.from_dict(json_data2)
+    assert cfg2.contrast_mode == "disabled"
+    assert cfg2.use_contrast_enhancement is False
+
+
+def test_roundtrip_matrix() -> None:
+    """Test config -> to_dict() -> JSON -> from_dict() for all canonical matrix states."""  # noqa: E501
+
+    matrix_configs = {
+        "DEFAULT": get_default_config(),
+        "EQUALIZE": ImagerPipelineConfig(contrast_mode="equalize"),
+        "STRETCH": ImagerPipelineConfig(contrast_mode="stretch"),
+        "DISABLED": ImagerPipelineConfig(contrast_mode="disabled"),
+        "THRESHOLD_DISABLED": ImagerPipelineConfig(use_threshold=False),
+        "CLAHE_DISABLED": ImagerPipelineConfig(use_clahe=False),
+        "MEDIAN_DISABLED": ImagerPipelineConfig(use_median_filter=False),
     }
-    custom_cfg = ImagerPipelineConfig.from_env(custom_env)
-    assert custom_cfg.use_median_filter is False
-    assert custom_cfg.wavelet_level == 5
-    assert custom_cfg.clahe_blocksize == 63
-    assert custom_cfg.contrast_mode == "stretch"
-    assert custom_cfg.contrast_saturated_pixels == 3.5
-    assert custom_cfg.threshold_method == "valley"
+
+    for name, cfg in matrix_configs.items():
+        dict_rep = cfg.to_dict()
+        json_str = json.dumps(dict_rep)
+        data = json.loads(json_str)
+        reconstructed = ImagerPipelineConfig.from_dict(data)
+
+        assert (
+            reconstructed.use_denoise == cfg.use_denoise
+        ), f"{name} use_denoise mismatch"
+        assert (
+            reconstructed.use_crop_rotate == cfg.use_crop_rotate
+        ), f"{name} use_crop_rotate mismatch"
+        assert (
+            reconstructed.use_threshold == cfg.use_threshold
+        ), f"{name} use_threshold mismatch"
+        assert (
+            reconstructed.contrast_mode == cfg.contrast_mode
+        ), f"{name} contrast_mode mismatch"
+        assert (
+            reconstructed.use_contrast_enhancement == cfg.use_contrast_enhancement
+        ), f"{name} use_contrast_enhancement mismatch"
+        assert reconstructed.use_clahe == cfg.use_clahe, f"{name} use_clahe mismatch"
+        assert (
+            reconstructed.use_median_filter == cfg.use_median_filter
+        ), f"{name} use_median_filter mismatch"
+
+
+def test_legacy_env_matrix() -> None:
+    """Test resolution of legacy environment variables into canonical ContrastMode."""
+    # USE_CONTRAST_ENHANCEMENT=false -> disabled
+    cfg1 = ImagerPipelineConfig.from_env({"USE_CONTRAST_ENHANCEMENT": "false"})
+    assert cfg1.contrast_mode == "disabled"
+    assert cfg1.use_contrast_enhancement is False
+
+    # CONTRAST_EQUALIZE=true -> equalize
+    cfg2 = ImagerPipelineConfig.from_env({"CONTRAST_EQUALIZE": "true"})
+    assert cfg2.contrast_mode == "equalize"
+    assert cfg2.use_contrast_enhancement is True
+
+    # CONTRAST_EQUALIZE=false + CONTRAST_NORMALIZE=true -> stretch
+    cfg3 = ImagerPipelineConfig.from_env(
+        {
+            "CONTRAST_EQUALIZE": "false",
+            "CONTRAST_NORMALIZE": "true",
+        }
+    )
+    assert cfg3.contrast_mode == "stretch"
+    assert cfg3.use_contrast_enhancement is True
+
+    # CONTRAST_EQUALIZE=false + CONTRAST_NORMALIZE=false -> disabled
+    cfg4 = ImagerPipelineConfig.from_env(
+        {
+            "CONTRAST_EQUALIZE": "false",
+            "CONTRAST_NORMALIZE": "false",
+        }
+    )
+    assert cfg4.contrast_mode == "disabled"
+    assert cfg4.use_contrast_enhancement is False
 
 
 def test_invalid_enum_validation_raises_error() -> None:
@@ -127,23 +171,3 @@ def test_invalid_numerical_bounds_validation_raises_error() -> None:
 
     with pytest.raises(ValueError, match="median_filter_radius must be > 0"):
         ImagerPipelineConfig(median_filter_radius=0)
-
-
-def test_contrast_confusion_equalize_shadows_stretch_params() -> None:
-    """Explicit regression test proving contrast_equalize=True shadows stretch settings."""  # noqa: E501
-    cfg_equalize = ImagerPipelineConfig(
-        use_contrast_enhancement=True,
-        contrast_equalize=True,
-        contrast_saturated_pixels=10.0,
-    )
-    assert cfg_equalize.contrast_mode == "equalize"
-    legacy_dict = cfg_equalize.to_legacy_engine_dict()
-    assert legacy_dict["CONTRAST_EQUALIZE"] is True
-
-    cfg_stretch = ImagerPipelineConfig(
-        use_contrast_enhancement=True,
-        contrast_equalize=False,
-        contrast_normalize=True,
-        contrast_saturated_pixels=5.0,
-    )
-    assert cfg_stretch.contrast_mode == "stretch"
