@@ -1,0 +1,300 @@
+{
+  "schema_version": "audit-v1",
+  "source_commit": "3936179407575d9734aeef48c83a3c51b0e786bd",
+  "parameters": {
+    "use_denoise": {
+      "value": true,
+      "status": "ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"},
+        {"file": "mpips/engine/imager_pipeline/process_without_ffc.py", "function": "process_single_image_no_ffc"}
+      ],
+      "notes": "Controls initial wavelet denoising stage on raw, dark, and flat frames."
+    },
+    "wavelet_type": {
+      "value": "sym4",
+      "status": "ACTIVE",
+      "master_switch": "use_denoise",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"},
+        {"file": "mpips/engine/imager_pipeline/wavelet_denoising.py", "function": "WaveletDenoiser.__init__"}
+      ],
+      "notes": "Specifies PyWavelets basis function."
+    },
+    "wavelet_level": {
+      "value": 3,
+      "status": "ACTIVE",
+      "master_switch": "use_denoise",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"},
+        {"file": "mpips/engine/imager_pipeline/wavelet_denoising.py", "function": "WaveletDenoiser.denoise_wavelet"}
+      ],
+      "notes": "Decomposition level for DWT."
+    },
+    "wavelet_method": {
+      "value": "BayesShrink",
+      "status": "ACTIVE",
+      "master_switch": "use_denoise",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"},
+        {"file": "mpips/engine/imager_pipeline/wavelet_denoising.py", "function": "WaveletDenoiser._threshold_coeffs"}
+      ],
+      "notes": "Thresholding estimator (BayesShrink, VisuShrink, manual)."
+    },
+    "wavelet_mode": {
+      "value": "soft",
+      "status": "ACTIVE",
+      "master_switch": "use_denoise",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"},
+        {"file": "mpips/engine/imager_pipeline/wavelet_denoising.py", "function": "WaveletDenoiser._threshold_coeffs"}
+      ],
+      "notes": "Thresholding rule (soft vs hard)."
+    },
+    "use_crop_rotate": {
+      "value": true,
+      "status": "ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"},
+        {"file": "mpips/engine/imager_pipeline/process_without_ffc.py", "function": "process_single_image_no_ffc"}
+      ],
+      "notes": "Enables detector boundary cropping and orientation rotation."
+    },
+    "crop_top": {
+      "value": 0,
+      "status": "ACTIVE",
+      "master_switch": "use_crop_rotate",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "crop_and_rotate_by_detector"}
+      ],
+      "notes": "Pixels to trim from top edge."
+    },
+    "crop_bottom": {
+      "value": 0,
+      "status": "ACTIVE",
+      "master_switch": "use_crop_rotate",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "crop_and_rotate_by_detector"}
+      ],
+      "notes": "Pixels to trim from bottom edge."
+    },
+    "crop_left": {
+      "value": 0,
+      "status": "ACTIVE",
+      "master_switch": "use_crop_rotate",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "crop_and_rotate_by_detector"}
+      ],
+      "notes": "Pixels to trim from left edge."
+    },
+    "crop_right": {
+      "value": 0,
+      "status": "ACTIVE",
+      "master_switch": "use_crop_rotate",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "crop_and_rotate_by_detector"}
+      ],
+      "notes": "Pixels to trim from right edge."
+    },
+    "use_normalize": {
+      "value": false,
+      "status": "CONDITIONALLY_ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"}
+      ],
+      "notes": "Optional early normalization step before thresholding. Default false."
+    },
+    "normalize_saturated_pixels": {
+      "value": 0.35,
+      "status": "DORMANT_BY_MASTER_SWITCH",
+      "master_switch": "use_normalize",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "normalize_to_max_value"}
+      ],
+      "notes": "Dormant because use_normalize defaults to false."
+    },
+    "threshold_method": {
+      "value": "auto",
+      "status": "ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "auto_threshold_detection"}
+      ],
+      "notes": "Selects background threshold algorithm ('auto', 'valley', 'otsu', 'knee', 'percentile_25', 'secondary_peak', or 'none')."
+    },
+    "use_invert": {
+      "value": true,
+      "status": "ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"}
+      ],
+      "notes": "Inverts radiograph gray levels."
+    },
+    "use_contrast_enhancement": {
+      "value": true,
+      "status": "ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"}
+      ],
+      "notes": "Master switch for ImageJ Contrast Enhancement stage."
+    },
+    "contrast_equalize": {
+      "value": true,
+      "status": "ACTIVE",
+      "master_switch": "use_contrast_enhancement",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/imagej_replicator.py", "function": "enhance_contrast"}
+      ],
+      "notes": "Priority branch toggle. When true, triggers equalization and bypasses LUT stretch."
+    },
+    "contrast_classic_equalization": {
+      "value": false,
+      "status": "CONDITIONALLY_ACTIVE",
+      "master_switch": "contrast_equalize",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/imagej_replicator.py", "function": "_equalize_imagej_variant"}
+      ],
+      "notes": "Determines whether to use classic HE vs ImageJ sqrt-weighted HE."
+    },
+    "contrast_saturated_pixels": {
+      "value": 5.0,
+      "status": "SHADOWED",
+      "master_switch": "contrast_equalize=false AND contrast_normalize=true",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/imagej_replicator.py", "function": "_stretch_histogram_imagej"}
+      ],
+      "notes": "Shadowed because contrast_equalize defaults to true, causing early return before stretch."
+    },
+    "contrast_normalize": {
+      "value": true,
+      "status": "SHADOWED",
+      "master_switch": "contrast_equalize=false",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/imagej_replicator.py", "function": "enhance_contrast"}
+      ],
+      "notes": "Shadowed because contrast_equalize defaults to true, causing early return before stretch."
+    },
+    "use_clahe": {
+      "value": true,
+      "status": "ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"}
+      ],
+      "notes": "Enables Contrast Limited Adaptive Histogram Equalization stage."
+    },
+    "clahe_blocksize": {
+      "value": 127,
+      "status": "ACTIVE",
+      "master_switch": "use_clahe",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/imagej_replicator.py", "function": "apply_clahe"}
+      ],
+      "notes": "Tile block size in pixels."
+    },
+    "clahe_max_slope": {
+      "value": 0.6,
+      "status": "ACTIVE",
+      "master_switch": "use_clahe",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/imagej_replicator.py", "function": "apply_clahe"}
+      ],
+      "notes": "Contrast limiting clip threshold."
+    },
+    "clahe_fast": {
+      "value": false,
+      "status": "ACTIVE",
+      "master_switch": "use_clahe",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/imagej_replicator.py", "function": "apply_clahe"}
+      ],
+      "notes": "Toggles fast OpenCV CLAHE vs precise Saalfeld ImageJ CLAHE."
+    },
+    "clahe_histogram_bins": {
+      "value": 256,
+      "status": "CONDITIONALLY_ACTIVE",
+      "master_switch": "clahe_fast=false",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/imagej_replicator.py", "function": "_clahe_precise"}
+      ],
+      "notes": "Active in precise mode (clahe_fast=false). Shadowed if clahe_fast=true."
+    },
+    "clahe_composite": {
+      "value": true,
+      "status": "DORMANT_BY_MASTER_SWITCH",
+      "master_switch": "3-channel RGB input image",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/imagej_replicator.py", "function": "_clahe_precise"}
+      ],
+      "notes": "Dormant because radiography inputs are 2D single-channel grayscale arrays."
+    },
+    "use_final_denoise": {
+      "value": false,
+      "status": "CONDITIONALLY_ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"}
+      ],
+      "notes": "Optional post-processing wavelet denoise pass. Default false."
+    },
+    "use_median_filter": {
+      "value": false,
+      "status": "CONDITIONALLY_ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "process_single_image"}
+      ],
+      "notes": "Engine default is false. Workflow ImagerPipelineConfig default is true. Conflicting default across surfaces."
+    },
+    "median_filter_type": {
+      "value": "hybrid_imagej",
+      "status": "CONDITIONALLY_ACTIVE",
+      "master_switch": "use_median_filter",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "apply_advanced_median_filter"}
+      ],
+      "notes": "Filter mode (hybrid_imagej, circular_imagej, bilateral, adaptive, nlm, morphological, standard)."
+    },
+    "median_filter_radius": {
+      "value": 2,
+      "status": "CONDITIONALLY_ACTIVE",
+      "master_switch": "use_median_filter",
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "apply_advanced_median_filter"}
+      ],
+      "notes": "Filter kernel radius in pixels."
+    },
+    "debug": {
+      "value": false,
+      "status": "ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "get_debug_flag"}
+      ],
+      "notes": "Enables debug logging and histogram PNG output."
+    },
+    "use_gpu": {
+      "value": false,
+      "status": "ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "get_use_gpu_flag"}
+      ],
+      "notes": "Enables CuPy GPU acceleration if CuPy is installed."
+    },
+    "use_imagej": {
+      "value": true,
+      "status": "ACTIVE",
+      "master_switch": null,
+      "consumed_by": [
+        {"file": "mpips/engine/imager_pipeline/complete_pipeline.py", "function": "get_use_imagej_flag"}
+      ],
+      "notes": "Master switch enabling ImageJReplicator routines."
+    }
+  }
+}

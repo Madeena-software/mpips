@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MPIPS Image Processing Pipeline Proposed Canonical Schema",
+  "version": "2.0.0-proposed",
+  "description": "Unified single-source canonical schema proposed for future MPIPS radiograph image processing",
+  "source_commit": "3936179407575d9734aeef48c83a3c51b0e786bd",
+  "config": {
+    "denoise": {
+      "enabled": true,
+      "wavelet": {
+        "type": "sym4",
+        "level": 3,
+        "method": "BayesShrink",
+        "mode": "soft"
+      }
+    },
+    "crop_rotate": {
+      "enabled": true,
+      "crop": {
+        "top": 0,
+        "bottom": 0,
+        "left": 0,
+        "right": 0
+      }
+    },
+    "normalize": {
+      "enabled": false,
+      "saturated_pixels_pct": 0.35
+    },
+    "threshold": {
+      "enabled": true,
+      "method": "auto"
+    },
+    "invert": {
+      "enabled": true
+    },
+    "contrast_enhancement": {
+      "enabled": true,
+      "mode": "equalize",
+      "equalization": {
+        "classic": false
+      },
+      "histogram_stretch": {
+        "saturated_pixels_pct": 5.0,
+        "normalize": true
+      }
+    },
+    "clahe": {
+      "enabled": true,
+      "blocksize": 127,
+      "histogram_bins": 256,
+      "max_slope": 0.6,
+      "fast_mode": false,
+      "composite": true
+    },
+    "final_denoise": {
+      "enabled": false
+    },
+    "median_filter": {
+      "enabled": true,
+      "type": "hybrid_imagej",
+      "radius": 2
+    }
+  },
+  "runtime": {
+    "debug": false,
+    "use_gpu": false,
+    "use_imagej": true,
+    "num_workers": null
+  },
+  "legacy_mapping": {
+    "config.denoise.enabled": "USE_DENOISE",
+    "config.denoise.wavelet.type": "WAVELET_TYPE",
+    "config.denoise.wavelet.level": "WAVELET_LEVEL",
+    "config.denoise.wavelet.method": "WAVELET_METHOD",
+    "config.denoise.wavelet.mode": "WAVELET_MODE",
+    "config.crop_rotate.enabled": "USE_CROP_ROTATE",
+    "config.crop_rotate.crop.top": "CROP_TOP",
+    "config.crop_rotate.crop.bottom": "CROP_BOTTOM",
+    "config.crop_rotate.crop.left": "CROP_LEFT",
+    "config.crop_rotate.crop.right": "CROP_RIGHT",
+    "config.normalize.enabled": "USE_NORMALIZE",
+    "config.normalize.saturated_pixels_pct": "NORMALIZE_SATURATED_PIXELS",
+    "config.threshold.method": "THRESHOLD_METHOD",
+    "config.invert.enabled": "USE_INVERT",
+    "config.contrast_enhancement.enabled": "USE_CONTRAST_ENHANCEMENT",
+    "config.contrast_enhancement.equalization.classic": "CONTRAST_CLASSIC_EQUALIZATION",
+    "config.clahe.enabled": "USE_CLAHE",
+    "config.clahe.blocksize": "CLAHE_BLOCKSIZE",
+    "config.clahe.histogram_bins": "CLAHE_HISTOGRAM_BINS",
+    "config.clahe.max_slope": "CLAHE_MAX_SLOPE",
+    "config.clahe.fast_mode": "CLAHE_FAST",
+    "config.clahe.composite": "CLAHE_COMPOSITE",
+    "config.final_denoise.enabled": "USE_FINAL_DENOISE",
+    "config.median_filter.enabled": "USE_MEDIAN_FILTER",
+    "config.median_filter.type": "MEDIAN_FILTER_TYPE",
+    "config.median_filter.radius": "MEDIAN_FILTER_RADIUS"
+  }
+}

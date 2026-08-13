@@ -1,0 +1,51 @@
+{
+  "schema_version": "audit-v1",
+  "source_commit": "3936179407575d9734aeef48c83a3c51b0e786bd",
+  "pipeline": {
+    "use_denoise": true,
+    "use_crop_rotate": true,
+    "use_normalize": false,
+    "threshold_method": "auto",
+    "use_invert": true,
+    "use_contrast_enhancement": true,
+    "use_clahe": true,
+    "use_median_filter": false,
+    "use_final_denoise": false
+  },
+  "wavelet": {
+    "type": "sym4",
+    "level": 3,
+    "method": "BayesShrink",
+    "mode": "soft"
+  },
+  "contrast": {
+    "enabled": true,
+    "saturated_pixels": 5.0,
+    "normalize": true,
+    "equalize": true,
+    "classic_equalization": false
+  },
+  "clahe": {
+    "enabled": true,
+    "blocksize": 127,
+    "histogram_bins": 256,
+    "max_slope": 0.6,
+    "fast": false,
+    "composite": true
+  },
+  "median_filter": {
+    "enabled": false,
+    "type": "hybrid_imagej",
+    "radius": 2
+  },
+  "normalize": {
+    "enabled": false,
+    "saturated_pixels": 0.35
+  },
+  "crop": {
+    "top": 0,
+    "bottom": 0,
+    "left": 0,
+    "right": 0
+  }
+}
