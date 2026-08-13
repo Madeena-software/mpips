@@ -3,67 +3,24 @@ import os
 from pathlib import Path
 
 
+from .config import ImagerPipelineConfig
+
+
 # Load environment variables from .env file
 def load_env_config():
-    """Load configuration from .env file."""
+    """Load configuration derived from canonical ImagerPipelineConfig model."""
     configured_env = os.environ.get("MPIPS_RADIOGRAPHY_ENV")
     env_candidates = [
         configured_env,
         os.path.join(os.getcwd(), ".env"),
         os.path.join(os.path.dirname(__file__), ".env"),
     ]
-    env_path = next((path for path in env_candidates if path and os.path.exists(path)), "")
-    config = {
-        # Debug and feature flags
-        "DEBUG": False,
-        "USE_GPU": False,
-        "USE_IMAGEJ": True,
-        "USE_DENOISE": True,
-        "USE_CROP_ROTATE": True,
-        "USE_CLAHE": True,
-        "USE_CONTRAST_ENHANCEMENT": True,
-        "USE_NORMALIZE": False,
-        "USE_INVERT": True,
-        "USE_FINAL_DENOISE": False,
-        "USE_MEDIAN_FILTER": False,
-        "MEDIAN_FILTER_RADIUS": 2,
-        "MEDIAN_FILTER_TYPE": "hybrid_imagej",  # Options: standard, bilateral, adaptive, nlm, morphological, hybrid_imagej, circular_imagej
-        # Threshold method
-        "THRESHOLD_METHOD": "auto",
-        # Wavelet parameters
-        "WAVELET_TYPE": "sym4",
-        "WAVELET_LEVEL": 3,
-        "WAVELET_METHOD": "BayesShrink",
-        "WAVELET_MODE": "soft",
-        # Cropping parameters
-        "CROP_TOP": 0,
-        "CROP_BOTTOM": 0,
-        "CROP_LEFT": 0,
-        "CROP_RIGHT": 0,
-        # Contrast enhancement parameters
-        "CONTRAST_SATURATED_PIXELS": 5.0,
-        "CONTRAST_NORMALIZE": True,
-        "CONTRAST_EQUALIZE": True,
-        "CONTRAST_CLASSIC_EQUALIZATION": False,
-        # CLAHE parameters
-        "CLAHE_BLOCKSIZE": 127,
-        "CLAHE_HISTOGRAM_BINS": 256,
-        "CLAHE_MAX_SLOPE": 0.6,
-        "CLAHE_FAST": False,
-        "CLAHE_COMPOSITE": True,
-        # Normalize (histogram stretch) parameters
-        "NORMALIZE_SATURATED_PIXELS": 0.35,
-        # Parallel processing
-        "NUM_WORKERS": None,
-        # Paths
-        "RAW_PATH": "",
-        "DARK_PATH": "",
-        "FLAT_PATH": "",
-        "OUTPUT_DIR": "",
+    env_path = next(
+        (path for path in env_candidates if path and os.path.exists(path)), ""
+    )
 
-    }
-
-    if os.path.exists(env_path):
+    env_dict = dict(os.environ)
+    if env_path and os.path.exists(env_path):
         with open(env_path, "r") as f:
             for line in f:
                 line = line.strip()
@@ -71,54 +28,29 @@ def load_env_config():
                     continue
                 if "=" in line:
                     key, value = line.split("=", 1)
-                    key = key.strip()
-                    value = value.strip()
+                    env_dict[key.strip()] = value.strip()
 
-                    # Parse boolean values
-                    if key in [
-                        "DEBUG",
-                        "USE_GPU",
-                        "USE_IMAGEJ",
-                        "USE_DENOISE",
-                        "USE_CROP_ROTATE",
-                        "USE_CLAHE",
-                        "USE_CONTRAST_ENHANCEMENT",
-                        "USE_NORMALIZE",
-                        "USE_INVERT",
-                        "USE_FINAL_DENOISE",
-                        "USE_MEDIAN_FILTER",
-                        "CONTRAST_NORMALIZE",
-                        "CONTRAST_EQUALIZE",
-                        "CONTRAST_CLASSIC_EQUALIZATION",
-                        "CLAHE_FAST",
-                        "CLAHE_COMPOSITE",
-                    ]:
-                        config[key] = value.lower() in ["1", "true", "yes", "on"]
-                    # Parse integer values
-                    elif key in [
-                        "WAVELET_LEVEL",
-                        "CROP_TOP",
-                        "CROP_BOTTOM",
-                        "CROP_LEFT",
-                        "CROP_RIGHT",
-                        "CLAHE_BLOCKSIZE",
-                        "CLAHE_HISTOGRAM_BINS",
-                        "MEDIAN_FILTER_RADIUS",
-                        "NUM_WORKERS",
-                    ]:
-                        if value:
-                            config[key] = int(value)
-                    # Parse float values
-                    elif key in [
-                        "CLAHE_MAX_SLOPE",
-                        "CONTRAST_SATURATED_PIXELS",
-                        "NORMALIZE_SATURATED_PIXELS",
-                    ]:
-                        if value:
-                            config[key] = float(value)
-                    # String values
-                    else:
-                        config[key] = value
+    typed_config = ImagerPipelineConfig.from_env(env_dict)
+    config = typed_config.to_legacy_engine_dict()
+
+    # Preserve non-pipeline runtime options from env if specified
+    for extra_key in (
+        "USE_GPU",
+        "USE_IMAGEJ",
+        "NUM_WORKERS",
+        "RAW_PATH",
+        "DARK_PATH",
+        "FLAT_PATH",
+        "OUTPUT_DIR",
+    ):
+        if extra_key in env_dict:
+            raw_val = env_dict[extra_key]
+            if extra_key in ("USE_GPU", "USE_IMAGEJ"):
+                config[extra_key] = raw_val.lower() in ("1", "true", "yes", "on")
+            elif extra_key == "NUM_WORKERS":
+                config[extra_key] = int(raw_val) if raw_val else None
+            else:
+                config[extra_key] = raw_val
 
     return config
 
@@ -233,7 +165,6 @@ except ImportError:
     )
 
 
-
 # Check if ImageJ should be used (must have module AND .env flag enabled)
 IMAGEJ_AVAILABLE = IMAGEJ_MODULE_AVAILABLE and get_use_imagej_flag()
 
@@ -243,8 +174,6 @@ elif IMAGEJ_MODULE_AVAILABLE and not get_use_imagej_flag():
     print("✗ ImageJ processing disabled (USE_IMAGEJ=False in .env)")
 else:
     print("✗ ImageJ processing not available (imagej_replicator not installed)")
-
-
 
 
 def denoise_wavelet(image, wavelet="sym4", level=3, method="BayesShrink", mode="soft"):
@@ -994,7 +923,13 @@ def _get_filter_description(filter_type):
 
 
 def process_single_image(
-    raw_path, dark_path, flat_path, output_path, detector_type=None, map_x=None, map_y=None
+    raw_path,
+    dark_path,
+    flat_path,
+    output_path,
+    detector_type=None,
+    map_x=None,
+    map_y=None,
 ):
     """
     Process a single image through the complete pipeline.

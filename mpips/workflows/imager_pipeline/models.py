@@ -6,6 +6,10 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
+from mpips.engine.imager_pipeline.config import (  # noqa: F401
+    ImagerPipelineConfig as ImagerPipelineConfig,
+)
+
 
 @dataclass(frozen=True)
 class NeuralCalibrationConfig:
@@ -40,41 +44,6 @@ class NeuralCalibrationConfig:
         values = asdict(self)
         values.pop("force_retrain", None)
         return values
-
-
-@dataclass(frozen=True)
-class ImagerPipelineConfig:
-    """Exact defaults from the research imager pipeline notebook."""
-
-    crop_top: int = 0
-    crop_bottom: int = 0
-    crop_left: int = 0
-    crop_right: int = 0
-    use_denoise: bool = True
-    wavelet: str = "sym4"
-    wavelet_level: int = 3
-    wavelet_method: str = "BayesShrink"
-    wavelet_mode: str = "soft"
-    use_normalize: bool = False
-    normalize_saturated_pixels: float = 0.35
-    threshold_method: str = "auto"
-    use_invert: bool = True
-    use_contrast_enhancement: bool = True
-    contrast_saturated_pixels: float = 5.0
-    contrast_normalize: bool = True
-    contrast_equalize: bool = True
-    contrast_classic_equalization: bool = False
-    use_clahe: bool = True
-    clahe_blocksize: int = 127
-    clahe_histogram_bins: int = 256
-    clahe_max_slope: float = 0.6
-    clahe_fast: bool = False
-    clahe_composite: bool = True
-    use_final_denoise: bool = False
-    use_median_filter: bool = True
-    median_filter_type: str = "hybrid_imagej"
-    median_filter_radius: int = 2
-    debug: bool = False
 
 
 @dataclass(frozen=True)

@@ -1,0 +1,60 @@
+{
+  "schema_version": "2.0.0",
+  "denoise": {
+    "enabled": true,
+    "wavelet": {
+      "type": "sym4",
+      "level": 3,
+      "method": "BayesShrink",
+      "mode": "soft"
+    }
+  },
+  "crop_rotate": {
+    "enabled": true,
+    "crop": {
+      "top": 0,
+      "bottom": 0,
+      "left": 0,
+      "right": 0
+    }
+  },
+  "early_normalize": {
+    "enabled": false,
+    "saturated_pixels": 0.35
+  },
+  "threshold": {
+    "enabled": true,
+    "method": "auto"
+  },
+  "invert": {
+    "enabled": true
+  },
+  "contrast": {
+    "enabled": true,
+    "mode": "equalize",
+    "equalize": {
+      "classic": false
+    },
+    "stretch": {
+      "saturated_pixels": 5.0,
+      "normalize": true
+    }
+  },
+  "clahe": {
+    "enabled": true,
+    "blocksize": 127,
+    "histogram_bins": 256,
+    "max_slope": 0.6,
+    "fast": false,
+    "composite": true
+  },
+  "final_denoise": {
+    "enabled": false
+  },
+  "median_filter": {
+    "enabled": true,
+    "type": "hybrid_imagej",
+    "radius": 2
+  },
+  "debug": false
+}

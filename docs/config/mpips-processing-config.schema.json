@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "MPIPS Image Processing Pipeline Canonical Schema",
+  "type": "object",
+  "version": "2.0.0",
+  "description": "Real JSON Schema for MPIPS radiograph image processing configuration",
+  "required": [
+    "schema_version",
+    "denoise",
+    "crop_rotate",
+    "early_normalize",
+    "threshold",
+    "invert",
+    "contrast",
+    "clahe",
+    "final_denoise",
+    "median_filter"
+  ],
+  "properties": {
+    "schema_version": {
+      "type": "string"
+    },
+    "denoise": {
+      "type": "object",
+      "required": ["enabled", "wavelet"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "wavelet": {
+          "type": "object",
+          "required": ["type", "level", "method", "mode"],
+          "properties": {
+            "type": { "type": "string" },
+            "level": { "type": "integer", "minimum": 1 },
+            "method": { "type": "string", "enum": ["BayesShrink", "VisuShrink"] },
+            "mode": { "type": "string", "enum": ["soft", "hard"] }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "crop_rotate": {
+      "type": "object",
+      "required": ["enabled", "crop"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "crop": {
+          "type": "object",
+          "required": ["top", "bottom", "left", "right"],
+          "properties": {
+            "top": { "type": "integer", "minimum": 0 },
+            "bottom": { "type": "integer", "minimum": 0 },
+            "left": { "type": "integer", "minimum": 0 },
+            "right": { "type": "integer", "minimum": 0 }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "early_normalize": {
+      "type": "object",
+      "required": ["enabled", "saturated_pixels"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "saturated_pixels": { "type": "number", "minimum": 0.0, "maximum": 100.0 }
+      },
+      "additionalProperties": false
+    },
+    "threshold": {
+      "type": "object",
+      "required": ["enabled", "method"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "method": {
+          "type": "string",
+          "enum": ["auto", "valley", "otsu", "knee", "percentile_25", "secondary_peak", "none", "off", "skip", "no"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "invert": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "contrast": {
+      "type": "object",
+      "required": ["enabled", "mode", "equalize", "stretch"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "mode": { "type": "string", "enum": ["equalize", "stretch", "disabled"] },
+        "equalize": {
+          "type": "object",
+          "required": ["classic"],
+          "properties": {
+            "classic": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        },
+        "stretch": {
+          "type": "object",
+          "required": ["saturated_pixels", "normalize"],
+          "properties": {
+            "saturated_pixels": { "type": "number", "minimum": 0.0, "maximum": 100.0 },
+            "normalize": { "type": "boolean" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "clahe": {
+      "type": "object",
+      "required": ["enabled", "blocksize", "histogram_bins", "max_slope", "fast", "composite"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "blocksize": { "type": "integer", "minimum": 1 },
+        "histogram_bins": { "type": "integer", "minimum": 1 },
+        "max_slope": { "type": "number", "exclusiveMinimum": 0.0 },
+        "fast": { "type": "boolean" },
+        "composite": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "final_denoise": {
+      "type": "object",
+      "required": ["enabled"],
+      "properties": {
+        "enabled": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "median_filter": {
+      "type": "object",
+      "required": ["enabled", "type", "radius"],
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "type": {
+          "type": "string",
+          "enum": ["hybrid_imagej", "circular_imagej", "standard", "bilateral", "adaptive", "nlm", "morphological"]
+        },
+        "radius": { "type": "integer", "minimum": 1 }
+      },
+      "additionalProperties": false
+    },
+    "debug": { "type": "boolean" }
+  },
+  "additionalProperties": false
+}

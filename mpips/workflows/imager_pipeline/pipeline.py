@@ -19,38 +19,7 @@ MAX_UINT16 = 65535
 
 @contextmanager
 def _configured_engine(config: ImagerPipelineConfig) -> Iterator[None]:
-    updates = {
-        "DEBUG": config.debug,
-        "USE_DENOISE": config.use_denoise,
-        "WAVELET_TYPE": config.wavelet,
-        "WAVELET_LEVEL": config.wavelet_level,
-        "WAVELET_METHOD": config.wavelet_method,
-        "WAVELET_MODE": config.wavelet_mode,
-        "CROP_TOP": config.crop_top,
-        "CROP_BOTTOM": config.crop_bottom,
-        "CROP_LEFT": config.crop_left,
-        "CROP_RIGHT": config.crop_right,
-        "USE_NORMALIZE": config.use_normalize,
-        "NORMALIZE_SATURATED_PIXELS": config.normalize_saturated_pixels,
-        "THRESHOLD_METHOD": config.threshold_method,
-        "USE_INVERT": config.use_invert,
-        "USE_CONTRAST_ENHANCEMENT": config.use_contrast_enhancement,
-        "CONTRAST_SATURATED_PIXELS": config.contrast_saturated_pixels,
-        "CONTRAST_NORMALIZE": config.contrast_normalize,
-        "CONTRAST_EQUALIZE": config.contrast_equalize,
-        "CONTRAST_CLASSIC_EQUALIZATION": config.contrast_classic_equalization,
-        "USE_CLAHE": config.use_clahe,
-        "CLAHE_BLOCKSIZE": config.clahe_blocksize,
-        "CLAHE_HISTOGRAM_BINS": config.clahe_histogram_bins,
-        "CLAHE_MAX_SLOPE": config.clahe_max_slope,
-        "CLAHE_FAST": config.clahe_fast,
-        "CLAHE_COMPOSITE": config.clahe_composite,
-        "USE_FINAL_DENOISE": config.use_final_denoise,
-        "USE_MEDIAN_FILTER": config.use_median_filter,
-        "MEDIAN_FILTER_TYPE": config.median_filter_type,
-        "MEDIAN_FILTER_RADIUS": config.median_filter_radius,
-        "USE_CALIBRATION": False,
-    }
+    updates = config.to_legacy_engine_dict()
     previous = {key: engine.CONFIG.get(key) for key in updates}
     engine.CONFIG.update(updates)
     try:
