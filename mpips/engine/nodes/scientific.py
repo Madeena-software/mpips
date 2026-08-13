@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 import tempfile
 import scipy.ndimage as ndimage
-from typing import Dict, Any
+from typing import Dict, Any, List, Tuple
 from skimage.restoration import denoise_wavelet
 
 from mpips.engine.nodes.base import BaseNode
@@ -255,14 +255,17 @@ class FlatFieldCorrectionNode(BaseNode):
 
 
 class LevelingNode(BaseNode):
-    """Rescales brightness so a background ROI matches a reference mean.
+    """Rescales brightness so the input image's mean matches a reference mean.
 
     Promoted from the "Global Brightness Leveling" step in
     research/leveling.py, which equalizes intensity drift across a batch of
-    radiographs by comparing each image's background ROI mean against a
-    baseline mean established from the batch's first image. Here the
-    baseline is passed in as ``target_mean`` instead of being tracked across
-    a batch, since nodes execute one image at a time.
+    radiographs by comparing each image's mean against a baseline mean
+    established from the batch's first image. Here the baseline is passed
+    in as ``target_mean`` instead of being tracked across a batch, since
+    nodes execute one image at a time. The current mean is measured within
+    an ROI (x_start/y_start/width/height; width/height of 0 extends to the
+    image edge, so the default ROI is the whole image), then the resulting
+    scale factor is applied to the whole image.
     """
 
     def execute(self, inputs: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
@@ -270,28 +273,23 @@ class LevelingNode(BaseNode):
         if image is None:
             raise ValueError("LevelingNode requires 'input_image' input.")
 
-        roi = params.get("roi")
-        if roi is None or len(roi) != 4:
-            raise ValueError(
-                "LevelingNode requires a 'roi' parameter of [y1, y2, x1, x2] "
-                "identifying a background region."
-            )
-        y1, y2, x1, x2 = (int(v) for v in roi)
-
         target_mean = float(params.get("target_mean", 0.0))
-        if target_mean <= 0:
+        if target_mean < 0:
             raise ValueError(
-                "target_mean must be a positive reference brightness "
-                "(the background ROI mean of the batch's baseline image)."
+                "target_mean must be a non-negative reference brightness "
+                "(the mean of the batch's baseline image's ROI)."
             )
 
-        roi_zone = image[y1:y2, x1:x2]
-        if roi_zone.size == 0:
-            raise ValueError(
-                f"ROI [{y1}:{y2}, {x1}:{x2}] is empty for image shape {image.shape}."
-            )
+        h, w = image.shape[:2]
+        x_start = max(0, min(w - 1, int(params.get("x_start", 0))))
+        y_start = max(0, min(h - 1, int(params.get("y_start", 0))))
+        width = int(params.get("width", 0))
+        height = int(params.get("height", 0))
+        roi_w = (w - x_start) if width <= 0 else max(1, min(w - x_start, width))
+        roi_h = (h - y_start) if height <= 0 else max(1, min(h - y_start, height))
+        roi = image[y_start : y_start + roi_h, x_start : x_start + roi_w]
 
-        current_mean = float(np.mean(roi_zone))
+        current_mean = float(np.mean(roi))
         if current_mean <= 0:
             return {"output_image": image.copy()}
 
@@ -357,9 +355,22 @@ class CameraCalibrationNode(BaseNode):
 
 
 class FABEMDNode(BaseNode):
-    """Fast Adaptive Bi-dimensional Empirical Mode Decomposition."""
+    """Fast Adaptive Bi-dimensional Empirical Mode Decomposition.
 
-    def _decompose_channel(self, residue: np.ndarray, num_imfs: int) -> np.ndarray:
+    Decomposes a single image into up to MAX_IMFS bi-dimensional intrinsic
+    mode functions (BIMFs, highest frequency first) plus a residual, each
+    exposed as its own named output slot (bimf_1..bimf_10, residual) so a
+    DAG can route each component to a different downstream node — e.g. a
+    PACE-2.0-style pipeline selectively denoises low-energy BIMFs while
+    leaving high-energy ones untouched, then recombines through a Merge
+    node. Slots beyond num_imfs are simply left unpopulated.
+    """
+
+    MAX_IMFS = 10
+
+    def _decompose_channel(
+        self, residue: np.ndarray, num_imfs: int
+    ) -> Tuple[List[np.ndarray], np.ndarray]:
         current = residue.astype(float)
         imfs = []
 
@@ -373,38 +384,57 @@ class FABEMDNode(BaseNode):
             imfs.append(imf)
             current = mean_env
 
-        # Return first IMF scaled to 0..1
-        first_imf = imfs[0]
-        f_min = np.min(first_imf)
-        f_max = np.max(first_imf)
-        if f_max > f_min:
-            out = (first_imf - f_min) / (f_max - f_min)
-        else:
-            out = np.zeros_like(first_imf)
-        return out  # type: ignore[no-any-return]
+        return imfs, current  # BIMFs (high -> low frequency), residual
+
+    @staticmethod
+    def _normalize(component: np.ndarray) -> np.ndarray:
+        c_min = np.min(component)
+        c_max = np.max(component)
+        if c_max > c_min:
+            return (component - c_min) / (c_max - c_min)  # type: ignore[no-any-return]
+        return np.zeros_like(component)
 
     def execute(self, inputs: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
         image = inputs.get("input_image")
         if image is None:
             raise ValueError("FABEMDNode requires 'input_image' input.")
 
-        num_imfs = int(params.get("num_imfs", 2))
+        num_imfs = max(1, min(int(params.get("num_imfs", 2)), self.MAX_IMFS))
 
         if len(image.shape) == 2:
-            decomposed = scale_unit_to_dtype(
-                self._decompose_channel(image, num_imfs), image
-            )
-        elif len(image.shape) == 3:
-            channels = []
-            for c in range(image.shape[2]):
-                channel = image[:, :, c]
-                channels.append(
-                    scale_unit_to_dtype(
-                        self._decompose_channel(channel, num_imfs), channel
-                    )
-                )
-            decomposed = cv2.merge(channels)
-        else:
-            raise ValueError("Invalid image dimensions.")
+            imfs, residual = self._decompose_channel(image, num_imfs)
+            outputs = {
+                f"bimf_{i + 1}": scale_unit_to_dtype(self._normalize(imf), image)
+                for i, imf in enumerate(imfs)
+            }
+            outputs["residual"] = scale_unit_to_dtype(self._normalize(residual), image)
+            return outputs
 
-        return {"output_image": decomposed}
+        if len(image.shape) == 3:
+            channels = image.shape[2]
+            per_channel = [
+                self._decompose_channel(image[:, :, c], num_imfs)
+                for c in range(channels)
+            ]
+
+            outputs = {}
+            for i in range(num_imfs):
+                outputs[f"bimf_{i + 1}"] = cv2.merge(
+                    [
+                        scale_unit_to_dtype(
+                            self._normalize(per_channel[c][0][i]), image[:, :, c]
+                        )
+                        for c in range(channels)
+                    ]
+                )
+            outputs["residual"] = cv2.merge(
+                [
+                    scale_unit_to_dtype(
+                        self._normalize(per_channel[c][1]), image[:, :, c]
+                    )
+                    for c in range(channels)
+                ]
+            )
+            return outputs
+
+        raise ValueError("Invalid image dimensions.")

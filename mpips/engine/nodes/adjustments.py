@@ -7,6 +7,7 @@ from mpips.engine.nodes.bit_depth import (
     dtype_limits,
     grayscale_any_depth,
     normalize_to_uint8,
+    scale_unit_to_dtype,
 )
 
 
@@ -92,3 +93,57 @@ class GammaCorrectionNode(BaseNode):
             image,
         )
         return {"output_image": corrected}
+
+
+class CLAHENode(BaseNode):
+    """Contrast Limited Adaptive Histogram Equalization.
+
+    Enhances local contrast without over-amplifying noise the way global
+    histogram equalization does. Color images are processed in LAB space
+    (CLAHE applied to the L channel only) to avoid hue/saturation shifts.
+    Uses a normalized 8-bit working copy internally.
+    """
+
+    def execute(self, inputs: Dict[str, Any], params: Dict[str, Any]) -> Dict[str, Any]:
+        image = inputs.get("input_image")
+        if image is None:
+            raise ValueError("CLAHENode requires 'input_image' input.")
+
+        clip_limit = float(params.get("clip_limit", 2.0))
+        tile_grid_size = int(params.get("tile_grid_size", 8))
+        clahe = cv2.createCLAHE(
+            clipLimit=clip_limit, tileGridSize=(tile_grid_size, tile_grid_size)
+        )
+
+        working = normalize_to_uint8(image)
+
+        if len(working.shape) == 2:
+            equalized = clahe.apply(working)
+        elif len(working.shape) == 3:
+            channels = working.shape[2]
+            if channels not in (3, 4):
+                raise ValueError(f"Unsupported channel size in CLAHE: {channels}")
+
+            l_channel, a_channel, b_channel = cv2.split(
+                cv2.cvtColor(working[:, :, :3], cv2.COLOR_BGR2LAB)
+            )
+            equalized_bgr = cv2.cvtColor(
+                cv2.merge([clahe.apply(l_channel), a_channel, b_channel]),
+                cv2.COLOR_LAB2BGR,
+            )
+            equalized = (
+                cv2.merge([equalized_bgr, working[:, :, 3]])
+                if channels == 4
+                else equalized_bgr
+            )
+        else:
+            raise ValueError("Invalid image dimensions.")
+
+        if image.dtype == np.uint8:
+            return {"output_image": equalized}
+
+        return {
+            "output_image": scale_unit_to_dtype(
+                equalized.astype(np.float64) / 255.0, image
+            )
+        }

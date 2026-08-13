@@ -16,8 +16,10 @@ def test_public_package_exports_backend_app() -> None:
 def test_public_package_exports_engine_primitives() -> None:
     assert mpips.DAGExecutor is DAGExecutor
     assert mpips.topological_sort is topological_sort
-    assert len(NODE_CATALOG) == 26
+    assert len(NODE_CATALOG) == 30
     assert get_node_class("input").__name__ == "InputNode"
+    assert get_node_class("input_npz").__name__ == "InputNode"
+    assert get_node_class("output_npz").__name__ == "MadeenaNpzOutputNode"
     assert get_node_class("camera_calibration_warp").__name__ == (
         "CameraCalibrationWarpNode"
     )

@@ -39,6 +39,50 @@ NODE_CATALOG = [
         version="1.0.0",
     ),
     ProcessorNodeSchema(
+        id="input_npz",
+        name="Madeena NPZ Input Node",
+        category="io",
+        description=(
+            "Maps S3 source configurations into the DAG execution pipeline, "
+            "for a Madeena radiograph capture NPZ specifically. Downloads file "
+            "to memory or temporary local workspace. Preserves native bit "
+            "depth unless convert_to_8bit is enabled. Exposes rawimage/"
+            "darkimage/processedimage as separate slots so each can be wired "
+            "to a different downstream node, plus the capture's non-image "
+            "metadata (id/gainid/darkid/xrayparams/cameraparams/"
+            "frameusedcount/description, whichever keys are present) as a "
+            "single npz_metadata slot; unused slots when the source NPZ "
+            "doesn't carry every key are left unconnected. Optionally also "
+            "downloads a separate gain/flat-field calibration NPZ (configured "
+            "per-node via gain_key/gain_url alongside the capture's own "
+            "key/url) and exposes its rawimage/darkimage as gain_flat_image/"
+            "gain_dark_image; left unconnected if no gain source is "
+            "configured for this node."
+        ),
+        inputs=[],
+        outputs=[
+            OutputSlot(name="output_image", type="image"),
+            OutputSlot(name="rawimage", type="image"),
+            OutputSlot(name="darkimage", type="image"),
+            OutputSlot(name="processedimage", type="image"),
+            OutputSlot(name="npz_metadata", type="metadata"),
+            OutputSlot(name="gain_flat_image", type="image"),
+            OutputSlot(name="gain_dark_image", type="image"),
+        ],
+        parameters=[
+            Parameter(
+                name="convert_to_8bit",
+                type="boolean",
+                default=False,
+                description=(
+                    "Automatically convert high bit-depth/float inputs to 8-bit "
+                    "(0-255 uint8). Leave disabled to preserve native bit depth."
+                ),
+            )
+        ],
+        version="1.0.0",
+    ),
+    ProcessorNodeSchema(
         id="output",
         name="Output Node",
         category="io",
@@ -46,6 +90,28 @@ NODE_CATALOG = [
             "Encapsulates S3 destination parameters. " "Uploads the final result image."
         ),
         inputs=[InputSlot(name="input_image", type="image")],
+        outputs=[],
+        parameters=[],
+        version="1.0.0",
+    ),
+    ProcessorNodeSchema(
+        id="output_npz",
+        name="Madeena NPZ Output Node",
+        category="io",
+        description=(
+            "Encapsulates S3 destination parameters for a Madeena radiograph "
+            "capture NPZ. Declares rawimage/darkimage/processedimage as "
+            "individually optional input slots (wire as many or as few as "
+            "needed) plus an optional npz_metadata slot for the capture's "
+            "non-image fields; writes an NPZ containing whichever slots were "
+            "actually wired in."
+        ),
+        inputs=[
+            InputSlot(name="rawimage", type="image"),
+            InputSlot(name="darkimage", type="image"),
+            InputSlot(name="processedimage", type="image"),
+            InputSlot(name="npz_metadata", type="metadata"),
+        ],
         outputs=[],
         parameters=[],
         version="1.0.0",
@@ -257,6 +323,35 @@ NODE_CATALOG = [
         ],
         version="1.0.0",
         executable_in_browser=True,
+    ),
+    ProcessorNodeSchema(
+        id="clahe",
+        name="CLAHE",
+        category="adjustments",
+        description=(
+            "Contrast Limited Adaptive Histogram Equalization. Enhances local "
+            "contrast without over-amplifying noise; color images are processed "
+            "in LAB space so hue/saturation aren't shifted." + USES_8BIT_WORKING_COPY
+        ),
+        inputs=[InputSlot(name="input_image", type="image")],
+        outputs=[OutputSlot(name="output_image", type="image")],
+        parameters=[
+            Parameter(
+                name="clip_limit",
+                type="float",
+                default=2.0,
+                description="Contrast clip threshold — higher allows more contrast",
+                min=0.1,
+            ),
+            Parameter(
+                name="tile_grid_size",
+                type="integer",
+                default=8,
+                description="Grid size (NxN tiles) local equalization is computed over",
+                min=1,
+            ),
+        ],
+        version="1.0.0",
     ),
     ProcessorNodeSchema(
         id="gaussian_blur",
@@ -505,34 +600,56 @@ NODE_CATALOG = [
     ProcessorNodeSchema(
         id="leveling",
         name="Leveling",
-        category="advanced",
+        category="adjustments",
         description=(
-            "Rescales overall brightness so a background region matches a "
+            "Rescales overall brightness so the image's mean matches a "
             "reference mean, correcting exposure/intensity drift between "
-            "captures in a batch." + PRESERVES_BIT_DEPTH
+            "captures in a batch. The correction's current mean is measured "
+            "within the ROI (width/height 0 means the full image from "
+            "x_start/y_start); the scale factor is then applied to the "
+            "whole image." + PRESERVES_BIT_DEPTH
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[OutputSlot(name="output_image", type="image")],
         parameters=[
             Parameter(
-                name="roi",
-                type="array",
-                default=None,
-                description=(
-                    "Background ROI as [y1, y2, x1, x2] pixel coordinates, "
-                    "chosen to stay inside a clear/open-beam area"
-                ),
-            ),
-            Parameter(
                 name="target_mean",
                 type="float",
                 default=0.0,
                 description=(
-                    "Reference brightness for the ROI (the background ROI mean "
-                    "measured from the batch's baseline image); the image is "
-                    "scaled so its own ROI mean matches this value"
+                    "Reference brightness (the mean of the batch's baseline "
+                    "image, measured over the same ROI); the image is "
+                    "scaled so its ROI mean matches this value"
                 ),
                 min=0.0,
+            ),
+            Parameter(
+                name="x_start",
+                type="integer",
+                default=0,
+                description="ROI starting X coordinate (left) used to measure the current mean",
+                min=0,
+            ),
+            Parameter(
+                name="y_start",
+                type="integer",
+                default=0,
+                description="ROI starting Y coordinate (top) used to measure the current mean",
+                min=0,
+            ),
+            Parameter(
+                name="width",
+                type="integer",
+                default=0,
+                description="ROI width in pixels; 0 extends to the right edge of the image",
+                min=0,
+            ),
+            Parameter(
+                name="height",
+                type="integer",
+                default=0,
+                description="ROI height in pixels; 0 extends to the bottom edge of the image",
+                min=0,
             ),
         ],
         version="1.0.0",
@@ -597,18 +714,67 @@ NODE_CATALOG = [
         category="advanced",
         description=(
             "Fast Adaptive Bi-dimensional Empirical Mode Decomposition. "
-            "Decomposes images into BIMFs and a residue." + PRESERVES_BIT_DEPTH
+            "Decomposes an image into up to 10 bi-dimensional intrinsic mode "
+            "functions (bimf_1 highest frequency .. bimf_10 lowest) plus a "
+            "residual, each its own output slot so every component can be "
+            "wired to a different downstream node. Only the first num_imfs "
+            "slots are populated; the rest are left unconnected."
+            + PRESERVES_BIT_DEPTH
         ),
         inputs=[InputSlot(name="input_image", type="image")],
-        outputs=[OutputSlot(name="output_image", type="image")],
+        outputs=[
+            *[
+                OutputSlot(name=f"bimf_{i}", type="image")
+                for i in range(1, 11)
+            ],
+            OutputSlot(name="residual", type="image"),
+        ],
         parameters=[
             Parameter(
                 name="num_imfs",
                 type="integer",
                 default=2,
-                description="Number of Intrinsic Mode Functions to extract",
+                description="Number of Intrinsic Mode Functions to extract (max 10)",
                 min=1,
+                max=10,
             )
+        ],
+        version="1.1.0",
+    ),
+    ProcessorNodeSchema(
+        id="merge",
+        name="Merge",
+        category="advanced",
+        description=(
+            "Weighted sum of multiple wired image inputs — the fan-in / "
+            "recombination counterpart to FABEMD Decompose's fan-out. Declares "
+            "10 named input slots; wire as many or as few as needed, unwired "
+            "slots are ignored. With Normalize enabled the result is a "
+            "weighted average (safe default); disable it for a raw weighted "
+            "sum such as PACE 2.0's I_L = I_E + βI_HMF."
+        ),
+        inputs=[InputSlot(name=f"input_{i}", type="image") for i in range(1, 11)],
+        outputs=[OutputSlot(name="output_image", type="image")],
+        parameters=[
+            *[
+                Parameter(
+                    name=f"input_{i}_weight",
+                    type="float",
+                    default=1.0,
+                    description=f"Weight applied to input_{i} if wired",
+                    min=0.0,
+                )
+                for i in range(1, 11)
+            ],
+            Parameter(
+                name="normalize",
+                type="boolean",
+                default=True,
+                description=(
+                    "Divide the weighted sum by the total weight (weighted "
+                    "average). Disable for a raw weighted sum."
+                ),
+            ),
         ],
         version="1.0.0",
     ),

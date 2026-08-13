@@ -117,10 +117,8 @@ def test_flat_field_correction(
 def test_leveling_scales_to_target_mean() -> None:
     node = LevelingNode()
     image = np.full((20, 20), 50, dtype=np.uint8)
-    # ROI mean is 50; scaling to target_mean=100 should double the whole image
-    res = node.execute(
-        {"input_image": image}, {"roi": [0, 20, 0, 20], "target_mean": 100.0}
-    )
+    # Whole-image mean is 50; scaling to target_mean=100 should double it.
+    res = node.execute({"input_image": image}, {"target_mean": 100.0})
     out_img = res["output_image"]
     assert out_img.dtype == np.uint8
     assert np.all(out_img == 100)
@@ -129,26 +127,40 @@ def test_leveling_scales_to_target_mean() -> None:
 def test_leveling_preserves_uint16() -> None:
     node = LevelingNode()
     image = np.full((10, 10), 1000, dtype=np.uint16)
-    res = node.execute(
-        {"input_image": image}, {"roi": [0, 10, 0, 10], "target_mean": 500.0}
-    )
+    res = node.execute({"input_image": image}, {"target_mean": 500.0})
     out_img = res["output_image"]
     assert out_img.dtype == np.uint16
     assert np.all(out_img == 500)
 
 
-def test_leveling_requires_roi() -> None:
-    node = LevelingNode()
-    image = np.ones((10, 10), dtype=np.uint8)
-    with pytest.raises(ValueError, match="roi"):
-        node.execute({"input_image": image}, {"target_mean": 100.0})
-
-
-def test_leveling_requires_positive_target_mean() -> None:
+def test_leveling_rejects_negative_target_mean() -> None:
     node = LevelingNode()
     image = np.ones((10, 10), dtype=np.uint8)
     with pytest.raises(ValueError, match="target_mean"):
-        node.execute({"input_image": image}, {"roi": [0, 10, 0, 10]})
+        node.execute({"input_image": image}, {"target_mean": -1.0})
+
+
+def test_leveling_allows_zero_target_mean() -> None:
+    node = LevelingNode()
+    image = np.full((10, 10), 50, dtype=np.uint8)
+    res = node.execute({"input_image": image}, {"target_mean": 0.0})
+    assert np.all(res["output_image"] == 0)
+
+
+def test_leveling_measures_mean_within_roi() -> None:
+    node = LevelingNode()
+    # Left half is 50, right half is 150; whole-image mean is 100.
+    image = np.full((20, 20), 50, dtype=np.uint8)
+    image[:, 10:] = 150
+    # ROI covers only the left half (mean 50), so scaling to target_mean=100
+    # should double the whole image, not just the ROI.
+    res = node.execute(
+        {"input_image": image},
+        {"target_mean": 100.0, "x_start": 0, "y_start": 0, "width": 10, "height": 20},
+    )
+    out_img = res["output_image"]
+    assert np.all(out_img[:, :10] == 100)
+    assert np.all(out_img[:, 10:] == 255)  # clipped uint8 max, was 150*2=300
 
 
 @patch("mpips.engine.nodes.scientific.download_image")
@@ -183,15 +195,21 @@ def test_camera_calibration(mock_download: Any, dummy_gray_image: np.ndarray) ->
 def test_fabemd(dummy_gray_image: np.ndarray, dummy_color_image: np.ndarray) -> None:
     node = FABEMDNode()
 
-    # Grayscale
+    # Grayscale: exactly num_imfs BIMF slots plus a residual, nothing beyond that.
     res = node.execute({"input_image": dummy_gray_image}, {"num_imfs": 2})
-    assert "output_image" in res
-    assert res["output_image"].shape == dummy_gray_image.shape
+    assert set(res.keys()) == {"bimf_1", "bimf_2", "residual"}
+    for component in res.values():
+        assert component.shape == dummy_gray_image.shape
 
     # Color
     res_color = node.execute({"input_image": dummy_color_image}, {"num_imfs": 1})
-    assert "output_image" in res_color
-    assert res_color["output_image"].shape == dummy_color_image.shape
+    assert set(res_color.keys()) == {"bimf_1", "residual"}
+    for component in res_color.values():
+        assert component.shape == dummy_color_image.shape
+
+    # num_imfs is clamped to the declared max (10) rather than erroring.
+    res_clamped = node.execute({"input_image": dummy_gray_image}, {"num_imfs": 999})
+    assert set(res_clamped.keys()) == {f"bimf_{i}" for i in range(1, 11)} | {"residual"}
 
 
 def test_iqa_calculators(
