@@ -84,8 +84,17 @@ def extract_grid(
 
     row_widths = {len(row) for row in rows}
     if len(rows) < 2 or len(row_widths) != 1 or next(iter(row_widths)) < 2:
-        widths = ", ".join(str(len(row)) for row in rows)
-        raise ValueError(f"Detected dot grid is not rectangular; row widths: {widths}")
+        from collections import Counter
+        counts = Counter(len(r) for r in rows)
+        mode_width = counts.most_common(1)[0][0]
+        trimmed = [r for r in rows if len(r) == mode_width]
+        if len(trimmed) >= 2 and mode_width >= 2:
+            print(f"Auto-trimmed grid from {len(rows)} rows to {len(trimmed)} rectangular rows of width {mode_width}")
+            rows = trimmed
+            row_widths = {len(row) for row in rows}
+        else:
+            widths = ", ".join(str(len(row)) for row in rows)
+            raise ValueError(f"Detected dot grid is not rectangular; row widths: {widths}")
 
     # Prepare data for the 3 CSVs
     grid_coords = []
