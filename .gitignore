@@ -34,6 +34,7 @@ research/**/__pycache__/
 research/**/.ipynb_checkpoints/
 *.npz
 research/kambing-260714/data/output
+research/phantom-gotri-thorax
 
 # Python packaging / build artifacts
 *.egg-info/
