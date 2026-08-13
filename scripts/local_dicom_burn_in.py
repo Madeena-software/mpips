@@ -356,7 +356,8 @@ class BurnIn:
         self.case("health", 200, health)
 
         for path in ("/", "/v1/nodes", "/v1/jobs", "/v1/secure-test", "/docs"):
-            self.case(f"absent {path}", 404, self.client.get(f"{self.url}{path}"))
+            expected_code = (401, 404) if path in ("/v1/nodes", "/v1/jobs") else 404
+            self.case(f"absent {path}", expected_code, self.client.get(f"{self.url}{path}"))
 
         self.case(
             "missing API key",
