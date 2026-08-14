@@ -464,16 +464,16 @@ curl -s -i -X POST "http://127.0.0.1:8014/v1/radiographs/dicom" \
 
 ## 16. Container Network Topology & Inter-Service Communication
 
-### Shared Container Network (`madeena-software-network`)
-Both **MHCS** (`mhcs-core`) and **MPIPS** (`mpips-api`) services are attached to the external shared Docker bridge network named `madeena-software-network`.
+### Dedicated Integration Network (`mhcs-mpips-integration-v1`)
+The **MHCS Image Gateway Worker** (`mhcs_core_image-worker`) and **MPIPS API** (`mpips-api`) communicate across the dedicated external Docker overlay network named `mhcs-mpips-integration-v1`.
 
 ```text
 +-----------------------------------------------------------------------------------+
-|                           madeena-software-network                                |
+|                           mhcs-mpips-integration-v1                               |
 |                                                                                   |
 |  +--------------------+    POST /v1/radiographs/dicom    +---------------------+  |
-|  |     MHCS CORE      | -------------------------------> |      MPIPS API      |  |
-|  |    (mhcs-core)     |  http://mpips-api:8000/v1/...    |   (mpips-api:8000)  |  |
+|  | MHCS IMAGE WORKER  | -------------------------------> |      MPIPS API      |  |
+|  |  (image-worker)    |  http://mpips-api:8000/v1/...    |   (mpips-api:8000)  |  |
 |  +--------------------+                                  +---------------------+  |
 |                                                                     |             |
 |                                                          Spawns     | isolated    |
@@ -487,7 +487,7 @@ Both **MHCS** (`mhcs-core`) and **MPIPS** (`mpips-api`) services are attached to
 
 ### Inter-Service Communication Details
 * **Internal Service Address**: `http://mpips-api:8000`
-* **Network Driver**: Docker external bridge (`name: madeena-software-network`).
+* **Network Driver**: Docker overlay (`name: mhcs-mpips-integration-v1`, attachable: `true`).
 * **Host Loopback Exposure**:
   * Local Compose: `127.0.0.1:8000` $\rightarrow$ container `8000`
   * Prod Compose: `127.0.0.1:8014` $\rightarrow$ container `8000`

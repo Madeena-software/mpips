@@ -105,8 +105,61 @@ jobs:
       - name: Prepare runtime and rollback state
         run: |
           set -Eeuo pipefail
-          docker network inspect madeena-software-network >/dev/null 2>&1 || \
-            docker network create madeena-software-network
+          ensure_internal_network() {
+            local net_name="mpips-internal-beta-v1"
+            local exp_driver="bridge"
+            local exp_subnet="10.250.2.0/24"
+            if docker network inspect "$net_name" >/dev/null 2>&1; then
+              local driver subnet
+              driver="$(docker network inspect "$net_name" --format '{{.Driver}}')"
+              subnet="$(docker network inspect "$net_name" --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}')"
+              if [ "$driver" != "$exp_driver" ] || [ "$subnet" != "$exp_subnet" ]; then
+                echo "FATAL: Network $net_name exists with invalid config (driver=$driver, subnet=$subnet, expected driver=$exp_driver, subnet=$exp_subnet)" >&2
+                exit 1
+              fi
+              echo "Verified network $net_name (driver: $driver, subnet: $subnet)"
+            else
+              echo "Creating network $net_name (driver: $exp_driver, subnet: $exp_subnet)..."
+              docker network create \
+                --driver "$exp_driver" \
+                --subnet "$exp_subnet" \
+                --gateway "10.250.2.1" \
+                "$net_name"
+              echo "Created network $net_name"
+            fi
+          }
+
+          ensure_integration_network() {
+            local net_name="mhcs-mpips-integration-v1"
+            local exp_driver="overlay"
+            local exp_scope="swarm"
+            local exp_subnet="10.250.3.0/24"
+            if docker network inspect "$net_name" >/dev/null 2>&1; then
+              local driver scope attachable subnet
+              driver="$(docker network inspect "$net_name" --format '{{.Driver}}')"
+              scope="$(docker network inspect "$net_name" --format '{{.Scope}}')"
+              attachable="$(docker network inspect "$net_name" --format '{{.Attachable}}')"
+              subnet="$(docker network inspect "$net_name" --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}')"
+              if [ "$driver" != "$exp_driver" ] || [ "$scope" != "$exp_scope" ] || [ "$attachable" != "true" ] || [ "$subnet" != "$exp_subnet" ]; then
+                echo "FATAL: Network $net_name exists with invalid config (driver=$driver, scope=$scope, attachable=$attachable, subnet=$subnet)" >&2
+                exit 1
+              fi
+              echo "Verified network $net_name (driver: $driver, scope: $scope, attachable: $attachable, subnet: $subnet)"
+            else
+              echo "Creating network $net_name (driver: $exp_driver, attachable: true, subnet: $exp_subnet)..."
+              docker network create \
+                --driver "$exp_driver" \
+                --attachable \
+                --subnet "$exp_subnet" \
+                --gateway "10.250.3.1" \
+                "$net_name"
+              echo "Created network $net_name"
+            fi
+          }
+
+          ensure_internal_network
+          ensure_integration_network
+
           if [ ! -d "$REMOTE_PATH" ]; then
             sudo mkdir -p "$REMOTE_PATH"
             sudo chown -R "$(id -u):$(id -g)" "$REMOTE_PATH"
@@ -192,9 +245,18 @@ jobs:
             test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8014/health)" = "200"
             test "$(docker port "$API_CONTAINER" 8000/tcp)" = "127.0.0.1:8014"
             test -z "$(docker port "$REDIS_CONTAINER" || true)"
-            docker network inspect madeena-software-network >/dev/null 2>&1
-            docker inspect "$API_CONTAINER" | grep -Fq 'madeena-software-network'
-            docker run --rm --network madeena-software-network \
+
+            local api_networks redis_networks
+            api_networks="$(docker inspect "$API_CONTAINER" --format '{{range $net, $v := .NetworkSettings.Networks}}{{$net}} {{end}}')"
+            redis_networks="$(docker inspect "$REDIS_CONTAINER" --format '{{range $net, $v := .NetworkSettings.Networks}}{{$net}} {{end}}')"
+
+            echo "$api_networks" | grep -qw 'mpips-internal-beta-v1'
+            echo "$api_networks" | grep -qw 'mhcs-mpips-integration-v1'
+
+            echo "$redis_networks" | grep -qw 'mpips-internal-beta-v1'
+            ! echo "$redis_networks" | grep -qw 'mhcs-mpips-integration-v1'
+
+            docker run --rm --network mhcs-mpips-integration-v1 \
               "mpips-api:$MPIPS_VERSION" \
               curl -fsS http://mpips-api:8000/health >/dev/null
             ! docker compose --project-name "$COMPOSE_PROJECT_NAME" \
