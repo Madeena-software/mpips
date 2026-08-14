@@ -2,6 +2,11 @@ name: Deploy MPIPS Internal Beta
 
 on:
   workflow_dispatch:
+    inputs:
+      recreate_internal_network:
+        description: "Authorized one-time cutover: Recreate MPIPS networks if subnet/config is invalid"
+        type: boolean
+        default: false
 
 concurrency:
   group: mpips-internal-beta
@@ -91,6 +96,7 @@ jobs:
           echo "MPIPS_LAUNCHER_SOCKET_PATH=/var/www/mpips-runtime/launcher/launcher.sock" >> "$GITHUB_ENV"
           echo "COMPOSE_PROJECT_NAME=mpips-internal-beta" >> "$GITHUB_ENV"
           echo "MPIPS_API_KEY=${MPIPS_API_KEY_SECRET}" >> "$GITHUB_ENV"
+          echo "RECREATE_INTERNAL_NET=${{ inputs.recreate_internal_network || false }}" >> "$GITHUB_ENV"
 
       - name: Validate environment variables (require_env)
         run: |
@@ -109,11 +115,25 @@ jobs:
             local net_name="mpips-internal-beta-v1"
             local exp_driver="bridge"
             local exp_subnet="10.250.2.0/24"
+            local allow_recreate="${RECREATE_INTERNAL_NET:-false}"
             if docker network inspect "$net_name" >/dev/null 2>&1; then
               local driver subnet
               driver="$(docker network inspect "$net_name" --format '{{.Driver}}')"
               subnet="$(docker network inspect "$net_name" --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}')"
               if [ "$driver" != "$exp_driver" ] || [ "$subnet" != "$exp_subnet" ]; then
+                if [ "$allow_recreate" = "true" ]; then
+                  echo "Authorized cutover: Network $net_name has invalid config (driver=$driver, subnet=$subnet). Recreating with approved subnet $exp_subnet..."
+                  docker compose --project-name "$COMPOSE_PROJECT_NAME" \
+                    --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" down --remove-orphans 2>/dev/null || true
+                  docker network rm "$net_name"
+                  docker network create \
+                    --driver "$exp_driver" \
+                    --subnet "$exp_subnet" \
+                    --gateway "10.250.2.1" \
+                    "$net_name"
+                  echo "Recreated network $net_name (driver: $exp_driver, subnet: $exp_subnet)"
+                  return 0
+                fi
                 echo "FATAL: Network $net_name exists with invalid config (driver=$driver, subnet=$subnet, expected driver=$exp_driver, subnet=$exp_subnet)" >&2
                 exit 1
               fi
@@ -134,6 +154,7 @@ jobs:
             local exp_driver="overlay"
             local exp_scope="swarm"
             local exp_subnet="10.250.3.0/24"
+            local allow_recreate="${RECREATE_INTERNAL_NET:-false}"
             if docker network inspect "$net_name" >/dev/null 2>&1; then
               local driver scope attachable subnet
               driver="$(docker network inspect "$net_name" --format '{{.Driver}}')"
@@ -141,6 +162,18 @@ jobs:
               attachable="$(docker network inspect "$net_name" --format '{{.Attachable}}')"
               subnet="$(docker network inspect "$net_name" --format '{{range .IPAM.Config}}{{.Subnet}}{{end}}')"
               if [ "$driver" != "$exp_driver" ] || [ "$scope" != "$exp_scope" ] || [ "$attachable" != "true" ] || [ "$subnet" != "$exp_subnet" ]; then
+                if [ "$allow_recreate" = "true" ]; then
+                  echo "Authorized cutover: Network $net_name has invalid config (driver=$driver, scope=$scope, attachable=$attachable, subnet=$subnet). Recreating..."
+                  docker network rm "$net_name"
+                  docker network create \
+                    --driver "$exp_driver" \
+                    --attachable \
+                    --subnet "$exp_subnet" \
+                    --gateway "10.250.3.1" \
+                    "$net_name"
+                  echo "Recreated network $net_name (driver: $exp_driver, attachable: true, subnet: $exp_subnet)"
+                  return 0
+                fi
                 echo "FATAL: Network $net_name exists with invalid config (driver=$driver, scope=$scope, attachable=$attachable, subnet=$subnet)" >&2
                 exit 1
               fi
