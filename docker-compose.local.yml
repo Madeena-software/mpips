@@ -31,7 +31,7 @@ services:
       - ${MPIPS_CALIBRATION_DIR:?set calibration dir}:/opt/mpips/calibration:ro
       - ${MPIPS_LAUNCHER_DIR:?set launcher dir}:/var/run/mpips-local:rw
     networks:
-      - madeena-software-network
+      - mpips-local-private
     depends_on:
       redis:
         condition: service_healthy
@@ -57,7 +57,7 @@ services:
     image: redis:7-alpine
     command: ["redis-server", "--appendonly", "no", "--save", ""]
     networks:
-      - madeena-software-network
+      - mpips-local-private
     tmpfs:
       - /data:rw,noexec,nosuid,size=64m
     security_opt:
@@ -73,6 +73,5 @@ services:
       retries: 12
 
 networks:
-  madeena-software-network:
-    external: true
-    name: madeena-software-network
+  mpips-local-private:
+    name: mpips-local-private-v1
