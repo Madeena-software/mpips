@@ -22,12 +22,14 @@ from mpips.workflows.imager_pipeline.calibration import (
     _load_calibration_image,
     _validate_metrics,
     extract_dot_grid,
+    load_remap,
 )
 from mpips.workflows.imager_pipeline.npz_io import (
     load_calibration_processed_image,
     load_radiograph,
     sha256_file,
     to_uint16,
+    write_tiff,
 )
 from mpips.workflows.imager_pipeline.pipeline import (
     apply_calibration_remap,
@@ -345,9 +347,23 @@ def test_pipeline_primitives_preserve_shapes_and_dtype() -> None:
         np.full_like(image, 100, dtype=np.float32),
     )
     assert corrected.shape == image.shape
+    assert corrected.dtype == np.float32
+    assert np.isfinite(corrected).all()
     filtered = hybrid_median_filter(image, radius=1)
     assert filtered.shape == image.shape
     assert filtered.dtype == np.uint16
+
+
+def test_identity_calibration_artifact_loads_float32_maps(tmp_path: Path) -> None:
+    map_x, map_y = load_remap(identity_artifacts(tmp_path))
+
+    assert map_x.shape == (8, 8)
+    assert map_y.shape == (8, 8)
+    assert map_x.dtype == np.float32
+    assert map_y.dtype == np.float32
+    y_values, x_values = np.indices((8, 8), dtype=np.float32)
+    np.testing.assert_array_equal(map_x, x_values)
+    np.testing.assert_array_equal(map_y, y_values)
 
 
 def test_imagej_operations_match_golden_arrays() -> None:
@@ -418,7 +434,7 @@ def test_precise_and_fast_clahe_adapters_match_canonical_engine() -> None:
         np.testing.assert_array_equal(actual, expected)
 
 
-def test_complete_promoted_recipe_matches_golden_tiff_pixels() -> None:
+def test_complete_promoted_recipe_matches_golden_tiff_pixels(tmp_path: Path) -> None:
     shape = (24, 24)
     y_values, x_values = np.indices(shape)
     raw = (
@@ -427,10 +443,29 @@ def test_complete_promoted_recipe_matches_golden_tiff_pixels() -> None:
     dark = (40 + ((x_values + y_values) % 7)).astype(np.uint16)
     flat = (3100 + x_values * 3 + y_values * 5).astype(np.uint16)
     output = process_radiography_arrays(raw, dark, flat, "BED", ImagerPipelineConfig())
+
+    assert raw.dtype == np.uint16
+    assert dark.dtype == np.uint16
+    assert flat.dtype == np.uint16
+    assert raw.shape == dark.shape == flat.shape == (24, 24)
+    assert output.shape == raw.shape
     assert output.dtype == np.uint16
+    assert 0 <= output.min() <= output.max() <= 65535
+    np.testing.assert_array_equal(
+        output[[0, 0, 4, 8, 23], [0, 4, 0, 0, 23]],
+        np.array([65535, 47802, 55255, 31868, 0], dtype=np.uint16),
+    )
     assert hashlib.sha256(output.tobytes()).hexdigest() == (
         "777a868cb95ccf0a7fdf915c8cb7b82cfe760f27a4138f1c109e335f7d108361"
     )
+
+    output_path = write_tiff(tmp_path / "canonical.tiff", output)
+    read_back = cv2.imread(str(output_path), cv2.IMREAD_UNCHANGED)
+    assert read_back is not None
+    assert read_back.shape == output.shape
+    assert read_back.dtype == np.uint16
+    assert 0 <= read_back.min() <= read_back.max() <= 65535
+    np.testing.assert_array_equal(read_back, output)
 
 
 def test_full_pipeline_can_run_fixed_recipe_without_optional_steps() -> None:
@@ -479,6 +514,9 @@ def test_batch_writes_tiff_and_manifest_and_continues_failures(tmp_path: Path) -
     assert result.items[0].output is not None
     written = cv2.imread(result.items[0].output, cv2.IMREAD_UNCHANGED)
     assert written is not None
+    assert written.shape == expected.shape
+    assert written.dtype == np.uint16
+    assert 0 <= written.min() <= written.max() <= 65535
     np.testing.assert_allclose(written, expected, atol=1)
 
 

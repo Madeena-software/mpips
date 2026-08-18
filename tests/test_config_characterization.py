@@ -26,6 +26,7 @@ def test_characterize_imager_pipeline_config_defaults() -> None:
     assert config.crop_bottom == 0
     assert config.crop_left == 0
     assert config.crop_right == 0
+    assert config.use_crop_rotate is True
     assert config.use_denoise is True
     assert config.wavelet == "sym4"
     assert config.wavelet_level == 3
@@ -33,6 +34,7 @@ def test_characterize_imager_pipeline_config_defaults() -> None:
     assert config.wavelet_mode == "soft"
     assert config.use_normalize is False
     assert config.normalize_saturated_pixels == 0.35
+    assert config.use_threshold is True
     assert config.threshold_method == "auto"
     assert config.use_invert is True
     assert config.use_contrast_enhancement is True

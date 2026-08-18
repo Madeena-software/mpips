@@ -84,12 +84,18 @@ def test_canonical_imagej_import_is_service_runtime_safe() -> None:
 
 def test_imagej_wrappers_preserve_baseline_outputs() -> None:
     image = np.array([[0, 0, 1, 2], [2, 2, 3, 3]], dtype=np.uint8)
+    equalized = processing.imagej_equalize(image)
+    stretched = processing.imagej_stretch(image, 0.0)
+    assert equalized.shape == image.shape
+    assert equalized.dtype == np.uint8
+    assert stretched.shape == image.shape
+    assert stretched.dtype == np.uint8
     np.testing.assert_array_equal(
-        processing.imagej_equalize(image),
+        equalized,
         np.array([[0, 0, 63, 135], [135, 135, 218, 218]], dtype=np.uint8),
     )
     np.testing.assert_array_equal(
-        processing.imagej_stretch(image, 0.0),
+        stretched,
         np.array([[0, 0, 85, 170], [170, 170, 255, 255]], dtype=np.uint8),
     )
 
@@ -102,6 +108,9 @@ def test_imagej_wrappers_preserve_baseline_outputs() -> None:
         fast=False,
         composite=True,
     )
+    assert precise.shape == clahe_input.shape
+    assert precise.dtype == np.uint16
+    assert 0 <= precise.min() <= precise.max() <= 65535
     assert hashlib.sha256(precise.tobytes()).hexdigest() == (
         "5d94b2940b94f2dfbcfe41f130edef7bebfa59fa5a050e7cdbb9bbfbe140dcf6"
     )
@@ -113,6 +122,9 @@ def test_imagej_wrappers_preserve_baseline_outputs() -> None:
         fast=True,
         composite=True,
     )
+    assert fast.shape == clahe_input.shape
+    assert fast.dtype == np.uint16
+    assert 0 <= fast.min() <= fast.max() <= 65535
     assert hashlib.sha256(fast.tobytes()).hexdigest() == (
         "1c4bb383c6e5af18532aff7f0c68e094fdb81c8dc545493758d11e2de8b49ea2"
     )
@@ -127,8 +139,11 @@ def test_imagej_wrappers_preserve_baseline_outputs() -> None:
         ],
         dtype=np.uint16,
     )
+    median = processing.hybrid_median_filter(median_input, radius=2)
+    assert median.shape == median_input.shape
+    assert median.dtype == np.uint16
     np.testing.assert_array_equal(
-        processing.hybrid_median_filter(median_input, radius=2),
+        median,
         np.array(
             [
                 [9, 4, 7, 4, 6],
