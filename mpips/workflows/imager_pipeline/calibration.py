@@ -26,7 +26,7 @@ from mpips.workflows.imager_pipeline.npz_io import (
     to_uint16,
     write_tiff,
 )
-from mpips.workflows.imager_pipeline.pipeline import (
+from mpips.processing import (
     flat_field_correction,
     imagej_stretch,
 )
