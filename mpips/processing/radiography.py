@@ -62,7 +62,7 @@ def apply_threshold_separation(image: np.ndarray, threshold: float) -> np.ndarra
 
 
 def imagej_stretch(image: np.ndarray, saturated_pixels: float) -> np.ndarray:
-    from mpips.engine.imager_pipeline.imagej_replicator import ImageJReplicator
+    from mpips.processing.imagej import ImageJReplicator
 
     return np.asarray(
         ImageJReplicator.enhance_contrast(
@@ -75,7 +75,7 @@ def imagej_stretch(image: np.ndarray, saturated_pixels: float) -> np.ndarray:
 
 
 def imagej_equalize(image: np.ndarray, classic: bool = False) -> np.ndarray:
-    from mpips.engine.imager_pipeline.imagej_replicator import ImageJReplicator
+    from mpips.processing.imagej import ImageJReplicator
 
     return np.asarray(
         ImageJReplicator.enhance_contrast(
@@ -97,7 +97,7 @@ def apply_clahe(
     fast: bool = False,
     composite: bool = True,
 ) -> np.ndarray:
-    from mpips.engine.imager_pipeline.imagej_replicator import ImageJReplicator
+    from mpips.processing.imagej import ImageJReplicator
 
     return np.asarray(
         ImageJReplicator.apply_clahe(
@@ -112,7 +112,7 @@ def apply_clahe(
 
 
 def hybrid_median_filter(image: np.ndarray, radius: int) -> np.ndarray:
-    from mpips.engine.imager_pipeline.imagej_replicator import ImageJReplicator
+    from mpips.processing.imagej import ImageJReplicator
 
     kernel_size = min(7, max(3, int(radius) * 2 + 1))
     return np.asarray(

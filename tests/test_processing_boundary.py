@@ -94,7 +94,7 @@ def test_processing_delegates_flat_field_correction_to_canonical_engine() -> Non
 
 
 def test_processing_delegates_imagej_stretch_to_canonical_engine() -> None:
-    from mpips.engine.imager_pipeline.imagej_replicator import ImageJReplicator
+    from mpips.processing.imagej import ImageJReplicator
 
     image = np.array([[0, 0, 1, 2], [2, 2, 3, 3]], dtype=np.uint8)
 

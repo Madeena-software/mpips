@@ -39,7 +39,7 @@ from mpips.workflows.imager_pipeline.pipeline import (
     imagej_stretch,
     process_radiography_arrays,
 )
-from mpips.engine.imager_pipeline.imagej_replicator import ImageJReplicator
+from mpips.processing.imagej import ImageJReplicator
 
 CAMERA = {
     "cameraUserID": "BED-1",
