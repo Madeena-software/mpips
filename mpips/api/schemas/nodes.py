@@ -2,7 +2,7 @@ from typing import List
 
 from pydantic import BaseModel
 
-from mpips.engine.schemas import (
+from mpips.dag.schemas import (
     InputSlot,
     OutputSlot,
     Parameter,

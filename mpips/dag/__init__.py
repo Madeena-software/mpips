@@ -13,6 +13,8 @@ __all__ = [
 
 
 def __getattr__(name: str) -> Any:
+    if name == "NODE_CATALOG":
+        return getattr(import_module("mpips.dag.catalog"), name)
     if name in __all__:
         return getattr(import_module("mpips.engine"), name)
     raise AttributeError(f"module 'mpips.dag' has no attribute {name!r}")
