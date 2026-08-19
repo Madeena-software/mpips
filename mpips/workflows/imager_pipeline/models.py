@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from mpips.engine.imager_pipeline.config import (  # noqa: F401
+from mpips.pipelines.config import (  # noqa: F401
     ImagerPipelineConfig as ImagerPipelineConfig,
 )
 
