@@ -216,17 +216,34 @@ def test_legacy_adapter_matches_canonical_for_explicit_availability(
     np.testing.assert_array_equal(legacy_output, canonical_output)
 
 
+@pytest.mark.parametrize("filter_type", ("standard", "hybrid_imagej"))
+@pytest.mark.parametrize("imagej_available", (True, False))
 def test_public_median_wrappers_remain_compatible(
-    monkeypatch: pytest.MonkeyPatch,
+    filter_type: str, imagej_available: bool
 ) -> None:
     image = _median_fixture()
-    monkeypatch.setattr(legacy_engine, "IMAGEJ_AVAILABLE", True)
 
     np.testing.assert_array_equal(
-        processing.apply_median_filter(image, "hybrid_imagej", 2),
-        apply_median_filter(image, "hybrid_imagej", 2, imagej_available=True),
+        processing.apply_median_filter(
+            image,
+            filter_type,
+            2,
+            imagej_available=imagej_available,
+        ),
+        apply_median_filter(
+            image,
+            filter_type,
+            2,
+            imagej_available=imagej_available,
+        ),
     )
-    np.testing.assert_array_equal(
-        processing.hybrid_median_filter(image, radius=2),
-        apply_median_filter(image, "hybrid_imagej", 2, imagej_available=True),
-    )
+    if filter_type == "hybrid_imagej" and imagej_available:
+        np.testing.assert_array_equal(
+            processing.hybrid_median_filter(image, radius=2),
+            apply_median_filter(
+                image,
+                "hybrid_imagej",
+                2,
+                imagej_available=True,
+            ),
+        )

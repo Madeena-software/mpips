@@ -66,6 +66,57 @@ def test_processing_import_is_lazy_and_service_safe() -> None:
     assert result.returncode == 0, result.stderr
 
 
+def test_public_processing_calls_do_not_load_engine() -> None:
+    script = textwrap.dedent("""
+        import sys
+
+        import numpy as np
+
+        from mpips.processing import (
+            apply_median_filter,
+            auto_threshold,
+            denoise_wavelet,
+        )
+
+        image = np.arange(64, dtype=np.float32).reshape(8, 8) / 63.0
+        denoise_wavelet(image, "sym4", 3, "BayesShrink", "soft")
+        auto_threshold(image)
+        apply_median_filter(
+            (image * 65535).astype(np.uint16), "standard", 1
+        )
+
+        forbidden = {
+            "boto3",
+            "celery",
+            "cupy",
+            "fastapi",
+            "mpips.api",
+            "mpips.conversion",
+            "mpips.engine",
+            "mpips.engine.imager_pipeline.complete_pipeline",
+            "mpips.worker",
+            "mpips.workflows",
+        }
+        loaded = sorted(
+            name
+            for name in sys.modules
+            if name in forbidden
+            or any(
+                name.startswith(item + ".")
+                for item in forbidden
+            )
+        )
+        assert not loaded, loaded
+        """)
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+
+
 def test_processing_remap_matches_existing_array_transform() -> None:
     image = np.arange(16, dtype=np.uint16).reshape(4, 4)
     y_values, x_values = np.indices((3, 5), dtype=np.float32)

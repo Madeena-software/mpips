@@ -2,19 +2,18 @@
 
 from __future__ import annotations
 
-from typing import Any
-
 import cv2
 import numpy as np
 
 from mpips.processing.correction import flat_field_correction  # noqa: F401
-from mpips.processing.thresholding import apply_threshold_separation  # noqa: F401
-
-
-def _engine() -> Any:
-    from mpips.engine.imager_pipeline import complete_pipeline
-
-    return complete_pipeline
+from mpips.processing.filtering import (
+    apply_median_filter as canonical_apply_median_filter,
+)
+from mpips.processing.thresholding import (  # noqa: F401
+    apply_threshold_separation,
+    detect_threshold,
+)
+from mpips.processing.wavelet import WaveletDenoiser
 
 
 def apply_calibration_remap(
@@ -38,8 +37,8 @@ def apply_calibration_remap(
 def denoise_wavelet(
     image: np.ndarray, wavelet: str, level: int, method: str, mode: str
 ) -> np.ndarray:
-    engine = _engine()
-    return np.asarray(engine.denoise_wavelet(image, wavelet, level, method, mode))
+    denoiser = WaveletDenoiser(wavelet=wavelet, level=level)
+    return np.asarray(denoiser.denoise_wavelet(image, method=method, mode=mode))
 
 
 def auto_threshold(image: np.ndarray, method: str = "auto") -> float:
@@ -48,8 +47,7 @@ def auto_threshold(image: np.ndarray, method: str = "auto") -> float:
             "The canonical research implementation supports only 'auto' thresholding"
         )
 
-    engine = _engine()
-    return float(engine.auto_threshold_detection(image))
+    return float(detect_threshold(image, method="auto", debug=False))
 
 
 def imagej_stretch(image: np.ndarray, saturated_pixels: float) -> np.ndarray:
@@ -113,6 +111,18 @@ def hybrid_median_filter(image: np.ndarray, radius: int) -> np.ndarray:
     )
 
 
-def apply_median_filter(image: np.ndarray, filter_type: str, radius: int) -> np.ndarray:
-    engine = _engine()
-    return np.asarray(engine.apply_advanced_median_filter(image, filter_type, radius))
+def apply_median_filter(
+    image: np.ndarray,
+    filter_type: str,
+    radius: int,
+    *,
+    imagej_available: bool = True,
+) -> np.ndarray:
+    return np.asarray(
+        canonical_apply_median_filter(
+            image,
+            filter_type=filter_type,
+            radius=radius,
+            imagej_available=imagej_available,
+        )
+    )
