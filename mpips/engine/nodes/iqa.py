@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from mpips.engine.iqa import (
+from mpips.iqa import (
     calculate_brisque,
     calculate_cii,
     calculate_eme,

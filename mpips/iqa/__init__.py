@@ -15,5 +15,5 @@ __all__ = [
 
 def __getattr__(name: str) -> Any:
     if name in __all__:
-        return getattr(import_module("mpips.engine.iqa"), name)
+        return getattr(import_module("mpips.iqa.metrics"), name)
     raise AttributeError(f"module 'mpips.iqa' has no attribute {name!r}")

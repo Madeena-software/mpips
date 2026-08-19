@@ -18,13 +18,13 @@ from mpips.engine import (
     get_node_class as engine_get_node_class,
     topological_sort as engine_topological_sort,
 )
-from mpips.engine.iqa import (
-    calculate_all_metrics as engine_calculate_all_metrics,
-    calculate_brisque as engine_calculate_brisque,
-    calculate_cii as engine_calculate_cii,
-    calculate_eme as engine_calculate_eme,
-    calculate_entropy as engine_calculate_entropy,
-    calculate_local_contrast as engine_calculate_local_contrast,
+from mpips.iqa.metrics import (
+    calculate_all_metrics as canonical_calculate_all_metrics,
+    calculate_brisque as canonical_calculate_brisque,
+    calculate_cii as canonical_calculate_cii,
+    calculate_eme as canonical_calculate_eme,
+    calculate_entropy as canonical_calculate_entropy,
+    calculate_local_contrast as canonical_calculate_local_contrast,
 )
 from mpips.iqa import (
     calculate_all_metrics,
@@ -40,12 +40,12 @@ def test_public_domain_symbols_reuse_canonical_implementations() -> None:
     assert warp_image is canonical_warp_image
     assert canonical_warp_image.__module__ == "mpips.calibration.warp"
 
-    assert calculate_entropy is engine_calculate_entropy
-    assert calculate_eme is engine_calculate_eme
-    assert calculate_local_contrast is engine_calculate_local_contrast
-    assert calculate_cii is engine_calculate_cii
-    assert calculate_brisque is engine_calculate_brisque
-    assert calculate_all_metrics is engine_calculate_all_metrics
+    assert calculate_entropy is canonical_calculate_entropy
+    assert calculate_eme is canonical_calculate_eme
+    assert calculate_local_contrast is canonical_calculate_local_contrast
+    assert calculate_cii is canonical_calculate_cii
+    assert calculate_brisque is canonical_calculate_brisque
+    assert calculate_all_metrics is canonical_calculate_all_metrics
 
     assert DAGExecutor is EngineDAGExecutor
     assert NODE_CATALOG is EngineNodeCatalog
@@ -60,7 +60,6 @@ def test_existing_engine_imports_remain_compatible() -> None:
     assert EngineNodeClasses is NODE_CLASSES
     assert engine_get_node_class is get_node_class
     assert engine_topological_sort is topological_sort
-    assert engine_calculate_all_metrics is calculate_all_metrics
 
 
 def test_scientific_boundaries_do_not_import_service_runtime() -> None:

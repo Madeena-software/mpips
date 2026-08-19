@@ -131,7 +131,7 @@ def test_canonical_and_legacy_symbols_are_identical() -> None:
 def test_active_consumers_resolve_canonical_helpers() -> None:
     canonical = importlib.import_module("mpips.processing.bit_depth")
     modules = [
-        importlib.import_module("mpips.engine.iqa"),
+        importlib.import_module("mpips.iqa.metrics"),
         importlib.import_module("mpips.engine.nodes.adjustments"),
         importlib.import_module("mpips.engine.nodes.composite"),
         importlib.import_module("mpips.engine.nodes.filtering"),

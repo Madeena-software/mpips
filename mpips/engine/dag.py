@@ -527,7 +527,7 @@ class DAGExecutor:
                                 hasher.update(chunk)
                         checksum = hasher.hexdigest()
 
-                        from mpips.engine.iqa import calculate_all_metrics
+                        from mpips.iqa import calculate_all_metrics
 
                         ref_img = (
                             original_input_img

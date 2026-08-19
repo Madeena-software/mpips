@@ -18,7 +18,7 @@ from mpips.engine.nodes.iqa import (
     EnhancementMeasureNode,
     EntropyNode,
 )
-from mpips.engine.iqa import (
+from mpips.iqa import (
     calculate_entropy,
     calculate_eme,
     calculate_cii,
