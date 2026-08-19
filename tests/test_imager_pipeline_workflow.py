@@ -520,6 +520,67 @@ def test_batch_writes_tiff_and_manifest_and_continues_failures(tmp_path: Path) -
     np.testing.assert_allclose(written, expected, atol=1)
 
 
+def test_batch_passes_validated_arrays_without_input_tiff_staging(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gain_path = tmp_path / "gain.npz"
+    radio_path = tmp_path / "radio.npz"
+    save_gain(gain_path)
+    expected_raw = save_radiograph(radio_path)
+    catalog = load_gain_catalog([gain_path])
+    expected_gain = catalog.records["gain-1"]
+    writes: list[str] = []
+    captured: dict[str, np.ndarray] = {}
+    detector_modes: list[str] = []
+    real_write_tiff = write_tiff
+
+    def recording_write_tiff(path: str | Path, image: np.ndarray) -> Path:
+        writes.append(Path(path).name)
+        return real_write_tiff(path, image)
+
+    def fake_process(
+        raw: np.ndarray,
+        dark: np.ndarray,
+        flat: np.ndarray,
+        detector_mode: str,
+        config: ImagerPipelineConfig,
+        *,
+        map_x: np.ndarray | None = None,
+        map_y: np.ndarray | None = None,
+    ) -> np.ndarray:
+        captured["raw"] = raw.copy()
+        captured["dark"] = dark.copy()
+        captured["flat"] = flat.copy()
+        detector_modes.append(detector_mode)
+        return np.full(raw.shape, 1234, dtype=np.uint16)
+
+    monkeypatch.setattr(
+        "mpips.workflows.imager_pipeline.batch.write_tiff", recording_write_tiff
+    )
+    monkeypatch.setattr(
+        "mpips.workflows.imager_pipeline.batch.process_radiography_arrays",
+        fake_process,
+    )
+
+    result = process_npz_batch(
+        [radio_path],
+        catalog,
+        identity_artifacts(tmp_path),
+        tmp_path / "output",
+        ImagerPipelineConfig(use_denoise=False),
+    )
+
+    assert result.succeeded == 1
+    assert writes == ["radio_processed.tiff"]
+    np.testing.assert_array_equal(captured["raw"], expected_raw)
+    np.testing.assert_array_equal(captured["dark"], expected_gain.dark)
+    np.testing.assert_array_equal(captured["flat"], expected_gain.flat)
+    assert captured["raw"].dtype == np.uint16
+    assert captured["dark"].dtype == np.uint16
+    assert captured["flat"].dtype == np.uint16
+    assert detector_modes == ["BED"]
+
+
 def test_batch_records_camera_mismatch_as_failure(tmp_path: Path) -> None:
     gain_path = tmp_path / "gain.npz"
     radio_path = tmp_path / "radio.npz"
