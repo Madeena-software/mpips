@@ -14,6 +14,7 @@ from mpips.processing.radiography import (
 )
 from mpips.processing.geometry import crop_and_rotate
 from mpips.processing.intensity import invert_image
+from mpips.processing.thresholding import detect_threshold
 
 __all__ = [
     "apply_calibration_remap",
@@ -28,4 +29,5 @@ __all__ = [
     "hybrid_median_filter",
     "apply_median_filter",
     "invert_image",
+    "detect_threshold",
 ]

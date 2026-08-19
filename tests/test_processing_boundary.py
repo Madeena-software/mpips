@@ -22,6 +22,7 @@ PUBLIC_OPERATIONS = (
     "hybrid_median_filter",
     "apply_median_filter",
     "invert_image",
+    "detect_threshold",
 )
 
 
@@ -32,7 +33,7 @@ def test_processing_exports_only_reusable_array_operations() -> None:
 
 def test_workflow_operations_are_compatibility_aliases() -> None:
     for name in PUBLIC_OPERATIONS:
-        if name in {"crop_and_rotate", "invert_image"}:
+        if name in {"crop_and_rotate", "invert_image", "detect_threshold"}:
             continue
         assert getattr(workflow_pipeline, name) is getattr(processing, name)
 
