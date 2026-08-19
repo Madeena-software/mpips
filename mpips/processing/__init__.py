@@ -13,6 +13,7 @@ from mpips.processing.radiography import (
     imagej_stretch,
 )
 from mpips.processing.geometry import crop_and_rotate
+from mpips.processing.intensity import invert_image
 
 __all__ = [
     "apply_calibration_remap",
@@ -26,4 +27,5 @@ __all__ = [
     "apply_clahe",
     "hybrid_median_filter",
     "apply_median_filter",
+    "invert_image",
 ]

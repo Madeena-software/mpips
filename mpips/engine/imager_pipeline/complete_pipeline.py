@@ -708,10 +708,9 @@ def invert_image(image):
     Invert the image colors.
     Works with float32 [0,1] range.
     """
-    if image.dtype == np.float32:
-        return 1.0 - image
-    else:
-        return cv2.bitwise_not(image)
+    from mpips.processing.intensity import invert_image as process_invert_image
+
+    return process_invert_image(image)
 
 
 def apply_advanced_median_filter(image, filter_type="hybrid_imagej", radius=2):
