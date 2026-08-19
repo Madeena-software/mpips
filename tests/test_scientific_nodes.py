@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import patch, MagicMock
 from typing import Any
 
-from mpips.engine.nodes.scientific import (
+from mpips.dag.nodes.scientific import (
     NonLocalMeansNode,
     HomomorphicFilterNode,
     WaveletDenoisingNode,
@@ -93,7 +93,7 @@ def test_wavelet_denoising(
     assert res_color["output_image"].shape == dummy_color_image.shape
 
 
-@patch("mpips.engine.nodes.scientific.download_image")
+@patch("mpips.dag.nodes.scientific.download_image")
 @patch("cv2.imread")
 def test_flat_field_correction(
     mock_imread: Any, mock_download: Any, dummy_gray_image: np.ndarray
@@ -163,7 +163,7 @@ def test_leveling_measures_mean_within_roi() -> None:
     assert np.all(out_img[:, 10:] == 255)  # clipped uint8 max, was 150*2=300
 
 
-@patch("mpips.engine.nodes.scientific.download_image")
+@patch("mpips.dag.nodes.scientific.download_image")
 def test_camera_calibration(mock_download: Any, dummy_gray_image: np.ndarray) -> None:
     node = CameraCalibrationNode()
 
