@@ -4,7 +4,6 @@ from mpips.processing.radiography import (
     apply_calibration_remap,
     apply_clahe,
     apply_median_filter,
-    apply_threshold_separation,
     auto_threshold,
     denoise_wavelet,
     flat_field_correction,
@@ -14,7 +13,7 @@ from mpips.processing.radiography import (
 )
 from mpips.processing.geometry import crop_and_rotate
 from mpips.processing.intensity import invert_image
-from mpips.processing.thresholding import detect_threshold
+from mpips.processing.thresholding import apply_threshold_separation, detect_threshold
 
 __all__ = [
     "apply_calibration_remap",

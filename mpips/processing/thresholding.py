@@ -11,6 +11,36 @@ from scipy.signal import find_peaks
 MAX_16BIT = 65535
 
 
+def apply_threshold_separation(image: np.ndarray, threshold: float) -> np.ndarray:
+    """Separate content from background using the accepted NumPy behavior."""
+    # Create mask for content (pixels <= threshold)
+    content_mask = image <= threshold
+
+    # Extract content pixels
+    content_only = image.copy()
+    content_only[~content_mask] = 0
+
+    # Get min/max of content
+    content_pixels = image[content_mask]
+    if len(content_pixels) > 0:
+        content_min = content_pixels.min()
+        content_max = content_pixels.max()
+    else:
+        content_min = image.min()
+        content_max = image.max()
+
+    # Normalize content to full range [0, 1]
+    if content_max > content_min:
+        content_normalized = (
+            (content_only - content_min) / (content_max - content_min)
+        ).astype(np.float32)
+    else:
+        content_normalized = content_only.astype(np.float32)
+
+    # Set background to 1.0 (white)
+    return np.where(content_mask, content_normalized, 1.0).astype(np.float32)
+
+
 def detect_threshold(
     image: np.ndarray,
     method: str = "auto",

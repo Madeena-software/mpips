@@ -7,6 +7,8 @@ from typing import Any
 import cv2
 import numpy as np
 
+from mpips.processing.thresholding import apply_threshold_separation  # noqa: F401
+
 
 def _engine() -> Any:
     from mpips.engine.imager_pipeline import complete_pipeline
@@ -54,11 +56,6 @@ def auto_threshold(image: np.ndarray, method: str = "auto") -> float:
 
     engine = _engine()
     return float(engine.auto_threshold_detection(image))
-
-
-def apply_threshold_separation(image: np.ndarray, threshold: float) -> np.ndarray:
-    engine = _engine()
-    return np.asarray(engine.apply_threshold_separation(image, threshold))
 
 
 def imagej_stretch(image: np.ndarray, saturated_pixels: float) -> np.ndarray:

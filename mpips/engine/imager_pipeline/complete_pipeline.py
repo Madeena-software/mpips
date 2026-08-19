@@ -419,33 +419,11 @@ def apply_threshold_separation(image, threshold):
         # Transfer back to CPU
         result = cp.asnumpy(result_gpu).astype(np.float32)
     else:
-        # CPU path with NumPy
-        # Create mask for content (pixels <= threshold)
-        content_mask = image <= threshold
+        from mpips.processing.thresholding import (
+            apply_threshold_separation as processing_apply_threshold_separation,
+        )
 
-        # Extract content pixels
-        content_only = image.copy()
-        content_only[~content_mask] = 0
-
-        # Get min/max of content
-        content_pixels = image[content_mask]
-        if len(content_pixels) > 0:
-            content_min = content_pixels.min()
-            content_max = content_pixels.max()
-        else:
-            content_min = image.min()
-            content_max = image.max()
-
-        # Normalize content to full range [0, 1]
-        if content_max > content_min:
-            content_normalized = (
-                (content_only - content_min) / (content_max - content_min)
-            ).astype(np.float32)
-        else:
-            content_normalized = content_only.astype(np.float32)
-
-        # Set background to 1.0 (white)
-        result = np.where(content_mask, content_normalized, 1.0).astype(np.float32)
+        return processing_apply_threshold_separation(image, threshold)
 
     return result
 
