@@ -7,13 +7,14 @@ import inspect
 import subprocess
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import numpy as np
 import pytest
 
-from mpips.engine.imager_pipeline import complete_pipeline as legacy_engine
 from mpips.pipelines import ImagerPipelineConfig, RadiographyPipeline
+import mpips.workflows.imager_pipeline.pipeline as workflow_pipeline
 from mpips.workflows.imager_pipeline.pipeline import process_radiography_arrays
 
 
@@ -48,6 +49,7 @@ def _legacy_result(
     detector_mode: str = "BED",
     map_x: np.ndarray | None = None,
     map_y: np.ndarray | None = None,
+    imagej_available: bool = True,
 ) -> np.ndarray:
     return process_radiography_arrays(
         raw,
@@ -57,6 +59,7 @@ def _legacy_result(
         config,
         map_x=map_x,
         map_y=map_y,
+        imagej_available=imagej_available,
     )
 
 
@@ -129,9 +132,7 @@ def test_config_branch_matches_legacy(name: str, overrides: dict[str, object]) -
     np.testing.assert_array_equal(direct, legacy)
 
 
-def test_imagej_unavailable_branch_matches_legacy(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_imagej_unavailable_branch_matches_legacy() -> None:
     raw, dark, flat = _recipe_fixture()
     config = _minimal_config(
         use_contrast_enhancement=True,
@@ -140,12 +141,10 @@ def test_imagej_unavailable_branch_matches_legacy(
         use_median_filter=True,
         median_filter_type="hybrid_imagej",
     )
-    monkeypatch.setattr(legacy_engine, "IMAGEJ_AVAILABLE", False)
-
     direct = RadiographyPipeline(config, imagej_available=False).process(
         raw, dark, flat, "BED"
     )
-    legacy = _legacy_result(raw, dark, flat, config)
+    legacy = _legacy_result(raw, dark, flat, config, imagej_available=False)
 
     np.testing.assert_array_equal(direct, legacy)
 
@@ -285,3 +284,124 @@ def test_invalid_shapes_and_partial_remap_are_rejected() -> None:
         pipeline.process(raw, dark[:-1], flat, "BED")
     with pytest.raises(ValueError, match="Both map_x and map_y are required"):
         pipeline.process(raw, dark, flat, "BED", map_x=np.zeros(raw.shape))
+
+
+def test_workflow_pipeline_import_is_engine_and_service_safe() -> None:
+    root = Path(__file__).resolve().parents[1]
+    script = """
+import importlib
+import sys
+
+importlib.import_module("mpips.workflows.imager_pipeline.pipeline")
+for forbidden in (
+    "mpips.engine",
+    "mpips.engine.imager_pipeline.complete_pipeline",
+    "mpips.api",
+    "mpips.worker",
+    "mpips.conversion",
+    "fastapi",
+    "celery",
+    "boto3",
+):
+    assert not any(
+        name == forbidden or name.startswith(forbidden + ".")
+        for name in sys.modules
+    )
+"""
+    completed = subprocess.run(
+        [sys.executable, "-c", script],
+        cwd=root,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert completed.returncode == 0, completed.stderr
+
+
+def test_workflow_process_delegates_without_tiff_round_trip(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = np.ones((2, 2), dtype=np.uint16)
+    dark = np.zeros_like(raw)
+    flat = np.full_like(raw, 1000)
+    map_x = np.zeros((1, 1), dtype=np.float32)
+    map_y = np.zeros((1, 1), dtype=np.float32)
+    config = ImagerPipelineConfig(use_denoise=False)
+    sentinel = np.array([[123]], dtype=np.uint16)
+    calls: dict[str, object] = {}
+
+    class SpyPipeline:
+        def __init__(
+            self,
+            received_config: ImagerPipelineConfig,
+            *,
+            imagej_available: bool,
+        ) -> None:
+            calls["config"] = received_config
+            calls["imagej_available"] = imagej_available
+
+        def process(
+            self,
+            received_raw: np.ndarray,
+            received_dark: np.ndarray,
+            received_flat: np.ndarray,
+            received_detector_mode: str,
+            *,
+            map_x: np.ndarray | None,
+            map_y: np.ndarray | None,
+        ) -> np.ndarray:
+            calls["arrays"] = (received_raw, received_dark, received_flat)
+            calls["detector_mode"] = received_detector_mode
+            calls["maps"] = (map_x, map_y)
+            return sentinel
+
+    def fail_if_called(*args: object, **kwargs: object) -> None:
+        raise AssertionError("workflow pipeline performed file I/O")
+
+    monkeypatch.setattr(
+        workflow_pipeline, "RadiographyPipeline", SpyPipeline, raising=False
+    )
+    monkeypatch.setattr(
+        workflow_pipeline,
+        "tempfile",
+        SimpleNamespace(TemporaryDirectory=fail_if_called),
+        raising=False,
+    )
+    monkeypatch.setattr(
+        workflow_pipeline,
+        "cv2",
+        SimpleNamespace(imread=fail_if_called, imwrite=fail_if_called),
+        raising=False,
+    )
+
+    result = process_radiography_arrays(
+        raw,
+        dark,
+        flat,
+        "TRX",
+        config,
+        map_x=map_x,
+        map_y=map_y,
+        imagej_available=False,
+    )
+
+    assert result is sentinel
+    assert calls["config"] is config
+    assert calls["imagej_available"] is False
+    assert calls["arrays"] == (raw, dark, flat)
+    assert calls["detector_mode"] == "TRX"
+    assert calls["maps"] == (map_x, map_y)
+
+
+def test_workflow_process_signature_preserves_legacy_order() -> None:
+    parameters = inspect.signature(process_radiography_arrays).parameters
+    assert list(parameters)[:5] == [
+        "raw",
+        "dark",
+        "flat",
+        "detector_mode",
+        "config",
+    ]
+    imagej_parameter = parameters["imagej_available"]
+    assert imagej_parameter.kind is inspect.Parameter.KEYWORD_ONLY
+    assert imagej_parameter.default is True
