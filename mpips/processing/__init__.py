@@ -12,9 +12,11 @@ from mpips.processing.radiography import (
     imagej_equalize,
     imagej_stretch,
 )
+from mpips.processing.geometry import crop_and_rotate
 
 __all__ = [
     "apply_calibration_remap",
+    "crop_and_rotate",
     "denoise_wavelet",
     "flat_field_correction",
     "auto_threshold",

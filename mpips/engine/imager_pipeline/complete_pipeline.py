@@ -333,23 +333,16 @@ def crop_and_rotate_by_detector(image, detector_type):
     Returns:
         Cropped and rotated image
     """
-    height, width = image.shape[:2]
+    from mpips.processing.geometry import crop_and_rotate
 
-    # Read crop parameters from config
-    crop_top = CONFIG["CROP_TOP"]
-    crop_bottom = CONFIG["CROP_BOTTOM"]
-    crop_left = CONFIG["CROP_LEFT"]
-    crop_right = CONFIG["CROP_RIGHT"]
-
-    # Apply cropping from all sides
-    cropped = image[crop_top : height - crop_bottom, crop_left : width - crop_right]
-
-    if detector_type == "TRX":
-        # Optionally, keep any TRX-specific rotation
-        result = cv2.rotate(cropped, cv2.ROTATE_90_COUNTERCLOCKWISE)
-        return result
-    else:  # BED
-        return cropped
+    return crop_and_rotate(
+        image,
+        detector_type,
+        crop_top=CONFIG["CROP_TOP"],
+        crop_bottom=CONFIG["CROP_BOTTOM"],
+        crop_left=CONFIG["CROP_LEFT"],
+        crop_right=CONFIG["CROP_RIGHT"],
+    )
 
 
 def detect_detector_type(filename):

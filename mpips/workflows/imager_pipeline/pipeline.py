@@ -42,8 +42,14 @@ def _configured_engine(config: ImagerPipelineConfig) -> Iterator[None]:
 def crop_and_rotate(
     image: np.ndarray, detector_mode: str, config: ImagerPipelineConfig
 ) -> np.ndarray:
-    with _configured_engine(config):
-        return np.asarray(engine.crop_and_rotate_by_detector(image, detector_mode))
+    return processing.crop_and_rotate(
+        image,
+        detector_mode,
+        crop_top=config.crop_top,
+        crop_bottom=config.crop_bottom,
+        crop_left=config.crop_left,
+        crop_right=config.crop_right,
+    )
 
 
 def _write_tiff(path: Path, image: np.ndarray) -> None:

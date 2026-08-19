@@ -11,6 +11,7 @@ from mpips.workflows.imager_pipeline import pipeline as workflow_pipeline
 
 PUBLIC_OPERATIONS = (
     "apply_calibration_remap",
+    "crop_and_rotate",
     "denoise_wavelet",
     "flat_field_correction",
     "auto_threshold",
@@ -26,11 +27,12 @@ PUBLIC_OPERATIONS = (
 def test_processing_exports_only_reusable_array_operations() -> None:
     assert processing.__all__ == list(PUBLIC_OPERATIONS)
     assert all(callable(getattr(processing, name)) for name in PUBLIC_OPERATIONS)
-    assert not hasattr(processing, "crop_and_rotate")
 
 
 def test_workflow_operations_are_compatibility_aliases() -> None:
     for name in PUBLIC_OPERATIONS:
+        if name == "crop_and_rotate":
+            continue
         assert getattr(workflow_pipeline, name) is getattr(processing, name)
 
 
