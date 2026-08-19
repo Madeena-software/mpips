@@ -2,7 +2,6 @@
 
 import csv
 import hashlib
-import importlib
 import json
 import subprocess
 import sys
@@ -72,41 +71,6 @@ def _write_zero_model(path: Path) -> None:
 
 def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-def test_canonical_and_legacy_opencv_symbols_are_identical() -> None:
-    canonical = importlib.import_module(
-        "mpips.calibration.dotgrid.opencv_baseline.calibrate_and_compare"
-    )
-    legacy = importlib.import_module(
-        "mpips.engine.calibration.dotgrid.opencv_baseline.calibrate_and_compare"
-    )
-    names = [
-        "METRIC_SPECS",
-        "image_size_from_file",
-        "make_object_points",
-        "calibrate_opencv",
-        "undistort_points",
-        "compute_undistorted_diameters",
-        "compute_neural_result",
-        "undistort_image",
-        "metric_reduction",
-        "format_number",
-        "format_pct",
-        "dist_coeff_dict",
-        "write_parameters_json",
-        "comparison_rows",
-        "write_comparison_csv",
-        "write_report",
-        "plot_metric_comparison",
-        "run_opencv_comparison",
-        "main",
-    ]
-    for name in names:
-        assert getattr(legacy, name) is getattr(canonical, name)
-    assert canonical.run_opencv_comparison.__module__ == (
-        "mpips.calibration.dotgrid.opencv_baseline.calibrate_and_compare"
-    )
 
 
 def test_basic_calibration_import_is_lightweight() -> None:
@@ -185,12 +149,12 @@ def test_explicit_opencv_import_does_not_load_runtime_layers() -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_legacy_module_cli_and_run_pipeline_remain_usable() -> None:
+def test_canonical_module_cli_remains_usable() -> None:
     result = subprocess.run(
         [
             sys.executable,
             "-m",
-            "mpips.engine.calibration.dotgrid.opencv_baseline.calibrate_and_compare",
+            "mpips.calibration.dotgrid.opencv_baseline.calibrate_and_compare",
             "--help",
         ],
         check=False,
@@ -199,11 +163,6 @@ def test_legacy_module_cli_and_run_pipeline_remain_usable() -> None:
     )
     assert result.returncode == 0, result.stderr
     assert "usage:" in result.stdout.lower()
-
-    run_pipeline = importlib.import_module(
-        "mpips.engine.calibration.dotgrid.neural_model.run_pipeline"
-    )
-    assert run_pipeline.run_opencv_comparison is run_opencv_comparison
 
 
 def test_make_object_points_matches_historical_contract() -> None:

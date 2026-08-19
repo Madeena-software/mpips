@@ -126,7 +126,6 @@ extend-exclude = '''
 /(
   research
   | artifacts
-  | mpips/engine/calibration/dotgrid
   | mpips/engine/imager_pipeline
   | mpips\.egg-info
 )/
@@ -140,14 +139,12 @@ plugins = ["pydantic.mypy"]
 exclude = [
     "^research/",
     "^artifacts/",
-    "^mpips/engine/calibration/dotgrid/",
     "^mpips/engine/imager_pipeline/",
     "^mpips\\.egg-info/",
 ]
 
 [[tool.mypy.overrides]]
 module = [
-    "mpips.engine.calibration.dotgrid.*",
     "mpips.engine.imager_pipeline.*",
 ]
 ignore_errors = true

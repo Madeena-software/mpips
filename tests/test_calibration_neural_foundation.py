@@ -1,7 +1,6 @@
 # mypy: disable-error-code=no-untyped-call
 
 import hashlib
-import importlib
 import subprocess
 import sys
 import textwrap
@@ -34,44 +33,6 @@ from mpips.calibration.dotgrid.neural_model.phantom import (
     detect_center_marker,
 )
 from mpips.calibration.dotgrid.paths import artifact_root, default_artifact_path
-
-
-def test_canonical_and_legacy_foundation_symbols_are_identical() -> None:
-    legacy_paths = importlib.import_module("mpips.engine.calibration.dotgrid.paths")
-    legacy_dataset = importlib.import_module(
-        "mpips.engine.calibration.dotgrid.neural_model.dataset"
-    )
-    legacy_model = importlib.import_module(
-        "mpips.engine.calibration.dotgrid.neural_model.model"
-    )
-    legacy_phantom = importlib.import_module(
-        "mpips.engine.calibration.dotgrid.neural_model.phantom"
-    )
-
-    assert legacy_paths.artifact_root is artifact_root
-    assert legacy_paths.default_artifact_path is default_artifact_path
-    for name in ("parse_coord", "format_coord", "load_data", "save_coordinates"):
-        assert getattr(legacy_dataset, name) is globals()[name]
-    for name in (
-        "AdaptiveLoss",
-        "MLPCompensation",
-        "apply_compensation",
-        "collinearity_loss",
-        "compute_compensated_diameters",
-        "edge_balance_loss",
-        "grid_spacing_loss",
-        "invert_compensation_points",
-        "smoothness_loss",
-    ):
-        assert getattr(legacy_model, name) is globals()[name]
-    for name in (
-        "CENTER_MARKER_MODES",
-        "center_candidate_indices",
-        "detect_center_marker",
-    ):
-        assert getattr(legacy_phantom, name) is globals()[name]
-
-    assert MLPCompensation.__module__ == "mpips.calibration.dotgrid.neural_model.model"
 
 
 def test_calibration_imports_are_lightweight() -> None:
@@ -148,17 +109,6 @@ def test_explicit_model_import_does_not_pull_runtime_layers() -> None:
         text=True,
     )
     assert result.returncode == 0, result.stderr
-
-
-def test_legacy_neural_execution_modules_remain_importable() -> None:
-    for module_name in (
-        "mpips.engine.calibration.dotgrid.neural_model.train",
-        "mpips.engine.calibration.dotgrid.neural_model.evaluate",
-        "mpips.engine.calibration.dotgrid.neural_model.warp_image",
-        "mpips.engine.calibration.dotgrid.neural_model.validate_outputs",
-        "mpips.engine.calibration.dotgrid.neural_model.run_pipeline",
-    ):
-        assert importlib.import_module(module_name) is not None
 
 
 def test_dataset_round_trip_matches_historical_contract(tmp_path: Path) -> None:

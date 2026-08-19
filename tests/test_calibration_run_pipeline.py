@@ -3,7 +3,6 @@
 
 import argparse
 import importlib
-import re
 import subprocess
 import sys
 import textwrap
@@ -13,7 +12,6 @@ from typing import Any
 import pytest
 
 CANONICAL_MODULE = "mpips.calibration.dotgrid.neural_model.run_pipeline"
-LEGACY_MODULE = "mpips.engine.calibration.dotgrid.neural_model.run_pipeline"
 
 
 def _module(name: str) -> Any:
@@ -68,17 +66,11 @@ def _args(**overrides: Any) -> argparse.Namespace:
     return argparse.Namespace(**values)
 
 
-def _help_options(output: str) -> list[str]:
-    return re.findall(r"^\s+(-{1,2}[A-Za-z0-9-]+)", output, re.MULTILINE)
-
-
-def test_canonical_module_import_and_legacy_identity() -> None:
+def test_canonical_module_import() -> None:
     canonical = _module(CANONICAL_MODULE)
-    legacy = _module(LEGACY_MODULE)
 
-    assert canonical.main is legacy.main
-    assert canonical.cli is legacy.cli
     assert canonical.main.__module__ == CANONICAL_MODULE
+    assert canonical.cli.__module__ == CANONICAL_MODULE
 
 
 def test_canonical_run_pipeline_import_does_not_load_runtime_layers() -> None:
@@ -133,19 +125,15 @@ def test_parent_calibration_imports_remain_lightweight() -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_canonical_and_legacy_module_help_have_same_options() -> None:
-    outputs: list[str] = []
-    for module_name in (CANONICAL_MODULE, LEGACY_MODULE):
-        result = subprocess.run(
-            [sys.executable, "-m", module_name, "--help"],
-            check=False,
-            capture_output=True,
-            text=True,
-        )
-        assert result.returncode == 0, result.stderr
-        outputs.append(result.stdout)
-
-    assert _help_options(outputs[0]) == _help_options(outputs[1])
+def test_canonical_module_help_is_available() -> None:
+    result = subprocess.run(
+        [sys.executable, "-m", CANONICAL_MODULE, "--help"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "usage:" in result.stdout.lower()
 
 
 def test_mpips_dotgrid_entry_point_targets_canonical_module() -> None:

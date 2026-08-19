@@ -18,8 +18,6 @@ from mpips.engine import (
     get_node_class as engine_get_node_class,
     topological_sort as engine_topological_sort,
 )
-from mpips.engine.calibration import warp_image as engine_warp_image
-from mpips.engine.calibration.warp import warp_image as legacy_module_warp_image
 from mpips.engine.iqa import (
     calculate_all_metrics as engine_calculate_all_metrics,
     calculate_brisque as engine_calculate_brisque,
@@ -38,10 +36,8 @@ from mpips.iqa import (
 )
 
 
-def test_public_domain_symbols_reuse_engine_implementations() -> None:
-    assert warp_image is engine_warp_image
+def test_public_domain_symbols_reuse_canonical_implementations() -> None:
     assert warp_image is canonical_warp_image
-    assert warp_image is legacy_module_warp_image
     assert canonical_warp_image.__module__ == "mpips.calibration.warp"
 
     assert calculate_entropy is engine_calculate_entropy
@@ -64,8 +60,6 @@ def test_existing_engine_imports_remain_compatible() -> None:
     assert EngineNodeClasses is NODE_CLASSES
     assert engine_get_node_class is get_node_class
     assert engine_topological_sort is topological_sort
-    assert engine_warp_image is warp_image
-    assert legacy_module_warp_image is warp_image
     assert engine_calculate_all_metrics is calculate_all_metrics
 
 
@@ -94,7 +88,7 @@ def test_scientific_boundaries_do_not_import_service_runtime() -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_calibration_import_is_engine_and_optional_dependency_safe() -> None:
+def test_calibration_import_is_optional_dependency_safe() -> None:
     script = textwrap.dedent("""
         import sys
 

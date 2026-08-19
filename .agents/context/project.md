@@ -85,13 +85,13 @@ invoked through `.venv/bin/python -m uv run` for these checks.
 ### Calibration
 
 `mpips-dotgrid` runs the packaged dot-grid pipeline under
-`mpips.engine.calibration.dotgrid`; `MPIPS_ARTIFACT_ROOT` overrides its
+`mpips.calibration.dotgrid`; `MPIPS_ARTIFACT_ROOT` overrides its
 artifact location. Model metadata, remap, validity mask, metrics, and detector
 metadata must stay together. Fixed-canvas output preserves source dimensions
 and requires the mask; expanded-canvas output preserves corrected edges and
 writes coordinate-offset metadata. Filled border pixels are not measured image
 data. Evidence: the calibration entry point and optional dependency in
-`pyproject.toml`, plus `mpips/engine/calibration/dotgrid/`.
+`pyproject.toml`, plus `mpips/calibration/dotgrid/`.
 
 ### Imager pipeline
 

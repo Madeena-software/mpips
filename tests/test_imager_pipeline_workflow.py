@@ -402,8 +402,8 @@ def test_reference_notebook_defaults_are_preserved() -> None:
 
 def test_promoted_canonical_modules_are_importable() -> None:
     modules = (
-        "mpips.engine.calibration.dotgrid.extract_grid",
-        "mpips.engine.calibration.dotgrid.neural_model.phantom",
+        "mpips.calibration.dotgrid.extract_grid",
+        "mpips.calibration.dotgrid.neural_model.phantom",
         "mpips.engine.imager_pipeline.complete_pipeline",
         "mpips.engine.imager_pipeline.imagej_replicator",
         "mpips.engine.imager_pipeline.wavelet_denoising",

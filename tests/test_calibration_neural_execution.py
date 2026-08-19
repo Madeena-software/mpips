@@ -60,61 +60,6 @@ def _state_sha256(state: dict[str, torch.Tensor]) -> str:
     return digest.hexdigest()
 
 
-def test_canonical_and_legacy_execution_symbols_are_identical() -> None:
-    canonical_names = {
-        "train": ("train_model",),
-        "evaluate": (
-            "load_model",
-            "compute_smia",
-            "compute_reprojection_error",
-            "estimate_brown_conrady",
-            "compute_all_metrics",
-            "improvement_pct",
-            "format_center_marker_note",
-            "write_basic_metrics",
-            "write_advanced_metrics",
-            "plot_compensated_x",
-            "plot_compensated_y",
-            "plot_diameter_hist",
-            "plot_vertical_diameter_profile",
-            "evaluate_model",
-        ),
-        "warp_image": (
-            "INTERPOLATION",
-            "BORDER_MODE",
-            "CANVAS_MODE",
-            "load_model",
-            "resolve_device",
-            "compute_valid_mask",
-            "ensure_parent_dir",
-            "largest_valid_rectangle",
-            "build_inverse_maps",
-            "estimate_expanded_canvas",
-            "warp_image",
-        ),
-        "validate_outputs": (
-            "REQUIRED_OUTPUTS",
-            "load_coordinate_csv",
-            "require",
-            "check_file_outputs",
-            "check_calibrated_image",
-            "check_mask_image",
-            "validate_outputs",
-        ),
-    }
-    for module_name, names in canonical_names.items():
-        canonical = importlib.import_module(
-            f"mpips.calibration.dotgrid.neural_model.{module_name}"
-        )
-        legacy = importlib.import_module(
-            f"mpips.engine.calibration.dotgrid.neural_model.{module_name}"
-        )
-        for name in names:
-            assert getattr(legacy, name) is getattr(canonical, name)
-
-    assert train_model.__module__ == ("mpips.calibration.dotgrid.neural_model.train")
-
-
 def test_execution_imports_do_not_pull_runtime_layers() -> None:
     script = textwrap.dedent("""
         import sys
@@ -151,7 +96,7 @@ def test_execution_imports_do_not_pull_runtime_layers() -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_legacy_execution_cli_modules_remain_runnable() -> None:
+def test_canonical_execution_cli_modules_remain_runnable() -> None:
     for module_name in (
         "train",
         "evaluate",
@@ -162,7 +107,7 @@ def test_legacy_execution_cli_modules_remain_runnable() -> None:
             [
                 sys.executable,
                 "-m",
-                f"mpips.engine.calibration.dotgrid.neural_model.{module_name}",
+                f"mpips.calibration.dotgrid.neural_model.{module_name}",
                 "--help",
             ],
             check=False,
@@ -173,9 +118,9 @@ def test_legacy_execution_cli_modules_remain_runnable() -> None:
         assert "usage:" in result.stdout.lower()
 
 
-def test_run_pipeline_keeps_legacy_imports() -> None:
+def test_run_pipeline_exports_canonical_modules() -> None:
     run_pipeline = importlib.import_module(
-        "mpips.engine.calibration.dotgrid.neural_model.run_pipeline"
+        "mpips.calibration.dotgrid.neural_model.run_pipeline"
     )
     assert run_pipeline.train_model is train_model
     assert run_pipeline.evaluate_model is evaluate_model
@@ -185,12 +130,10 @@ def test_run_pipeline_keeps_legacy_imports() -> None:
 
 def test_workflow_calibration_resolves_canonical_neural_modules() -> None:
     script = textwrap.dedent("""
-        import builtins
         import csv
         import hashlib
         import importlib
         import json
-        import sys
         import tempfile
         from pathlib import Path
 
@@ -200,9 +143,6 @@ def test_workflow_calibration_resolves_canonical_neural_modules() -> None:
         from mpips.workflows.imager_pipeline import calibration
         from mpips.workflows.imager_pipeline.models import NeuralCalibrationConfig
 
-        assert not any(
-            name.startswith("mpips.engine.calibration") for name in sys.modules
-        )
         canonical = {
             name: importlib.import_module(
                 f"mpips.calibration.dotgrid.neural_model.{name}"
@@ -273,16 +213,6 @@ def test_workflow_calibration_resolves_canonical_neural_modules() -> None:
         ):
             spy(canonical[module_name], function_name)
 
-        real_import = builtins.__import__
-
-        def guarded_import(name, *args, **kwargs):
-            if name == "mpips.engine.calibration" or name.startswith(
-                "mpips.engine.calibration."
-            ):
-                raise AssertionError(f"workflow imported forbidden module: {name}")
-            return real_import(name, *args, **kwargs)
-
-        builtins.__import__ = guarded_import
         with tempfile.TemporaryDirectory(prefix="mpips-workflow-canonical-") as root:
             root = Path(root)
             source = root / "calibration.npz"
@@ -342,9 +272,6 @@ def test_workflow_calibration_resolves_canonical_neural_modules() -> None:
             assert (first.mask_path).is_file()
             assert json.loads(first.metrics_path.read_text())["validated"] is True
             assert all(calls[name] for name in calls)
-            assert not any(
-                name.startswith("mpips.engine.calibration") for name in sys.modules
-            )
         print("workflow_canonical_ok")
         """)
     result = subprocess.run(

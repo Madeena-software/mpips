@@ -42,15 +42,39 @@ def _extract_grid(
     return cast(tuple[np.ndarray, np.ndarray, np.ndarray], result)
 
 
-def test_canonical_and_legacy_extractors_are_identical() -> None:
-    import importlib
+def test_engine_calibration_package_is_retired() -> None:
+    script = textwrap.dedent("""
+        import importlib
+        import sys
 
-    legacy_module = importlib.import_module(
-        "mpips.engine.calibration.dotgrid.extract_grid"
+        from mpips.calibration import warp_image
+        from mpips.calibration.dotgrid import extract_grid
+
+        assert warp_image.__module__ == "mpips.calibration.warp"
+        assert extract_grid.__module__ == "mpips.calibration.dotgrid.extract_grid"
+
+        importlib.import_module("mpips.engine.nodes.calibration")
+        importlib.import_module("mpips.workflows.imager_pipeline.calibration")
+        assert not any(
+            name == "mpips.engine.calibration"
+            or name.startswith("mpips.engine.calibration.")
+            for name in sys.modules
+        )
+
+        try:
+            importlib.import_module("mpips.engine.calibration")
+        except ModuleNotFoundError:
+            pass
+        else:
+            raise AssertionError("retired mpips.engine.calibration was imported")
+        """)
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
     )
-
-    assert legacy_module.extract_grid is extract_grid
-    assert extract_grid.__module__ == "mpips.calibration.dotgrid.extract_grid"
+    assert result.returncode == 0, result.stderr
 
 
 def test_dotgrid_import_is_engine_and_optional_dependency_safe() -> None:

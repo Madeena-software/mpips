@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 import numpy as np
 
-from mpips.engine.calibration import warp_image
+from mpips.calibration import warp_image
 from mpips.engine.nodes.base import BaseNode
 
 
