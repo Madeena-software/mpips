@@ -183,6 +183,180 @@ def test_run_pipeline_keeps_legacy_imports() -> None:
     assert run_pipeline.validate_outputs is validate_outputs
 
 
+def test_workflow_calibration_resolves_canonical_neural_modules() -> None:
+    script = textwrap.dedent("""
+        import builtins
+        import csv
+        import hashlib
+        import importlib
+        import json
+        import sys
+        import tempfile
+        from pathlib import Path
+
+        import numpy as np
+        import torch
+
+        from mpips.workflows.imager_pipeline import calibration
+        from mpips.workflows.imager_pipeline.models import NeuralCalibrationConfig
+
+        assert not any(
+            name.startswith("mpips.engine.calibration") for name in sys.modules
+        )
+        canonical = {
+            name: importlib.import_module(
+                f"mpips.calibration.dotgrid.neural_model.{name}"
+            )
+            for name in (
+                "dataset",
+                "train",
+                "evaluate",
+                "warp_image",
+                "validate_outputs",
+            )
+        }
+        extractor = importlib.import_module("mpips.calibration.dotgrid.extract_grid")
+
+        coords = [
+            [(0.00, 0.00), (10.50, 0.00), (20.00, 0.50)],
+            [(0.00, 10.00), (10.00, 10.50), (20.50, 10.00)],
+            [(0.50, 20.00), (10.00, 20.00), (20.00, 20.50)],
+        ]
+        diams = [[2.0, 2.1, 1.9], [2.2, 5.0, 2.0], [1.8, 2.05, 2.15]]
+
+        def fake_extract(image_path, output_dir, **kwargs):
+            with open(
+                Path(output_dir) / "grid_coordinates.csv", "w", newline=""
+            ) as handle:
+                csv.writer(handle).writerows(
+                    [[f"({x:.2f}, {y:.2f})" for x, y in row] for row in coords]
+                )
+            with open(
+                Path(output_dir) / "grid_diameters.csv", "w", newline=""
+            ) as handle:
+                csv.writer(handle).writerows(diams)
+            with open(
+                Path(output_dir) / "grid_circularity.csv", "w", newline=""
+            ) as handle:
+                csv.writer(handle).writerows([[1.0] * 3] * 3)
+            return (
+                np.asarray(coords, dtype=np.float32),
+                np.asarray(diams, dtype=np.float32),
+                np.ones((3, 3), dtype=np.float32),
+            )
+
+        extractor.extract_grid = fake_extract
+
+        calls = {}
+
+        def spy(module, name):
+            original = getattr(module, name)
+            assert original.__module__.startswith(
+                "mpips.calibration.dotgrid.neural_model"
+            )
+            calls[name] = []
+
+            def wrapped(*args, **kwargs):
+                calls[name].append(True)
+                return original(*args, **kwargs)
+
+            setattr(module, name, wrapped)
+
+        for module_name, function_name in (
+            ("dataset", "load_data"),
+            ("train", "train_model"),
+            ("evaluate", "evaluate_model"),
+            ("validate_outputs", "validate_outputs"),
+            ("warp_image", "resolve_device"),
+            ("warp_image", "estimate_expanded_canvas"),
+            ("warp_image", "build_inverse_maps"),
+        ):
+            spy(canonical[module_name], function_name)
+
+        real_import = builtins.__import__
+
+        def guarded_import(name, *args, **kwargs):
+            if name == "mpips.engine.calibration" or name.startswith(
+                "mpips.engine.calibration."
+            ):
+                raise AssertionError(f"workflow imported forbidden module: {name}")
+            return real_import(name, *args, **kwargs)
+
+        builtins.__import__ = guarded_import
+        with tempfile.TemporaryDirectory(prefix="mpips-workflow-canonical-") as root:
+            root = Path(root)
+            source = root / "calibration.npz"
+            np.savez_compressed(
+                source,
+                id="cal-1",
+                gainid="gain-1",
+                xrayparams=np.asarray(
+                    {"expType": "radiograf", "detectorMode": "BED"}, dtype=object
+                ),
+                cameraparams=np.asarray({"cameraSerial": "SERIAL-1"}, dtype=object),
+                processedimage=np.linspace(0.1, 0.9, 24 * 24, dtype=np.float32).reshape(
+                    24, 24
+                ),
+            )
+            config = NeuralCalibrationConfig(
+                epochs=3,
+                target_loss=-1.0,
+                hidden_dim=4,
+                seed=7,
+                device="cpu",
+                remap_step=1,
+                inverse_iterations=1,
+                batch_size=100,
+                canvas_mode="expanded",
+                expanded_bounds_step=2,
+                expanded_margin=1,
+                min_straightness_reduction=-1e9,
+                min_reprojection_reduction=-1e9,
+                min_spacing_reduction=-1e9,
+                min_diameter_reduction=-1e9,
+            )
+            first = calibration.build_or_load_calibration(
+                source, root / "artifacts", config
+            )
+            second = calibration.build_or_load_calibration(
+                source, root / "artifacts", config
+            )
+            state = torch.load(
+                first.model_path, map_location="cpu", weights_only=True
+            )
+            digest = hashlib.sha256()
+            for name in sorted(state):
+                tensor = state[name].detach().cpu().contiguous()
+                digest.update(name.encode())
+                digest.update(str(tensor.dtype).encode())
+                digest.update(repr(tuple(tensor.shape)).encode())
+                digest.update(tensor.numpy().tobytes())
+            assert digest.hexdigest() == (
+                "89365cfb7528702dc8c2fe6a76a492ceed1534f9589bf7a85f53dba6bb7f5871"
+            )
+            assert first.validated is True
+            assert first.cache_hit is False
+            assert second.cache_hit is True
+            assert first.directory == second.directory
+            assert (first.remap_path).is_file()
+            assert (first.mask_path).is_file()
+            assert json.loads(first.metrics_path.read_text())["validated"] is True
+            assert all(calls[name] for name in calls)
+            assert not any(
+                name.startswith("mpips.engine.calibration") for name in sys.modules
+            )
+        print("workflow_canonical_ok")
+        """)
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, result.stderr
+    assert "workflow_canonical_ok" in result.stdout
+
+
 def test_training_and_evaluation_match_historical_contract(tmp_path: Path) -> None:
     coords_path, diams_path = _write_case(tmp_path)
     train_dir = tmp_path / "train"

@@ -169,9 +169,9 @@ def build_inverse_maps(
     config: NeuralCalibrationConfig,
     coordinates: Any | None = None,
 ) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
-    """Delegate fixed-canvas inverse-map generation to the canonical engine."""
-    from mpips.engine.calibration.dotgrid.neural_model.warp_image import (
-        build_inverse_maps as engine_build_inverse_maps,
+    """Delegate inverse-map generation to canonical calibration ownership."""
+    from mpips.calibration.dotgrid.neural_model.warp_image import (
+        build_inverse_maps as canonical_build_inverse_maps,
         estimate_expanded_canvas,
         resolve_device,
     )
@@ -199,7 +199,7 @@ def build_inverse_maps(
         output_width = int(expanded["output_size"]["width"])
         output_height = int(expanded["output_size"]["height"])
         origin = tuple(expanded["origin_xy"])
-    map_x, map_y, stats = engine_build_inverse_maps(
+    map_x, map_y, stats = canonical_build_inverse_maps(
         model,
         output_width,
         output_height,
@@ -305,12 +305,12 @@ def build_or_load_calibration(
         return cached
 
     try:
-        from mpips.engine.calibration.dotgrid.neural_model.dataset import load_data
-        from mpips.engine.calibration.dotgrid.neural_model.evaluate import (
+        from mpips.calibration.dotgrid.neural_model.dataset import load_data
+        from mpips.calibration.dotgrid.neural_model.evaluate import (
             evaluate_model,
         )
-        from mpips.engine.calibration.dotgrid.neural_model.train import train_model
-        from mpips.engine.calibration.dotgrid.neural_model.validate_outputs import (
+        from mpips.calibration.dotgrid.neural_model.train import train_model
+        from mpips.calibration.dotgrid.neural_model.validate_outputs import (
             validate_outputs,
         )
     except ImportError as exc:
