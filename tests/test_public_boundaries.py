@@ -3,6 +3,7 @@ import sys
 import textwrap
 
 from mpips.calibration import warp_image
+from mpips.calibration.warp import warp_image as canonical_warp_image
 from mpips.dag import (
     DAGExecutor,
     NODE_CATALOG,
@@ -18,6 +19,7 @@ from mpips.engine import (
     topological_sort as engine_topological_sort,
 )
 from mpips.engine.calibration import warp_image as engine_warp_image
+from mpips.engine.calibration.warp import warp_image as legacy_module_warp_image
 from mpips.engine.iqa import (
     calculate_all_metrics as engine_calculate_all_metrics,
     calculate_brisque as engine_calculate_brisque,
@@ -38,6 +40,9 @@ from mpips.iqa import (
 
 def test_public_domain_symbols_reuse_engine_implementations() -> None:
     assert warp_image is engine_warp_image
+    assert warp_image is canonical_warp_image
+    assert warp_image is legacy_module_warp_image
+    assert canonical_warp_image.__module__ == "mpips.calibration.warp"
 
     assert calculate_entropy is engine_calculate_entropy
     assert calculate_eme is engine_calculate_eme
@@ -60,6 +65,7 @@ def test_existing_engine_imports_remain_compatible() -> None:
     assert engine_get_node_class is get_node_class
     assert engine_topological_sort is topological_sort
     assert engine_warp_image is warp_image
+    assert legacy_module_warp_image is warp_image
     assert engine_calculate_all_metrics is calculate_all_metrics
 
 
@@ -76,6 +82,47 @@ def test_scientific_boundaries_do_not_import_service_runtime() -> None:
         loaded = forbidden.intersection(sys.modules)
         assert not loaded, sorted(loaded)
         assert "app" not in mpips.__dict__
+        """)
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_calibration_import_is_engine_and_optional_dependency_safe() -> None:
+    script = textwrap.dedent("""
+        import sys
+
+        import mpips.calibration
+        from mpips.calibration import warp_image
+
+        forbidden = {
+            "boto3",
+            "celery",
+            "fastapi",
+            "matplotlib",
+            "mpips.api",
+            "mpips.conversion",
+            "mpips.engine",
+            "mpips.pipelines",
+            "mpips.worker",
+            "mpips.workflows",
+            "PIL",
+            "torch",
+        }
+        loaded = sorted(
+            name
+            for name in sys.modules
+            if name in forbidden
+            or any(name.startswith(item + ".") for item in forbidden)
+        )
+        assert not loaded, loaded
+        assert warp_image.__module__ == "mpips.calibration.warp"
         """)
 
     result = subprocess.run(
