@@ -1,5 +1,12 @@
 """Reusable radiography array-processing operations."""
 
+from mpips.processing.bit_depth import (
+    clip_to_input_dtype,
+    dtype_limits,
+    grayscale_any_depth,
+    normalize_to_uint8,
+    scale_unit_to_dtype,
+)
 from mpips.processing.correction import flat_field_correction
 from mpips.processing.radiography import (
     apply_calibration_remap,
@@ -29,4 +36,9 @@ __all__ = [
     "apply_median_filter",
     "invert_image",
     "detect_threshold",
+    "dtype_limits",
+    "clip_to_input_dtype",
+    "normalize_to_uint8",
+    "scale_unit_to_dtype",
+    "grayscale_any_depth",
 ]

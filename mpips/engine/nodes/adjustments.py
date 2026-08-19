@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from typing import Dict, Any
 from mpips.engine.nodes.base import BaseNode
-from mpips.engine.nodes.bit_depth import (
+from mpips.processing.bit_depth import (
     clip_to_input_dtype,
     dtype_limits,
     grayscale_any_depth,

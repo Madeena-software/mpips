@@ -7,7 +7,7 @@ from typing import Dict, Any, List, Tuple
 from skimage.restoration import denoise_wavelet
 
 from mpips.engine.nodes.base import BaseNode
-from mpips.engine.nodes.bit_depth import (
+from mpips.processing.bit_depth import (
     clip_to_input_dtype,
     normalize_to_uint8,
     scale_unit_to_dtype,

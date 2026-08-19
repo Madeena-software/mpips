@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 from typing import Dict
-from mpips.engine.nodes.bit_depth import grayscale_any_depth, normalize_to_uint8
+from mpips.processing.bit_depth import grayscale_any_depth, normalize_to_uint8
 
 
 class EntropyCalculator:
