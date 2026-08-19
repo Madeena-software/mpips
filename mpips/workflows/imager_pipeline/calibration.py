@@ -94,7 +94,7 @@ def extract_dot_grid(
     """Adapt an in-memory image to the canonical research grid extractor."""
     if image.ndim != 2 or image.dtype != np.uint8:
         raise ValueError("Dot-grid extraction requires a uint8 grayscale image")
-    from mpips.engine.calibration.dotgrid.extract_grid import extract_grid
+    from mpips.calibration.dotgrid.extract_grid import extract_grid
 
     with tempfile.TemporaryDirectory(prefix="mpips-dotgrid-extract-") as temporary:
         workspace = Path(temporary)
@@ -336,7 +336,7 @@ def build_or_load_calibration(
     image_u8 = np.rint(image * 255.0).clip(0, 255).astype(np.uint8)
     write_tiff(calibration_tiff, image_u8)
 
-    from mpips.engine.calibration.dotgrid.extract_grid import extract_grid
+    from mpips.calibration.dotgrid.extract_grid import extract_grid
 
     try:
         extracted = extract_grid(
