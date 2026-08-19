@@ -242,30 +242,9 @@ def flat_field_correction(raw_image, dark_image, flat_image):
         # Convert back to CPU and original dtype
         corrected_cpu = cp.asnumpy(corrected)
     else:
-        # CPU version with NumPy
-        raw_32 = raw_image.astype(np.float32)
-        dark_32 = dark_image.astype(np.float32)
-        flat_32 = flat_image.astype(np.float32)
+        from mpips.processing.correction import flat_field_correction
 
-        # Calculate (flat - dark)
-        flat_minus_dark = np.maximum(0, flat_32 - dark_32)
-
-        # Calculate mean of (flat - dark)
-        mean_value = np.mean(flat_minus_dark)
-
-        # Calculate (raw - dark)
-        raw_minus_dark = np.maximum(0, raw_32 - dark_32)
-
-        # Calculate (raw - dark) / (flat - dark)
-        corrected_cpu = np.zeros_like(raw_minus_dark)
-        mask = flat_minus_dark != 0
-        corrected_cpu[mask] = raw_minus_dark[mask] / flat_minus_dark[mask]
-
-        # Multiply by mean to restore intensity scale
-        corrected_cpu = corrected_cpu * mean_value
-
-        # Clip negative values
-        corrected_cpu = np.clip(corrected_cpu, 0, None)
+        return flat_field_correction(raw_image, dark_image, flat_image)
 
     # Keep as float32 if input is float, otherwise convert back to original dtype
     if raw_image.dtype == np.float32:

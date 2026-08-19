@@ -1,12 +1,12 @@
 """Reusable radiography array-processing operations."""
 
+from mpips.processing.correction import flat_field_correction
 from mpips.processing.radiography import (
     apply_calibration_remap,
     apply_clahe,
     apply_median_filter,
     auto_threshold,
     denoise_wavelet,
-    flat_field_correction,
     hybrid_median_filter,
     imagej_equalize,
     imagej_stretch,

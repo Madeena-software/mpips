@@ -7,6 +7,7 @@ from typing import Any
 import cv2
 import numpy as np
 
+from mpips.processing.correction import flat_field_correction  # noqa: F401
 from mpips.processing.thresholding import apply_threshold_separation  # noqa: F401
 
 
@@ -39,13 +40,6 @@ def denoise_wavelet(
 ) -> np.ndarray:
     engine = _engine()
     return np.asarray(engine.denoise_wavelet(image, wavelet, level, method, mode))
-
-
-def flat_field_correction(
-    raw: np.ndarray, dark: np.ndarray, flat: np.ndarray
-) -> np.ndarray:
-    engine = _engine()
-    return np.asarray(engine.flat_field_correction(raw, dark, flat))
 
 
 def auto_threshold(image: np.ndarray, method: str = "auto") -> float:
