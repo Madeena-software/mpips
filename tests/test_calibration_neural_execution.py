@@ -396,10 +396,20 @@ def test_training_and_evaluation_match_historical_contract(tmp_path: Path) -> No
         image_size=(64, 48),
         hidden_dim=4,
     )
-    assert before["col_rmse"] == pytest.approx(0.235702246427536, abs=1e-7)
-    assert after["col_rmse"] == pytest.approx(0.23477870225906372, abs=1e-7)
-    assert before["reproj"] == pytest.approx(0.3011571395705189, abs=1e-7)
-    assert after["reproj"] == pytest.approx(0.3010649997066611, abs=1e-7)
+    # Reports publish four decimals; retain one additional digit portably while
+    # preserving byte-exact same-environment artifact determinism separately.
+    actual_metric_strings = (
+        f"{before['col_rmse']:.5f}",
+        f"{after['col_rmse']:.5f}",
+        f"{before['reproj']:.5f}",
+        f"{after['reproj']:.5f}",
+    )
+    assert actual_metric_strings == (
+        "0.23570",
+        "0.23478",
+        "0.30116",
+        "0.30106",
+    )
     assert (eval_dir / "compensated_coordinates.csv").read_bytes()
     assert (
         eval_dir.joinpath("compensated_coordinates.csv").read_bytes()
