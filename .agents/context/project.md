@@ -50,10 +50,14 @@ Evidence: API contracts in `mpips/api/schemas/` and the package entry points in
   NumPy/OpenCV/SciPy/scikit-image/PyWavelets for processing. Evidence:
   `.python-version`, `pyproject.toml`, and `uv.lock`.
 - `mpips/api/` owns the DICOM and health HTTP routes, schemas, auth, and
-  request controls; `mpips/conversion/` and `mpips/engine/` own the current
-  processing flow; `mpips/workflows/` owns library-facing orchestration.
-  Generic worker, DAG, storage, and catalog modules remain available in the
-  repository but are outside the current registered API surface.
+  request controls; `mpips/workflows/` owns library-facing orchestration,
+  while `mpips/pipelines/` and `mpips/processing/` own the current imager
+  processing flow. `mpips/engine/` is a temporary compatibility namespace
+  retained only because the protected TIFF-to-DICOM converter still resides
+  there. `mpips/conversion/service.py` currently imports that converter from
+  its legacy engine path. Generic worker, DAG, storage, and catalog modules
+  remain available in the repository but are outside the current registered
+  API surface.
 - Runtime entry points are `mpips.asgi:app`, `mpips-api`, and `mpips-worker`.
   Docker selects `api` or `worker` through `docker/entrypoint.sh`. Evidence:
   `mpips/asgi.py`, `mpips/cli.py`, `Dockerfile`, and `pyproject.toml`.
@@ -95,13 +99,14 @@ data. Evidence: the calibration entry point and optional dependency in
 
 ### Imager pipeline
 
-`mpips-imager` runs the canonical implementation in
-`mpips.engine.imager_pipeline`; library and Colab callers should use
+`mpips-imager` runs through `mpips.cli.run_imager`,
+`mpips.workflows.imager_pipeline.file_runner`, `mpips.pipelines`, and
+`mpips.processing`; library and Colab callers should use
 `mpips.workflows.imager_pipeline`. `MPIPS_RADIOGRAPHY_ENV` selects a settings
 file, while the `colab` extra adds public Google Drive resolution. The workflow
 validates NPZ gain, radiograph, calibration, camera, detector, identifier, and
-shape data before returning 16-bit processed arrays. Reusable research code
-must be promoted into `mpips.engine` rather than imported from `research/`.
+shape data before returning 16-bit processed arrays. The protected converter's
+relocation is separately guarded and has not yet been performed.
 Evidence: `pyproject.toml`, `mpips/workflows/imager_pipeline/`, and
 `tests/test_imager_pipeline_workflow.py`.
 
