@@ -42,8 +42,8 @@ def test_topological_sort_cycle() -> None:
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -96,8 +96,8 @@ def test_dag_executor(
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor_multiple_output_nodes_get_distinct_keys(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -151,8 +151,8 @@ def test_dag_executor_multiple_output_nodes_get_distinct_keys(
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor_multiple_output_nodes_per_node_override(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -210,8 +210,8 @@ def test_dag_executor_multiple_output_nodes_per_node_override(
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor_multiple_input_nodes_route_independently(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -267,8 +267,8 @@ def test_dag_executor_multiple_input_nodes_route_independently(
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor_tiff_32bit_no_convert(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -316,8 +316,8 @@ def test_dag_executor_tiff_32bit_no_convert(
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor_tiff_32bit_convert_to_8bit(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -418,9 +418,9 @@ def test_load_npz_image_radiograph_capture_falls_back_when_rawimage_missing() ->
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.load_npz_named_images")
-@patch("mpips.engine.dag.load_npz_image")
-@patch("mpips.engine.dag.save_npz_image")
+@patch("mpips.dag.executor.load_npz_named_images")
+@patch("mpips.dag.executor.load_npz_image")
+@patch("mpips.dag.executor.save_npz_image")
 def test_dag_executor_npz_round_trip(
     mock_save_npz: MagicMock,
     mock_load_npz: MagicMock,

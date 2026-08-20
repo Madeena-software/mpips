@@ -9,7 +9,7 @@ from typing import Dict, Any
 from celery import shared_task
 from celery.utils.log import get_task_logger
 
-from mpips.engine.dag import DAGExecutor
+from mpips.dag.executor import DAGExecutor
 from mpips.tenant_paths import validate_job_storage_paths
 import redis
 

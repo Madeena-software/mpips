@@ -11,6 +11,7 @@ from mpips.dag import (
     get_node_class,
     topological_sort,
 )
+from mpips.dag.executor import DAGExecutor as CanonicalDAGExecutor
 from mpips.engine import (
     DAGExecutor as EngineDAGExecutor,
     NODE_CATALOG as EngineNodeCatalog,
@@ -47,7 +48,9 @@ def test_public_domain_symbols_reuse_canonical_implementations() -> None:
     assert calculate_brisque is canonical_calculate_brisque
     assert calculate_all_metrics is canonical_calculate_all_metrics
 
+    assert DAGExecutor is CanonicalDAGExecutor
     assert DAGExecutor is EngineDAGExecutor
+    assert CanonicalDAGExecutor.__module__ == "mpips.dag.executor"
     assert NODE_CATALOG is EngineNodeCatalog
     assert NODE_CLASSES is EngineNodeClasses
     assert get_node_class is engine_get_node_class
@@ -60,6 +63,44 @@ def test_existing_engine_imports_remain_compatible() -> None:
     assert EngineNodeClasses is NODE_CLASSES
     assert engine_get_node_class is get_node_class
     assert engine_topological_sort is topological_sort
+
+
+def test_dag_executor_access_stays_engine_free() -> None:
+    script = textwrap.dedent("""
+        import sys
+
+        import mpips.dag
+
+        forbidden = {
+            "mpips.engine",
+            "mpips.api",
+            "mpips.worker",
+            "celery",
+            "fastapi",
+            "boto3",
+        }
+        assert not any(
+            name in sys.modules
+            or any(name.startswith(item + ".") for item in forbidden)
+            for name in forbidden
+        )
+
+        from mpips.dag import DAGExecutor
+
+        assert DAGExecutor.__module__ == "mpips.dag.executor"
+        assert "mpips.dag.executor" in sys.modules
+        assert "mpips.engine" not in sys.modules
+        assert "mpips.engine.dag" not in sys.modules
+        """)
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_scientific_boundaries_do_not_import_service_runtime() -> None:
