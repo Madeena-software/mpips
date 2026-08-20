@@ -269,12 +269,24 @@ def run_isolated_dicom_conversion(
     workspace_base = Path(root_str)
     try:
         workspace_base.mkdir(parents=True, exist_ok=True)
-        os.chmod(workspace_base, 0o755)
+        try:
+            if workspace_base.stat().st_uid == os.getuid():
+                os.chmod(workspace_base, 0o755)
+        except OSError:
+            pass
     except PermissionError as exc:
         if env_mode == "production":
             raise RuntimeError(
                 f"Configured workspace root {workspace_base} is unwritable: {exc}"
             ) from exc
+        workspace_base = Path(tempfile.gettempdir()) / f"mpips-workspaces-{os.getuid()}"
+        workspace_base.mkdir(parents=True, exist_ok=True)
+
+    if not os.access(workspace_base, os.W_OK | os.X_OK):
+        if env_mode == "production":
+            raise RuntimeError(
+                f"Configured workspace root {workspace_base} is unwritable"
+            )
         workspace_base = Path(tempfile.gettempdir()) / f"mpips-workspaces-{os.getuid()}"
         workspace_base.mkdir(parents=True, exist_ok=True)
 
