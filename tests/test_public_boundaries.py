@@ -41,46 +41,26 @@ def test_public_domain_symbols_reuse_canonical_implementations() -> None:
     assert CanonicalDAGExecutor.__module__ == "mpips.dag.executor"
 
 
-def test_engine_dag_compatibility_surface_is_retired() -> None:
+def test_engine_package_is_physically_retired() -> None:
     script = textwrap.dedent("""
-        import importlib
-        import sys
+        import mpips
 
-        import mpips.dag
-        assert "mpips.engine" not in sys.modules
-        import mpips.engine
-
-        assert mpips.dag.__all__ == [
-            "DAGExecutor",
-            "NODE_CATALOG",
-            "NODE_CLASSES",
-            "get_node_class",
-            "topological_sort",
-        ]
-        assert "mpips.engine" in sys.modules
-
-        for name in (
-            "DAGExecutor",
-            "NODE_CATALOG",
-            "NODE_CLASSES",
-            "get_node_class",
-            "topological_sort",
-        ):
-            assert not hasattr(mpips.engine, name)
+        try:
+            import mpips.engine
+        except ModuleNotFoundError:
+            pass
+        else:
+            raise AssertionError("retired package imported")
 
         for module_name in (
-            "mpips.engine.dag",
-            "mpips.engine.catalog",
-            "mpips.engine.registry",
-            "mpips.engine.schemas",
-            "mpips.engine.nodes",
-            "mpips.engine.nodes.scientific",
+            "mpips",
+            "mpips.processing",
+            "mpips.pipelines",
+            "mpips.workflows",
+            "mpips.dag",
+            "mpips.conversion",
         ):
-            try:
-                importlib.import_module(module_name)
-            except ModuleNotFoundError:
-                continue
-            raise AssertionError(f"retired module imported: {module_name}")
+            __import__(module_name)
         """)
 
     result = subprocess.run(

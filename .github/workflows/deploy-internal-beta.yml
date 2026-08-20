@@ -44,7 +44,9 @@ jobs:
           test ! -f .agents/skills/agent-task/scripts/validate_task.py || \
             .venv/bin/python .agents/skills/agent-task/scripts/validate_task.py \
             .agents/tasks/archive/mpips-simple-key-cicd-internal-beta-v1.md
-          test "$(sha256sum mpips/engine/imager_pipeline/tiff_json_to_dcm.py | awk '{print $1}')" = \
+          test -f mpips/conversion/tiff_json_to_dcm.py
+          test ! -e mpips/engine/imager_pipeline/tiff_json_to_dcm.py
+          test "$(sha256sum mpips/conversion/tiff_json_to_dcm.py | awk '{print $1}')" = \
             "a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0"
           uv run pytest \
             tests/api/test_api_surface.py \
@@ -331,4 +333,3 @@ jobs:
             --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" \
             logs --no-color --tail=200 || true
           test ! -f "$REMOTE_PATH/launcher.log" || tail -200 "$REMOTE_PATH/launcher.log"
-

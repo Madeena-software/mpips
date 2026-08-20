@@ -6,14 +6,12 @@ CANONICAL_PATH = Path("mpips/conversion/tiff_json_to_dcm.py")
 EXPECTED_SHA = "a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0"
 
 
-def test_converter_exists_at_one_authorized_path_with_exact_hash() -> None:
-    existing_paths = [path for path in (LEGACY_PATH, CANONICAL_PATH) if path.exists()]
+def test_canonical_converter_owns_the_protected_path() -> None:
+    assert CANONICAL_PATH.exists()
+    assert CANONICAL_PATH.is_file()
+    assert not LEGACY_PATH.exists()
 
-    assert len(existing_paths) == 1
-    converter_path = existing_paths[0]
-    assert converter_path.is_file()
-
-    with converter_path.open("rb") as converter_file:
+    with CANONICAL_PATH.open("rb") as converter_file:
         actual_sha = hashlib.file_digest(converter_file, "sha256").hexdigest()
 
     assert actual_sha == EXPECTED_SHA

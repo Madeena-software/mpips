@@ -53,11 +53,11 @@ Evidence: API contracts in `mpips/api/schemas/` and the package entry points in
   request controls; `mpips/workflows/` owns library-facing orchestration,
   while `mpips/pipelines/` and `mpips/processing/` own the current imager
   processing flow. `mpips/conversion/` owns DICOM conversion, including the
-  protected converter at `mpips.conversion.tiff_json_to_dcm`; the converter's
-  byte and hash protection remains in force. `mpips/engine/` contains only
-  temporary package scaffolding pending Stage 6H. Generic worker, DAG,
-  storage, and catalog modules remain available in the repository but are
-  outside the current registered API surface.
+  protected canonical converter at `mpips.conversion.tiff_json_to_dcm`; its
+  byte and hash protection remains in force. The obsolete `mpips.engine`
+  package is physically retired. Generic worker, DAG, storage, and catalog
+  modules remain available in the repository but are outside the current
+  registered API surface.
 - Runtime entry points are `mpips.asgi:app`, `mpips-api`, and `mpips-worker`.
   Docker selects `api` or `worker` through `docker/entrypoint.sh`. Evidence:
   `mpips/asgi.py`, `mpips/cli.py`, `Dockerfile`, and `pyproject.toml`.

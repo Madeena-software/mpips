@@ -28,21 +28,16 @@ jobs:
           EXPECTED_HASH="a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0"
           LEGACY_PATH="mpips/engine/imager_pipeline/tiff_json_to_dcm.py"
           CANONICAL_PATH="mpips/conversion/tiff_json_to_dcm.py"
-          legacy_exists=0
-          canonical_exists=0
-          if [ -e "$LEGACY_PATH" ]; then legacy_exists=1; fi
-          if [ -e "$CANONICAL_PATH" ]; then canonical_exists=1; fi
-          if [ "$((legacy_exists + canonical_exists))" -ne 1 ]; then
-            echo "Exactly one authorized converter path must exist."
+          echo "Protected converter path: $CANONICAL_PATH"
+          if [ ! -f "$CANONICAL_PATH" ]; then
+            echo "Canonical converter is missing or not a regular file."
             exit 1
           fi
-          if [ "$legacy_exists" -eq 1 ]; then
-            SELECTED_PATH="$LEGACY_PATH"
-          else
-            SELECTED_PATH="$CANONICAL_PATH"
+          if [ -e "$LEGACY_PATH" ]; then
+            echo "Legacy converter path must not exist: $LEGACY_PATH"
+            exit 1
           fi
-          echo "Protected converter path: $SELECTED_PATH"
-          ACTUAL_HASH=$(sha256sum "$SELECTED_PATH" | awk '{print $1}')
+          ACTUAL_HASH=$(sha256sum "$CANONICAL_PATH" | awk '{print $1}')
           if [ "$ACTUAL_HASH" != "$EXPECTED_HASH" ]; then
             echo "Pak Andre's converter was modified!"
             exit 1
