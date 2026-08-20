@@ -3,7 +3,6 @@
 import subprocess
 import sys
 import textwrap
-from typing import Any, cast
 
 import numpy as np
 import pytest
@@ -22,7 +21,7 @@ def test_geometry_import_is_processing_safe() -> None:
             "fastapi",
             "mpips.api",
             "mpips.conversion",
-            "mpips.engine.imager_pipeline.complete_pipeline",
+            "mpips.engine",
             "mpips.pipelines",
             "mpips.worker",
             "mpips.workflows",
@@ -118,8 +117,7 @@ def test_geometry_preserves_supported_integer_dtype(dtype: type[np.generic]) -> 
     assert result.dtype == image.dtype
 
 
-def test_workflow_crop_and_rotate_uses_config_without_mutating_engine() -> None:
-    from mpips.engine.imager_pipeline import complete_pipeline as engine
+def test_workflow_crop_and_rotate_uses_config() -> None:
     from mpips.pipelines.config import ImagerPipelineConfig
     from mpips.processing.geometry import crop_and_rotate
     from mpips.workflows.imager_pipeline.pipeline import (
@@ -133,8 +131,6 @@ def test_workflow_crop_and_rotate_uses_config_without_mutating_engine() -> None:
         crop_left=1,
         crop_right=1,
     )
-    before = engine.CONFIG.copy()
-
     result = workflow_crop(image, "TRX", config)
     expected = crop_and_rotate(
         image,
@@ -145,45 +141,4 @@ def test_workflow_crop_and_rotate_uses_config_without_mutating_engine() -> None:
         crop_right=config.crop_right,
     )
 
-    np.testing.assert_array_equal(result, expected)
-    assert engine.CONFIG == before
-
-
-def test_legacy_crop_adapter_matches_canonical_processing() -> None:
-    from mpips.engine.imager_pipeline import complete_pipeline as engine
-    from mpips.pipelines.config import ImagerPipelineConfig
-    from mpips.processing.geometry import crop_and_rotate
-
-    image = np.arange(20, dtype=np.uint16).reshape(4, 5)
-    config = ImagerPipelineConfig(
-        crop_top=1,
-        crop_bottom=1,
-        crop_left=1,
-        crop_right=1,
-    )
-    keys = ("CROP_TOP", "CROP_BOTTOM", "CROP_LEFT", "CROP_RIGHT")
-    before = {key: engine.CONFIG[key] for key in keys}
-    engine.CONFIG.update(
-        {
-            "CROP_TOP": config.crop_top,
-            "CROP_BOTTOM": config.crop_bottom,
-            "CROP_LEFT": config.crop_left,
-            "CROP_RIGHT": config.crop_right,
-        }
-    )
-
-    try:
-        legacy_crop = cast(Any, engine.crop_and_rotate_by_detector)
-        result = legacy_crop(image, "TRX")
-    finally:
-        engine.CONFIG.update(before)
-
-    expected = crop_and_rotate(
-        image,
-        "TRX",
-        crop_top=config.crop_top,
-        crop_bottom=config.crop_bottom,
-        crop_left=config.crop_left,
-        crop_right=config.crop_right,
-    )
     np.testing.assert_array_equal(result, expected)

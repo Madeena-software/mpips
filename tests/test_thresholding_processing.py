@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 
 import mpips.processing.radiography as radiography
-from mpips.engine.imager_pipeline import complete_pipeline as legacy_engine
 from mpips.processing import apply_threshold_separation, auto_threshold
 from mpips.processing.thresholding import (
     apply_threshold_separation as canonical_apply_threshold_separation,
@@ -89,7 +88,7 @@ def test_thresholding_import_is_service_safe() -> None:
             "mpips.api",
             "mpips.conversion",
             "mpips.engine",
-            "mpips.engine.imager_pipeline.complete_pipeline",
+            "mpips.engine",
             "mpips.pipelines",
             "mpips.worker",
             "mpips.workflows",
@@ -138,46 +137,11 @@ def test_threshold_separation_matches_historical_cpu_goldens(
     np.testing.assert_array_equal(output, expected)
 
 
-@pytest.mark.parametrize(
-    "name,image,threshold,expected",
-    EXPECTED_CPU_SEPARATION_CASES,
-    ids=[case[0] for case in EXPECTED_CPU_SEPARATION_CASES],
-)
-def test_legacy_cpu_threshold_separation_matches_canonical(
-    name: str,
-    image: np.ndarray,
-    threshold: float,
-    expected: np.ndarray,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    del name, expected
-    monkeypatch.setattr(legacy_engine, "GPU_AVAILABLE", False)
-
-    legacy_apply = cast(Any, legacy_engine.apply_threshold_separation)
-    legacy_output = legacy_apply(image, threshold)
-    canonical_output = canonical_apply_threshold_separation(image, threshold)
-
-    np.testing.assert_array_equal(legacy_output, canonical_output)
-
-
 @pytest.mark.parametrize("method", tuple(EXPECTED_THRESHOLDS))
 def test_threshold_methods_match_historical_goldens(method: str) -> None:
     result = detect_threshold(_threshold_fixture(), method=method)
 
     np.testing.assert_equal(result, EXPECTED_THRESHOLDS[method])
-
-
-@pytest.mark.parametrize("method", tuple(EXPECTED_THRESHOLDS))
-def test_legacy_engine_adapter_matches_canonical_threshold(
-    method: str, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    image = _threshold_fixture()
-    monkeypatch.setitem(legacy_engine.CONFIG, "THRESHOLD_METHOD", method)
-
-    legacy_result = cast(Any, legacy_engine.auto_threshold_detection)(image)
-    canonical_result = detect_threshold(image, method=method)
-
-    np.testing.assert_equal(legacy_result, canonical_result)
 
 
 def test_existing_auto_threshold_wrapper_keeps_its_contract() -> None:

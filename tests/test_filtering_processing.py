@@ -1,16 +1,13 @@
 import hashlib
-import inspect
 import subprocess
 import sys
 import textwrap
-from typing import Any, cast
 
 import numpy as np
 import pytest
 
 import mpips.processing as processing
 import mpips.processing.radiography as radiography
-from mpips.engine.imager_pipeline import complete_pipeline as legacy_engine
 from mpips.processing.filtering import apply_median_filter
 
 
@@ -84,7 +81,7 @@ def test_filtering_import_is_processing_and_service_safe() -> None:
             "mpips.api",
             "mpips.conversion",
             "mpips.engine",
-            "mpips.engine.imager_pipeline.complete_pipeline",
+            "mpips.engine",
             "mpips.pipelines",
             "mpips.worker",
             "mpips.workflows",
@@ -102,12 +99,8 @@ def test_filtering_import_is_processing_and_service_safe() -> None:
     assert result.returncode == 0, result.stderr
 
 
-def test_filtering_has_one_canonical_owner_and_legacy_signature() -> None:
+def test_filtering_has_one_canonical_owner() -> None:
     assert apply_median_filter.__module__ == "mpips.processing.filtering"
-    assert not hasattr(legacy_engine, "_adaptive_median_filter")
-    assert str(inspect.signature(legacy_engine.apply_advanced_median_filter)) == (
-        "(image, filter_type='hybrid_imagej', radius=2)"
-    )
     assert callable(radiography.apply_median_filter)
     assert callable(processing.apply_median_filter)
     assert callable(processing.hybrid_median_filter)
@@ -192,28 +185,6 @@ def test_unknown_filter_falls_back_to_hybrid_imagej() -> None:
     )
 
     np.testing.assert_array_equal(unknown, hybrid)
-
-
-@pytest.mark.parametrize("imagej_available", (True, False))
-@pytest.mark.parametrize("filter_type", tuple(EXPECTED_AVAILABLE))
-def test_legacy_adapter_matches_canonical_for_explicit_availability(
-    filter_type: str,
-    imagej_available: bool,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(legacy_engine, "IMAGEJ_AVAILABLE", imagej_available)
-
-    legacy_output = cast(Any, legacy_engine.apply_advanced_median_filter)(
-        _median_fixture(), filter_type, 2
-    )
-    canonical_output = apply_median_filter(
-        _median_fixture(),
-        filter_type=filter_type,
-        radius=2,
-        imagej_available=imagej_available,
-    )
-
-    np.testing.assert_array_equal(legacy_output, canonical_output)
 
 
 @pytest.mark.parametrize("filter_type", ("standard", "hybrid_imagej"))

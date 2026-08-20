@@ -295,7 +295,6 @@ import sys
 importlib.import_module("mpips.workflows.imager_pipeline.pipeline")
 for forbidden in (
     "mpips.engine",
-    "mpips.engine.imager_pipeline.complete_pipeline",
     "mpips.api",
     "mpips.worker",
     "mpips.conversion",

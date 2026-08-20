@@ -95,7 +95,7 @@ def test_pipeline_config_import_is_runtime_safe() -> None:
             "fastapi",
             "mpips.api",
             "mpips.conversion",
-            "mpips.engine.imager_pipeline.complete_pipeline",
+            "mpips.engine",
             "mpips.worker",
             "mpips.workflows",
         }

@@ -8,7 +8,6 @@ import numpy as np
 import pytest
 
 import mpips.processing.radiography as radiography
-from mpips.engine.imager_pipeline import complete_pipeline as legacy_engine
 from mpips.processing import flat_field_correction
 from mpips.processing.correction import (
     flat_field_correction as canonical_flat_field_correction,
@@ -92,7 +91,7 @@ def test_correction_import_is_scientific_and_service_safe() -> None:
             "mpips.api",
             "mpips.conversion",
             "mpips.engine",
-            "mpips.engine.imager_pipeline.complete_pipeline",
+            "mpips.engine",
             "mpips.pipelines",
             "mpips.worker",
             "mpips.workflows",
@@ -111,7 +110,6 @@ def test_correction_import_is_scientific_and_service_safe() -> None:
 
 
 def test_flat_field_correction_has_one_processing_owner() -> None:
-    legacy_flat_field = cast(Any, legacy_engine.flat_field_correction)
     workflow_flat_field = cast(
         Any,
         __import__(
@@ -123,9 +121,6 @@ def test_flat_field_correction_has_one_processing_owner() -> None:
     assert canonical_flat_field_correction.__module__ == "mpips.processing.correction"
     assert flat_field_correction is canonical_flat_field_correction
     assert radiography_flat_field_correction is canonical_flat_field_correction
-    assert (
-        legacy_flat_field.__module__ == "mpips.engine.imager_pipeline.complete_pipeline"
-    )
     assert workflow_flat_field is flat_field_correction
 
 
@@ -150,26 +145,3 @@ def test_flat_field_correction_matches_historical_cpu_goldens(
     assert output.dtype == expected.dtype
     np.testing.assert_array_equal(output, expected)
     assert hashlib.sha256(output.tobytes()).hexdigest() == expected_hash
-
-
-@pytest.mark.parametrize(
-    "name,raw,dark,flat,expected,_expected_hash",
-    HISTORICAL_FFC_CASES,
-    ids=[case[0] for case in HISTORICAL_FFC_CASES],
-)
-def test_legacy_cpu_flat_field_correction_matches_canonical(
-    name: str,
-    raw: np.ndarray,
-    dark: np.ndarray,
-    flat: np.ndarray,
-    expected: np.ndarray,
-    _expected_hash: str,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    del name, expected, _expected_hash
-    monkeypatch.setattr(legacy_engine, "GPU_AVAILABLE", False)
-
-    legacy_output = cast(Any, legacy_engine.flat_field_correction)(raw, dark, flat)
-    canonical_output = canonical_flat_field_correction(raw, dark, flat)
-
-    np.testing.assert_array_equal(legacy_output, canonical_output)

@@ -3,7 +3,6 @@
 import subprocess
 import sys
 import textwrap
-from typing import Any, cast
 
 import numpy as np
 
@@ -21,7 +20,7 @@ def test_inversion_import_is_processing_safe() -> None:
             "fastapi",
             "mpips.api",
             "mpips.conversion",
-            "mpips.engine.imager_pipeline.complete_pipeline",
+            "mpips.engine",
             "mpips.pipelines",
             "mpips.worker",
             "mpips.workflows",
@@ -78,16 +77,3 @@ def test_float32_inversion_matches_exact_subtraction() -> None:
     np.testing.assert_array_equal(result, 1.0 - image)
     assert result.shape == image.shape
     assert result.dtype == np.float32
-
-
-def test_legacy_inversion_delegates_with_exact_parity() -> None:
-    from mpips.engine.imager_pipeline import complete_pipeline as engine
-    from mpips.processing import invert_image
-
-    legacy_invert = cast(Any, engine.invert_image)
-    for image in (
-        np.array([[0, 1, 254, 255]], dtype=np.uint8),
-        np.array([[0, 1, 65534, 65535]], dtype=np.uint16),
-        np.array([[0.0, 0.25, 0.75, 1.0]], dtype=np.float32),
-    ):
-        np.testing.assert_array_equal(legacy_invert(image), invert_image(image))

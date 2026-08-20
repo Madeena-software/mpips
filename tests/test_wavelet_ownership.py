@@ -14,19 +14,13 @@ def test_wavelet_denoiser_has_processing_owner() -> None:
     assert WaveletDenoiser.__module__ == "mpips.processing.wavelet"
 
 
-def test_complete_pipeline_imports_the_canonical_class_directly() -> None:
-    import mpips.engine.imager_pipeline.complete_pipeline as pipeline
-
-    from mpips.processing.wavelet import WaveletDenoiser
-
-    pipeline_wavelet_denoiser = getattr(pipeline, "WaveletDenoiser")
-    assert pipeline_wavelet_denoiser is WaveletDenoiser
-    assert pipeline_wavelet_denoiser.__module__ == "mpips.processing.wavelet"
-
-
-def test_legacy_wavelet_module_is_retired() -> None:
-    with pytest.raises(ModuleNotFoundError):
-        importlib.import_module("mpips.engine.imager_pipeline.wavelet_denoising")
+def test_retired_imager_engine_modules_are_absent() -> None:
+    for module in (
+        "mpips.engine.imager_pipeline.complete_pipeline",
+        "mpips.engine.imager_pipeline.wavelet_denoising",
+    ):
+        with pytest.raises(ModuleNotFoundError):
+            importlib.import_module(module)
 
 
 def test_processing_wavelet_import_does_not_load_service_or_pipeline_modules() -> None:
@@ -41,7 +35,7 @@ def test_processing_wavelet_import_does_not_load_service_or_pipeline_modules() -
             "celery",
             "fastapi",
             "mpips.api",
-            "mpips.engine.imager_pipeline.complete_pipeline",
+            "mpips.engine",
             "mpips.worker",
             "mpips.workflows",
         }

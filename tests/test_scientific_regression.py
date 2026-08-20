@@ -4,7 +4,6 @@ import hashlib
 from typing import Any, cast
 
 import numpy as np
-import pytest
 
 from mpips.processing import (
     apply_calibration_remap,
@@ -102,13 +101,7 @@ def test_flat_field_correction_preserves_supported_dtypes() -> None:
             np.testing.assert_array_equal(output, raw)
 
 
-def test_auto_threshold_and_separation_lock_boundary_behavior(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    from mpips.engine.imager_pipeline import complete_pipeline as engine
-
-    monkeypatch.setitem(engine.CONFIG, "THRESHOLD_METHOD", "auto")
-    monkeypatch.setitem(engine.CONFIG, "DEBUG", False)
+def test_auto_threshold_and_separation_lock_boundary_behavior() -> None:
     image = np.array(
         [0.10] * 32 + [0.20] * 32 + [0.70] * 32 + [0.80] * 32, dtype=np.float32
     ).reshape(8, 16)

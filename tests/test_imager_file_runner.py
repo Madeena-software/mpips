@@ -6,13 +6,12 @@ import hashlib
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import cv2
 import numpy as np
 import pytest
 
-from mpips.engine.imager_pipeline import complete_pipeline as legacy_engine
 from mpips.pipelines.config import ImagerPipelineConfig
 from mpips.workflows.imager_pipeline.file_runner import (
     _detect_detector_type,
@@ -54,17 +53,6 @@ def _write_triplet(
     assert cv2.imwrite(str(dark_path), dark)
     assert cv2.imwrite(str(flat_path), flat)
     return raw_path, dark_path, flat_path
-
-
-def _configure_legacy(
-    monkeypatch: pytest.MonkeyPatch,
-    config: ImagerPipelineConfig,
-    *,
-    imagej_available: bool,
-) -> None:
-    monkeypatch.setattr(legacy_engine, "CONFIG", config.to_legacy_engine_dict())
-    monkeypatch.setattr(legacy_engine, "GPU_AVAILABLE", False)
-    monkeypatch.setattr(legacy_engine, "IMAGEJ_AVAILABLE", imagej_available)
 
 
 def _maps(kind: str) -> tuple[np.ndarray | None, np.ndarray | None]:
@@ -245,14 +233,89 @@ _PARITY_CASES = (
 )
 
 
+_FROZEN_PARITY = {
+    "default": (
+        (24, 24),
+        "777a868cb95ccf0a7fdf915c8cb7b82cfe760f27a4138f1c109e335f7d108361",
+    ),
+    "use_denoise_false": (
+        (24, 24),
+        "03e987307af29fa98842a2915b56586c7cf75d59fec3ef4aff43201751fa9919",
+    ),
+    "use_crop_rotate_false": (
+        (24, 24),
+        "03e987307af29fa98842a2915b56586c7cf75d59fec3ef4aff43201751fa9919",
+    ),
+    "threshold_disabled": (
+        (24, 24),
+        "03e987307af29fa98842a2915b56586c7cf75d59fec3ef4aff43201751fa9919",
+    ),
+    "use_invert_false": (
+        (24, 24),
+        "03e987307af29fa98842a2915b56586c7cf75d59fec3ef4aff43201751fa9919",
+    ),
+    "contrast_disabled": (
+        (24, 24),
+        "03e987307af29fa98842a2915b56586c7cf75d59fec3ef4aff43201751fa9919",
+    ),
+    "contrast_stretch": (
+        (24, 24),
+        "a00dab9dee778043443e5e692be5745b89451138f3266a27bdfd6e89d779603e",
+    ),
+    "clahe_disabled": (
+        (24, 24),
+        "03e987307af29fa98842a2915b56586c7cf75d59fec3ef4aff43201751fa9919",
+    ),
+    "final_denoise_true": (
+        (24, 24),
+        "5ab54e4f25b171a9d5ce1c1c5890233e9efad9d3a99424e653bdb62aacbfae7f",
+    ),
+    "median_disabled": (
+        (24, 24),
+        "03e987307af29fa98842a2915b56586c7cf75d59fec3ef4aff43201751fa9919",
+    ),
+    "median_standard": (
+        (24, 24),
+        "5107e851189513eb1011f27da6076add9eaaf1390c9c416e2252a4bc2e5ed739",
+    ),
+    "normalize_true": (
+        (24, 24),
+        "4cf9816ed1062189ff0c8d427fba5e912cc68fc9af76cf7f08fd255977de3b33",
+    ),
+    "detector_bed_fallback": (
+        (24, 24),
+        "03e987307af29fa98842a2915b56586c7cf75d59fec3ef4aff43201751fa9919",
+    ),
+    "detector_trx_nonzero_crop": (
+        (21, 21),
+        "086deda818b953e06b2e8fcc44c8d977f99cc8c433992022661cc8f1a32dba80",
+    ),
+    "identity_remap": (
+        (24, 24),
+        "03e987307af29fa98842a2915b56586c7cf75d59fec3ef4aff43201751fa9919",
+    ),
+    "expanded_remap": (
+        (28, 28),
+        "c164cd38dbf8cf6b9d26a0b85ec9da81eeba25238d6e227497ecc42abcddf293",
+    ),
+    "out_of_bounds_remap": (
+        (24, 24),
+        "5645c5db0c6c675ac079e3b2e88cfaeb3ab8bf1ab97d2224ba4422844cc90a07",
+    ),
+    "imagej_unavailable": (
+        (24, 24),
+        "d29e8c4fb31ee995ccdca95c12c3ab380b58674cdcb4096043e2970bb8c25a09",
+    ),
+}
+
+
 @pytest.mark.parametrize(
     "name,config,detector_type,raw_name,map_kind,imagej_available",
     _PARITY_CASES,
     ids=[case[0] for case in _PARITY_CASES],
 )
-def test_file_runner_matches_legacy_cpu_reference(
+def test_file_runner_matches_frozen_stage_6e2a_parity(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
     name: str,
     config: ImagerPipelineConfig,
     detector_type: str | None,
@@ -267,20 +330,8 @@ def test_file_runner_matches_legacy_cpu_reference(
     original_maps: tuple[np.ndarray, np.ndarray] | None = None
     if map_x is not None and map_y is not None:
         original_maps = (map_x.copy(), map_y.copy())
-    legacy_output = tmp_path / "legacy" / f"{name}.tiff"
     canonical_output = tmp_path / "canonical" / f"{name}.tiff"
 
-    _configure_legacy(monkeypatch, config, imagej_available=imagej_available)
-    legacy_process = cast(Any, legacy_engine.process_single_image)
-    assert legacy_process(
-        str(raw_path),
-        str(dark_path),
-        str(flat_path),
-        str(legacy_output),
-        detector_type,
-        map_x=map_x,
-        map_y=map_y,
-    )
     assert process_tiff_triplet(
         raw_path,
         dark_path,
@@ -293,16 +344,13 @@ def test_file_runner_matches_legacy_cpu_reference(
         imagej_available=imagej_available,
     )
 
-    expected = cv2.imread(str(legacy_output), cv2.IMREAD_UNCHANGED)
     actual = cv2.imread(str(canonical_output), cv2.IMREAD_UNCHANGED)
-    assert expected is not None
     assert actual is not None
-    assert expected.dtype == np.uint16
     assert actual.dtype == np.uint16
-    assert actual.shape == expected.shape
-    np.testing.assert_array_equal(actual, expected)
+    expected_shape, expected_hash = _FROZEN_PARITY[name]
+    assert actual.shape == expected_shape
     output_hash = hashlib.sha256(actual.tobytes()).hexdigest()
-    assert output_hash == hashlib.sha256(expected.tobytes()).hexdigest()
+    assert output_hash == expected_hash
     print(f"{name}: {actual.shape} {actual.dtype} {output_hash}")
 
     if original_maps is not None:

@@ -1,7 +1,6 @@
 import subprocess
 import sys
 import textwrap
-from typing import Any, cast
 
 import cv2
 import numpy as np
@@ -64,7 +63,7 @@ def test_processing_import_is_lazy_and_service_safe() -> None:
             "fastapi",
             "httpx",
             "mpips.api",
-            "mpips.engine.imager_pipeline.complete_pipeline",
+            "mpips.engine",
             "mpips.worker",
             "mpips.workflows",
         }
@@ -107,7 +106,6 @@ def test_public_processing_calls_do_not_load_engine() -> None:
             "mpips.api",
             "mpips.conversion",
             "mpips.engine",
-            "mpips.engine.imager_pipeline.complete_pipeline",
             "mpips.worker",
             "mpips.workflows",
         }
@@ -148,18 +146,12 @@ def test_processing_remap_matches_existing_array_transform() -> None:
     )
 
 
-def test_processing_delegates_flat_field_correction_to_canonical_engine() -> None:
-    from mpips.engine.imager_pipeline import complete_pipeline as legacy_engine
-
+def test_processing_flat_field_correction_has_canonical_behavior() -> None:
     raw = np.array([[10, 20], [30, 40]], dtype=np.float32)
     dark = np.zeros_like(raw)
     flat = np.full_like(raw, 100)
 
-    legacy_flat_field = cast(Any, legacy_engine.flat_field_correction)
-    legacy_result = legacy_flat_field(raw, dark, flat)
-    np.testing.assert_array_equal(
-        processing.flat_field_correction(raw, dark, flat), legacy_result
-    )
+    np.testing.assert_allclose(processing.flat_field_correction(raw, dark, flat), raw)
 
 
 def test_processing_delegates_imagej_stretch_to_canonical_engine() -> None:

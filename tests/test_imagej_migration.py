@@ -61,7 +61,7 @@ def test_canonical_imagej_import_is_service_runtime_safe() -> None:
             "fastapi",
             "httpx",
             "mpips.api",
-            "mpips.engine.imager_pipeline.complete_pipeline",
+            "mpips.engine",
             "mpips.worker",
             "mpips.workflows",
         }
