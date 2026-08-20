@@ -2,8 +2,9 @@ import tempfile
 import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
-from mpips.engine import DAGExecutor, topological_sort
-from mpips.engine.dag import load_npz_image, save_npz_image
+from mpips.dag.artifacts import load_npz_image, save_npz_image
+from mpips.dag.executor import DAGExecutor
+from mpips.dag.graph import topological_sort
 
 
 def test_topological_sort_success() -> None:

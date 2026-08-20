@@ -119,23 +119,14 @@ def test_grayscale_any_depth_preserves_channels_and_values() -> None:
         bit_depth.grayscale_any_depth(np.zeros((2, 2, 2), dtype=np.uint8))
 
 
-def test_canonical_and_legacy_symbols_are_identical() -> None:
-    canonical = importlib.import_module("mpips.processing.bit_depth")
-    legacy = importlib.import_module("mpips.engine.nodes.bit_depth")
-
-    for name in HELPER_NAMES:
-        assert getattr(legacy, name) is getattr(canonical, name)
-        assert getattr(canonical, name).__module__ == "mpips.processing.bit_depth"
-
-
 def test_active_consumers_resolve_canonical_helpers() -> None:
     canonical = importlib.import_module("mpips.processing.bit_depth")
     modules = [
         importlib.import_module("mpips.iqa.metrics"),
-        importlib.import_module("mpips.engine.nodes.adjustments"),
-        importlib.import_module("mpips.engine.nodes.composite"),
-        importlib.import_module("mpips.engine.nodes.filtering"),
-        importlib.import_module("mpips.engine.nodes.scientific"),
+        importlib.import_module("mpips.dag.nodes.adjustments"),
+        importlib.import_module("mpips.dag.nodes.composite"),
+        importlib.import_module("mpips.dag.nodes.filtering"),
+        importlib.import_module("mpips.dag.nodes.scientific"),
     ]
 
     for module in modules:

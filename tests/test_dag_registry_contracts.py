@@ -11,19 +11,19 @@ from mpips.dag import get_node_class as FacadeGetNodeClass
 from mpips.dag.catalog import NODE_CATALOG
 from mpips.dag.nodes.base import BaseNode
 from mpips.dag.nodes.io import (
+    InputNode,
     InputNode as CanonicalInputNode,
+    MadeenaNpzOutputNode,
     MadeenaNpzOutputNode as CanonicalMadeenaNpzOutputNode,
+    OutputNode,
     OutputNode as CanonicalOutputNode,
 )
 from mpips.dag.registry import (
     NODE_CLASSES as CanonicalNodeClasses,
     get_node_class as CanonicalGetNodeClass,
 )
-from mpips.engine.registry import (
+from mpips.dag.registry import (
     NODE_CLASSES,
-    InputNode,
-    MadeenaNpzOutputNode,
-    OutputNode,
     get_node_class,
 )
 
@@ -158,20 +158,14 @@ def test_baseline_npz_output_node_copies_all_slots_and_preserves_values() -> Non
     assert MadeenaNpzOutputNode().execute({}, {}) == {}
 
 
-def test_canonical_registry_and_legacy_exports_preserve_identity() -> None:
-    from mpips.engine.registry import (
-        InputNode as LegacyInputNode,
-        MadeenaNpzOutputNode as LegacyMadeenaNpzOutputNode,
-        OutputNode as LegacyOutputNode,
-    )
-
+def test_canonical_registry_and_facade_preserve_identity() -> None:
     assert CanonicalNodeClasses is NODE_CLASSES
     assert CanonicalGetNodeClass is get_node_class
     assert FacadeNodeClasses is CanonicalNodeClasses
     assert FacadeGetNodeClass is CanonicalGetNodeClass
-    assert LegacyInputNode is CanonicalInputNode
-    assert LegacyOutputNode is CanonicalOutputNode
-    assert LegacyMadeenaNpzOutputNode is CanonicalMadeenaNpzOutputNode
+    assert NODE_CLASSES["input"] is CanonicalInputNode
+    assert NODE_CLASSES["output"] is CanonicalOutputNode
+    assert NODE_CLASSES["output_npz"] is CanonicalMadeenaNpzOutputNode
     assert all(
         node_class.__module__.startswith("mpips.dag.nodes.")
         for node_class in CanonicalNodeClasses.values()

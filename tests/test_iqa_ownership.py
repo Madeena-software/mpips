@@ -168,7 +168,7 @@ def test_public_facade_resolves_only_canonical_metrics() -> None:
 
 def test_iqa_nodes_resolve_canonical_metrics() -> None:
     metrics = importlib.import_module("mpips.iqa.metrics")
-    nodes = importlib.import_module("mpips.engine.nodes.iqa")
+    nodes = importlib.import_module("mpips.dag.nodes.iqa")
 
     for name in (
         "calculate_entropy",
@@ -180,7 +180,7 @@ def test_iqa_nodes_resolve_canonical_metrics() -> None:
 
 
 def test_iqa_node_outputs_preserve_rounding_and_reference_fallback() -> None:
-    from mpips.engine.nodes.iqa import (
+    from mpips.dag.nodes.iqa import (
         BrisqueNode,
         ContrastImprovementIndexNode,
         EnhancementMeasureNode,
@@ -206,7 +206,7 @@ def test_iqa_node_outputs_preserve_rounding_and_reference_fallback() -> None:
 
 
 def test_iqa_node_error_messages_remain_unchanged() -> None:
-    from mpips.engine.nodes.iqa import (
+    from mpips.dag.nodes.iqa import (
         BrisqueNode,
         ContrastImprovementIndexNode,
         EnhancementMeasureNode,
@@ -231,7 +231,7 @@ def test_iqa_node_error_messages_remain_unchanged() -> None:
 
 
 def test_dag_quality_assessment_resolves_canonical_metrics() -> None:
-    from mpips.engine.dag import DAGExecutor
+    from mpips.dag.executor import DAGExecutor
 
     source = inspect.getsource(DAGExecutor.execute)
     assert "from mpips.iqa import calculate_all_metrics" in source

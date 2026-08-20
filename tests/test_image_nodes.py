@@ -1,5 +1,5 @@
 import numpy as np
-from mpips.engine import get_node_class
+from mpips.dag.registry import get_node_class
 
 
 def test_resize_node() -> None:

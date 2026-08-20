@@ -21,6 +21,4 @@ def __getattr__(name: str) -> Any:
         return getattr(import_module("mpips.dag.graph"), name)
     if name == "DAGExecutor":
         return getattr(import_module("mpips.dag.executor"), name)
-    if name in __all__:
-        return getattr(import_module("mpips.engine"), name)
     raise AttributeError(f"module 'mpips.dag' has no attribute {name!r}")

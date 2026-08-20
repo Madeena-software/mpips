@@ -9,21 +9,7 @@ from typing import Any
 import numpy as np
 import pytest
 
-from mpips.dag import topological_sort as public_topological_sort
 from mpips.dag.artifacts import (
-    MADEENA_IMAGE_KEYS as canonical_image_keys,
-    MADEENA_METADATA_KEYS as canonical_metadata_keys,
-    _convert_to_8bit as canonical_convert_to_8bit,
-    load_gain_npz_images as canonical_load_gain_npz_images,
-    load_npz_image as canonical_load_npz_image,
-    load_npz_madeena_metadata as canonical_load_npz_madeena_metadata,
-    load_npz_named_images as canonical_load_npz_named_images,
-    save_npz_image as canonical_save_npz_image,
-    save_npz_madeena as canonical_save_npz_madeena,
-)
-from mpips.dag.graph import topological_sort as canonical_topological_sort
-from mpips.engine import topological_sort
-from mpips.engine.dag import (
     MADEENA_IMAGE_KEYS,
     MADEENA_METADATA_KEYS,
     _convert_to_8bit,
@@ -34,6 +20,8 @@ from mpips.engine.dag import (
     save_npz_image,
     save_npz_madeena,
 )
+from mpips.dag.graph import topological_sort as canonical_topological_sort
+from mpips.dag.graph import topological_sort
 
 
 def test_baseline_topological_sort_simple_chain_and_identity() -> None:
@@ -380,26 +368,21 @@ def test_baseline_artifact_helpers_accept_file_paths_and_temp_files() -> None:
         np.testing.assert_array_equal(load_npz_image(file.name), array)
 
 
-def test_graph_and_artifacts_are_canonical_engine_aliases() -> None:
+def test_graph_and_artifacts_are_canonical() -> None:
     assert canonical_topological_sort is topological_sort
-    assert canonical_topological_sort is public_topological_sort
     assert canonical_topological_sort.__module__ == "mpips.dag.graph"
-
-    aliases = [
-        (canonical_image_keys, MADEENA_IMAGE_KEYS),
-        (canonical_metadata_keys, MADEENA_METADATA_KEYS),
-        (canonical_convert_to_8bit, _convert_to_8bit),
-        (canonical_load_gain_npz_images, load_gain_npz_images),
-        (canonical_load_npz_image, load_npz_image),
-        (canonical_load_npz_madeena_metadata, load_npz_madeena_metadata),
-        (canonical_load_npz_named_images, load_npz_named_images),
-        (canonical_save_npz_image, save_npz_image),
-        (canonical_save_npz_madeena, save_npz_madeena),
-    ]
-    for canonical, legacy in aliases:
-        assert canonical is legacy
-        if hasattr(canonical, "__module__"):
-            assert canonical.__module__ == "mpips.dag.artifacts"
+    assert all(
+        getattr(value, "__module__", "mpips.dag.artifacts") == "mpips.dag.artifacts"
+        for value in (
+            _convert_to_8bit,
+            load_gain_npz_images,
+            load_npz_image,
+            load_npz_madeena_metadata,
+            load_npz_named_images,
+            save_npz_image,
+            save_npz_madeena,
+        )
+    )
 
 
 def test_public_graph_import_is_lightweight() -> None:

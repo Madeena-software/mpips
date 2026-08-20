@@ -375,48 +375,8 @@ def test_merge_preserves_fan_in_weight_resize_normalization_and_errors() -> None
     )
 
 
-def test_engine_compatibility_exports_are_canonical_identity_objects() -> None:
-    modules: dict[str, list[tuple[str, type[BaseNode]]]] = {
-        "base": [("BaseNode", BaseNode)],
-        "geometry": [
-            ("ResizeNode", ResizeNode),
-            ("CropNode", CropNode),
-            ("RotateNode", RotateNode),
-            ("FlipNode", FlipNode),
-        ],
-        "adjustments": [
-            ("GrayscaleNode", GrayscaleNode),
-            ("BrightnessContrastNode", BrightnessContrastNode),
-            ("ThresholdingNode", ThresholdingNode),
-            ("GammaCorrectionNode", GammaCorrectionNode),
-            ("CLAHENode", CLAHENode),
-        ],
-        "filtering": [
-            ("GaussianBlurNode", GaussianBlurNode),
-            ("MedianBlurNode", MedianBlurNode),
-            ("CannyNode", CannyNode),
-            ("SobelNode", SobelNode),
-        ],
-        "iqa": [
-            ("EntropyNode", EntropyNode),
-            ("EnhancementMeasureNode", EnhancementMeasureNode),
-            ("BrisqueNode", BrisqueNode),
-            ("ContrastImprovementIndexNode", ContrastImprovementIndexNode),
-        ],
-        "calibration": [("CameraCalibrationWarpNode", CameraCalibrationWarpNode)],
-        "composite": [("MergeNode", MergeNode)],
-    }
-    for module_name, symbols in modules.items():
-        legacy_module = importlib.import_module(f"mpips.engine.nodes.{module_name}")
-        canonical_module = importlib.import_module(f"mpips.dag.nodes.{module_name}")
-        for name, canonical_class in symbols:
-            assert getattr(legacy_module, name) is canonical_class
-            assert getattr(canonical_module, name) is canonical_class
-            assert canonical_class.__module__ == f"mpips.dag.nodes.{module_name}"
-
-
 def test_registry_entries_resolve_exact_canonical_classes() -> None:
-    registry = importlib.import_module("mpips.engine.registry")
+    registry = importlib.import_module("mpips.dag.registry")
     canonical = {
         "resize": ResizeNode,
         "crop": CropNode,

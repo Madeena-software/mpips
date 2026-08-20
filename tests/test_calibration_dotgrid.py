@@ -42,7 +42,7 @@ def _extract_grid(
     return cast(tuple[np.ndarray, np.ndarray, np.ndarray], result)
 
 
-def test_engine_calibration_package_is_retired() -> None:
+def test_engine_calibration_surfaces_are_retired() -> None:
     script = textwrap.dedent("""
         import importlib
         import sys
@@ -53,20 +53,17 @@ def test_engine_calibration_package_is_retired() -> None:
         assert warp_image.__module__ == "mpips.calibration.warp"
         assert extract_grid.__module__ == "mpips.calibration.dotgrid.extract_grid"
 
-        importlib.import_module("mpips.engine.nodes.calibration")
         importlib.import_module("mpips.workflows.imager_pipeline.calibration")
-        assert not any(
-            name == "mpips.engine.calibration"
-            or name.startswith("mpips.engine.calibration.")
-            for name in sys.modules
-        )
 
-        try:
-            importlib.import_module("mpips.engine.calibration")
-        except ModuleNotFoundError:
-            pass
-        else:
-            raise AssertionError("retired mpips.engine.calibration was imported")
+        for module_name in (
+            "mpips.engine.calibration",
+            "mpips.engine.nodes.calibration",
+        ):
+            try:
+                importlib.import_module(module_name)
+            except ModuleNotFoundError:
+                continue
+            raise AssertionError(f"retired module imported: {module_name}")
         """)
     result = subprocess.run(
         [sys.executable, "-c", script],

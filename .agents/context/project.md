@@ -121,9 +121,10 @@ and `LICENSES/`; the ImageJ replication component carries GPL-v2 obligations.
 
 ## Conventions and constraints
 
-- Keep route handlers thin and processing logic in `mpips/engine/`; add node
-  implementation, registry entry, catalog metadata, and focused tests
-  together. Evidence: current layout and `tests/test_promotion_flow.py`.
+- Keep route handlers thin and processing logic in `mpips/engine/`; canonical
+  DAG node implementation, registry entry, catalog metadata, and focused tests
+  belong under `mpips/dag/` and should move together. Evidence: current layout
+  and `tests/test_promotion_flow.py`.
 - Preserve the API-key boundary, fixed idempotency namespace,
   temporary-file cleanup, image bit depth where semantics allow, isolated
   worker time/resource limits, and webhook signing in legacy flows. Evidence:

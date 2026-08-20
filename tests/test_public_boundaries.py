@@ -6,19 +6,8 @@ from mpips.calibration import warp_image
 from mpips.calibration.warp import warp_image as canonical_warp_image
 from mpips.dag import (
     DAGExecutor,
-    NODE_CATALOG,
-    NODE_CLASSES,
-    get_node_class,
-    topological_sort,
 )
 from mpips.dag.executor import DAGExecutor as CanonicalDAGExecutor
-from mpips.engine import (
-    DAGExecutor as EngineDAGExecutor,
-    NODE_CATALOG as EngineNodeCatalog,
-    NODE_CLASSES as EngineNodeClasses,
-    get_node_class as engine_get_node_class,
-    topological_sort as engine_topological_sort,
-)
 from mpips.iqa.metrics import (
     calculate_all_metrics as canonical_calculate_all_metrics,
     calculate_brisque as canonical_calculate_brisque,
@@ -49,20 +38,59 @@ def test_public_domain_symbols_reuse_canonical_implementations() -> None:
     assert calculate_all_metrics is canonical_calculate_all_metrics
 
     assert DAGExecutor is CanonicalDAGExecutor
-    assert DAGExecutor is EngineDAGExecutor
     assert CanonicalDAGExecutor.__module__ == "mpips.dag.executor"
-    assert NODE_CATALOG is EngineNodeCatalog
-    assert NODE_CLASSES is EngineNodeClasses
-    assert get_node_class is engine_get_node_class
-    assert topological_sort is engine_topological_sort
 
 
-def test_existing_engine_imports_remain_compatible() -> None:
-    assert EngineDAGExecutor is DAGExecutor
-    assert EngineNodeCatalog is NODE_CATALOG
-    assert EngineNodeClasses is NODE_CLASSES
-    assert engine_get_node_class is get_node_class
-    assert engine_topological_sort is topological_sort
+def test_engine_dag_compatibility_surface_is_retired() -> None:
+    script = textwrap.dedent("""
+        import importlib
+        import sys
+
+        import mpips.dag
+        assert "mpips.engine" not in sys.modules
+        import mpips.engine
+
+        assert mpips.dag.__all__ == [
+            "DAGExecutor",
+            "NODE_CATALOG",
+            "NODE_CLASSES",
+            "get_node_class",
+            "topological_sort",
+        ]
+        assert "mpips.engine" in sys.modules
+
+        for name in (
+            "DAGExecutor",
+            "NODE_CATALOG",
+            "NODE_CLASSES",
+            "get_node_class",
+            "topological_sort",
+        ):
+            assert not hasattr(mpips.engine, name)
+
+        for module_name in (
+            "mpips.engine.dag",
+            "mpips.engine.catalog",
+            "mpips.engine.registry",
+            "mpips.engine.schemas",
+            "mpips.engine.nodes",
+            "mpips.engine.nodes.scientific",
+        ):
+            try:
+                importlib.import_module(module_name)
+            except ModuleNotFoundError:
+                continue
+            raise AssertionError(f"retired module imported: {module_name}")
+        """)
+
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
 
 
 def test_dag_executor_access_stays_engine_free() -> None:

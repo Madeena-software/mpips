@@ -547,12 +547,8 @@ def test_dag_catalog_and_api_schema_use_canonical_symbols() -> None:
     from mpips.api.routes.v1 import router as router_module
     from mpips.api.schemas.nodes import ProcessorNodeSchema as ApiNodeSchema
     from mpips.dag import NODE_CATALOG as FacadeNodeCatalog
-    from mpips.engine.catalog import NODE_CATALOG as EngineNodeCatalog
-    from mpips.engine.schemas import ProcessorNodeSchema as EngineNodeSchema
 
     assert FacadeNodeCatalog is NODE_CATALOG
-    assert EngineNodeCatalog is NODE_CATALOG
-    assert EngineNodeSchema is ProcessorNodeSchema
     assert ApiNodeSchema is ProcessorNodeSchema
     assert router_module.get_nodes.__globals__["NODE_CATALOG"] is NODE_CATALOG
 

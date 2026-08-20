@@ -12,7 +12,7 @@ from mpips.dag.nodes.scientific import (
     CameraCalibrationNode,
     FABEMDNode,
 )
-from mpips.engine.nodes.iqa import (
+from mpips.dag.nodes.iqa import (
     BrisqueNode,
     ContrastImprovementIndexNode,
     EnhancementMeasureNode,

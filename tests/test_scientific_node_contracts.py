@@ -485,26 +485,6 @@ def test_fabemd_preserves_invalid_dimension_error() -> None:
         )
 
 
-def test_scientific_legacy_exports_and_registry_resolve_canonical_classes() -> None:
-    from mpips.engine.nodes import scientific as legacy
-    from mpips.engine.registry import NODE_CLASSES
-
-    pairs = {
-        "NonLocalMeansNode": "nlm_denoising",
-        "HomomorphicFilterNode": "homomorphic_filter",
-        "WaveletDenoisingNode": "wavelet_denoising",
-        "FlatFieldCorrectionNode": "flat_field_correction",
-        "LevelingNode": "leveling",
-        "CameraCalibrationNode": "camera_calibration",
-        "FABEMDNode": "fabemd",
-    }
-    for name, registry_id in pairs.items():
-        canonical = getattr(scientific, name)
-        assert getattr(legacy, name) is canonical
-        assert canonical.__module__ == "mpips.dag.nodes.scientific"
-        assert NODE_CLASSES[registry_id] is canonical
-
-
 def test_scientific_package_imports_preserve_lazy_and_engine_free_boundaries() -> None:
     import subprocess
     import sys
