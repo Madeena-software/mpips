@@ -20,10 +20,10 @@ from mpips.api.idempotency import ClaimResult
 from mpips.api.routes.v1.dicom import _get_upload_limits
 from mpips.api.schemas.dicom import MHCSManifest
 from mpips.conversion.service import _cleanup_workspace, _validate_tiff_descriptor
-from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
+from mpips.conversion.tiff_json_to_dcm import tiff_json_to_dcm
 from mpips.workflows.imager_pipeline.npz_io import sha256_file, write_tiff
 
-CONVERTER_PATH = "mpips/engine/imager_pipeline/tiff_json_to_dcm.py"
+CONVERTER_PATH = "mpips/conversion/tiff_json_to_dcm.py"
 EXPECTED_HASH = "a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0"
 
 

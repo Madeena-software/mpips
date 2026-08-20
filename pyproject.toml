@@ -123,12 +123,14 @@ mpips = ["py.typed"]
 line-length = 88
 target-version = ['py312']
 extend-exclude = '''
-/(
-  research
-  | artifacts
-  | mpips/engine/imager_pipeline
-  | mpips\.egg-info
-)/
+(
+  /(
+    research
+    | artifacts
+    | mpips\.egg-info
+  )/
+  | /mpips/conversion/tiff_json_to_dcm\.py$
+)
 '''
 
 [tool.mypy]
@@ -139,13 +141,13 @@ plugins = ["pydantic.mypy"]
 exclude = [
     "^research/",
     "^artifacts/",
-    "^mpips/engine/imager_pipeline/",
+    "^mpips/conversion/tiff_json_to_dcm\\.py$",
     "^mpips\\.egg-info/",
 ]
 
 [[tool.mypy.overrides]]
 module = [
-    "mpips.engine.imager_pipeline.*",
+    "mpips.conversion.tiff_json_to_dcm",
 ]
 ignore_errors = true
 

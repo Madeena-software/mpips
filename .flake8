@@ -10,4 +10,4 @@ exclude =
     mpips.egg-info,
     research,
     artifacts,
-    mpips/engine/imager_pipeline
+    mpips/conversion/tiff_json_to_dcm.py

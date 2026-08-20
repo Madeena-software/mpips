@@ -52,12 +52,12 @@ Evidence: API contracts in `mpips/api/schemas/` and the package entry points in
 - `mpips/api/` owns the DICOM and health HTTP routes, schemas, auth, and
   request controls; `mpips/workflows/` owns library-facing orchestration,
   while `mpips/pipelines/` and `mpips/processing/` own the current imager
-  processing flow. `mpips/engine/` is a temporary compatibility namespace
-  retained only because the protected TIFF-to-DICOM converter still resides
-  there. `mpips/conversion/service.py` currently imports that converter from
-  its legacy engine path. Generic worker, DAG, storage, and catalog modules
-  remain available in the repository but are outside the current registered
-  API surface.
+  processing flow. `mpips/conversion/` owns DICOM conversion, including the
+  protected converter at `mpips.conversion.tiff_json_to_dcm`; the converter's
+  byte and hash protection remains in force. `mpips/engine/` contains only
+  temporary package scaffolding pending Stage 6H. Generic worker, DAG,
+  storage, and catalog modules remain available in the repository but are
+  outside the current registered API surface.
 - Runtime entry points are `mpips.asgi:app`, `mpips-api`, and `mpips-worker`.
   Docker selects `api` or `worker` through `docker/entrypoint.sh`. Evidence:
   `mpips/asgi.py`, `mpips/cli.py`, `Dockerfile`, and `pyproject.toml`.
@@ -105,8 +105,8 @@ data. Evidence: the calibration entry point and optional dependency in
 `mpips.workflows.imager_pipeline`. `MPIPS_RADIOGRAPHY_ENV` selects a settings
 file, while the `colab` extra adds public Google Drive resolution. The workflow
 validates NPZ gain, radiograph, calibration, camera, detector, identifier, and
-shape data before returning 16-bit processed arrays. The protected converter's
-relocation is separately guarded and has not yet been performed.
+shape data before returning 16-bit processed arrays. The protected converter
+relocation is separately guarded and byte-identical at its canonical location.
 Evidence: `pyproject.toml`, `mpips/workflows/imager_pipeline/`, and
 `tests/test_imager_pipeline_workflow.py`.
 
@@ -126,10 +126,11 @@ and `LICENSES/`; the ImageJ replication component carries GPL-v2 obligations.
 
 ## Conventions and constraints
 
-- Keep route handlers thin and processing logic in `mpips/engine/`; canonical
-  DAG node implementation, registry entry, catalog metadata, and focused tests
-  belong under `mpips/dag/` and should move together. Evidence: current layout
-  and `tests/test_promotion_flow.py`.
+- Keep route handlers thin; imager processing logic belongs in
+  `mpips/pipelines/` and `mpips/processing/`, while DICOM conversion belongs in
+  `mpips/conversion/`. Canonical DAG node implementation, registry entry,
+  catalog metadata, and focused tests belong under `mpips/dag/` and should
+  move together. Evidence: current layout and `tests/test_promotion_flow.py`.
 - Preserve the API-key boundary, fixed idempotency namespace,
   temporary-file cleanup, image bit depth where semantics allow, isolated
   worker time/resource limits, and webhook signing in legacy flows. Evidence:
