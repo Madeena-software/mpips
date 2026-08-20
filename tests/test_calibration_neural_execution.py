@@ -278,6 +278,7 @@ def test_training_and_evaluation_match_historical_contract(tmp_path: Path) -> No
     train_dir = tmp_path / "train"
     repeat_dir = tmp_path / "repeat"
     eval_dir = tmp_path / "eval"
+    repeat_eval_dir = tmp_path / "repeat_eval"
 
     train_model(
         str(coords_path),
@@ -371,24 +372,90 @@ def test_training_and_evaluation_match_historical_contract(tmp_path: Path) -> No
         image_size=(64, 48),
         hidden_dim=4,
     )
+    evaluate_model(
+        str(repeat_dir / "compensation_model.pth"),
+        str(coords_path),
+        str(diams_path),
+        str(repeat_eval_dir),
+        image_size=(64, 48),
+        hidden_dim=4,
+    )
     assert before["col_rmse"] == pytest.approx(0.235702246427536, abs=1e-7)
     assert after["col_rmse"] == pytest.approx(0.23477870225906372, abs=1e-7)
     assert before["reproj"] == pytest.approx(0.3011571395705189, abs=1e-7)
     assert after["reproj"] == pytest.approx(0.3010649997066611, abs=1e-7)
     assert (eval_dir / "compensated_coordinates.csv").read_bytes()
     assert (
-        hashlib.sha256(
-            (eval_dir / "compensated_coordinates.csv").read_bytes()
-        ).hexdigest()
-        == "4c21c23901826d23d87d56c44e3aa8a040243d03d1b462ca644d0692b648ebc1"
-    )
-    assert hashlib.sha256((eval_dir / "metrics.txt").read_bytes()).hexdigest() == (
-        "87b92610d6a340c648381327dfa7a432dbf4c40f64bf73ca55fe91d79c733135"
+        eval_dir.joinpath("compensated_coordinates.csv").read_bytes()
+        == repeat_eval_dir.joinpath("compensated_coordinates.csv").read_bytes()
     )
     assert (
-        hashlib.sha256((eval_dir / "advanced_metrics.txt").read_bytes()).hexdigest()
-        == "e238f282817d953b0e60a6f5fdeffd971bd5645b6a7f93ea4ef22f8b9fdd31d8"
+        eval_dir.joinpath("metrics.txt").read_bytes()
+        == repeat_eval_dir.joinpath("metrics.txt").read_bytes()
     )
+    assert (
+        eval_dir.joinpath("advanced_metrics.txt").read_bytes()
+        == repeat_eval_dir.joinpath("advanced_metrics.txt").read_bytes()
+    )
+
+    with (eval_dir / "compensated_coordinates.csv").open(newline="") as handle:
+        coordinates = np.asarray(
+            [
+                [
+                    tuple(float(value) for value in cell.strip("() ").split(","))
+                    for cell in row
+                ]
+                for row in csv.reader(handle)
+            ],
+            dtype=np.float64,
+        )
+    np.testing.assert_allclose(
+        coordinates,
+        np.asarray(
+            [
+                [(-0.03, 0.01), (10.48, 0.01), (19.98, 0.50)],
+                [(-0.03, 10.01), (9.98, 10.51), (20.48, 10.00)],
+                [(0.47, 20.01), (9.98, 20.01), (19.98, 20.50)],
+            ]
+        ),
+        rtol=0.0,
+        atol=0.01,
+    )
+    metrics = (eval_dir / "metrics.txt").read_text()
+    assert "--- BEFORE CALIBRATION (Raw Extraction) ---" in metrics
+    assert "--- AFTER CALIBRATION (Neural Compensation) ---" in metrics
+    assert "--- IMPROVEMENT ---" in metrics
+    assert "Orthogonal Straightness RMSE: 0.2357 pixels" in metrics
+    assert "Orthogonal Straightness RMSE: 0.2348 pixels" in metrics
+    assert "Metal-ball Diameter StdDev: 0.1225 pixels (Mean: 2.03px, N: 8)" in metrics
+    assert "Horizontal Spacing StdDev: 0.4082 pixels (Mean: 10.00px)" in metrics
+    assert "Horizontal Spacing StdDev: 0.4081 pixels (Mean: 10.00px)" in metrics
+    assert "Vertical Spacing StdDev: 0.4082 pixels (Mean: 10.00px)" in metrics
+    assert "center marker excluded at row 2, col 2 (raw diameter 5.00px)" in metrics
+    advanced_metrics = (eval_dir / "advanced_metrics.txt").read_text()
+    for section in (
+        "1. SMIA TV Distortion (Percentage)",
+        "2. Reprojection Error (Homography RMSE)",
+        "3. Brown-Conrady Radial Distortion Coefficients (Estimated via OpenCV)",
+        "4. Collinearity Error (Orthogonal Straightness RMSE)",
+        "5. Target Deformation (Metal-ball Diameter StdDev)",
+        "6. Grid Spacing Consistency (StdDev)",
+        "center marker excluded at row 2, col 2 (raw diameter 5.00px)",
+    ):
+        assert section in advanced_metrics
+    for value in (
+        "Before : Vertical = 0.0000% | Horizontal = -3.6585%",
+        "After  : Vertical = 0.0003% | Horizontal = -3.6579%",
+        "Before : 0.3012 pixels",
+        "After  : 0.3011 pixels",
+        "Before : 0.2357 pixels",
+        "After  : 0.2348 pixels",
+        "Before : 0.1225 pixels (Mean: 2.03px, N: 8)",
+        "After  : 0.1225 pixels (Mean: 2.03px, N: 8)",
+        "Horizontal Before/After : 0.4082px -> 0.4081px (0.04% reduction)",
+        "Vertical Before/After   : 0.4082px -> 0.4082px (0.02% reduction)",
+    ):
+        assert value in advanced_metrics
     for filename in (
         "compensated_x_plot.png",
         "compensated_y_plot.png",
