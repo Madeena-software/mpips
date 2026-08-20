@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 import textwrap
+from decimal import Decimal
 from pathlib import Path
 
 import cv2
@@ -58,6 +59,21 @@ def _state_sha256(state: dict[str, torch.Tensor]) -> str:
         digest.update(repr(tuple(tensor.shape)).encode())
         digest.update(tensor.numpy().tobytes())
     return digest.hexdigest()
+
+
+def _serialized_coordinate_units(token: str) -> int:
+    scaled = Decimal(token) * 100
+    assert scaled == scaled.to_integral_value()
+    return int(scaled)
+
+
+def _within_one_serialized_quantum(actual: int, expected: int) -> bool:
+    return abs(actual - expected) <= 1
+
+
+def test_serialized_coordinate_quantum_boundary() -> None:
+    assert _within_one_serialized_quantum(48, 47)
+    assert not _within_one_serialized_quantum(49, 47)
 
 
 def test_execution_imports_do_not_pull_runtime_layers() -> None:
@@ -399,28 +415,28 @@ def test_training_and_evaluation_match_historical_contract(tmp_path: Path) -> No
     )
 
     with (eval_dir / "compensated_coordinates.csv").open(newline="") as handle:
-        coordinates = np.asarray(
+        coordinate_units = np.asarray(
             [
                 [
-                    tuple(float(value) for value in cell.strip("() ").split(","))
+                    tuple(
+                        _serialized_coordinate_units(value)
+                        for value in cell.strip("() ").split(",")
+                    )
                     for cell in row
                 ]
                 for row in csv.reader(handle)
             ],
-            dtype=np.float64,
+            dtype=np.int64,
         )
-    np.testing.assert_allclose(
-        coordinates,
-        np.asarray(
-            [
-                [(-0.03, 0.01), (10.48, 0.01), (19.98, 0.50)],
-                [(-0.03, 10.01), (9.98, 10.51), (20.48, 10.00)],
-                [(0.47, 20.01), (9.98, 20.01), (19.98, 20.50)],
-            ]
-        ),
-        rtol=0.0,
-        atol=0.01,
+    expected_coordinate_units = np.asarray(
+        [
+            [(-3, 1), (1048, 1), (1998, 50)],
+            [(-3, 1001), (998, 1051), (2048, 1000)],
+            [(47, 2001), (998, 2001), (1998, 2050)],
+        ],
+        dtype=np.int64,
     )
+    assert np.all(np.abs(coordinate_units - expected_coordinate_units) <= 1)
     metrics = (eval_dir / "metrics.txt").read_text()
     assert "--- BEFORE CALIBRATION (Raw Extraction) ---" in metrics
     assert "--- AFTER CALIBRATION (Neural Compensation) ---" in metrics
