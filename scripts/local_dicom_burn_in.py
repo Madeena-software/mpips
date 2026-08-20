@@ -350,14 +350,17 @@ class BurnIn:
     def run(self) -> None:
         if not self.api_key:
             raise RuntimeError(
-                "MPIPS_API_KEY environment variable is required for burn-in run operation"
+                "MPIPS_API_KEY environment variable is required for burn-in "
+                "run operation"
             )
         health = self.client.get(f"{self.url}/health")
         self.case("health", 200, health)
 
         for path in ("/", "/v1/nodes", "/v1/jobs", "/v1/secure-test", "/docs"):
             expected_code = (401, 404) if path in ("/v1/nodes", "/v1/jobs") else 404
-            self.case(f"absent {path}", expected_code, self.client.get(f"{self.url}{path}"))
+            self.case(
+                f"absent {path}", expected_code, self.client.get(f"{self.url}{path}")
+            )
 
         self.case(
             "missing API key",
@@ -414,6 +417,7 @@ class BurnIn:
 
     def validate_dicom(self, path: Path, raw_manifest: bytes) -> None:
         manifest = MHCSManifest.model_validate_json(raw_manifest)
+        assert manifest.dicom is not None
         dataset = pydicom.dcmread(path)
         assert dataset.file_meta.TransferSyntaxUID == ExplicitVRLittleEndian
         assert dataset.SOPInstanceUID == manifest.dicom.sop_instance_uid

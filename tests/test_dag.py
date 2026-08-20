@@ -1,4 +1,5 @@
 import tempfile
+from typing import Callable
 import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
@@ -472,16 +473,18 @@ MADEENA_XRAYPARAMS = {"detectorMode": "BED", "kv": 90}
 MADEENA_CAMERAPARAMS = {"exposure_ms": 12}
 
 
-def _madeena_npz_writer(raw: np.ndarray, dark: np.ndarray, processed: np.ndarray):
+def _madeena_npz_writer(
+    raw: np.ndarray, dark: np.ndarray, processed: np.ndarray
+) -> Callable[[str, str, bool], None]:
     def fake_download(source: str, dest: str, is_presigned_url: bool = False) -> None:
         np.savez(
             dest,
             id="abc123",
             gainid="gain1",
             darkid="dark1",
-            xrayparams=MADEENA_XRAYPARAMS,
+            xrayparams=np.asarray(MADEENA_XRAYPARAMS, dtype=object),
             frameusedcount=5,
-            cameraparams=MADEENA_CAMERAPARAMS,
+            cameraparams=np.asarray(MADEENA_CAMERAPARAMS, dtype=object),
             darkimage=dark,
             rawimage=raw,
             processedimage=processed,
@@ -491,13 +494,15 @@ def _madeena_npz_writer(raw: np.ndarray, dark: np.ndarray, processed: np.ndarray
     return fake_download
 
 
-def _gain_npz_writer(flat: np.ndarray, dark: np.ndarray):
+def _gain_npz_writer(
+    flat: np.ndarray, dark: np.ndarray
+) -> Callable[[str, str, bool], None]:
     def fake_download(source: str, dest: str, is_presigned_url: bool = False) -> None:
         np.savez(
             dest,
             id="gain1",
-            xrayparams=MADEENA_XRAYPARAMS,
-            cameraparams=MADEENA_CAMERAPARAMS,
+            xrayparams=np.asarray(MADEENA_XRAYPARAMS, dtype=object),
+            cameraparams=np.asarray(MADEENA_CAMERAPARAMS, dtype=object),
             darkimage=dark,
             rawimage=flat,
         )
