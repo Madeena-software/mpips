@@ -1,11 +1,11 @@
-"""Ownership and compatibility contracts for the canonical wavelet denoiser."""
+"""Ownership contracts for the canonical wavelet denoiser."""
 
-# The legacy modules are intentionally outside the typed processing boundary.
-# mypy: disable-error-code=attr-defined
-
+import importlib
 import subprocess
 import sys
 import textwrap
+
+import pytest
 
 
 def test_wavelet_denoiser_has_processing_owner() -> None:
@@ -14,24 +14,19 @@ def test_wavelet_denoiser_has_processing_owner() -> None:
     assert WaveletDenoiser.__module__ == "mpips.processing.wavelet"
 
 
-def test_legacy_wavelet_denoiser_is_the_canonical_class() -> None:
-    from mpips.engine.imager_pipeline.wavelet_denoising import (
-        WaveletDenoiser as LegacyWaveletDenoiser,
-    )
+def test_complete_pipeline_imports_the_canonical_class_directly() -> None:
+    import mpips.engine.imager_pipeline.complete_pipeline as pipeline
+
     from mpips.processing.wavelet import WaveletDenoiser
 
-    assert LegacyWaveletDenoiser is WaveletDenoiser
+    pipeline_wavelet_denoiser = getattr(pipeline, "WaveletDenoiser")
+    assert pipeline_wavelet_denoiser is WaveletDenoiser
+    assert pipeline_wavelet_denoiser.__module__ == "mpips.processing.wavelet"
 
 
-def test_complete_pipeline_uses_the_canonical_class_through_compatibility_import() -> (
-    None
-):
-    from mpips.engine.imager_pipeline.complete_pipeline import (
-        WaveletDenoiser as PipelineWaveletDenoiser,
-    )
-    from mpips.processing.wavelet import WaveletDenoiser
-
-    assert PipelineWaveletDenoiser is WaveletDenoiser
+def test_legacy_wavelet_module_is_retired() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("mpips.engine.imager_pipeline.wavelet_denoising")
 
 
 def test_processing_wavelet_import_does_not_load_service_or_pipeline_modules() -> None:
@@ -60,17 +55,3 @@ def test_processing_wavelet_import_does_not_load_service_or_pipeline_modules() -
     )
 
     assert result.returncode == 0, result.stderr
-
-
-def test_legacy_wavelet_research_utilities_remain_importable() -> None:
-    from mpips.engine.imager_pipeline.wavelet_denoising import (
-        PYWT_AVAILABLE,
-        WaveletBackgroundRemover,
-        process_with_wavelet,
-    )
-
-    assert isinstance(PYWT_AVAILABLE, bool)
-    assert callable(process_with_wavelet)
-    assert WaveletBackgroundRemover.__module__ == (
-        "mpips.engine.imager_pipeline.wavelet_denoising"
-    )

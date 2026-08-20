@@ -3,7 +3,7 @@ import os
 from pathlib import Path
 
 
-from .config import ImagerPipelineConfig
+from mpips.pipelines.config import ImagerPipelineConfig
 
 
 # Load environment variables from .env file
@@ -144,7 +144,7 @@ else:
 
 # Import wavelet denoising
 try:
-    from .wavelet_denoising import WaveletDenoiser
+    from mpips.processing.wavelet import WaveletDenoiser
 
     WAVELET_AVAILABLE = True
 except ImportError:
@@ -155,7 +155,7 @@ except ImportError:
 
 # Import ImageJ replicator
 try:
-    from .imagej_replicator import ImageJReplicator
+    from mpips.processing.imagej import ImageJReplicator
 
     IMAGEJ_MODULE_AVAILABLE = True
 except ImportError:

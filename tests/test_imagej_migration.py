@@ -1,4 +1,5 @@
 import hashlib
+import importlib
 import subprocess
 import sys
 import textwrap
@@ -11,31 +12,25 @@ import pytest
 import mpips.processing as processing
 
 
-def _imagej_classes() -> tuple[type[Any], type[Any]]:
-    try:
-        from mpips.engine.imager_pipeline.imagej_replicator import (
-            ImageJReplicator as Legacy,
-        )
-        from mpips.processing.imagej import ImageJReplicator as Canonical
-    except ModuleNotFoundError as error:
-        pytest.fail(f"ImageJ migration import is missing: {error}")
-    return Canonical, Legacy
+def _imagej_class() -> type[Any]:
+    from mpips.processing.imagej import ImageJReplicator
+
+    return ImageJReplicator
 
 
 def test_imagej_replicator_is_canonical_in_processing() -> None:
-    canonical, _ = _imagej_classes()
+    canonical = _imagej_class()
 
     assert canonical.__module__ == "mpips.processing.imagej"
 
 
-def test_legacy_imagej_import_reexports_canonical_class() -> None:
-    canonical, legacy = _imagej_classes()
-
-    assert legacy is canonical
+def test_legacy_imagej_module_is_retired() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("mpips.engine.imager_pipeline.imagej_replicator")
 
 
 def test_processing_imagej_wrappers_do_not_import_legacy_module() -> None:
-    _imagej_classes()
+    _imagej_class()
     image = np.array([[0, 0, 1, 2], [2, 2, 3, 3]], dtype=np.uint8)
 
     with patch.dict(

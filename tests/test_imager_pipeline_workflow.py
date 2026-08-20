@@ -405,8 +405,6 @@ def test_promoted_canonical_modules_are_importable() -> None:
         "mpips.calibration.dotgrid.extract_grid",
         "mpips.calibration.dotgrid.neural_model.phantom",
         "mpips.engine.imager_pipeline.complete_pipeline",
-        "mpips.engine.imager_pipeline.imagej_replicator",
-        "mpips.engine.imager_pipeline.wavelet_denoising",
     )
     for module in modules:
         assert importlib.import_module(module) is not None

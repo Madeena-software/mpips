@@ -3,7 +3,7 @@
 import json
 import pytest
 
-from mpips.engine.imager_pipeline.config import (
+from mpips.pipelines.config import (
     ImagerPipelineConfig,
     get_default_config,
 )

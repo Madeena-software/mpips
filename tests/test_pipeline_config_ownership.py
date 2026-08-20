@@ -1,13 +1,13 @@
-"""Ownership and compatibility contracts for pipeline configuration."""
-
-# Legacy modules are intentionally outside the typed pipeline boundary.
-# mypy: disable-error-code=attr-defined
+"""Ownership contracts for pipeline configuration."""
 
 import hashlib
+import importlib
 import json
 import subprocess
 import sys
 import textwrap
+
+import pytest
 
 
 def _json_sha256(value: object) -> str:
@@ -22,33 +22,19 @@ def test_pipeline_config_has_canonical_location() -> None:
 
 
 def test_config_class_and_default_factory_identity_is_preserved() -> None:
-    from mpips.engine.imager_pipeline.config import (
-        ImagerPipelineConfig as LegacyConfig,
-        get_default_config as LegacyDefaultConfig,
-    )
     from mpips.pipelines.config import (
         ImagerPipelineConfig as CanonicalConfig,
-        get_default_config as CanonicalDefaultConfig,
     )
     from mpips.workflows.imager_pipeline import ImagerPipelineConfig as WorkflowConfig
     from mpips.workflows.imager_pipeline.models import (
         ImagerPipelineConfig as WorkflowModelConfig,
     )
 
-    assert CanonicalConfig is LegacyConfig
     assert CanonicalConfig is WorkflowConfig
     assert CanonicalConfig is WorkflowModelConfig
-    assert CanonicalDefaultConfig is LegacyDefaultConfig
 
 
 def test_config_enum_identity_is_preserved() -> None:
-    from mpips.engine.imager_pipeline.config import (
-        ContrastMode as LegacyContrastMode,
-        MedianFilterType as LegacyMedianFilterType,
-        ThresholdMethod as LegacyThresholdMethod,
-        WaveletMethod as LegacyWaveletMethod,
-        WaveletMode as LegacyWaveletMode,
-    )
     from mpips.pipelines.config import (
         ContrastMode,
         MedianFilterType,
@@ -57,11 +43,21 @@ def test_config_enum_identity_is_preserved() -> None:
         WaveletMode,
     )
 
-    assert ContrastMode is LegacyContrastMode
-    assert ThresholdMethod is LegacyThresholdMethod
-    assert WaveletMode is LegacyWaveletMode
-    assert WaveletMethod is LegacyWaveletMethod
-    assert MedianFilterType is LegacyMedianFilterType
+    assert {
+        item.__module__
+        for item in (
+            ContrastMode,
+            MedianFilterType,
+            ThresholdMethod,
+            WaveletMethod,
+            WaveletMode,
+        )
+    } == {"mpips.pipelines.config"}
+
+
+def test_legacy_config_module_is_retired() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("mpips.engine.imager_pipeline.config")
 
 
 def test_default_and_stretch_serialization_matches_accepted_baseline() -> None:

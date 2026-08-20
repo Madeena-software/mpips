@@ -2,7 +2,7 @@
 
 ## ImageJ-style image processing replication
 
-`mpips/engine/imager_pipeline/imagej_replicator.py` was promoted unchanged from
+`mpips/processing/imagej.py` was promoted unchanged from
 the completed imager research tree. Its source header states that it follows
 the GNU General Public License version 2 because it replicates behavior from
 the ImageJ CLAHE plugin. The corresponding license text is distributed in
