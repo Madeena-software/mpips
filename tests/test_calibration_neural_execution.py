@@ -400,8 +400,12 @@ def test_training_and_evaluation_match_historical_contract(tmp_path: Path) -> No
 def test_inverse_maps_and_file_warp_match_historical_contract(tmp_path: Path) -> None:
     zero = MLPCompensation(hidden_dim=4)
     constant = MLPCompensation(hidden_dim=4)
+    final_layer = constant.net[-1]
+    assert isinstance(final_layer, torch.nn.Linear)
+    final_bias = final_layer.bias
+    assert final_bias is not None
     with torch.no_grad():
-        constant.net[-1].bias.copy_(torch.tensor([0.25, -0.5]))
+        final_bias.copy_(torch.tensor([0.25, -0.5]))
 
     zero_x, zero_y, zero_stats = build_inverse_maps(
         zero, 5, 4, 2.0, step=1, iterations=1, batch_size=100, device="cpu"

@@ -19,8 +19,12 @@ class MLPCompensation(nn.Module):
             nn.Linear(hidden_dim, 2),
         )
         # Initialize final layer to output near zero offsets
-        nn.init.zeros_(self.net[-1].weight)
-        nn.init.zeros_(self.net[-1].bias)
+        output_layer = self.net[-1]
+        assert isinstance(output_layer, nn.Linear)
+        nn.init.zeros_(output_layer.weight)
+        output_bias = output_layer.bias
+        assert output_bias is not None
+        nn.init.zeros_(output_bias)
 
     def forward(self, x):
         # x is (..., 2)
