@@ -335,6 +335,36 @@ def test_calibration_quality_gate_rejects_weak_metrics() -> None:
         _validate_metrics(metrics, metrics, NeuralCalibrationConfig())
 
 
+def test_calibration_quality_gate_preserves_exact_threshold_boundary() -> None:
+    before = {
+        "col_rmse": 100.0,
+        "reproj": 100.0,
+        "spacing_x_std": 100.0,
+        "spacing_y_std": 100.0,
+        "diam_std": 100.0,
+    }
+    passing_metrics = {
+        "col_rmse": 1.0,
+        "spacing_x_std": 1.0,
+        "spacing_y_std": 1.0,
+        "diam_std": 1.0,
+    }
+    exact = {**before, **passing_metrics, "reproj": 50.0}
+    config = NeuralCalibrationConfig(min_reprojection_reduction=50.0)
+
+    reductions = _validate_metrics(before, exact, config)
+
+    assert reductions["reprojection"] == 50.0
+
+    immediately_below = {
+        **before,
+        **passing_metrics,
+        "reproj": np.nextafter(50.0, np.inf),
+    }
+    with pytest.raises(CalibrationValidationError, match="reprojection"):
+        _validate_metrics(before, immediately_below, config)
+
+
 def test_pipeline_primitives_preserve_shapes_and_dtype() -> None:
     image = np.arange(25, dtype=np.uint16).reshape(5, 5)
     y_values, x_values = np.indices(image.shape, dtype=np.float32)

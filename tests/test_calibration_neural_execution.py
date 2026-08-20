@@ -396,19 +396,29 @@ def test_training_and_evaluation_match_historical_contract(tmp_path: Path) -> No
         image_size=(64, 48),
         hidden_dim=4,
     )
-    # Reports publish four decimals; retain one additional digit portably while
-    # preserving byte-exact same-environment artifact determinism separately.
-    actual_metric_strings = (
-        f"{before['col_rmse']:.5f}",
-        f"{after['col_rmse']:.5f}",
-        f"{before['reproj']:.5f}",
-        f"{after['reproj']:.5f}",
+    # Neural coordinates originate in float32; low-level floating behavior is
+    # not bitwise portable, so use its established closeness scale while
+    # retaining byte-exact same-environment artifact checks separately.
+    actual_metrics = np.asarray(
+        [
+            before["col_rmse"],
+            after["col_rmse"],
+            before["reproj"],
+            after["reproj"],
+        ],
+        dtype=np.float64,
     )
-    assert actual_metric_strings == (
-        "0.23570",
-        "0.23478",
-        "0.30116",
-        "0.30106",
+    historical_metrics = np.asarray(
+        [
+            0.235702246427536,
+            0.23477870225906372,
+            0.3011571395705189,
+            0.3010649997066611,
+        ],
+        dtype=np.float64,
+    )
+    np.testing.assert_allclose(
+        actual_metrics, historical_metrics, rtol=1.3e-6, atol=1e-5
     )
     assert (eval_dir / "compensated_coordinates.csv").read_bytes()
     assert (
