@@ -17,6 +17,8 @@ def __getattr__(name: str) -> Any:
         return getattr(import_module("mpips.dag.catalog"), name)
     if name in {"NODE_CLASSES", "get_node_class"}:
         return getattr(import_module("mpips.dag.registry"), name)
+    if name == "topological_sort":
+        return getattr(import_module("mpips.dag.graph"), name)
     if name in __all__:
         return getattr(import_module("mpips.engine"), name)
     raise AttributeError(f"module 'mpips.dag' has no attribute {name!r}")
