@@ -4,7 +4,7 @@ import cv2
 import numpy as np
 from typing import List, Dict, Any, Optional, Callable, cast
 from mpips.storage import S3StorageBackend, StorageBackend
-from mpips.engine.registry import get_node_class
+from mpips.dag.registry import get_node_class
 
 
 # Madeena radiograph capture NPZ (id/gainid/darkid/xrayparams/...) image
