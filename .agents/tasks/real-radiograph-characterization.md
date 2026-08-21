@@ -119,7 +119,11 @@ observations to reproduce or refute, not execution evidence.
 - Threshold × CLAHE ablation, production default selection, production
   PASS/WARN/FAIL IQA policy, and ImageJReplicator hardening.
 - Resizing, interpolation, warping, or resampling to force same-shape IQA.
-  Pairs requiring resampling must be reported as `NON-COMPARABLE`.
+  For an individual matched pair, use only justified lossless integer
+  crop/pad/translation/orientation operations when they provide trustworthy
+  alignment. If that pair would require resizing, interpolation, warping, or
+  other resampling, classify only that pair as `NON-COMPARABLE`, record the
+  reason, and continue with the remaining pairs.
 - Causal claims that threshold or CLAHE caused an observed loss.
 - Google Drive mutation, committing external radiograph binaries, or modifying
   `.agents/tasks/iqa-structural-safety.md`.
@@ -216,27 +220,44 @@ verification gaps, and any stop condition encountered.
 
 ## Stop conditions
 
-Stop and return to planning if the task revision or baseline is ambiguous,
-unrelated branch changes appear, read-only Drive data cannot be accessed, pair
-identity cannot be established reliably, comparison requires resampling or
-warping, new dependencies become necessary, production changes become
-necessary, or material privacy/licensing/data-handling concerns appear.
+For an individual matched pair, classify it as `NON-COMPARABLE`, record the
+reason, and continue characterization when trustworthy comparison would require
+resizing, interpolation, warping, or other resampling. Do not weaken the
+prohibition on resampling for scored IQA pairs.
+
+Stop and return to planning only when a systematic geometry, identity, access,
+data-handling, dependency, or authority problem prevents the acceptance
+criteria from being meaningfully satisfied. Examples include essentially no
+trustworthy comparable pairs remaining, systematically ambiguous matching,
+inability to obtain read-only dataset access, a required new dependency or
+processing change, or a material privacy/licensing concern.
 
 The Executor must not silently reinterpret the task into a materially different
 objective.
 
 ## Side-effect authorization
 
-The task authorizes only creation of the bounded characterization artifacts
-and local evidence described above. It does not authorize Git commit/push,
-deployment, release, production mutation, external data mutation, dependency
-installation/replacement, permission expansion, or secret access.
+The future execution authorizes creation of only the bounded characterization
+artifacts permitted by this task, an optional narrowly scoped deterministic
+helper when genuinely required, and the commit and push of those authorized
+changes to `refactor/package-boundaries`. It does not authorize touching
+`main`, merging, opening or merging a release PR unless separately authorized,
+deployment, release, production-configuration changes, Google Drive mutation,
+committing radiograph binaries, dependency changes, processing-behavior
+changes, dependency installation/replacement, permission expansion, or secret
+access.
+
+After pushing the bounded immutable characterization implementation revision,
+the Executor must stop and report it for Reviewer inspection.
 
 ### Explicitly authorized side effects
 
 - Read-only access to the supplied Google Drive data.
 - Local creation of the deterministic characterization report and any narrowly
   scoped helper genuinely required by the acceptance criteria.
+- Commit only those authorized characterization changes.
+- Push the resulting characterization commit to
+  `refactor/package-boundaries`.
 
 ## Expected terminal outcome
 
