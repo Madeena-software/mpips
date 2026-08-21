@@ -19,8 +19,9 @@ contained goats 1–6 for acquisitions 1–2 and goats 1–3,6 for acquisitions
 anatomy.
 
 The complete per-pair inventory, metadata, geometry, valid overlap, alignment
-correlation, and all six IQA outputs are in `characterization.json` and
-`characterization.csv` beside this report.
+correlation, and all six IQA outputs are in
+`radiograph-structural-characterization.json` and
+`radiograph-structural-characterization.csv` beside this report.
 
 ## Method
 
@@ -87,11 +88,22 @@ the differences.
 
 ## Pipeline context and next step
 
-The observed main configuration enables denoising, automatic thresholding,
-inversion, contrast enhancement, and CLAHE; median filtering and final
-denoising are disabled. This is context only. The next authorized task should
-use controlled ablation on the same matched pairs, beginning with threshold ×
-CLAHE combinations, while retaining the no-resampling and alignment checks.
+The current main `ImagerPipelineConfig` defaults enable initial wavelet
+denoising, automatic thresholding, inversion, contrast enhancement, CLAHE,
+and median filtering; optional final denoising is disabled. These current
+source defaults do not prove that every legacy candidate image was generated
+using exactly those effective runtime values. This is observational context,
+not a causal claim and does not select a processing default.
+
+The evidence-backed next delivery order is:
+
+1. ImageJReplicator fidelity and hardening, including the fidelity and
+   semantics of the relevant ImageJ-derived operations.
+2. Only after that work is accepted, a controlled Threshold × CLAHE ablation
+   on the same matched pairs, retaining the no-resampling and alignment checks.
+
+Threshold × CLAHE remains a later planned experiment; this characterization
+does not prescribe it as the immediate task.
 
 Commands used included read-only Drive TIFF downloads, Pillow TIFF metadata and
 array loading, the inline deterministic inventory/alignment workflow, and
@@ -103,9 +115,10 @@ Limitations: Drive filenames were the only identity authority; ambiguous
 duplicates were not guessed. `lost_informative_tile_fraction` is a structural
 metric, not a literal percentage of anatomy removed. The comparison is not a
 clinical diagnosis. Future ImageJReplicator hardening should test the observed
-hard-separation/weak-structure pattern with controlled ablations, preserve the
-lossless geometry rules, and treat rejected alignments as data-quality cases
-rather than optimizing correlation blindly.
+hard-separation/weak-structure pattern, first establish fidelity and semantics
+of the relevant ImageJ-derived operations, preserve the lossless geometry
+rules, and treat rejected alignments as data-quality cases rather than
+optimizing correlation blindly.
 
 No repository production code, dependency, converter, Google Drive content,
 or radiograph binary was modified or committed.
