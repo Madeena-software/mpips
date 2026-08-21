@@ -33,7 +33,7 @@ Largest active files were the 74,446,788-byte runtime `remap.npz`, nine
   `.github/workflows/setup-runtime-dirs.yml` copies these exact files into the
   deployed calibration directory.
 - **Removed, generated/reproducible:** all tracked files under
-  `artifacts/camera-calibration-dotgrid/output/` (49 files), including neural,
+  `artifacts/camera-calibration-dotgrid/output/` (42 files), including neural,
   OpenCV, radiography, plots, masks, TIFFs, CSVs, and reports.
 - **Removed, replaceable source data:** the two tracked TIFF inputs under
   `artifacts/camera-calibration-dotgrid/data/` (2 files). Calibration CLI
