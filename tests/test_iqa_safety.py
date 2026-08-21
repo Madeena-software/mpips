@@ -105,6 +105,24 @@ def test_weak_connected_structure_deletion_is_locally_visible() -> None:
     )
 
 
+def test_noisy_background_does_not_dominate_local_structure_measurement() -> None:
+    rng = np.random.default_rng(0)
+    reference = np.full((96, 96), 10000.0, dtype=np.float64)
+    reference[20:76, 24:72] = 42000.0
+    reference[32:64, 32:64] = 56000.0
+    reference[44:52, 72:88] = 15000.0
+    reference += rng.normal(0.0, 1.0, reference.shape)
+    candidate = __import__("cv2").GaussianBlur(reference, (5, 5), 0)
+
+    identity = analyze_structural_preservation(reference, reference)
+    smoothing = analyze_structural_preservation(reference, candidate)
+
+    assert identity.informative_tile_count < 36
+    assert smoothing.informative_tile_count == identity.informative_tile_count
+    assert smoothing.lost_informative_tile_fraction <= 0.25
+    assert smoothing.low_percentile_tile_retention > 0.5
+
+
 def test_valid_mask_excludes_padding_from_structural_scores() -> None:
     reference = _reference()
     candidate = reference.copy()
