@@ -81,11 +81,20 @@ def _gradient(image: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, np.ndarr
 
 
 def _informative_edges(gradient: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    positive = gradient[mask & (gradient > 0)]
-    if positive.size == 0:
-        return np.zeros(gradient.shape, dtype=bool)
-    threshold = max(float(np.percentile(positive, 60.0)), float(np.max(positive)) * 0.1)
-    return np.asarray((gradient >= threshold) & mask)
+    edges = np.zeros(gradient.shape, dtype=bool)
+    for row in range(0, gradient.shape[0], 16):
+        for column in range(0, gradient.shape[1], 16):
+            tile = gradient[row : row + 16, column : column + 16]
+            tile_mask = mask[row : row + 16, column : column + 16]
+            positive = tile[tile_mask & (tile > 0)]
+            if positive.size:
+                threshold = max(
+                    float(np.percentile(positive, 60.0)), float(np.max(positive)) * 0.1
+                )
+                edges[row : row + 16, column : column + 16] = (
+                    tile >= threshold
+                ) & tile_mask
+    return edges
 
 
 def _tile_retentions(
@@ -96,7 +105,6 @@ def _tile_retentions(
     tile_size: int = 16,
 ) -> list[float]:
     height, width = reference_gradient.shape
-    reference_energies: list[float] = []
     tiles: list[tuple[float, float, float]] = []
     for row in range(0, height, tile_size):
         for column in range(0, width, tile_size):
@@ -111,7 +119,6 @@ def _tile_retentions(
             ][tile_mask]
             reference_energy = float(np.mean(reference_tile))
             candidate_energy = float(np.mean(candidate_tile))
-            reference_energies.append(reference_energy)
             reference_edge_tile = reference_edges[
                 row : row + tile_size, column : column + tile_size
             ][tile_mask]
@@ -127,13 +134,10 @@ def _tile_retentions(
             energy_ratio = candidate_energy / (reference_energy + 1e-12)
             tiles.append((reference_energy, min(1.0, max(0.0, energy_ratio)), cosine))
 
-    if not reference_energies:
-        return []
-    informative_floor = max(float(np.max(reference_energies)) * 0.1, 1e-12)
     return [
         min(1.0, max(0.0, min(energy_ratio, cosine)))
         for reference_energy, energy_ratio, cosine in tiles
-        if reference_energy >= informative_floor
+        if reference_energy > 0.0
     ]
 
 

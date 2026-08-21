@@ -90,6 +90,21 @@ def test_localized_deletion_is_visible_to_tile_measurement() -> None:
     assert large.lost_informative_tile_fraction >= local.lost_informative_tile_fraction
 
 
+def test_weak_connected_structure_deletion_is_locally_visible() -> None:
+    reference = _reference()
+    reference[44:52, 72:88] = 5000
+    candidate = reference.copy()
+    candidate[44:52, 72:88] = 0
+
+    identity = analyze_structural_preservation(reference, reference)
+    deletion = analyze_structural_preservation(reference, candidate)
+
+    assert deletion.lost_informative_tile_fraction > 0.0
+    assert deletion.low_percentile_tile_retention < (
+        identity.low_percentile_tile_retention * 0.8
+    )
+
+
 def test_valid_mask_excludes_padding_from_structural_scores() -> None:
     reference = _reference()
     candidate = reference.copy()
