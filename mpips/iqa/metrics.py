@@ -90,7 +90,7 @@ class ContrastImprovementIndexCalculator:
 
 
 class BrisqueCalculator:
-    """MSCN-based BRISQUE proxy score; lower scores represent higher quality."""
+    """MSCN-based handcrafted BRISQUE proxy, not published BRISQUE."""
 
     def calculate(self, image: np.ndarray) -> float:
         gray = normalize_to_uint8(grayscale_any_depth(image)).astype(float)
@@ -136,7 +136,7 @@ def calculate_cii(processed: np.ndarray, original: np.ndarray) -> float:
 
 
 def calculate_brisque(image: np.ndarray) -> float:
-    """MSCN-based Natural Scene Statistics proxy score representing quality."""
+    """Return the legacy MSCN-based proxy score, not the published BRISQUE model."""
     return BrisqueCalculator().calculate(image)
 
 

@@ -153,7 +153,7 @@ def test_public_facade_resolves_only_canonical_metrics() -> None:
     facade = importlib.import_module("mpips.iqa")
     metrics = importlib.import_module("mpips.iqa.metrics")
 
-    assert facade.__all__ == [
+    assert facade.__all__[:6] == [
         "calculate_entropy",
         "calculate_eme",
         "calculate_local_contrast",
@@ -161,9 +161,18 @@ def test_public_facade_resolves_only_canonical_metrics() -> None:
         "calculate_brisque",
         "calculate_all_metrics",
     ]
-    for name in facade.__all__:
+    assert facade.__all__[6:] == [
+        "StructuralSafetyMetrics",
+        "analyze_structural_preservation",
+    ]
+    for name in facade.__all__[:6]:
         assert getattr(facade, name) is getattr(metrics, name)
         assert getattr(facade, name).__module__ == "mpips.iqa.metrics"
+
+    safety = importlib.import_module("mpips.iqa.safety")
+    for name in facade.__all__[6:]:
+        assert getattr(facade, name) is getattr(safety, name)
+        assert getattr(facade, name).__module__ == "mpips.iqa.safety"
 
 
 def test_iqa_nodes_resolve_canonical_metrics() -> None:
