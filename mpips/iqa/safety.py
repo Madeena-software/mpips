@@ -110,7 +110,7 @@ def _tile_retentions(
     mad = float(np.median(np.abs(gradient_values - median)))
     # A robust upper bound for the low-gradient noise distribution.
     noise_floor = median + 6.0 * mad
-    tiles: list[tuple[float, float, float]] = []
+    tiles: list[tuple[float, float, float, float]] = []
     for row in range(0, height, tile_size):
         for column in range(0, width, tile_size):
             tile_mask = mask[row : row + tile_size, column : column + tile_size]
@@ -130,19 +130,28 @@ def _tile_retentions(
             if np.any(reference_edge_tile):
                 ref_vector = reference_tile[reference_edge_tile]
                 cand_vector = candidate_tile[reference_edge_tile]
+                edge_energy = float(np.mean(ref_vector))
                 cosine = float(
                     np.dot(ref_vector, cand_vector)
                     / (np.linalg.norm(ref_vector) * np.linalg.norm(cand_vector) + 1e-12)
                 )
             else:
+                edge_energy = 0.0
                 cosine = 1.0
             energy_ratio = candidate_energy / (reference_energy + 1e-12)
-            tiles.append((reference_energy, min(1.0, max(0.0, energy_ratio)), cosine))
+            tiles.append(
+                (
+                    reference_energy,
+                    edge_energy,
+                    min(1.0, max(0.0, energy_ratio)),
+                    cosine,
+                )
+            )
 
     return [
         min(1.0, max(0.0, min(energy_ratio, cosine)))
-        for reference_energy, energy_ratio, cosine in tiles
-        if reference_energy > noise_floor
+        for reference_energy, edge_energy, energy_ratio, cosine in tiles
+        if edge_energy > noise_floor
     ]
 
 

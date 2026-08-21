@@ -123,6 +123,31 @@ def test_noisy_background_does_not_dominate_local_structure_measurement() -> Non
     assert smoothing.low_percentile_tile_retention > 0.5
 
 
+@pytest.mark.parametrize("sigma", [150.0, 175.0, 200.0])
+def test_noisy_weak_appendage_deletion_remains_locally_visible(sigma: float) -> None:
+    rng = np.random.default_rng(0)
+    reference = np.full((96, 96), 10000.0, dtype=np.float64)
+    reference[20:76, 24:72] = 42000.0
+    reference[32:64, 32:64] = 56000.0
+    reference[44:52, 72:88] = 15000.0
+    reference += rng.normal(0.0, sigma, reference.shape)
+    deleted = reference.copy()
+    deleted[44:52, 72:88] -= 5000.0
+
+    identity = analyze_structural_preservation(reference, reference)
+    deletion = analyze_structural_preservation(reference, deleted)
+    smoothing = analyze_structural_preservation(
+        reference, __import__("cv2").GaussianBlur(reference, (5, 5), 0)
+    )
+
+    assert deletion.lost_informative_tile_fraction > 0.0
+    assert deletion.low_percentile_tile_retention < (
+        identity.low_percentile_tile_retention * 0.9
+    )
+    assert smoothing.lost_informative_tile_fraction <= 0.25
+    assert smoothing.low_percentile_tile_retention > 0.5
+
+
 def test_valid_mask_excludes_padding_from_structural_scores() -> None:
     reference = _reference()
     candidate = reference.copy()
