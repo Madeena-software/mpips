@@ -137,7 +137,15 @@ and from a fresh clone that:
 
 - Read/write access to the repository and authorized remote branch refs.
 - A disposable temporary migration workspace with sufficient disk space.
-- An already available compatible `git-filter-repo` installation.
+- The official `git-filter-repo` tool. If a compatible installation is already
+  available, use it. If it is unavailable, future execution is explicitly
+  authorized to install it temporarily as an isolated user/tool installation,
+  preferably with `uv tool install git-filter-repo`, or with `pipx install
+  git-filter-repo` when `pipx` is already available and appropriate.
+- The temporary tool installation must remain outside MPIPS project
+  dependency management and must not modify `pyproject.toml`, `uv.lock`, any
+  requirements file, application/runtime dependencies, or Docker/deployment
+  dependencies.
 - Ability to create and verify a local rollback bundle outside the repository.
 - Fresh-clone access after remote update.
 
@@ -165,7 +173,8 @@ and from a fresh clone that:
 
 - Repository and remote Git inspection.
 - Disposable-clone filesystem and shell execution.
-- Existing compatible `git-filter-repo` installation.
+- Official `git-filter-repo`, either already available or installed through an
+  authorized isolated `uv tool`/already-available `pipx` mechanism.
 - Git bundle creation and verification.
 - Test and static-check execution.
 - Fresh ordinary clone and size measurement.
@@ -196,7 +205,21 @@ After publication, include this task's publication SHA as well.
 
 ### Filtering
 
-- Use `git-filter-repo` only if already available and compatible.
+- Use the official `git-filter-repo` tool only. If it is already available and
+  compatible, use it; otherwise install it temporarily with `uv tool install
+  git-filter-repo` when `uv tool` is available and appropriate, or use
+  `pipx install git-filter-repo` when `pipx` is already available and
+  appropriate.
+- Before filtering, capture `git-filter-repo --version` or equivalent
+  authoritative version evidence, the resolved executable path, and the
+  installation command actually used.
+- The installation must be isolated outside MPIPS project dependency
+  management. Do not use `pip install` into the MPIPS project environment,
+  and do not use sudo or system-wide installation.
+- If installation fails, the package/source cannot be verified as the official
+  `git-filter-repo` distribution, compatibility cannot be established, or
+  elevated privileges/system mutation are required, stop and return to
+  planning.
 - Do not use `git filter-branch`, BFG, or an improvised substitute.
 - Do not filter directly in `/var/www/mpips`.
 - Do not broaden the candidate set because another historical file is large.
@@ -293,7 +316,9 @@ Stop before destructive push and return to planning if:
 - branch topology changes materially;
 - any affected branch advances after the snapshot;
 - any tag retains a candidate blob;
-- `git-filter-repo` is unavailable or incompatible;
+- `git-filter-repo` cannot be obtained as an authorized isolated official tool
+  installation, installation fails, compatibility cannot be established, or
+  installation requires permissions/system mutation beyond this authority;
 - candidate classification is insufficient;
 - a candidate is runtime/test-required on another branch;
 - unrelated content disappears;
@@ -309,6 +334,14 @@ Stop before destructive push and return to planning if:
 Future execution of this task is explicitly authorized by the user to rewrite
 Git history and force-update all affected **branch refs**, including `main`,
 after every required safety and verification gate passes.
+
+Future execution is also explicitly authorized to install the official
+`git-filter-repo` temporarily outside MPIPS project dependency management when
+it is not already available. The preferred mechanism is `uv tool install
+git-filter-repo`; the acceptable fallback is `pipx install git-filter-repo`
+when `pipx` is already available and appropriate. This installation authority
+does not authorize `pip install` into the MPIPS project environment, sudo,
+system-wide installation, or changes to project dependency/deployment files.
 
 This authority does not extend to:
 
