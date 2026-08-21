@@ -1,0 +1,2022 @@
+{
+  "method": {
+    "implementation": "mpips.iqa.analyze_structural_preservation",
+    "geometry": "symmetric integer crop/pad only; no resize/interpolation/warp",
+    "alignment_sanity": "Pearson correlation of every 16th valid pixel after reconciliation",
+    "clinical_interpretation": false
+  },
+  "summary": {
+    "Kepala": {
+      "inventory_identities": 28,
+      "comparable": 19,
+      "non_comparable": 9
+    },
+    "Tulang Belakang": {
+      "inventory_identities": 28,
+      "comparable": 19,
+      "non_comparable": 9
+    }
+  },
+  "records": [
+    {
+      "logical_id": "I-1-1",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_1_1_head_1-PzQt5zyLyuxrbmxaNCWfRbBvazCRJCf.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_1_head_1cqCkGXoMV3NmylBft055Vb-HU65J5dxD.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 345.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60896.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.9687689972438184,
+      "status": "COMPARABLE",
+      "edge_recall": 0.2223402748431567,
+      "gradient_energy_retention": 0.1807683485281408,
+      "informative_tile_count": 665,
+      "lost_informative_tile_fraction": 0.837593984962406,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.14786485405331504
+    },
+    {
+      "logical_id": "I-1-1",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_1_1_spine_1437CCbdAPFRtL8k7RfwIEMFgsRbIgYzQ.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_1_spine_1kIV_-ki0W_JF8rPeb-zzAWlxHUfETb2I.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 46175.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65145,
+        "p01": 0.0,
+        "median": 35651.0,
+        "p99": 62656.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.9503962968064412,
+      "status": "COMPARABLE",
+      "edge_recall": 0.578698730174989,
+      "gradient_energy_retention": 0.33215490489278865,
+      "informative_tile_count": 821,
+      "lost_informative_tile_fraction": 0.8574908647990256,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.036505949756309074
+    },
+    {
+      "logical_id": "I-1-2",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_1_2_head_1akTvxhBT4yoKndJlncHOQAcR1ZAoqmqK.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_2_head_18HH-fpL_Jflhq7iZrcUJmkqDEBbJTgLc.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 506.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60884.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9702859637872,
+      "status": "COMPARABLE",
+      "edge_recall": 0.19486418569649624,
+      "gradient_energy_retention": 0.16207697128088394,
+      "informative_tile_count": 615,
+      "lost_informative_tile_fraction": 0.8764227642276423,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.16477837162740522
+    },
+    {
+      "logical_id": "I-1-2",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_1_2_spine_1FTb4ds5JCNHzVHogfOVfymzwakJ7aF0V.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_2_spine_1Jg0hb6lp1UjZ5rTfEO98ZrUsvfGBBndP.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 42116.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64826,
+        "p01": 0.0,
+        "median": 31210.0,
+        "p99": 62965.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9525677064637142,
+      "status": "COMPARABLE",
+      "edge_recall": 0.5276089883405803,
+      "gradient_energy_retention": 0.3346545476260561,
+      "informative_tile_count": 562,
+      "lost_informative_tile_fraction": 0.9039145907473309,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.04312478287426429
+    },
+    {
+      "logical_id": "I-1-3",
+      "anatomy": "Kepala",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_3_head_1ZnGF5pNZo72Hab-SjZC99N4aTYJuD1Qc.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-1-3",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_1_3_spine_1iTYAcTwjkVjclm_7tL2hZUyoVakott-B.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_3_spine_1WKjTMffnq6O2c0YfVDj3Xh4OiurflXsR.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 30948.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65055,
+        "p01": 0.0,
+        "median": 19772.0,
+        "p99": 62477.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9623296507782769,
+      "status": "COMPARABLE",
+      "edge_recall": 0.46289206239147757,
+      "gradient_energy_retention": 0.3062242474855689,
+      "informative_tile_count": 731,
+      "lost_informative_tile_fraction": 0.8864569083447332,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.03211041236630815
+    },
+    {
+      "logical_id": "I-1-4",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_1_4_head_1H92GZ5BO3XmgsR7yKaPt_kBE2MddqQhy.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_4_head_1_EULBfrEETf40xJDeF-cTDEvBwnkErrl.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 101.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60840.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9711256944639993,
+      "status": "COMPARABLE",
+      "edge_recall": 0.20722846802189762,
+      "gradient_energy_retention": 0.18706701339656584,
+      "informative_tile_count": 815,
+      "lost_informative_tile_fraction": 0.7840490797546013,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.15564365036660552
+    },
+    {
+      "logical_id": "I-1-4",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_1_4_spine_1ExHQGzxK5FTvQZ-N2cL8EUKrGuUG5Iqw.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_4_spine_1ApDZANXOzRyffNjKjchrUufmXHln1uJd.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 48056.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65055,
+        "p01": 0.0,
+        "median": 35755.0,
+        "p99": 62526.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9543108695258675,
+      "status": "COMPARABLE",
+      "edge_recall": 0.5520124825448156,
+      "gradient_energy_retention": 0.376598919725117,
+      "informative_tile_count": 390,
+      "lost_informative_tile_fraction": 0.8307692307692308,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.04719528182596994
+    },
+    {
+      "logical_id": "I-1-5",
+      "anatomy": "Kepala",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_5_head_1ksTJrFxlt9O8bUTV6PaBsab5EMMBdTxO.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-1-5",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_5_spine_1R3XkGk4EDJ71vPy19Ee5j18xW-xcEVws.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-1-6",
+      "anatomy": "Kepala",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_6_head_1--Bct39dbagQvYqffBhXoKORgk7zypHq.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-1-6",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_1_6_spine_1fhOFPmvvH9HEr3dFwiWzf-m1FI-zPf6-.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-2-1",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_2_1_head_1oSeAXkplw41oZ6GpfKpOl1-DN_htawTs.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_1_head_1Ue7Wd6LSpMt5zqyDAS3h2Zpz9Gn4EqMB.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 1049.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60845.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.9712871696239722,
+      "status": "COMPARABLE",
+      "edge_recall": 0.16157730695852157,
+      "gradient_energy_retention": 0.12224373710129194,
+      "informative_tile_count": 587,
+      "lost_informative_tile_fraction": 0.7836456558773425,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.1872801344802288
+    },
+    {
+      "logical_id": "I-2-1",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_2_1_spine_1A1QOrtmfHl0DmFOo70y0NyPl6PxH6GDL.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_1_spine_1i_TDoP0RcsgqZt1W6ksfZxoTA0WgFRyo.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 40957.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65145,
+        "p01": 0.0,
+        "median": 33496.0,
+        "p99": 62925.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.9480538941481339,
+      "status": "COMPARABLE",
+      "edge_recall": 0.5831122996090159,
+      "gradient_energy_retention": 0.3180557405233361,
+      "informative_tile_count": 924,
+      "lost_informative_tile_fraction": 0.8712121212121212,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.048543934767911544
+    },
+    {
+      "logical_id": "I-2-2",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_2_2_head_1a0gR0PPeoXUDXwKWAppy1oQtsp8lIjn9.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_2_head_1gC71A7c7OlkI-92tQo6tw8MWJn3t-Gu7.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 820.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 61024.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.971216497533772,
+      "status": "COMPARABLE",
+      "edge_recall": 0.18423058773049678,
+      "gradient_energy_retention": 0.13197387528370083,
+      "informative_tile_count": 470,
+      "lost_informative_tile_fraction": 0.8404255319148937,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.18363423924121913
+    },
+    {
+      "logical_id": "I-2-2",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_2_2_spine_1x-ZIi0l7AcKV3ZZln2DwlKlD2XNQdnRz.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_2_spine_1ZlEJAfN9NQ1yDm0pYQ59iqKkuyvRL72Z.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 35520.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64765,
+        "p01": 0.0,
+        "median": 28016.5,
+        "p99": 63222.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9635203183910677,
+      "status": "COMPARABLE",
+      "edge_recall": 0.5241657643672051,
+      "gradient_energy_retention": 0.28351630538522726,
+      "informative_tile_count": 586,
+      "lost_informative_tile_fraction": 0.89419795221843,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.05082578676687051
+    },
+    {
+      "logical_id": "I-2-3",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_2_3_head_14ssSmINMZnhCHeJJWiEgkonDgfffLtTv.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_3_head_1wJX6qcyQ2Fqrjin4qR5lMBZpeH0983Tg.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 1082.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60964.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.967355647131383,
+      "status": "COMPARABLE",
+      "edge_recall": 0.17146338309661577,
+      "gradient_energy_retention": 0.1289599672878792,
+      "informative_tile_count": 487,
+      "lost_informative_tile_fraction": 0.8028747433264887,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.1927319832584613
+    },
+    {
+      "logical_id": "I-2-3",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_2_3_spine_1POEh_A38KtlTvjpm0sp4WNjvZ7nU3bW7.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_3_spine_1qCb-OSkobd7yN6Y5bEFbmU17isqJLPgZ.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 32099.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64800,
+        "p01": 0.0,
+        "median": 17317.0,
+        "p99": 62435.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9644372418024737,
+      "status": "COMPARABLE",
+      "edge_recall": 0.4384799697944562,
+      "gradient_energy_retention": 0.30986010605376674,
+      "informative_tile_count": 648,
+      "lost_informative_tile_fraction": 0.8132716049382716,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.04583168935344385
+    },
+    {
+      "logical_id": "I-2-4",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_2_4_head_1G9nQkBikLy2RaF-hWR-8aNz_Ru5rBM6_.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_4_head_13gCP45uZYaiC-OSiUzn3QLGGRXbDKpCo.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 496.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64741,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60855.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9677403746293861,
+      "status": "COMPARABLE",
+      "edge_recall": 0.1789248962258466,
+      "gradient_energy_retention": 0.15294510647816353,
+      "informative_tile_count": 677,
+      "lost_informative_tile_fraction": 0.8641063515509602,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.16925769692916331
+    },
+    {
+      "logical_id": "I-2-4",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_2_4_spine_15cOAaVz6m8PkgZXCpRO6uPCS6d628t1l.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_4_spine_1UkpPi21tfOYpOk66Vy-RxCyK4W0owBQZ.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 43607.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64806,
+        "p01": 0.0,
+        "median": 29976.0,
+        "p99": 62467.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9591878446469909,
+      "status": "COMPARABLE",
+      "edge_recall": 0.5007690806876807,
+      "gradient_energy_retention": 0.36705047990185763,
+      "informative_tile_count": 424,
+      "lost_informative_tile_fraction": 0.8183962264150944,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.05280038985647494
+    },
+    {
+      "logical_id": "I-2-5",
+      "anatomy": "Kepala",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_5_head_1U2mMTLMptN3OoH0Y_h_zHhZKZKj8IwBe.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-2-5",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_5_spine_117d0SfV2xRWqbeLvucBU4YXN_7nTMadA.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-2-6",
+      "anatomy": "Kepala",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_6_head_1PpaQEIsDzcXYkf-YoY0F_nWUEeLJR0sp.tiff",
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_6_head_1j0S33Al5y0XZZE_VdXKI2pEfcjGgGr8m.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-2-6",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_6_spine_1KWFvZiLJDQ_lB5HW_ON9zjUjQObx6UPi.tiff",
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_2_6_spine_1KRh6Nmn1XU1QrxmqC5cQehQT7ZpW3Jd-.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-3-1",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_3_1_head_1aR2Je8iGoEyd4f5R44oIzBq5x4iIq9Ff.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_1_head_1Wa1HY1H25x9LWTsPXRUh_-Dtl8irrMdd.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 1636.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60788.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.9701865962405893,
+      "status": "COMPARABLE",
+      "edge_recall": 0.16784226087513282,
+      "gradient_energy_retention": 0.11719882332186084,
+      "informative_tile_count": 500,
+      "lost_informative_tile_fraction": 0.824,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.21419849362735566
+    },
+    {
+      "logical_id": "I-3-1",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_3_1_spine_1XGe9jAkvCMkPgHlv_kZP9Lw8qFMkaNpt.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_1_spine_14eRNji7q74zDTFnANZN1YOuVoDxR8atX.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 43023.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64873,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 58590.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": -0.007779944529139778,
+      "status": "NON-COMPARABLE",
+      "reason": "alignment sanity failed: Pearson correlation -0.0078 after prescribed integer crop/pad"
+    },
+    {
+      "logical_id": "I-3-2",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_3_2_head_1i3bbuybSmzKXCdpPwEv_j14B91etY7NZ.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_2_head_1IQA55zsv6ug2w0IhqjvnFNAhL90LlhOo.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 1355.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60667.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9638902543609315,
+      "status": "COMPARABLE",
+      "edge_recall": 0.16820892380649102,
+      "gradient_energy_retention": 0.11711264418165927,
+      "informative_tile_count": 441,
+      "lost_informative_tile_fraction": 0.8163265306122449,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.19940728919899997
+    },
+    {
+      "logical_id": "I-3-2",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_3_2_spine_1JYR_B2xcrZfwq8gtF0uQGyKtjfGiIBsO.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_2_spine_1GOf84bOX_3twMw7maAHH75Y08vdXJxLq.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 38770.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65021,
+        "p01": 0.0,
+        "median": 30165.0,
+        "p99": 63218.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9591017730948638,
+      "status": "COMPARABLE",
+      "edge_recall": 0.5309151974580267,
+      "gradient_energy_retention": 0.3008387356424898,
+      "informative_tile_count": 574,
+      "lost_informative_tile_fraction": 0.89198606271777,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.050092974926825594
+    },
+    {
+      "logical_id": "I-3-3",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_3_3_head_1XkPHMS1R4BpK5nwIY049qBvcloZuGgFR.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_3_head_15tt8gJMDlLMCjrFfDoM7SrtFEuiyniwG.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 1656.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60743.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9660876758144707,
+      "status": "COMPARABLE",
+      "edge_recall": 0.1668719087513879,
+      "gradient_energy_retention": 0.11119994681269475,
+      "informative_tile_count": 378,
+      "lost_informative_tile_fraction": 0.873015873015873,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.23863133142068427
+    },
+    {
+      "logical_id": "I-3-3",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_3_3_spine_1O0meoih5YAxnzPSbQX-5NT3Fz73bmYOM.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_3_spine_1tjNVb_gEHMUG5Shb2eKSCAKvcmlFaxtn.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 37345.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64810,
+        "p01": 0.0,
+        "median": 25187.0,
+        "p99": 61978.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9547251528661906,
+      "status": "COMPARABLE",
+      "edge_recall": 0.49201604158348217,
+      "gradient_energy_retention": 0.3132472048071464,
+      "informative_tile_count": 426,
+      "lost_informative_tile_fraction": 0.8497652582159625,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.051772089247507744
+    },
+    {
+      "logical_id": "I-3-4",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_3_4_head_1jzaFtxNw5oZOc2ccB-ttHh8-uxjkfqww.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_4_head_1mvhQmbVTv9749jK9sbbxoZuImaMC-xVh.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 955.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60292.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9630177929150754,
+      "status": "COMPARABLE",
+      "edge_recall": 0.13383689120151884,
+      "gradient_energy_retention": 0.10403711803094899,
+      "informative_tile_count": 462,
+      "lost_informative_tile_fraction": 0.8073593073593074,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.21337658298923654
+    },
+    {
+      "logical_id": "I-3-4",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_3_4_spine_1cIlHTjFpXsn2Vf2yeHE7o-RPwgo4bPf4.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_4_spine_1lkIztib-uCb2A4oKrggcoeiukTekXyj8.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 44248.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65055,
+        "p01": 0.0,
+        "median": 31362.0,
+        "p99": 62466.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9604833055325079,
+      "status": "COMPARABLE",
+      "edge_recall": 0.5028355189172441,
+      "gradient_energy_retention": 0.35205846610448843,
+      "informative_tile_count": 389,
+      "lost_informative_tile_fraction": 0.8508997429305912,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.04899627474804595
+    },
+    {
+      "logical_id": "I-3-5",
+      "anatomy": "Kepala",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_5_head_1o1iZMKW6yIIAj2xJtc-d4sw55nAHQ0XT.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-3-5",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_5_spine_1lbxn1xgVFlNc1ocTA3Ih0q4Y-5T_XMI9.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-3-6",
+      "anatomy": "Kepala",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_6_head_1uNPC2fhiKOkpoNQDDZBQ9V5ONPIajTCb.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-3-6",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_3_6_spine_1tX448W1RF58xADQ7tu1UR_p6PIZgv3bx.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-4-1",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_4_1_head_1nKs9yK9ZCnNk7ORnfcccqyMfqOANcVIi.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_4_1_head_123YItNebzqOHcDmPDIfs8Q8c9sl6Bj5E.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 2005.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60211.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.9482151470980688,
+      "status": "COMPARABLE",
+      "edge_recall": 0.1614423268849771,
+      "gradient_energy_retention": 0.12824228147327568,
+      "informative_tile_count": 490,
+      "lost_informative_tile_fraction": 0.8816326530612245,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.30042840523497416
+    },
+    {
+      "logical_id": "I-4-1",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_4_1_spine_1QVS_wUWY6eNLLPU2-9etHP3wNIPT3LXZ.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_4_1_spine_1WmEuuJZtqjOJlmGX0UNwZd1Z1Dkv8sOW.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 44416.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65066,
+        "p01": 0.0,
+        "median": 33242.0,
+        "p99": 62732.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.9574315601650513,
+      "status": "COMPARABLE",
+      "edge_recall": 0.5751610480399804,
+      "gradient_energy_retention": 0.3125244884494744,
+      "informative_tile_count": 611,
+      "lost_informative_tile_fraction": 0.8985270049099836,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.059163089763172035
+    },
+    {
+      "logical_id": "I-4-2",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_4_2_head_1cSXvRKNjPpQOFPk1xLYdZ-6TPCdceDpi.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_4_2_head_1OUjg78fHgygGpUdYFq7-W_V6EWZKG4zs.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 1941.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60649.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9671979000070681,
+      "status": "COMPARABLE",
+      "edge_recall": 0.16053434455469537,
+      "gradient_energy_retention": 0.11438740935453372,
+      "informative_tile_count": 403,
+      "lost_informative_tile_fraction": 0.8238213399503722,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.27536559888014084
+    },
+    {
+      "logical_id": "I-4-2",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_4_2_spine_1nXUfW5RZ_eQIjVlGoaRPl2HJcZli7eQ-.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_4_2_spine_1VO36JniTXYNCqpM7ggXrpvVDY5dex3wJ.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 20485.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64635,
+        "p01": 0.0,
+        "median": 11887.0,
+        "p99": 62455.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9665348321149083,
+      "status": "COMPARABLE",
+      "edge_recall": 0.4371985814287204,
+      "gradient_energy_retention": 0.23555451418858853,
+      "informative_tile_count": 372,
+      "lost_informative_tile_fraction": 0.9435483870967742,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.04385491148961557
+    },
+    {
+      "logical_id": "I-5-1",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_5_1_head_1vlju8xuBP2F3HXQmf4gmw7_veEe2RFuL.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_5_1_head_104MS_zbrW_q-xDE5M_wqzAa5IS4HyfK8.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 2502.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60839.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.9643756930208826,
+      "status": "COMPARABLE",
+      "edge_recall": 0.18036559258557394,
+      "gradient_energy_retention": 0.12356714118195535,
+      "informative_tile_count": 502,
+      "lost_informative_tile_fraction": 0.9143426294820717,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.31494519498911483
+    },
+    {
+      "logical_id": "I-5-1",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_5_1_spine_1tmQPeoWsWfpuAWC2zdpbydyZm1yS7ZsB.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_5_1_spine_1GxI4-viQcuJNZW3NXkVxNHXBeXN5RpId.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 48823.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65128,
+        "p01": 0.0,
+        "median": 36899.0,
+        "p99": 62718.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.9439698359100226,
+      "status": "COMPARABLE",
+      "edge_recall": 0.595745590443867,
+      "gradient_energy_retention": 0.34435546436673636,
+      "informative_tile_count": 678,
+      "lost_informative_tile_fraction": 0.8613569321533924,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.04836781839868401
+    },
+    {
+      "logical_id": "I-5-2",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_5_2_head_1xPSsiXhPTKiawkNPDAfqNZjP3TegY9i3.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_5_2_head_1rXhTeujdWPTJFolkbC1GAA9eI0fFrCgx.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 2130.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60691.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9552040539772612,
+      "status": "COMPARABLE",
+      "edge_recall": 0.17278135099267855,
+      "gradient_energy_retention": 0.12640591928377296,
+      "informative_tile_count": 402,
+      "lost_informative_tile_fraction": 0.818407960199005,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.25206294112633937
+    },
+    {
+      "logical_id": "I-5-2",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_5_2_spine_1eKjivxWP8wbnfjO4GnjRI5S2rMt629fW.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_5_2_spine_1twQoTdMHvqIxPoidqpAt_COa0gbbuevz.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 34979.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64732,
+        "p01": 0.0,
+        "median": 24635.0,
+        "p99": 62868.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9646022837867824,
+      "status": "COMPARABLE",
+      "edge_recall": 0.4932532392162346,
+      "gradient_energy_retention": 0.2616017182047974,
+      "informative_tile_count": 365,
+      "lost_informative_tile_fraction": 0.8684931506849315,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.05768585004112016
+    },
+    {
+      "logical_id": "I-6-1",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_6_1_head_1xkWVdjALICG1oH2QTZpC8KKzNFE4OPQT.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_1_head_1il-1a0ZvfJex9521a-Zx9iVK8i1-EeyA.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 2530.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60945.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.9651241218121546,
+      "status": "COMPARABLE",
+      "edge_recall": 0.1739666194814664,
+      "gradient_energy_retention": 0.1257479744891316,
+      "informative_tile_count": 494,
+      "lost_informative_tile_fraction": 0.7793522267206477,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.36404169906639167
+    },
+    {
+      "logical_id": "I-6-1",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_6_1_spine_1KB8sYdq9kiGFxyzULpB85m2m7Lf77ZQK.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_1_spine_12mTSfZlJk9vtENOu2932PAJuVOTAB4RC.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3028,
+        4136
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 41885.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64873,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 59635.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [14:3014], cols [20:4116]; no resize/interpolation/warp",
+      "valid_overlap_fraction": 1.0,
+      "alignment_sanity_pearson_16px": 0.6513264833424223,
+      "status": "COMPARABLE",
+      "edge_recall": 0.2946854454373194,
+      "gradient_energy_retention": 0.37690757388088153,
+      "informative_tile_count": 928,
+      "lost_informative_tile_fraction": 0.8383620689655172,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.5708204295811925
+    },
+    {
+      "logical_id": "I-6-2",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_6_2_head_1q7YGf3CGC6W5Yu0Haz7K6SX3AmJK31iz.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_2_head_11lv3a9pB4lq0QhpasNNdqmAOhtyFgvmg.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 2039.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60786.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9666148477339832,
+      "status": "COMPARABLE",
+      "edge_recall": 0.16739403750246434,
+      "gradient_energy_retention": 0.11974863492545887,
+      "informative_tile_count": 428,
+      "lost_informative_tile_fraction": 0.8621495327102804,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.27391710475203135
+    },
+    {
+      "logical_id": "I-6-2",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_6_2_spine_1MsFjxKSvza95MNwjTN7sKh-YF2FqNl5Z.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_2_spine_1sEkcYiDKXMdFMoH8Df3bIOLaKOvhkA5I.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 38264.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65021,
+        "p01": 0.0,
+        "median": 27924.0,
+        "p99": 63225.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9567090335329759,
+      "status": "COMPARABLE",
+      "edge_recall": 0.503815019779415,
+      "gradient_energy_retention": 0.30383450989954175,
+      "informative_tile_count": 517,
+      "lost_informative_tile_fraction": 0.8259187620889749,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.04737937942719154
+    },
+    {
+      "logical_id": "I-6-3",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_6_3_head_1LwJ6wL5nn5RyZG-pM9SaSdp3OP74B5hU.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_3_head_1aeeVTGCpU8RCFOW_reFZbZEYA0JfW-au.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 1854.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60560.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9651182519864465,
+      "status": "COMPARABLE",
+      "edge_recall": 0.14901291191653931,
+      "gradient_energy_retention": 0.10803735791758261,
+      "informative_tile_count": 422,
+      "lost_informative_tile_fraction": 0.919431279620853,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.2904403728082974
+    },
+    {
+      "logical_id": "I-6-3",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_6_3_spine_1vVtXXbmIz-bUoNTeoiRYVRvkN0eacAtL.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_3_spine_1LACuYj0t0rJl6C0L6ArlxNTOCYYIFI10.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 47914.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65083,
+        "p01": 0.0,
+        "median": 36171.0,
+        "p99": 62908.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.943513322314204,
+      "status": "COMPARABLE",
+      "edge_recall": 0.5889129895655586,
+      "gradient_energy_retention": 0.3489486534346998,
+      "informative_tile_count": 433,
+      "lost_informative_tile_fraction": 0.8752886836027713,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.053630280853536653
+    },
+    {
+      "logical_id": "I-6-4",
+      "anatomy": "Kepala",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_6_4_head_1f_0IdXq2yaRwwZgUYc4OcJAVJ-Igpqku.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_4_head_1IAivKLTjwZM-zp2FoECCOHiPiUr-c-BW.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 1511.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 64764,
+        "p01": 0.0,
+        "median": 0.0,
+        "p99": 60918.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9675304001607611,
+      "status": "COMPARABLE",
+      "edge_recall": 0.16130932007893786,
+      "gradient_energy_retention": 0.11495847416934854,
+      "informative_tile_count": 408,
+      "lost_informative_tile_fraction": 0.9264705882352942,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.244756910535449
+    },
+    {
+      "logical_id": "I-6-4",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/reference_I_6_4_spine_1FHzznL7GMV9WBX5j_ZIpKpwekAq-yr4c.tiff"
+      ],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_4_spine_1ufSD4CqKnUe63BtMjyM6D-zR_kIsfBvh.tiff"
+      ],
+      "reference_shape": [
+        3000,
+        4096
+      ],
+      "candidate_shape": [
+        3056,
+        4066
+      ],
+      "reference_dtype": "uint16",
+      "candidate_dtype": "uint16",
+      "reference_bit_depth": 16,
+      "candidate_bit_depth": 16,
+      "reference_intensity": {
+        "min": 0,
+        "max": 65535,
+        "p01": 0.0,
+        "median": 46587.0,
+        "p99": 65535.0
+      },
+      "candidate_intensity": {
+        "min": 0,
+        "max": 65063,
+        "p01": 0.0,
+        "median": 30454.0,
+        "p99": 62330.0
+      },
+      "orientation": "TIFF page 0 grayscale; no orientation-tag transform",
+      "geometry_reconciliation": "candidate crop rows [28:3028], then integer pad columns left=15, right=15; no resize/interpolation/warp",
+      "valid_overlap_fraction": 0.99267578125,
+      "alignment_sanity_pearson_16px": 0.9385420788943476,
+      "status": "COMPARABLE",
+      "edge_recall": 0.5342437032768458,
+      "gradient_energy_retention": 0.36365162078146934,
+      "informative_tile_count": 411,
+      "lost_informative_tile_fraction": 0.8564476885644768,
+      "low_percentile_tile_retention": 0.0,
+      "informative_extreme_fraction": 0.07305634908329042
+    },
+    {
+      "logical_id": "I-6-5",
+      "anatomy": "Kepala",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_5_head_1R5nM-lj_f-LF7wL5qnOkJdpbpOER0MQn.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-6-5",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_5_spine_1VKfj5yeZaj2VMq0Lx-PUEvo31cftDaLx.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-6-6",
+      "anatomy": "Kepala",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_6_head_1BRVKXVIdIGz_KWc9wTqbfAB_GdiGt5U_.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    },
+    {
+      "logical_id": "I-6-6",
+      "anatomy": "Tulang Belakang",
+      "reference_paths": [],
+      "candidate_paths": [
+        "/tmp/mpips-rad.GqFhVJ/data/candidate_I_6_6_spine_16R_dcJ_lbnpSV05SRSiErbi-ZNTr0Tz1.tiff"
+      ],
+      "status": "NON-COMPARABLE",
+      "reason": "ambiguous or missing matched identity"
+    }
+  ]
+}
