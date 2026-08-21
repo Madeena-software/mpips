@@ -1,6 +1,6 @@
 ---
 title: MPIPS Repository Size Reduction — Active Tree Hygiene and History Audit
-status: Draft
+status: Validated/Published
 ---
 
 # Executable Task
