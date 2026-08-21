@@ -1,8 +1,8 @@
 ---
 title: MPIPS Structural Preservation IQA Foundation
 document_id: AGENT-TASK-MPIPS-IQA-STRUCTURAL-SAFETY-001
-version: 1.0
-status: Validated/Published
+version: 1.1
+status: Remediation Required
 language: en-US
 scope:
   - pure reference-based structural-preservation image-quality measurements
@@ -178,6 +178,12 @@ proxy while preserving its public compatibility.
 - [ ] Localized appendage deletion degrades the local/tile measurement while
       retaining the main body, and large structural deletion degrades global
       and local measurements.
+- [ ] A substantially weaker connected appendage or other low-contrast,
+      spatially coherent structure is characterized; deleting it measurably
+      degrades at least one localized structural-preservation measurement.
+- [ ] The measurement foundation does not define an informative region solely
+      through a global relative-to-maximum cutoff that can systematically
+      exclude faint coherent anatomy.
 - [ ] Valid-mask padding is excluded from all structural scores; invalid and
       all-false masks fail safely and clearly.
 - [ ] Blank and near-blank inputs return finite, explicit non-perfect-safe
@@ -189,6 +195,45 @@ proxy while preserving its public compatibility.
 - [ ] RadiographyPipeline behavior, thresholds, defaults, protected converter,
       dependency metadata, Docker, CI, deployment, API, and worker files are
       unchanged.
+
+## Remediation
+
+**Review basis:** `1037fd28444f77d34b5c8b4a8f876e7ba7cf216a`
+
+This is bounded remediation within the original structural-preservation IQA
+objective. The prior implementation can ignore weak but spatially coherent
+structures when informative selection is based only on a global relative-to-
+maximum cutoff.
+
+### Required corrections
+
+- Add characterization for a substantially weaker connected appendage or
+  low-contrast coherent structure, and show that deleting it measurably
+  degrades at least one localized structural-preservation measurement.
+- Revise the measurement foundation so informative selection is not defined
+  solely by a global relative-to-maximum cutoff that can systematically exclude
+  faint coherent anatomy. The implementation mechanism remains Executor
+  technical discretion.
+- Preserve robustness against blank and near-blank images, noise,
+  brightness/contrast transforms, inversion, benign smoothing, and valid-mask
+  padding.
+- Do not introduce arbitrary production PASS/WARN/FAIL thresholds.
+
+### Additional verification
+
+- The weak-structure characterization must fail if deleting the weak connected
+  structure does not measurably degrade a localized structural-preservation
+  measurement.
+- Verify that the weak-structure result and existing robustness
+  characterizations remain finite, mask-aware, and compatible with the
+  existing public IQA boundary.
+
+### Remediation exclusions
+
+- Do not broaden scope into pipeline integration, threshold changes, CLAHE
+  changes, ImageJ hardening, `metric-analyze` integration, or new dependencies.
+- Do not modify this task during remediation execution; any further material
+  contract change requires another republished revision of this stable path.
 
 ## Verification requirements
 
