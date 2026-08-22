@@ -309,8 +309,9 @@ RESOLVED`. Do not introduce ad-hoc terminal classifications.
 ### Dependencies
 
 - The accepted baseline and a clean branch state before execution.
-- An already-installed compatible Java runtime, if authoritative executable
-  reference generation requires Java.
+- An already-installed compatible Java runtime, or the explicitly authorized
+  temporary isolated Eclipse Temurin JDK 17 procedure below, if authoritative
+  executable reference generation requires Java.
 - Public authoritative upstream sources/artifacts and network access when
   required.
 - Existing MPIPS test and processing environment.
@@ -323,7 +324,9 @@ RESOLVED`. Do not introduce ad-hoc terminal classifications.
 - Temporary official source/JAR downloads may be used only for characterization
   and must not be committed or become runtime dependencies.
 - Official version-pinned source/JAR artifacts MAY be downloaded temporarily
-  outside Git. This does NOT authorize downloading or installing a JRE/JDK.
+  outside Git. The Executor is also authorized to obtain the exact GA Linux
+  x86_64 Eclipse Temurin/Adoptium JDK 17 HotSpot build specified below solely
+  for this characterization.
 
 ### Remaining approval requirements
 
@@ -338,7 +341,8 @@ RESOLVED`. Do not introduce ad-hoc terminal classifications.
 - Repository read/write and local command execution.
 - Test and static-check execution.
 - Read-only network access to official upstream source/artifact locations.
-- An already available compatible Java/reference runtime, if needed.
+- An already available compatible Java/reference runtime, or the authorized
+  temporary isolated Temurin JDK 17 procedure below, if needed.
 
 ## Execution constraints
 
@@ -354,17 +358,34 @@ RESOLVED`. Do not introduce ad-hoc terminal classifications.
 - Reuse existing repository mechanisms before adding a helper. Do not introduce
   generic infrastructure.
 - If a discrepancy is found, record it and do not fix it in this task.
-- Do not install Java with `apt`, `sudo`, or any system-wide operation; do not
-  silently download a user-local JRE/JDK; do not alter MPIPS dependencies to
-  obtain Java. If no compatible Java runtime is already available and
-  authoritative executable reference generation requires Java, STOP and return
-  `PLANNING REQUIRED` for an explicit isolated-runtime decision.
+- If system Java is unavailable, the Executor MAY use only an official Eclipse
+  Temurin/Adoptium JDK 17 GA/stable HotSpot Linux x86_64 archive, resolved and
+  pinned before execution. Verify `uname -s` and `uname -m` first; if the
+  environment is not Linux/x86_64, STOP and return `PLANNING REQUIRED`.
+- Resolve the exact Temurin build, release/tag, archive filename, official
+  retrieval URL, and authoritative checksum before download. Verify the archive
+  SHA256 before extraction and record the observed hash. If provenance or the
+  checksum cannot be verified, STOP and return `PLANNING REQUIRED`.
+- Extract and execute the archive only in a retained temporary workspace outside
+  the repository, such as `/tmp/mpips-imagej-reference-<timestamp>/`. Do not
+  install system-wide, use `sudo`, `apt`, `apt-get`, `dpkg`, `rpm`, `snap`,
+  SDKMAN, vendor installers, or write under `/usr/lib/jvm`.
+- Process-local `JAVA_HOME`/`PATH` changes are permitted only for execution;
+  persistent shell or system configuration changes are prohibited. Do not
+  modify MPIPS dependencies. Retain the workspace until Planner/Reviewer
+  acceptance; do not commit the archive or extracted JDK.
 
 ## Acceptance criteria
 
 - [ ] A reproducible provenance record exists for every authoritative reference
       actually used, including exact revision/version, retrieval reference, and
       hashes where practical.
+- [ ] The evidence records whether system Java existed initially and, when the
+      temporary runtime was used, its Temurin vendor/version/build, release/tag,
+      official download source, archive filename and SHA256, checksum result,
+      retained temporary location, `java -version`, and `javac -version`.
+- [ ] The evidence confirms no system-wide Java installation or persistent
+      environment change occurred and MPIPS dependencies were unchanged.
 - [ ] `.agents/evidence/imagej-fidelity-characterization.md` and
       `.agents/evidence/imagej-fidelity-characterization.json` exist, are
       deterministic, and satisfy the required evidence contract.
@@ -445,14 +466,18 @@ The task authorizes only bounded characterization work:
   and Markdown/JSON/CSV evidence;
 - download official version-pinned source/JAR artifacts temporarily outside the
   repository;
+- obtain, checksum-verify, extract, and execute the exact authorized Eclipse
+  Temurin/Adoptium JDK 17 GA Linux x86_64 HotSpot archive in a temporary
+  workspace outside the repository, retaining it until review;
 - execute existing local Java tooling and repository checks;
 - commit and push characterization-only changes to
   `refactor/package-boundaries`.
 
-It does not authorize downloading or installing a JRE/JDK, production changes,
-dependency changes, sudo/system-wide installs, deployment, main modification,
-history rewrite, force-push, tag manipulation, external dataset mutation,
-secret access, or unrelated changes.
+It does not authorize any Java distribution other than the specified Temurin
+JDK 17, system-wide installation, `sudo`, package-manager installation,
+persistent environment changes, production changes, dependency changes,
+deployment, main modification, history rewrite, force-push, tag manipulation,
+external dataset mutation, secret access, or unrelated changes.
 
 ## Expected terminal outcome
 
