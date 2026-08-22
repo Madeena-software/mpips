@@ -108,6 +108,12 @@ practical. Record material source/artifact differences explicitly.
 
 - Create lightweight deterministic characterization scripts, tests, fixtures,
   and Markdown/JSON/CSV evidence as necessary.
+- Produce the mandatory evidence files
+  `.agents/evidence/imagej-fidelity-characterization.md` and
+  `.agents/evidence/imagej-fidelity-characterization.json`.
+- Create a reusable deterministic characterization harness under an existing
+  repository tooling location, preferably `scripts/`, plus only small textual
+  fixtures/reference outputs required by that harness.
 - Execute authoritative Java ImageJ/Fiji behavior wherever practical in a
   temporary isolated reference workspace and compare MPIPS results.
 - Characterize grayscale radiography behavior for `uint8` and `uint16`.
@@ -199,14 +205,112 @@ not production-reachable.
   third-party source is committed.
 - Characterization evidence remains lightweight, deterministic, and human
   auditable.
+- Large binary fixture artifacts MUST NOT be created or committed.
+
+## Required evidence contract
+
+The Markdown evidence MUST contain, at minimum:
+
+1. exact upstream provenance;
+2. production reachability;
+3. fixture matrix;
+4. parameter mapping;
+5. per-case parity/deviation results;
+6. boundary and rounding findings;
+7. existing MPIPS test gaps;
+8. per-operation final classifications;
+9. an evidence-based ordering recommendation for later remediation families;
+10. unresolved reference/licensing constraints.
+
+The JSON evidence MUST contain machine-readable per-case measurements and
+classifications. CSV MAY be emitted when useful, but Markdown and JSON are
+mandatory.
+
+### Exact comparison contract
+
+For deterministic discrete integer ImageJ/Fiji operations, DEFAULT to exact
+array equality. Do not weaken deterministic `uint8`/`uint16` operations to an
+approximate tolerance merely to obtain a passing result.
+
+A tolerance is permitted ONLY when exact equality is not a valid authoritative
+contract, the reason is documented before evaluation, and an explicit numeric
+tolerance is defined before examining the result. The comparison mode MUST be
+recorded as `exact` or `tolerant`; tolerant cases MUST record the tolerance and
+its rationale.
+
+Every characterization case MUST record at minimum: operation, fixture
+identifier, dtype, shape, authoritative project/version/commit, parameters,
+comparison mode, tolerance and rationale when tolerant, equality/pass result,
+mismatch pixel count, mismatch fraction, maximum absolute difference where
+meaningful, first or representative differing coordinate/value where
+meaningful, output/reference SHA256 where practical, and final classification.
+
+For exact deterministic comparison, `mismatch_count == 0` is required for
+`PARITY CONFIRMED`. Correlation, SSIM, PSNR, and visual similarity MUST NOT be
+used as substitutes for exact algorithmic parity.
+
+### Reusable harness contract
+
+The harness MUST:
+
+1. load deterministic fixture definitions;
+2. execute current MPIPS `ImageJReplicator` behavior;
+3. load authoritative reference outputs;
+4. compare exact arrays where appropriate;
+5. support explicitly justified tolerance only where valid;
+6. compute mismatch count and fraction;
+7. compute maximum absolute difference;
+8. identify a representative or first mismatch;
+9. verify shape and dtype; and
+10. emit machine-readable results consumed by the evidence JSON.
+
+This is implementation-fidelity tooling, not a clinical IQA metric.
+
+## Baseline test preservation
+
+`tests/test_imagej_migration.py` currently locks accepted MPIPS baseline
+behavior. I-4A execution MUST NOT change its expected arrays or hashes merely
+because authoritative ImageJ/Fiji output differs.
+
+When an existing MPIPS baseline differs from the authoritative reference,
+record `CURRENT MPIPS BASELINE != AUTHORITATIVE REFERENCE` and normally
+classify the operation as `FIDELITY FAILURE`. Changing production behavior or
+replacing accepted baseline expected values belongs to a later separately
+governed fidelity-remediation task. New characterization tests MAY be added
+separately.
+
+## Required final classification table
+
+The Markdown evidence MUST include an explicit final classification table with
+at least these rows and only the allowed terminal values:
+
+| Operation | Final classification |
+|---|---|
+| Contrast stretch uint8 | one allowed value |
+| Contrast stretch uint16 | one allowed value |
+| Equalize weighted uint8 | one allowed value |
+| Equalize weighted uint16 | one allowed value |
+| Equalize classic uint8 | one allowed value |
+| Equalize classic uint16 | one allowed value |
+| CLAHE Flat / precise | one allowed value |
+| CLAHE FastFlat / fast | one allowed value |
+| Hybrid Median 3x3 | one allowed value |
+| Hybrid Median 5x5 | one allowed value |
+| Hybrid Median 7x7 | one allowed value |
+| Circular Median | one allowed value |
+| Temporal Median | one allowed value |
+
+Allowed values are `PARITY CONFIRMED`, `BOUNDED DEVIATION`, `FIDELITY
+FAILURE`, `NOT APPLICABLE`, `NOT PRODUCTION-REACHABLE`, and `REFERENCE NOT
+RESOLVED`. Do not introduce ad-hoc terminal classifications.
 
 ## Dependencies and assumptions
 
 ### Dependencies
 
 - The accepted baseline and a clean branch state before execution.
-- Existing compatible Java/reference tooling, or an unprivileged temporary
-  runtime that does not require system installation.
+- An already-installed compatible Java runtime, if authoritative executable
+  reference generation requires Java.
 - Public authoritative upstream sources/artifacts and network access when
   required.
 - Existing MPIPS test and processing environment.
@@ -218,6 +322,8 @@ not production-reachable.
   ImageJ/Fiji parity.
 - Temporary official source/JAR downloads may be used only for characterization
   and must not be committed or become runtime dependencies.
+- Official version-pinned source/JAR artifacts MAY be downloaded temporarily
+  outside Git. This does NOT authorize downloading or installing a JRE/JDK.
 
 ### Remaining approval requirements
 
@@ -248,14 +354,27 @@ not production-reachable.
 - Reuse existing repository mechanisms before adding a helper. Do not introduce
   generic infrastructure.
 - If a discrepancy is found, record it and do not fix it in this task.
+- Do not install Java with `apt`, `sudo`, or any system-wide operation; do not
+  silently download a user-local JRE/JDK; do not alter MPIPS dependencies to
+  obtain Java. If no compatible Java runtime is already available and
+  authoritative executable reference generation requires Java, STOP and return
+  `PLANNING REQUIRED` for an explicit isolated-runtime decision.
 
 ## Acceptance criteria
 
 - [ ] A reproducible provenance record exists for every authoritative reference
       actually used, including exact revision/version, retrieval reference, and
       hashes where practical.
+- [ ] `.agents/evidence/imagej-fidelity-characterization.md` and
+      `.agents/evidence/imagej-fidelity-characterization.json` exist, are
+      deterministic, and satisfy the required evidence contract.
+- [ ] A reusable deterministic harness and small textual fixtures/reference
+      outputs exist under an appropriate existing tooling location, without
+      large binary fixture artifacts.
 - [ ] Each in-scope operation has a classification from the allowed set and
       evidence sufficient to reproduce the comparison.
+- [ ] Every case records the required exact/tolerant comparison and mismatch
+      measurements; exact deterministic parity requires zero mismatches.
 - [ ] ContrastEnhancer stretch and equalization cover required uint8/uint16
       fixtures, parameters, and rounding/statistics questions.
 - [ ] Flat and FastFlat CLAHE are characterized separately with required
@@ -268,6 +387,8 @@ not production-reachable.
       large binary datasets and vendored third-party artifacts.
 - [ ] No production behavior, defaults, dependency, API, DICOM converter, or
       unrelated repository behavior changed.
+- [ ] `tests/test_imagej_migration.py` expected arrays and hashes remain
+      unchanged; any baseline/reference discrepancy is explicitly recorded.
 - [ ] Findings are diagnostic only; any later remediation or ablation is
       identified as separately planned work.
 
@@ -280,8 +401,11 @@ not production-reachable.
 - Verify reference provenance and hashes against the downloaded temporary
   artifacts where applicable.
 - Verify the final diff contains only authorized characterization artifacts.
-- Run relevant focused tests and available repository quality checks without
-  changing production dependencies.
+- Run `tests/test_imagej_migration.py`, relevant processing/filtering tests,
+  `tests/test_converter_protection.py`, and the characterization harness/tests.
+- Run Black, Flake8, mypy when practical, and the full pytest suite when
+  practical. Local execution MUST NOT be called CI; report GitHub Actions
+  separately only if it actually ran.
 - Recompute the protected converter SHA256.
 
 ### Required evidence
@@ -290,6 +414,8 @@ The Executor MUST report the governing task revision, implementation baseline,
 implementation revision, exact commands, observed results, fixture and
 parameter inventory, reference provenance, per-operation classifications,
 generated artifact paths, known gaps, deviations, and any stop condition.
+The report MUST state whether each required check was run, skipped, or blocked;
+skipped or terminated checks MUST NOT be reported as passed.
 
 ## Stop conditions
 
@@ -323,9 +449,10 @@ The task authorizes only bounded characterization work:
 - commit and push characterization-only changes to
   `refactor/package-boundaries`.
 
-It does not authorize production changes, dependency changes, sudo/system-wide
-installs, deployment, main modification, history rewrite, force-push, tag
-manipulation, external dataset mutation, secret access, or unrelated changes.
+It does not authorize downloading or installing a JRE/JDK, production changes,
+dependency changes, sudo/system-wide installs, deployment, main modification,
+history rewrite, force-push, tag manipulation, external dataset mutation,
+secret access, or unrelated changes.
 
 ## Expected terminal outcome
 
@@ -348,4 +475,3 @@ Review against this exact task revision, the stated implementation baseline,
 the implementation revision, and observed evidence. A fidelity failure is not a
 remediation defect for this task. Any later fix, tuning, recommendation, or
 ablation must be separately planned from the findings.
-
