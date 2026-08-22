@@ -98,7 +98,12 @@ def run_reference(
         command, input=flat, text=True, capture_output=True, check=False, timeout=30
     )
     if result.returncode:
-        raise RuntimeError(f"reference failed: {' '.join(command)}\n{result.stderr}")
+        command_text = (
+            " ".join(command)
+            .replace(java, "<TEMURIN_JAVA>")
+            .replace(classpath, "<REFERENCE_CLASSPATH>")
+        )
+        raise RuntimeError(f"reference failed: {command_text}\n{result.stderr}")
     values = np.fromstring(result.stdout, sep=" ", dtype=np.uint64)
     return values.astype(np.uint8 if dtype == "uint8" else np.uint16).reshape(
         image.shape
@@ -125,6 +130,11 @@ def compare(
         if actual.shape == reference.shape
         else np.empty((0, 2), dtype=int)
     )
+    edge = np.zeros(actual.shape, dtype=bool)
+    if actual.ndim == 2 and actual.shape[0] > 1 and actual.shape[1] > 1:
+        edge[[0, -1], :] = True
+        edge[:, [0, -1]] = True
+    mismatch_mask = actual != reference
     first = None
     if mismatch.size:
         y, x = mismatch[0]
@@ -153,6 +163,16 @@ def compare(
             float(np.count_nonzero(actual != reference) / actual.size)
             if actual.shape == reference.shape
             else 1.0
+        ),
+        "edge_mismatch_count": (
+            int(np.count_nonzero(mismatch_mask & edge))
+            if actual.shape == reference.shape
+            else None
+        ),
+        "interior_mismatch_count": (
+            int(np.count_nonzero(mismatch_mask & ~edge))
+            if actual.shape == reference.shape
+            else None
         ),
         "max_absolute_difference": int(difference.max()) if difference.size else 0,
         "first_mismatch": first,
@@ -218,9 +238,18 @@ def main() -> int:
                 args.adapter_source.read_bytes()
             ).hexdigest(),
             "adapter_build_command": (
-                "javac -cp ij-1.54p.jar:classes -d harness "
+                "javac -cp <IMAGEJ_JAR>:<REFERENCE_CLASSES> -d <HARNESS_CLASSES> "
                 "scripts/imagej_reference/ReferenceHarness.java"
             ),
+            "reference_classpath_structure": (
+                "<IMAGEJ_JAR>:<REFERENCE_CLASSES>:<HARNESS_CLASSES>"
+            ),
+            "external_build_commands": [
+                "javac -cp <IMAGEJ_JAR> -d <REFERENCE_CLASSES> "
+                "<CLAHE_SOURCES> <MPICBG_UTIL_SOURCE>",
+                "javac -cp <IMAGEJ_JAR>:<REFERENCE_CLASSES> "
+                "-d <REFERENCE_CLASSES> <HYBRID_SOURCE>",
+            ],
         },
         "imagej": {
             "project": "imagej/ImageJ",
@@ -516,7 +545,7 @@ def main() -> int:
         "",
         "## Fixture matrix",
         "",
-        "`constant`, `two_level`, `ramp`, `sparse`, `narrow`, `full`, `impulse`, and `asymmetric_tail` cover uint8/uint16 stretch and equalization. `median_grid` covers hybrid, circular, and CLAHE boundary cases. The CLAHE fixture is a deterministic 128×128 ramp modulo 64 so the authoritative 256-bin implementation has non-full bins.",  # noqa: E501
+        "Stretch and equalization use `constant`, `two_level`, `ramp`, `sparse`, `narrow`, `full`, `impulse`, and `asymmetric_tail` for both uint8 and uint16. Median fixtures are `median_grid` and `hybrid_9x9`; CLAHE fixtures are `clahe_runtime` and `clahe_small`. The CLAHE fixtures are deterministic modulo ramps so the mapped-bin implementation has non-full bins. Circular radii tested are 0.5, 1.0, 1.5, 1.74, 1.75, 2.0, 2.5, 2.84, 2.85, and 3.0, covering special-radius boundary groups.",  # noqa: E501
         "",
         "## Parameter mappings",
         "",
@@ -604,6 +633,16 @@ def main() -> int:
         )
     lines += [
         "",
+        "## Boundary and rounding findings",
+        "",
+        "ContrastEnhancer normalized stretch and weighted/classic equalization show exact parity for all tested uint8/uint16 fixtures and parameters. No current evidence justifies ContrastEnhancer fidelity remediation.",  # noqa: E501
+        "",
+        "Circular Median diverges for the tested special-radius cases 1.5 and 2.5, while the tested radii 0.5, 1.0, 1.74, 1.75, 2.0, 2.84, 2.85, and 3.0 remain exact. These observations are limited to pinned ImageJ 1.54p RankFilters circular-radius semantics; the characterization does not fix them.",  # noqa: E501
+        "",
+        "Hybrid Median deviations occur in both boundary and interior pixels: across the uint8/uint16 cases, the 3×3 family has 38 edge and 62 interior mismatches, 5×5 has 44 edge and 48 interior mismatches, and 7×7 has 38 edge and 48 interior mismatches. Repeated-pass behavior is represented by the `hybrid_9x9` 5×5 case with `repetitions=2`. No causal claim is made beyond these region counts.",  # noqa: E501
+        "",
+        "Smaller correctly mapped CLAHE cases execute and numerically diverge. The runtime `maximum_slope=0.6` cases produce authoritative Fiji `ArithmeticException: / by zero` while MPIPS returns numeric output. The pinned source identity is resolved, so these are FIDELITY FAILURE results, not REFERENCE NOT RESOLVED.",  # noqa: E501
+        "",
         "## Existing test gaps",
         "",
         "`tests/test_imagej_migration.py` locks accepted MPIPS outputs but does not compare them with executable ImageJ/Fiji references. Its expected arrays and hashes were not modified.",  # noqa: E501
@@ -614,7 +653,7 @@ def main() -> int:
         "",
         "## Later remediation ordering",
         "",
-        "Use the measured operation families in this order: circular/Hybrid median edge semantics, ContrastEnhancer rounding/statistics, CLAHE Flat versus FastFlat parameter mapping, then any secondary RGB/composite work. This is diagnostic ordering only; remediation is out of scope for I-4A.",  # noqa: E501
+        "I-4B ContrastEnhancer fidelity remediation: NOT CURRENTLY REQUIRED BY I-4A EVIDENCE. Do not create I-4B. The remaining FIDELITY FAILURE families are CLAHE, Hybrid Median, and Circular Median. The active production median path is `hybrid_imagej` with default radius 2 (`mpips/pipelines/config.py` and `mpips/processing/filtering.py`); order later work as Hybrid Median first, CLAHE second, and Circular Median third by production reachability and measured evidence. Circular Median is an exposed alternative, not the active default path. This is diagnostic ordering only; remediation is out of scope for I-4A.",  # noqa: E501
         "",
         "## Licensing and unresolved constraints",
         "",

@@ -34,9 +34,14 @@ Governing task: `ae873d1d8ea04cb482a7896ca84088867e5524ec`; accepted implementat
     "version": "1.54p"
   },
   "repository": {
-    "adapter_build_command": "javac -cp ij-1.54p.jar:classes -d harness scripts/imagej_reference/ReferenceHarness.java",
+    "adapter_build_command": "javac -cp <IMAGEJ_JAR>:<REFERENCE_CLASSES> -d <HARNESS_CLASSES> scripts/imagej_reference/ReferenceHarness.java",
     "adapter_sha256": "86189871e94cc0d34f09976a8f61c1672fe05cc94c3226ecb51c137926d0ff56",
-    "adapter_source": "/var/www/mpips/scripts/imagej_reference/ReferenceHarness.java"
+    "adapter_source": "scripts/imagej_reference/ReferenceHarness.java",
+    "external_build_commands": [
+      "javac -cp <IMAGEJ_JAR> -d <REFERENCE_CLASSES> <CLAHE_SOURCES> <MPICBG_UTIL_SOURCE>",
+      "javac -cp <IMAGEJ_JAR>:<REFERENCE_CLASSES> -d <REFERENCE_CLASSES> <HYBRID_SOURCE>"
+    ],
+    "reference_classpath_structure": "<IMAGEJ_JAR>:<REFERENCE_CLASSES>:<HARNESS_CLASSES>"
   },
   "runtime": {
     "archive": "OpenJDK17U-jdk_x64_linux_hotspot_17.0.19_10.tar.gz",
@@ -67,7 +72,7 @@ Temporal median is **NOT PRODUCTION-REACHABLE**: no pipeline caller or registere
 
 ## Fixture matrix
 
-`constant`, `two_level`, `ramp`, `sparse`, `narrow`, `full`, `impulse`, and `asymmetric_tail` cover uint8/uint16 stretch and equalization. `median_grid` covers hybrid, circular, and CLAHE boundary cases. The CLAHE fixture is a deterministic 128×128 ramp modulo 64 so the authoritative 256-bin implementation has non-full bins.
+Stretch and equalization use `constant`, `two_level`, `ramp`, `sparse`, `narrow`, `full`, `impulse`, and `asymmetric_tail` for both uint8 and uint16. Median fixtures are `median_grid` and `hybrid_9x9`; CLAHE fixtures are `clahe_runtime` and `clahe_small`. The CLAHE fixtures are deterministic modulo ramps so the mapped-bin implementation has non-full bins. Circular radii tested are 0.5, 1.0, 1.5, 1.74, 1.75, 2.0, 2.5, 2.84, 2.85, and 3.0, covering special-radius boundary groups.
 
 ## Parameter mappings
 
@@ -231,6 +236,16 @@ MPIPS maps displayed `histogram_bins=256` to Fiji internal `bins=255`; `blocksiz
 | CLAHE Flat / precise | clahe_small | uint16 | `{"block_radius": 2, "blocksize": 5, "composite": true, "histogram_bins": 16, "internal_bins": 15, "maximum_slope": 3.0}` | FIDELITY FAILURE | 0.9375 | 3855 |
 | CLAHE FastFlat / fast | clahe_small | uint16 | `{"block_radius": 2, "blocksize": 5, "composite": true, "histogram_bins": 16, "internal_bins": 15, "maximum_slope": 3.0}` | FIDELITY FAILURE | 1.0 | 9388 |
 
+## Boundary and rounding findings
+
+ContrastEnhancer normalized stretch and weighted/classic equalization show exact parity for all tested uint8/uint16 fixtures and parameters. No current evidence justifies ContrastEnhancer fidelity remediation.
+
+Circular Median diverges for the tested special-radius cases 1.5 and 2.5, while the tested radii 0.5, 1.0, 1.74, 1.75, 2.0, 2.84, 2.85, and 3.0 remain exact. These observations are limited to pinned ImageJ 1.54p RankFilters circular-radius semantics; the characterization does not fix them.
+
+Hybrid Median deviations occur in both boundary and interior pixels: across the uint8/uint16 cases, the 3×3 family has 38 edge and 62 interior mismatches, 5×5 has 44 edge and 48 interior mismatches, and 7×7 has 38 edge and 48 interior mismatches. Repeated-pass behavior is represented by the `hybrid_9x9` 5×5 case with `repetitions=2`. No causal claim is made beyond these region counts.
+
+Smaller correctly mapped CLAHE cases execute and numerically diverge. The runtime `maximum_slope=0.6` cases produce authoritative Fiji `ArithmeticException: / by zero` while MPIPS returns numeric output. The pinned source identity is resolved, so these are FIDELITY FAILURE results, not REFERENCE NOT RESOLVED.
+
 ## Existing test gaps
 
 `tests/test_imagej_migration.py` locks accepted MPIPS outputs but does not compare them with executable ImageJ/Fiji references. Its expected arrays and hashes were not modified.
@@ -241,7 +256,7 @@ The JSON records mismatch count, mismatch fraction, maximum absolute difference,
 
 ## Later remediation ordering
 
-Use the measured operation families in this order: circular/Hybrid median edge semantics, ContrastEnhancer rounding/statistics, CLAHE Flat versus FastFlat parameter mapping, then any secondary RGB/composite work. This is diagnostic ordering only; remediation is out of scope for I-4A.
+I-4B ContrastEnhancer fidelity remediation: NOT CURRENTLY REQUIRED BY I-4A EVIDENCE. Do not create I-4B. The remaining FIDELITY FAILURE families are CLAHE, Hybrid Median, and Circular Median. The active production median path is `hybrid_imagej` with default radius 2 (`mpips/pipelines/config.py` and `mpips/processing/filtering.py`); order later work as Hybrid Median first, CLAHE second, and Circular Median third by production reachability and measured evidence. Circular Median is an exposed alternative, not the active default path. This is diagnostic ordering only; remediation is out of scope for I-4A.
 
 ## Licensing and unresolved constraints
 
