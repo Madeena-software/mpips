@@ -30,7 +30,18 @@ public class ReferenceHarness {
         return new ShortProcessor(w, h, p, null);
     }
 
+    static int selectorForKernel(int kernel) {
+        switch (kernel) {
+            case 3: return 1;
+            case 5: return 3;
+            case 7: return 5;
+            default: throw new IllegalArgumentException("kernel must be 3, 5, or 7");
+        }
+    }
+
     static void hybrid(ImageProcessor ip, int kernel, int repetitions) throws Exception {
+        int selector = selectorForKernel(kernel);
+        double nsize = (selector - 1) / 2.0;
         Hybrid_2D_Median_Filter plugin = new Hybrid_2D_Median_Filter();
         ImagePlus imp = new ImagePlus("fixture", ip);
         Field stack = plugin.getClass().getDeclaredField("stack");
@@ -39,11 +50,13 @@ public class ReferenceHarness {
         atebit.setAccessible(true); atebit.setBoolean(plugin, ip instanceof ByteProcessor);
         Field times = plugin.getClass().getDeclaredField("times");
         times.setAccessible(true); times.setDouble(plugin, repetitions);
+        Field size = plugin.getClass().getDeclaredField("nsize");
+        size.setAccessible(true); size.setDouble(plugin, nsize);
         Field title = plugin.getClass().getDeclaredField("otitle");
         title.setAccessible(true); title.set(plugin, "fixture");
         Method m = plugin.getClass().getDeclaredMethod("Hybrid2dMedianizer", ImagePlus.class, double.class);
         m.setAccessible(true);
-        ImagePlus out = (ImagePlus)m.invoke(plugin, imp, (kernel - 1) / 2);
+        ImagePlus out = (ImagePlus)m.invoke(plugin, imp, nsize);
         emit(out.getProcessor());
     }
 

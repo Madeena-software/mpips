@@ -80,8 +80,26 @@ reproduction used fresh output directories at
 `.../harness`; it did not reuse the original compiled classes.
 
 `ReferenceHarness.java` is compiled from this repository revision. Its exact
-source SHA256 is
-`86189871e94cc0d34f09976a8f61c1672fe05cc94c3226ecb51c137926d0ff56`.
+source SHA256 is recorded below after the tracked adapter correction.
+
+The Hybrid adapter accepts the MPIPS kernel size as its `hybrid` argument and
+maps it to the plugin's internal selector as follows:
+
+| MPIPS kernel | plugin selector | plugin `nsize` |
+|---|---:|---:|
+| 3x3 | 1 | 0 |
+| 5x5 | 3 | 1 |
+| 7x7 | 5 | 2 |
+
+The pinned plugin source defines the choice order as `3x3`, `5x5`, `7x7`,
+stores the selected choice index in `nsize`, and branches on `nsize == 0`,
+`1`, and `2`. The adapter therefore sets the plugin's private `nsize` field
+before invoking the private method; the method argument is set to the same
+`nsize` value. This reflection is limited to invocation state and does not
+implement or copy the filtering algorithm.
+
+The corrected tracked adapter source SHA256 is
+`4dd097ff92002f6d3d6a52ef6d2231e31aa3b32610c8af9e0c9e300559f2bcd5`.
 
 ## Execution
 
