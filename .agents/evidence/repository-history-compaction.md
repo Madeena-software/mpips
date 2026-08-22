@@ -14,7 +14,12 @@ Planner/Reviewer acceptance.
   `3f5697232ea4bb1cf8c48bf5fdbc96d551537f28`
 
 The governing task and its referenced authority were included in the rewrite.
-The rewritten governing-task commit is `c2c613e112bfda9a46271964989421236a5f0add`.
+The rewritten equivalent of the Phase-2 tool-authority governing-task revision
+`3f5697232ea4bb1cf8c48bf5fdbc96d551537f28` is
+`bd8a36e4c8bfba5121132f1d262b354cbb0cf6bb`.
+The separate Phase-1 repository-size-reduction task validation commit
+`a7704a1a3a0fddc929c984b11d232bddd82c9e70` rewrites to
+`c2c613e112bfda9a46271964989421236a5f0add`.
 
 ## Rewritten branch refs
 
@@ -26,8 +31,31 @@ The rewritten governing-task commit is `c2c613e112bfda9a46271964989421236a5f0add
 | `refs/heads/refactor/package-boundaries` `3f5697232ea4bb1cf8c48bf5fdbc96d551537f28` | `bd8a36e4c8bfba5121132f1d262b354cbb0cf6bb` |
 
 The package-boundaries ref above is the raw rewritten tip. A subsequent normal
-evidence commit is published on that branch; the final remote tip is reported
-in the Executor handoff.
+evidence-only normal commit moved `refactor/package-boundaries` to
+`ce0b846ee3ccddab7f96defeb30c75dcfeb6c9b5`. The remediation commit created by
+this instruction becomes the new final package-branch tip and is reported
+separately in the Executor handoff.
+
+The repository default branch is `main`.
+
+## Historical commit map
+
+The following mappings are copied from the authoritative
+`rewrite-authoritative/filter-repo/commit-map`:
+
+| Original SHA | Rewritten SHA | Meaning |
+| --- | --- | --- |
+| `c09012a1d20a72d3ce3cccaa7bb1ea4d38a82f20` | `fd7ebd61a3b705ea40a3962a7fcbbe992906797f` | historical mapped commit |
+| `deaf1430f62c90ce02cd4cefc8b58ab380d2aad8` | `d80b10c412fb86237ef3d3f74bdffa3a3d814b80` | historical mapped commit |
+| `b14625ab01fe031cb3a9258b9fc5ff2227b032b3` | `4255fe9871751b1adcf5ff10d78b19094f00023c` | historical mapped commit |
+| `a7704a1a3a0fddc929c984b11d232bddd82c9e70` | `c2c613e112bfda9a46271964989421236a5f0add` | Phase-1 repository-size-reduction task validation |
+| `ce0fe2df6f06e8fa370f4999734903cadea39638` | `943fc59bf2386509cd609b85b24e2a3a3218788b` | Phase-1 implementation |
+| `5aef640eb6c124d8fbd95009021f4648d3eb6c69` | `225cb8dd32b256a9de50e7b3dafe5dc75fc6d5c6` | accepted Phase-1 baseline |
+| `d944f72b1a8256e81911514a29ae389fbdfeaf11` | `0d58219af40d46a65f45f473e78885af80c5f838` | Phase-2 task publication |
+| `3f5697232ea4bb1cf8c48bf5fdbc96d551537f28` | `bd8a36e4c8bfba5121132f1d262b354cbb0cf6bb` | Phase-2 tool-authority governing task |
+
+The four original branch-tip mappings are recorded in the branch-ref table
+above and the CSV companion. No mapping was inferred for these entries.
 
 No tags existed before the rewrite and no tags exist after it. The advertised
 server-managed `refs/pull/1/head` was not pushed or changed. Its pre-rewrite
@@ -105,3 +133,11 @@ production source changed in Phase 1 or in this history-only Phase 2 work.
 - The canonical checkout `/var/www/mpips` was not used as the filter input and
   was not mutated by the rewrite.
 
+## Clone and audit warning
+
+Pre-rewrite SHAs remain historical audit identifiers only; rewritten SHAs are
+the active repository identities. Old pre-rewrite clones must not push or merge
+their old history back into rewritten branches. Fresh clones are preferred.
+`/var/www/mpips` is still a pre-rewrite checkout and must not be used for future
+commits or pushes until it is deliberately realigned or replaced with a fresh
+rewritten clone. It was not realigned during this evidence-remediation turn.
