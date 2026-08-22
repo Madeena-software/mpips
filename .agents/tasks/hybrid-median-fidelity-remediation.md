@@ -106,7 +106,7 @@ executable reference tests also prove interior parity.
   default radius changes.
 - API changes, broad `ImageJReplicator` refactoring, RGB fidelity work unless
   required to prevent regression of the existing channel-wise contract, and
-  performance optimization not needed for correctness.
+  performance optimization beyond the required correctness sanity check.
 - Combining this task with another fidelity family.
 
 ### Preserved behavior
@@ -116,7 +116,10 @@ executable reference tests also prove interior parity.
 - `apply_median_filter(..., filter_type="hybrid_imagej", radius=...)`.
 - `median_filter_type="hybrid_imagej"` and `median_filter_radius=2` defaults;
   radius 2 remains the 5×5 production path.
-- dtype, shape, and channel-wise multi-channel behavior.
+- input must remain a NumPy ndarray; empty arrays remain invalid; supported
+  kernel sizes remain only 3, 5, and 7; and repetitions below 1 retain current
+  behavior unless authoritative evidence proves a bounded conflict.
+- dtype, shape, and existing channel-wise multi-channel behavior.
 - Unrelated processing behavior, repository package boundaries, and existing
   licensing notices.
 
@@ -153,6 +156,20 @@ The historical Hybrid Median expected output in
 authoritative output. Do not change ContrastEnhancer arrays, CLAHE hashes, or
 unrelated migration expectations to make the suite green.
 
+The implementation must not add a Java runtime dependency to production. Do
+not use a system Java installation, `sudo`, an OS package manager, dependency
+changes, a new JDK download, or any new unapproved third-party executable or
+runtime download. The retained reference workspace
+`/tmp/mpips-imagej-reference-LyDbYJ` may be reused only after verifying that it
+remains present and consistent with accepted I-4A provenance. Already-retained
+pinned artifacts may be rebuilt locally according to the tracked README only
+without a new download or permission expansion.
+
+If the retained workspace is unavailable or unusable and authoritative
+reference execution would require a new JDK/JRE, replacement executable
+artifacts beyond existing authority, system installation, dependency
+modification, or permission expansion, stop: **PLANNING REQUIRED**.
+
 ## Acceptance criteria
 
 - [ ] Exact array equality, with `mismatch_count == 0`, is demonstrated for
@@ -176,9 +193,21 @@ exact deterministic equality.
 ### Required checks
 
 - Baseline red/green focused fidelity tests as specified above.
-- Relevant existing migration and ImageJ wrapper tests.
-- Appropriate formatting, lint, type, and focused/full regression checks for
-  changed surfaces, using repository commands and reporting actual results.
+- Post-fix authoritative exact parity for 3×3 uint8, 3×3 uint16, 5×5 uint8,
+  5×5 uint16, 7×7 uint8, and 7×7 uint16; boundary and genuine interior parity;
+  repetitions=2 parity; and the production wrapper
+  `filter_type="hybrid_imagej", radius=2`.
+- `tests/test_imagej_migration.py`, relevant processing/filtering tests, and
+  `tests/test_converter_protection.py`.
+- Black, Flake8, mypy, and full pytest when practical, using repository
+  commands and reporting actual results.
+- SHA256 verification of the protected converter
+  `mpips/conversion/tiff_json_to_dcm.py`:
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+- A lightweight performance sanity check on a representative moderate
+  grayscale array after correctness is achieved. Record basic elapsed time
+  before/after when practical; no strict speed threshold applies and a modest
+  slowdown for faithful semantics is acceptable.
 - Reference harness/tooling checks when modified.
 
 ### Required evidence
@@ -186,7 +215,11 @@ exact deterministic equality.
 Report the exact implementation revision or working-tree state, commands and
 observed output, tests added/changed, per-case mismatch results, baseline red
 evidence, green evidence, deviations, gaps, and blockers. Do not represent
-unobserved local checks as CI or acceptance.
+unobserved local checks as CI or acceptance. If full pytest times out, report
+the exact command, timeout duration, last test observed, and whether any
+failure was observed before timeout; never report a timeout as pass. Report
+GitHub Actions separately only when an actual run exists. The protected
+converter must remain unchanged.
 
 ## Dependencies and approvals
 
@@ -219,14 +252,29 @@ objective. Do not silently reinterpret the task.
 
 ## Side-effect authorization
 
-Implementation is bounded to the scope above. It does not authorize dependency
-installation or replacement, Git commit/push, pull request creation, release,
-deployment, production or external-system mutation, destructive operations,
-secret access, or unrelated repository changes. The publication commit for this
-task is the Planner action that establishes its immutable governing revision.
+Implementation is bounded to the scope above. The future Executor is explicitly
+authorized to:
+
+- modify only the bounded Hybrid Median implementation, test, and evidence
+  surfaces;
+- create normal implementation/evidence commit(s) on
+  `refactor/package-boundaries`; and
+- push normally to `origin/refactor/package-boundaries`.
+
+The Executor must stop after push at **Review Required** and return immutable
+implementation revision(s). The Executor is not authorized to force-push,
+modify `main`, rewrite history, mutate tags, delete branches, create a pull
+request unless separately authorized, deploy, or release. Dependency changes,
+system installation, permission expansion, production/external-system
+mutation, destructive operations, secret access, and unrelated repository
+changes remain prohibited.
 
 ## Expected terminal outcome
 
 The Executor returns **Review Required** with a reviewable implementation state
 and truthful evidence, or **Planning Required** with the blocking evidence.
-The Executor does not self-declare acceptance.
+When implementation succeeds within scope, the Executor must audit the final
+diff, create normal commit(s), push normally, verify local `HEAD ==
+origin/refactor/package-boundaries` and a clean worktree, return the exact
+implementation/evidence SHA(s), and stop at **Review Required**. The Executor
+does not self-declare acceptance.
