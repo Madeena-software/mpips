@@ -480,10 +480,10 @@ def test_complete_promoted_recipe_matches_golden_tiff_pixels(tmp_path: Path) -> 
     assert 0 <= output.min() <= output.max() <= 65535
     np.testing.assert_array_equal(
         output[[0, 0, 4, 8, 23], [0, 4, 0, 0, 23]],
-        np.array([65535, 47802, 55255, 31868, 0], dtype=np.uint16),
+        np.array([65535, 47802, 43690, 0, 0], dtype=np.uint16),
     )
     assert hashlib.sha256(output.tobytes()).hexdigest() == (
-        "777a868cb95ccf0a7fdf915c8cb7b82cfe760f27a4138f1c109e335f7d108361"
+        "f176b16a29fc3a37fee76a133f88bc0018514210cccb461218008933186e18b7"
     )
 
     output_path = write_tiff(tmp_path / "canonical.tiff", output)

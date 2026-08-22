@@ -236,7 +236,7 @@ _PARITY_CASES = (
 _FROZEN_PARITY = {
     "default": (
         (24, 24),
-        "777a868cb95ccf0a7fdf915c8cb7b82cfe760f27a4138f1c109e335f7d108361",
+        "f176b16a29fc3a37fee76a133f88bc0018514210cccb461218008933186e18b7",
     ),
     "use_denoise_false": (
         (24, 24),

@@ -75,11 +75,11 @@ def test_default_recipe_matches_legacy_pixels_and_hash() -> None:
     assert int(result.max()) == 65535
     assert result[(0, 0)] == 65535
     assert result[(0, 4)] == 47802
-    assert result[(4, 0)] == 55255
-    assert result[(8, 0)] == 31868
+    assert result[(4, 0)] == 43690
+    assert result[(8, 0)] == 0
     assert result[(23, 23)] == 0
     assert hashlib.sha256(result.tobytes()).hexdigest() == (
-        "777a868cb95ccf0a7fdf915c8cb7b82cfe760f27a4138f1c109e335f7d108361"
+        "f176b16a29fc3a37fee76a133f88bc0018514210cccb461218008933186e18b7"
     )
 
 

@@ -732,9 +732,9 @@ class ImageJReplicator:
         yang mempertahankan tepi (edge-preserving) lebih baik dibanding
         filter median standar.
 
-        Boundary handling menggunakan 'edge' mode (replicate) yang mereplikasi
-        perilaku fallback cascading dari implementasi Java asli, di mana piksel
-        di luar batas diganti dengan piksel terdekat pada arah yang sama.
+        Boundary handling mengikuti indeks flat dan fallback cascading dari
+        implementasi Java asli. Ini sengaja tidak menggunakan padding NumPy:
+        indeks Java dapat melintasi baris, dan fallback 7x7 plugin dipertahankan.
 
         Args:
             image: Citra input grayscale (uint8 atau uint16).
@@ -788,80 +788,106 @@ class ImageJReplicator:
             ]
             return cv2.merge(processed)
 
-        # Kerja dengan float64 untuk presisi (mereplikasi double[] di Java)
-        result = image.astype(np.float64)
-        height, width = result.shape
+        # Kerja dengan float64 untuk presisi (mereplikasi double[] di Java).
+        height, width = image.shape
+        result = image.astype(np.float64).reshape(-1)
+        total = result.size
+        positions = np.arange(total, dtype=np.int64)
 
-        # Definisi offset kernel Plus (+): piksel pada arah kardinal
-        # 3x3: 5 piksel, 5x5: 9 piksel, 7x7: 13 piksel
-        #
-        # Contoh 5x5 Plus:
-        #   . . X . .
-        #   . . X . .
-        #   X X * X X
-        #   . . X . .
-        #   . . X . .
-        plus_offsets = [(0, 0)]  # pusat
-        for r in range(1, radius + 1):
-            plus_offsets.extend([(-r, 0), (r, 0), (0, -r), (0, r)])
+        def candidate_indices(offsets: tuple[int, ...]) -> np.ndarray:
+            indices = positions.copy()
+            unresolved = np.ones(total, dtype=bool)
+            for offset in offsets:
+                candidate = positions + offset
+                valid = (candidate >= 0) & (candidate < total)
+                take = unresolved & valid
+                indices[take] = candidate[take]
+                unresolved[take] = False
+            return indices
 
-        # Definisi offset kernel X: piksel pada arah diagonal
-        # 3x3: 5 piksel, 5x5: 9 piksel, 7x7: 13 piksel
-        #
-        # Contoh 5x5 X:
-        #   X . . . X
-        #   . X . X .
-        #   . . * . .
-        #   . X . X .
-        #   X . . . X
-        x_offsets = [(0, 0)]  # pusat
-        for r in range(1, radius + 1):
-            x_offsets.extend([(-r, -r), (-r, r), (r, -r), (r, r)])
+        plus_offsets: list[tuple[int, ...]] = [
+            (-width,),
+            (-1,),
+            (0,),
+            (1,),
+            (width,),
+        ]
+        x_offsets: list[tuple[int, ...]] = [
+            (-(width + 1),),
+            (-(width - 1),),
+            (0,),
+            (width - 1,),
+            (width + 1,),
+        ]
+        for distance in range(2, radius + 1):
+            plus_offsets.extend(
+                (
+                    tuple(-step * width for step in range(distance, 0, -1)),
+                    tuple(-step for step in range(distance, 0, -1)),
+                    tuple(step for step in range(distance, 0, -1)),
+                    tuple(step * width for step in range(distance, 0, -1)),
+                )
+            )
+            x_offsets.extend(
+                (
+                    tuple(-(step * width + step) for step in range(distance, 0, -1)),
+                    tuple(-(step * width - step) for step in range(distance, 0, -1)),
+                    (
+                        (3 * width - 3, 3 * width - 3, width - 1)
+                        if distance == 3
+                        else tuple(
+                            step * width - step for step in range(distance, 0, -1)
+                        )
+                    ),
+                    tuple(step * width + step for step in range(distance, 0, -1)),
+                )
+            )
 
-        n_plus = len(plus_offsets)
-        n_x = len(x_offsets)
+        plus_indices = np.stack(
+            [candidate_indices(offsets) for offsets in plus_offsets]
+        )
+        x_indices = np.stack([candidate_indices(offsets) for offsets in x_offsets])
 
         for _ in range(repetitions):
-            # Pad citra dengan 'edge' mode (replicate boundary pixels)
-            # Mereplikasi perilaku fallback try/catch cascading di Java:
-            #   try { pixel[j-2*m] } catch { try { pixel[j-m] } catch { pixel[j] } }
-            # yang secara efektif mengganti piksel OOB dengan piksel terdekat di tepi.
-            padded = np.pad(result, radius, mode="edge")
+            plus_values = result[plus_indices]
+            x_values = result[x_indices]
 
-            # Ekstrak nilai kernel Plus secara vectorized
-            plus_values = np.empty((n_plus, height, width), dtype=np.float64)
-            for i, (dr, dc) in enumerate(plus_offsets):
-                plus_values[i] = padded[
-                    radius + dr : radius + dr + height,
-                    radius + dc : radius + dc + width,
-                ]
+            # The 7x7 plugin has a fallback typo for X[6]: when its outer
+            # index is invalid, it writes the fallback into P[6] and leaves
+            # X[6] at the value left by the previous sorted X array.
+            if radius == 3:
+                boundary_end = min(total, 2 * width - 2)
+                stale_x6 = 0.0
+                for j in range(boundary_end):
+                    outer = j - (2 * width - 2)
+                    inner = j - (width - 1)
+                    if 0 <= outer < total:
+                        x_values[6, j] = result[outer]
+                    elif 0 <= inner < total:
+                        x_values[6, j] = stale_x6
+                        plus_values[6, j] = result[inner]
+                    else:
+                        x_values[6, j] = result[j]
+                    stale_x6 = np.sort(x_values[:, j])[6]
 
-            # Ekstrak nilai kernel X secara vectorized
-            x_values = np.empty((n_x, height, width), dtype=np.float64)
-            for i, (dr, dc) in enumerate(x_offsets):
-                x_values[i] = padded[
-                    radius + dr : radius + dr + height,
-                    radius + dc : radius + dc + width,
-                ]
-
-            # Hitung median Plus dan median X
             median_plus = np.median(plus_values, axis=0)
             median_x = np.median(x_values, axis=0)
-            center = result.copy()
 
-            # Median dari tiga nilai: median(median_plus, median_x, center)
-            # Optimasi: median(a,b,c) = max(min(a,b), min(max(a,b), c))
-            # Lebih cepat daripada np.median untuk tepat 3 nilai.
+            # median(a, b, c) = max(min(a, b), min(max(a, b), c)).
             result = np.maximum(
                 np.minimum(median_plus, median_x),
-                np.minimum(np.maximum(median_plus, median_x), center),
+                np.minimum(np.maximum(median_plus, median_x), result),
             )
 
         # Konversi kembali ke dtype asli
         if np.issubdtype(original_dtype, np.integer):
             info = np.iinfo(original_dtype)
-            return np.clip(result, info.min, info.max).astype(original_dtype)
-        return result.astype(original_dtype)
+            return (
+                np.clip(result, info.min, info.max)
+                .reshape(image.shape)
+                .astype(original_dtype)
+            )
+        return result.reshape(image.shape).astype(original_dtype)
 
     # ---------------------------------------------------------
     # Fast Temporal Median Filter

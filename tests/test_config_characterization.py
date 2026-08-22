@@ -75,7 +75,7 @@ def test_characterize_bed_golden_output_hash() -> None:
     assert out.shape == (24, 24)
     out_hash = hashlib.sha256(out.tobytes()).hexdigest()
     assert (
-        out_hash == "777a868cb95ccf0a7fdf915c8cb7b82cfe760f27a4138f1c109e335f7d108361"
+        out_hash == "f176b16a29fc3a37fee76a133f88bc0018514210cccb461218008933186e18b7"
     )
 
 
@@ -87,7 +87,7 @@ def test_characterize_trx_golden_output_hash() -> None:
     assert out.shape == (24, 24)
     out_hash = hashlib.sha256(out.tobytes()).hexdigest()
     assert (
-        out_hash == "e67cb4a13ecdf4d0fbce06c8b2a25b69cf0ed599da8f95040e173053e61aa3e5"
+        out_hash == "5604df97f587cb2f158d5076fb0464b364e2f2449db5027cdef36a4b7a293b6b"
     )
 
 
