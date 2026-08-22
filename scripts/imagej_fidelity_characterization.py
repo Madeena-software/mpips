@@ -1,4 +1,10 @@
-"""Deterministic MPIPS versus ImageJ/Fiji characterization harness."""
+"""Deterministic MPIPS versus ImageJ/Fiji characterization harness.
+
+Build the tracked adapter against the retained external artifacts with::
+
+    javac -cp ij-1.54p.jar:classes -d harness \
+      scripts/imagej_reference/ReferenceHarness.java
+"""
 
 from __future__ import annotations
 
@@ -50,12 +56,21 @@ MEDIAN_FIXTURE = [
     9,
     4,
 ]
+HYBRID_9X9 = [
+    ((y * 9 + x) * 17 + (y * x * 3)) % 256 for y in range(9) for x in range(9)
+]
 
 
 def scaled(values: list[int], dtype: str) -> np.ndarray:
     if dtype == "uint8":
         return np.asarray(values, dtype=np.uint8).reshape(5, 5)
     return (np.asarray(values, dtype=np.uint16) * 257).reshape(5, 5)
+
+
+def scaled_shape(values: list[int], dtype: str, shape: tuple[int, int]) -> np.ndarray:
+    if dtype == "uint8":
+        return np.asarray(values, dtype=np.uint8).reshape(shape)
+    return (np.asarray(values, dtype=np.uint16) * 257).reshape(shape)
 
 
 def run_reference(
@@ -174,7 +189,8 @@ def reference_error_case(
         "mpips_sha256": hashlib.sha256(actual.tobytes()).hexdigest(),
         "reference_sha256": None,
         "reference_error": error,
-        "classification": "REFERENCE NOT RESOLVED",
+        "reference_execution_error": True,
+        "classification": "FIDELITY FAILURE",
     }
 
 
@@ -187,14 +203,31 @@ def main() -> int:
     parser.add_argument("--jdk-sha256", required=True)
     parser.add_argument("--output-json", type=Path, required=True)
     parser.add_argument("--output-md", type=Path, required=True)
+    parser.add_argument(
+        "--adapter-source",
+        type=Path,
+        default=Path(__file__).parent / "imagej_reference/ReferenceHarness.java",
+    )
     args = parser.parse_args()
 
     cases: list[dict[str, Any]] = []
     provenance: dict[str, Any] = {
+        "repository": {
+            "adapter_source": str(args.adapter_source),
+            "adapter_sha256": hashlib.sha256(
+                args.adapter_source.read_bytes()
+            ).hexdigest(),
+            "adapter_build_command": (
+                "javac -cp ij-1.54p.jar:classes -d harness "
+                "scripts/imagej_reference/ReferenceHarness.java"
+            ),
+        },
         "imagej": {
             "project": "imagej/ImageJ",
             "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
             "version": "1.54p",
+            "source_tag": "v1.54p",
+            "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
             "artifact": "ij-1.54p.jar",
             "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",  # noqa: E501
             "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",  # noqa: E501
@@ -217,12 +250,22 @@ def main() -> int:
             "sha256": "494cc92747ba8e01e9ad19f16d735ffe8faf0b65eba00f02fda691bc5529af03",  # noqa: E501
         },
         "runtime": {
+            "platform": "Linux x86_64",
             "system_java_initially_available": False,
             "vendor": "Eclipse Temurin / Eclipse Adoptium",
             "version": "17.0.19+10",
             "build": "17.0.19+10",
             "release_tag": "jdk-17.0.19+10",
             "archive": args.jdk_archive,
+            "official_download_url": (
+                "https://github.com/adoptium/temurin17-binaries/releases/download/"
+                "jdk-17.0.19%2B10/OpenJDK17U-jdk_x64_linux_hotspot_17.0.19_10.tar.gz"
+            ),
+            "official_checksum_url": (
+                "https://github.com/adoptium/temurin17-binaries/releases/download/"
+                "jdk-17.0.19%2B10/"
+                "OpenJDK17U-jdk_x64_linux_hotspot_17.0.19_10.tar.gz.sha256.txt"
+            ),
             "archive_sha256_expected": args.jdk_sha256,
             "archive_sha256_observed": hashlib.sha256(
                 (Path(args.runtime_root) / "downloads" / args.jdk_archive).read_bytes()
@@ -252,12 +295,17 @@ def main() -> int:
                     image,
                     saturation,
                 )
+                stretch_params = {"saturated_pixels": saturation}
+                if name == "ramp" and saturation == 0.0:
+                    stretch_params["reference_not_unchanged"] = not np.array_equal(
+                        reference, image
+                    )
                 cases.append(
                     compare(
                         "Contrast stretch",
                         name,
                         dtype,
-                        {"saturated_pixels": saturation},
+                        stretch_params,
                         actual,
                         reference,
                         provenance["imagej"],
@@ -285,29 +333,38 @@ def main() -> int:
                         provenance["imagej"],
                     )
                 )
-        image = scaled(MEDIAN_FIXTURE, dtype)
-        for kernel in (3, 5, 7):
-            actual = ImageJReplicator.hybrid_median_filter_2d(image, kernel_size=kernel)
-            reference = run_reference(
-                args.reference_java,
-                args.reference_classpath,
-                "hybrid",
-                dtype,
-                image,
-                kernel,
-            )
-            cases.append(
-                compare(
-                    f"Hybrid Median {kernel}x{kernel}",
-                    "median_grid",
-                    dtype,
-                    {"kernel_size": kernel},
-                    actual,
-                    reference,
-                    provenance["hybrid_median"],
+        hybrid_images = {
+            "median_grid": scaled(MEDIAN_FIXTURE, dtype),
+            "hybrid_9x9": scaled_shape(HYBRID_9X9, dtype, (9, 9)),
+        }
+        for fixture, image in hybrid_images.items():
+            for kernel in (3, 5, 7):
+                repetitions = 2 if fixture == "hybrid_9x9" and kernel == 5 else 1
+                actual = ImageJReplicator.hybrid_median_filter_2d(
+                    image, kernel_size=kernel, repetitions=repetitions
                 )
-            )
-        for radius in (1.0, 2.0, 3.0):
+                reference = run_reference(
+                    args.reference_java,
+                    args.reference_classpath,
+                    "hybrid",
+                    dtype,
+                    image,
+                    kernel,
+                    repetitions,
+                )
+                cases.append(
+                    compare(
+                        f"Hybrid Median {kernel}x{kernel}",
+                        fixture,
+                        dtype,
+                        {"kernel_size": kernel, "repetitions": repetitions},
+                        actual,
+                        reference,
+                        provenance["hybrid_median"],
+                    )
+                )
+        image = hybrid_images["median_grid"]
+        for radius in (0.5, 1.0, 1.5, 1.74, 1.75, 2.0, 2.5, 2.84, 2.85, 3.0):
             actual = ImageJReplicator.median_filter_imagej(image, radius=radius)
             reference = run_reference(
                 args.reference_java,
@@ -330,70 +387,84 @@ def main() -> int:
             )
         clahe_image = np.arange(128 * 128, dtype=np.uint32).reshape(128, 128) % 64
         clahe_image = (clahe_image * (257 if dtype == "uint16" else 1)).astype(dtype)
-        for operation, fast in (
-            ("CLAHE Flat / precise", False),
-            ("CLAHE FastFlat / fast", True),
+        small_clahe = np.arange(16 * 16, dtype=np.uint32).reshape(16, 16) % 16
+        small_clahe = (small_clahe * (257 if dtype == "uint16" else 1)).astype(dtype)
+        for fixture, clahe_case, block_radius, displayed_bins, slope in (
+            ("clahe_runtime", clahe_image, 63, 256, 0.6),
+            ("clahe_small", small_clahe, 2, 16, 3.0),
         ):
-            actual = ImageJReplicator.apply_clahe(
-                clahe_image,
-                blocksize=127,
-                histogram_bins=256,
-                max_slope=0.6,
-                fast=fast,
-                composite=True,
-            )
-            params = {
-                "blocksize": 127,
-                "histogram_bins": 256,
-                "maximum_slope": 0.6,
-                "composite": True,
-            }
-            try:
-                reference = run_reference(
-                    args.reference_java,
-                    args.reference_classpath,
-                    "clahe_fast" if fast else "clahe_flat",
-                    dtype,
-                    clahe_image,
-                    63,
-                    256,
-                    0.6,
+            for operation, fast in (
+                ("CLAHE Flat / precise", False),
+                ("CLAHE FastFlat / fast", True),
+            ):
+                internal_bins = displayed_bins - 1
+                actual = ImageJReplicator.apply_clahe(
+                    clahe_case,
+                    blocksize=block_radius * 2 + 1,
+                    histogram_bins=displayed_bins,
+                    max_slope=slope,
+                    fast=fast,
+                    composite=True,
                 )
-                cases.append(
-                    compare(
-                        operation,
-                        "clahe_128x128_full_bin_ramp",
+                params = {
+                    "blocksize": block_radius * 2 + 1,
+                    "block_radius": block_radius,
+                    "histogram_bins": displayed_bins,
+                    "internal_bins": internal_bins,
+                    "maximum_slope": slope,
+                    "composite": True,
+                }
+                try:
+                    reference = run_reference(
+                        args.reference_java,
+                        args.reference_classpath,
+                        "clahe_fast" if fast else "clahe_flat",
                         dtype,
-                        params,
-                        actual,
-                        reference,
-                        provenance["clahe"],
+                        clahe_case,
+                        block_radius,
+                        internal_bins,
+                        slope,
                     )
-                )
-            except RuntimeError as error:
-                cases.append(
-                    reference_error_case(
-                        operation,
-                        "clahe_128x128_full_bin_ramp",
-                        dtype,
-                        params,
-                        actual,
-                        str(error),
-                        provenance["clahe"],
+                    cases.append(
+                        compare(
+                            operation,
+                            fixture,
+                            dtype,
+                            params,
+                            actual,
+                            reference,
+                            provenance["clahe"],
+                        )
                     )
-                )
+                except RuntimeError as error:
+                    cases.append(
+                        reference_error_case(
+                            operation,
+                            fixture,
+                            dtype,
+                            params,
+                            actual,
+                            str(error),
+                            provenance["clahe"],
+                        )
+                    )
 
     summary: dict[str, str] = {}
     for operation in sorted({case["operation"] for case in cases}):
         subset = [case for case in cases if case["operation"] == operation]
         summary[operation] = (
             "REFERENCE NOT RESOLVED"
-            if any(
+            if all(
                 case["classification"] == "REFERENCE NOT RESOLVED" for case in subset
             )
             else (
                 "PARITY CONFIRMED"
-                if all(case["equal"] for case in subset)
+                if all(
+                    case["equal"]
+                    for case in subset
+                    if case["mismatch_count"] is not None
+                )
+                and any(case["mismatch_count"] is not None for case in subset)
                 else "FIDELITY FAILURE"
             )
         )
@@ -449,7 +520,7 @@ def main() -> int:
         "",
         "## Parameter mappings",
         "",
-        "MPIPS maps `blocksize=127` to `block_radius=63`; the Fiji call therefore uses `blockRadius=63`, `bins=256`, `slope=0.6`, and `composite=true`. Exact integer array equality is used for every executable case. Fiji Flat/FastFlat raise `ArithmeticException: / by zero` for this slope/data combination; those cases are recorded as `REFERENCE NOT RESOLVED`, not treated as parity.",  # noqa: E501
+        "MPIPS maps displayed `histogram_bins=256` to Fiji internal `bins=255`; `blocksize=127` maps to `block_radius=63`. Exact integer array equality is used. Fiji Flat/FastFlat raise `ArithmeticException: / by zero` at the runtime slope/data case, while smaller mapped-bin fixtures execute; the runtime exception and MPIPS numeric output are classified as FIDELITY FAILURE.",  # noqa: E501
         "",
         "## Final classification table",
         "",
@@ -480,7 +551,7 @@ def main() -> int:
         ]
         if operation == "Temporal Median":
             classification = "NOT PRODUCTION-REACHABLE"
-        elif any(case["classification"] == "REFERENCE NOT RESOLVED" for case in subset):
+        elif all(case["classification"] == "REFERENCE NOT RESOLVED" for case in subset):
             classification = "REFERENCE NOT RESOLVED"
         else:
             classification = (
@@ -493,8 +564,8 @@ def main() -> int:
         "",
         "## Aggregate results",
         "",
-        "| Operation | Cases | Mismatches |",
-        "|---|---:|---:|",
+        "| Operation | Classification | Cases | Mismatches |",
+        "|---|---|---:|---:|",
     ]
     for operation, classification in summary.items():
         subset = [case for case in cases if case["operation"] == operation]
@@ -507,10 +578,13 @@ def main() -> int:
             if subset
             else None
         )
+        reference_errors = sum(
+            bool(case.get("reference_execution_error")) for case in subset
+        )
         mismatch_text = (
-            str(mismatch_total)
-            if subset and all(case["mismatch_count"] is not None for case in subset)
-            else "n/a"
+            f"{mismatch_total}; {reference_errors} reference errors"
+            if reference_errors
+            else str(mismatch_total)
         )
         lines.append(
             f"| {operation} | {classification} | {len(subset)} | {mismatch_text} |"

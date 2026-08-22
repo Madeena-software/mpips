@@ -8,6 +8,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -39,6 +41,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -70,6 +74,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -101,6 +107,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -132,6 +140,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -163,6 +173,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -194,6 +206,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -225,6 +239,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -256,6 +272,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -287,6 +305,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -318,30 +338,26 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint8",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          1
-        ],
-        "mpips": 10,
-        "reference": 1
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "ramp",
-      "max_absolute_difference": 231,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "33db23295fa247e2c486eb192a8892ab3e6bc9fcee663ed6592827aab1938b90",
       "operation": "Contrast stretch",
       "parameters": {
+        "reference_not_unchanged": true,
         "saturated_pixels": 0.0
       },
-      "reference_sha256": "b729ce724d9a48d3884dbfcbee1d3793d922b29fa9d639e7290af4978263772b",
+      "reference_sha256": "33db23295fa247e2c486eb192a8892ab3e6bc9fcee663ed6592827aab1938b90",
       "shape": [
         5,
         5
@@ -356,30 +372,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint8",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          1
-        ],
-        "mpips": 10,
-        "reference": 1
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "ramp",
-      "max_absolute_difference": 231,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "33db23295fa247e2c486eb192a8892ab3e6bc9fcee663ed6592827aab1938b90",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 0.35
       },
-      "reference_sha256": "b729ce724d9a48d3884dbfcbee1d3793d922b29fa9d639e7290af4978263772b",
+      "reference_sha256": "33db23295fa247e2c486eb192a8892ab3e6bc9fcee663ed6592827aab1938b90",
       "shape": [
         5,
         5
@@ -394,30 +405,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint8",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          1
-        ],
-        "mpips": 10,
-        "reference": 1
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "ramp",
-      "max_absolute_difference": 231,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "33db23295fa247e2c486eb192a8892ab3e6bc9fcee663ed6592827aab1938b90",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 5.0
       },
-      "reference_sha256": "b729ce724d9a48d3884dbfcbee1d3793d922b29fa9d639e7290af4978263772b",
+      "reference_sha256": "33db23295fa247e2c486eb192a8892ab3e6bc9fcee663ed6592827aab1938b90",
       "shape": [
         5,
         5
@@ -432,6 +438,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -463,6 +471,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -494,6 +504,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -525,6 +537,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -556,6 +570,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -587,6 +603,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -618,6 +636,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -649,30 +669,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint8",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 100
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "narrow",
-      "max_absolute_difference": 153,
-      "mismatch_count": 25,
-      "mismatch_fraction": 1.0,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "291cfb34dbeb3d5ed7cee81c2baa4a7e1cb375172c5537f7eef9fdd2572e0430",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 0.0
       },
-      "reference_sha256": "454432d5f850a1e18bcb39f383f137a26c8c27996df3793afac9b6aa7289863c",
+      "reference_sha256": "291cfb34dbeb3d5ed7cee81c2baa4a7e1cb375172c5537f7eef9fdd2572e0430",
       "shape": [
         5,
         5
@@ -687,30 +702,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint8",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 100
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "narrow",
-      "max_absolute_difference": 153,
-      "mismatch_count": 25,
-      "mismatch_fraction": 1.0,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "291cfb34dbeb3d5ed7cee81c2baa4a7e1cb375172c5537f7eef9fdd2572e0430",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 0.35
       },
-      "reference_sha256": "454432d5f850a1e18bcb39f383f137a26c8c27996df3793afac9b6aa7289863c",
+      "reference_sha256": "291cfb34dbeb3d5ed7cee81c2baa4a7e1cb375172c5537f7eef9fdd2572e0430",
       "shape": [
         5,
         5
@@ -725,30 +735,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint8",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 100
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "narrow",
-      "max_absolute_difference": 153,
-      "mismatch_count": 25,
-      "mismatch_fraction": 1.0,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "291cfb34dbeb3d5ed7cee81c2baa4a7e1cb375172c5537f7eef9fdd2572e0430",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 5.0
       },
-      "reference_sha256": "454432d5f850a1e18bcb39f383f137a26c8c27996df3793afac9b6aa7289863c",
+      "reference_sha256": "291cfb34dbeb3d5ed7cee81c2baa4a7e1cb375172c5537f7eef9fdd2572e0430",
       "shape": [
         5,
         5
@@ -763,6 +768,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -794,6 +801,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -825,6 +834,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -856,6 +867,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -887,6 +900,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -918,6 +933,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -949,6 +966,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -980,6 +999,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1011,6 +1032,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1042,6 +1065,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1073,6 +1098,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1104,6 +1131,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1135,30 +1164,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint8",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 10
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "asymmetric_tail",
-      "max_absolute_difference": 10,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "0248f0fb451043f1ffa9d00b341fd51e1c62ade3469f4e3cfa9fecd376557a02",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 0.0
       },
-      "reference_sha256": "024a82481b1799fa3db99277f81df52347922578fd684749da7948d7c1aa25cb",
+      "reference_sha256": "0248f0fb451043f1ffa9d00b341fd51e1c62ade3469f4e3cfa9fecd376557a02",
       "shape": [
         5,
         5
@@ -1173,30 +1197,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint8",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 10
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "asymmetric_tail",
-      "max_absolute_difference": 10,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "0248f0fb451043f1ffa9d00b341fd51e1c62ade3469f4e3cfa9fecd376557a02",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 0.35
       },
-      "reference_sha256": "024a82481b1799fa3db99277f81df52347922578fd684749da7948d7c1aa25cb",
+      "reference_sha256": "0248f0fb451043f1ffa9d00b341fd51e1c62ade3469f4e3cfa9fecd376557a02",
       "shape": [
         5,
         5
@@ -1211,30 +1230,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint8",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 10
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "asymmetric_tail",
-      "max_absolute_difference": 10,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "0248f0fb451043f1ffa9d00b341fd51e1c62ade3469f4e3cfa9fecd376557a02",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 5.0
       },
-      "reference_sha256": "024a82481b1799fa3db99277f81df52347922578fd684749da7948d7c1aa25cb",
+      "reference_sha256": "0248f0fb451043f1ffa9d00b341fd51e1c62ade3469f4e3cfa9fecd376557a02",
       "shape": [
         5,
         5
@@ -1249,6 +1263,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1280,6 +1296,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1330,7 +1348,8 @@
       "mpips_sha256": "2091042aab3cfd0066dea1909f612ef1e47b203420dc63116d292c4da0aa32fe",
       "operation": "Hybrid Median 3x3",
       "parameters": {
-        "kernel_size": 3
+        "kernel_size": 3,
+        "repetitions": 1
       },
       "reference_sha256": "8db55e955496169bf7ff0a020157d8ff8514ae37cd493d061d04e043beefcba7",
       "shape": [
@@ -1366,7 +1385,8 @@
       "mpips_sha256": "463283edaa3f9350ee91cf9a9e644666b99fb334e381df3c43edcd16ddd45304",
       "operation": "Hybrid Median 5x5",
       "parameters": {
-        "kernel_size": 5
+        "kernel_size": 5,
+        "repetitions": 1
       },
       "reference_sha256": "8db55e955496169bf7ff0a020157d8ff8514ae37cd493d061d04e043beefcba7",
       "shape": [
@@ -1402,9 +1422,154 @@
       "mpips_sha256": "e6924eae2a08613ccb747bfd4b086431c0b3dd70537a278452a120398e6d4020",
       "operation": "Hybrid Median 7x7",
       "parameters": {
-        "kernel_size": 7
+        "kernel_size": 7,
+        "repetitions": 1
       },
       "reference_sha256": "8db55e955496169bf7ff0a020157d8ff8514ae37cd493d061d04e043beefcba7",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "project": "ImageJ plugin site",
+        "retrieval": "https://wsr.imagej.net/ij/plugins/download/Hybrid_2D_Median_Filter.java",
+        "sha256": "494cc92747ba8e01e9ad19f16d735ffe8faf0b65eba00f02fda691bc5529af03",
+        "source": "Hybrid_2D_Median_Filter.java by Christopher Philip Mauer"
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          1,
+          3
+        ],
+        "mpips": 193,
+        "reference": 173
+      },
+      "fixture": "hybrid_9x9",
+      "max_absolute_difference": 71,
+      "mismatch_count": 36,
+      "mismatch_fraction": 0.4444444444444444,
+      "mpips_sha256": "45aac1693baf68f6dcf0d4e4ed73af9458ca7604b256aa09c6ed6ddb5534575b",
+      "operation": "Hybrid Median 3x3",
+      "parameters": {
+        "kernel_size": 3,
+        "repetitions": 1
+      },
+      "reference_sha256": "19b978cb1ae01642b4156c0c7f15ec4b7010fecbfadb1a3a3dc9c96748196f97",
+      "shape": [
+        9,
+        9
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "project": "ImageJ plugin site",
+        "retrieval": "https://wsr.imagej.net/ij/plugins/download/Hybrid_2D_Median_Filter.java",
+        "sha256": "494cc92747ba8e01e9ad19f16d735ffe8faf0b65eba00f02fda691bc5529af03",
+        "source": "Hybrid_2D_Median_Filter.java by Christopher Philip Mauer"
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          1,
+          5
+        ],
+        "mpips": 119,
+        "reference": 102
+      },
+      "fixture": "hybrid_9x9",
+      "max_absolute_difference": 82,
+      "mismatch_count": 35,
+      "mismatch_fraction": 0.43209876543209874,
+      "mpips_sha256": "984da355ac9cc7a898286a9925a1a493e00b25ce102368782e3de63df5c37277",
+      "operation": "Hybrid Median 5x5",
+      "parameters": {
+        "kernel_size": 5,
+        "repetitions": 2
+      },
+      "reference_sha256": "764fe6433b9d36f7ad575a011fe2262d3e1dbdafe07c3a2771877e0a63990023",
+      "shape": [
+        9,
+        9
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "project": "ImageJ plugin site",
+        "retrieval": "https://wsr.imagej.net/ij/plugins/download/Hybrid_2D_Median_Filter.java",
+        "sha256": "494cc92747ba8e01e9ad19f16d735ffe8faf0b65eba00f02fda691bc5529af03",
+        "source": "Hybrid_2D_Median_Filter.java by Christopher Philip Mauer"
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          1,
+          2
+        ],
+        "mpips": 158,
+        "reference": 173
+      },
+      "fixture": "hybrid_9x9",
+      "max_absolute_difference": 82,
+      "mismatch_count": 33,
+      "mismatch_fraction": 0.4074074074074074,
+      "mpips_sha256": "bc5574df9ea10d4d9bb87bcef2c65f5a1e8da46391dd8945ca5d4c95b2434e4b",
+      "operation": "Hybrid Median 7x7",
+      "parameters": {
+        "kernel_size": 7,
+        "repetitions": 1
+      },
+      "reference_sha256": "19b978cb1ae01642b4156c0c7f15ec4b7010fecbfadb1a3a3dc9c96748196f97",
+      "shape": [
+        9,
+        9
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "PARITY CONFIRMED",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": true,
+      "first_mismatch": null,
+      "fixture": "median_grid",
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
+      "mpips_sha256": "5157cd80de4ea935cee4a786a516ff7f2041260c36fdb0ccb67fa682e82c0992",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 0.5
+      },
+      "reference_sha256": "5157cd80de4ea935cee4a786a516ff7f2041260c36fdb0ccb67fa682e82c0992",
       "shape": [
         5,
         5
@@ -1419,6 +1584,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1450,6 +1617,114 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          0,
+          1
+        ],
+        "mpips": 7,
+        "reference": 4
+      },
+      "fixture": "median_grid",
+      "max_absolute_difference": 3,
+      "mismatch_count": 11,
+      "mismatch_fraction": 0.44,
+      "mpips_sha256": "0fcd11108eedbad87ff6f194652203a9478e0e997024716a46db80748ef5bb3b",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 1.5
+      },
+      "reference_sha256": "e72a4b5f10de3bd85f019d2cea69faec40726c470bc7217984ec849e92a52de7",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "PARITY CONFIRMED",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": true,
+      "first_mismatch": null,
+      "fixture": "median_grid",
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
+      "mpips_sha256": "e72a4b5f10de3bd85f019d2cea69faec40726c470bc7217984ec849e92a52de7",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 1.74
+      },
+      "reference_sha256": "e72a4b5f10de3bd85f019d2cea69faec40726c470bc7217984ec849e92a52de7",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "PARITY CONFIRMED",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": true,
+      "first_mismatch": null,
+      "fixture": "median_grid",
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
+      "mpips_sha256": "e72a4b5f10de3bd85f019d2cea69faec40726c470bc7217984ec849e92a52de7",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 1.75
+      },
+      "reference_sha256": "e72a4b5f10de3bd85f019d2cea69faec40726c470bc7217984ec849e92a52de7",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1481,6 +1756,114 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          0,
+          2
+        ],
+        "mpips": 4,
+        "reference": 6
+      },
+      "fixture": "median_grid",
+      "max_absolute_difference": 2,
+      "mismatch_count": 8,
+      "mismatch_fraction": 0.32,
+      "mpips_sha256": "89b7c92981dbe70477e5e60a21ef40d927ffeb270212b097699d401a74bef8c7",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 2.5
+      },
+      "reference_sha256": "90e689333cf6fe68d803bd0f087ff303e67e23f6c821d0969b5bdd13dfd597b0",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "PARITY CONFIRMED",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": true,
+      "first_mismatch": null,
+      "fixture": "median_grid",
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
+      "mpips_sha256": "90e689333cf6fe68d803bd0f087ff303e67e23f6c821d0969b5bdd13dfd597b0",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 2.84
+      },
+      "reference_sha256": "90e689333cf6fe68d803bd0f087ff303e67e23f6c821d0969b5bdd13dfd597b0",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "PARITY CONFIRMED",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": true,
+      "first_mismatch": null,
+      "fixture": "median_grid",
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
+      "mpips_sha256": "90e689333cf6fe68d803bd0f087ff303e67e23f6c821d0969b5bdd13dfd597b0",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 2.85
+      },
+      "reference_sha256": "90e689333cf6fe68d803bd0f087ff303e67e23f6c821d0969b5bdd13dfd597b0",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1517,24 +1900,27 @@
           "Util.java": "4dbe118c08eaa36a5f87c78930169383a602a84f25ca7b975284cb089bdd1689"
         }
       },
-      "classification": "REFERENCE NOT RESOLVED",
+      "classification": "FIDELITY FAILURE",
       "comparison_mode": "exact",
       "dtype": "uint8",
       "equal": false,
       "first_mismatch": null,
-      "fixture": "clahe_128x128_full_bin_ramp",
+      "fixture": "clahe_runtime",
       "max_absolute_difference": null,
       "mismatch_count": null,
       "mismatch_fraction": null,
       "mpips_sha256": "13c27e2398dc0ffca5232248589fcdd1ae8d7a4fa06de286289db3bbaec297f9",
       "operation": "CLAHE Flat / precise",
       "parameters": {
+        "block_radius": 63,
         "blocksize": 127,
         "composite": true,
         "histogram_bins": 256,
+        "internal_bins": 255,
         "maximum_slope": 0.6
       },
-      "reference_error": "reference failed: /tmp/mpips-imagej-reference-LyDbYJ/jdk/jdk-17.0.19+10/bin/java -Djava.awt.headless=true -cp /tmp/mpips-imagej-reference-LyDbYJ/harness:/tmp/mpips-imagej-reference-LyDbYJ/imagej/classes2:/tmp/mpips-imagej-reference-LyDbYJ/imagej/ij-1.54p.jar ReferenceHarness clahe_flat uint8 128 128 63 256 0.6\nException in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)\n\tat mpicbg.ij.clahe.Util.transferValue(Util.java:215)\n\tat mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:454)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:376)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:222)\n\tat ReferenceHarness.main(ReferenceHarness.java:96)\n",
+      "reference_error": "reference failed: /tmp/mpips-imagej-reference-LyDbYJ/jdk/jdk-17.0.19+10/bin/java -Djava.awt.headless=true -cp /tmp/mpips-imagej-reference-LyDbYJ/harness-remediation:/tmp/mpips-imagej-reference-LyDbYJ/imagej/classes2:/tmp/mpips-imagej-reference-LyDbYJ/imagej/ij-1.54p.jar ReferenceHarness clahe_flat uint8 128 128 63 255 0.6\nException in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)\n\tat mpicbg.ij.clahe.Util.transferValue(Util.java:215)\n\tat mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:454)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:376)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:222)\n\tat ReferenceHarness.main(ReferenceHarness.java:87)\n",
+      "reference_execution_error": true,
       "reference_sha256": null,
       "shape": [
         128,
@@ -1555,24 +1941,27 @@
           "Util.java": "4dbe118c08eaa36a5f87c78930169383a602a84f25ca7b975284cb089bdd1689"
         }
       },
-      "classification": "REFERENCE NOT RESOLVED",
+      "classification": "FIDELITY FAILURE",
       "comparison_mode": "exact",
       "dtype": "uint8",
       "equal": false,
       "first_mismatch": null,
-      "fixture": "clahe_128x128_full_bin_ramp",
+      "fixture": "clahe_runtime",
       "max_absolute_difference": null,
       "mismatch_count": null,
       "mismatch_fraction": null,
       "mpips_sha256": "d727abf7121673f83afa5327829501e2a6ea1cb92cdf71fe5162e2deebd46c4b",
       "operation": "CLAHE FastFlat / fast",
       "parameters": {
+        "block_radius": 63,
         "blocksize": 127,
         "composite": true,
         "histogram_bins": 256,
+        "internal_bins": 255,
         "maximum_slope": 0.6
       },
-      "reference_error": "reference failed: /tmp/mpips-imagej-reference-LyDbYJ/jdk/jdk-17.0.19+10/bin/java -Djava.awt.headless=true -cp /tmp/mpips-imagej-reference-LyDbYJ/harness:/tmp/mpips-imagej-reference-LyDbYJ/imagej/classes2:/tmp/mpips-imagej-reference-LyDbYJ/imagej/ij-1.54p.jar ReferenceHarness clahe_fast uint8 128 128 63 256 0.6\nException in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)\n\tat mpicbg.ij.clahe.Util.createTransfer(Util.java:145)\n\tat mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:376)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:222)\n\tat mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)\n\tat ReferenceHarness.main(ReferenceHarness.java:97)\n",
+      "reference_error": "reference failed: /tmp/mpips-imagej-reference-LyDbYJ/jdk/jdk-17.0.19+10/bin/java -Djava.awt.headless=true -cp /tmp/mpips-imagej-reference-LyDbYJ/harness-remediation:/tmp/mpips-imagej-reference-LyDbYJ/imagej/classes2:/tmp/mpips-imagej-reference-LyDbYJ/imagej/ij-1.54p.jar ReferenceHarness clahe_fast uint8 128 128 63 255 0.6\nException in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)\n\tat mpicbg.ij.clahe.Util.createTransfer(Util.java:145)\n\tat mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:376)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:222)\n\tat mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)\n\tat ReferenceHarness.main(ReferenceHarness.java:88)\n",
+      "reference_execution_error": true,
       "reference_sha256": null,
       "shape": [
         128,
@@ -1583,11 +1972,105 @@
     },
     {
       "authoritative": {
+        "commit": "0ed8a9d0592b1b679311f798b0b4dac6f44d3ef0",
+        "project": "axtimwalde/mpicbg",
+        "retrieval": "https://github.com/axtimwalde/mpicbg",
+        "source": "mpicbg.ij.clahe.Flat, FastFlat, Util",
+        "source_sha256": {
+          "FastFlat.java": "09fa2048f80d258a2ce02b8940373e2a9e9b8176e5b86e0a4c5ae6710114b3fd",
+          "Flat.java": "112ba574034acb2c740dfcc5365fb9489305d62e9527df71665cac8971dedee2",
+          "Util.java": "4dbe118c08eaa36a5f87c78930169383a602a84f25ca7b975284cb089bdd1689"
+        }
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          0,
+          10
+        ],
+        "mpips": 0,
+        "reference": 64
+      },
+      "fixture": "clahe_small",
+      "max_absolute_difference": 64,
+      "mismatch_count": 96,
+      "mismatch_fraction": 0.375,
+      "mpips_sha256": "5341e6b2646979a70e57653007a1f310169421ec9bdd9f1a5648f75ade005af1",
+      "operation": "CLAHE Flat / precise",
+      "parameters": {
+        "block_radius": 2,
+        "blocksize": 5,
+        "composite": true,
+        "histogram_bins": 16,
+        "internal_bins": 15,
+        "maximum_slope": 3.0
+      },
+      "reference_sha256": "bf3f5d0ca8acc0a9d8658860fef670f96eaa4c55613c2bc5151fe94b864c43fc",
+      "shape": [
+        16,
+        16
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "commit": "0ed8a9d0592b1b679311f798b0b4dac6f44d3ef0",
+        "project": "axtimwalde/mpicbg",
+        "retrieval": "https://github.com/axtimwalde/mpicbg",
+        "source": "mpicbg.ij.clahe.Flat, FastFlat, Util",
+        "source_sha256": {
+          "FastFlat.java": "09fa2048f80d258a2ce02b8940373e2a9e9b8176e5b86e0a4c5ae6710114b3fd",
+          "Flat.java": "112ba574034acb2c740dfcc5365fb9489305d62e9527df71665cac8971dedee2",
+          "Util.java": "4dbe118c08eaa36a5f87c78930169383a602a84f25ca7b975284cb089bdd1689"
+        }
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint8",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          0,
+          0
+        ],
+        "mpips": 14,
+        "reference": 0
+      },
+      "fixture": "clahe_small",
+      "max_absolute_difference": 39,
+      "mismatch_count": 256,
+      "mismatch_fraction": 1.0,
+      "mpips_sha256": "70a5164f1767afd904d8330f37bd019971e72e6c91e7a2f839e9db3049ac34fe",
+      "operation": "CLAHE FastFlat / fast",
+      "parameters": {
+        "block_radius": 2,
+        "blocksize": 5,
+        "composite": true,
+        "histogram_bins": 16,
+        "internal_bins": 15,
+        "maximum_slope": 3.0
+      },
+      "reference_sha256": "4b37b2e19d0f587cd6cc79b818bfa657b0667efa46b1316faab24738622dd326",
+      "shape": [
+        16,
+        16
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
         "artifact": "ij-1.54p.jar",
         "project": "imagej/ImageJ",
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1619,6 +2102,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1650,6 +2135,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1681,6 +2168,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1712,6 +2201,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1743,6 +2234,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1774,6 +2267,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1805,6 +2300,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1836,6 +2333,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1867,6 +2366,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -1898,30 +2399,26 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint16",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          1
-        ],
-        "mpips": 2730,
-        "reference": 257
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "ramp",
-      "max_absolute_difference": 59367,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd",
       "operation": "Contrast stretch",
       "parameters": {
+        "reference_not_unchanged": true,
         "saturated_pixels": 0.0
       },
-      "reference_sha256": "9543427d6c3f5efeadc17741ff9c95c6ea0d5c3b2d30bf6a7b6a23d06f264f96",
+      "reference_sha256": "776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd",
       "shape": [
         5,
         5
@@ -1936,30 +2433,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint16",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          1
-        ],
-        "mpips": 2730,
-        "reference": 257
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "ramp",
-      "max_absolute_difference": 59367,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 0.35
       },
-      "reference_sha256": "9543427d6c3f5efeadc17741ff9c95c6ea0d5c3b2d30bf6a7b6a23d06f264f96",
+      "reference_sha256": "776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd",
       "shape": [
         5,
         5
@@ -1974,30 +2466,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint16",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          1
-        ],
-        "mpips": 2730,
-        "reference": 257
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "ramp",
-      "max_absolute_difference": 59367,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 5.0
       },
-      "reference_sha256": "9543427d6c3f5efeadc17741ff9c95c6ea0d5c3b2d30bf6a7b6a23d06f264f96",
+      "reference_sha256": "776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd",
       "shape": [
         5,
         5
@@ -2012,6 +2499,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2043,6 +2532,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2074,6 +2565,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2105,6 +2598,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2136,6 +2631,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2167,6 +2664,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2198,6 +2697,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2229,30 +2730,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint16",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 25700
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "narrow",
-      "max_absolute_difference": 39321,
-      "mismatch_count": 25,
-      "mismatch_fraction": 1.0,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "c5486b6a00386d34be4538661b6de8e61f0d12b094a61e2534153ad15c2a5cc8",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 0.0
       },
-      "reference_sha256": "2cfff35cef12bbeb1e7660d2ea585df63c9e49cda6c00f3cd789352c43745985",
+      "reference_sha256": "c5486b6a00386d34be4538661b6de8e61f0d12b094a61e2534153ad15c2a5cc8",
       "shape": [
         5,
         5
@@ -2267,30 +2763,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint16",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 25700
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "narrow",
-      "max_absolute_difference": 39321,
-      "mismatch_count": 25,
-      "mismatch_fraction": 1.0,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "c5486b6a00386d34be4538661b6de8e61f0d12b094a61e2534153ad15c2a5cc8",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 0.35
       },
-      "reference_sha256": "2cfff35cef12bbeb1e7660d2ea585df63c9e49cda6c00f3cd789352c43745985",
+      "reference_sha256": "c5486b6a00386d34be4538661b6de8e61f0d12b094a61e2534153ad15c2a5cc8",
       "shape": [
         5,
         5
@@ -2305,30 +2796,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint16",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 25700
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "narrow",
-      "max_absolute_difference": 39321,
-      "mismatch_count": 25,
-      "mismatch_fraction": 1.0,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "c5486b6a00386d34be4538661b6de8e61f0d12b094a61e2534153ad15c2a5cc8",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 5.0
       },
-      "reference_sha256": "2cfff35cef12bbeb1e7660d2ea585df63c9e49cda6c00f3cd789352c43745985",
+      "reference_sha256": "c5486b6a00386d34be4538661b6de8e61f0d12b094a61e2534153ad15c2a5cc8",
       "shape": [
         5,
         5
@@ -2343,6 +2829,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2374,6 +2862,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2405,6 +2895,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2436,6 +2928,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2467,6 +2961,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2498,6 +2994,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2529,6 +3027,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2560,6 +3060,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2591,6 +3093,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2622,6 +3126,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2653,6 +3159,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2684,6 +3192,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2715,30 +3225,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint16",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 2570
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "asymmetric_tail",
-      "max_absolute_difference": 2570,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "41fbc7a53e8329680f27d225790efbf7d5dffe1c84433a5308c541dd07127c89",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 0.0
       },
-      "reference_sha256": "b6369ac94668c0a038620fd9864e7511b5d92d7711d089b5a59ec3fdd487a530",
+      "reference_sha256": "41fbc7a53e8329680f27d225790efbf7d5dffe1c84433a5308c541dd07127c89",
       "shape": [
         5,
         5
@@ -2753,30 +3258,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint16",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 2570
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "asymmetric_tail",
-      "max_absolute_difference": 2570,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "41fbc7a53e8329680f27d225790efbf7d5dffe1c84433a5308c541dd07127c89",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 0.35
       },
-      "reference_sha256": "b6369ac94668c0a038620fd9864e7511b5d92d7711d089b5a59ec3fdd487a530",
+      "reference_sha256": "41fbc7a53e8329680f27d225790efbf7d5dffe1c84433a5308c541dd07127c89",
       "shape": [
         5,
         5
@@ -2791,30 +3291,25 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
-      "classification": "FIDELITY FAILURE",
+      "classification": "PARITY CONFIRMED",
       "comparison_mode": "exact",
       "dtype": "uint16",
-      "equal": false,
-      "first_mismatch": {
-        "coordinate": [
-          0,
-          0
-        ],
-        "mpips": 0,
-        "reference": 2570
-      },
+      "equal": true,
+      "first_mismatch": null,
       "fixture": "asymmetric_tail",
-      "max_absolute_difference": 2570,
-      "mismatch_count": 24,
-      "mismatch_fraction": 0.96,
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
       "mpips_sha256": "41fbc7a53e8329680f27d225790efbf7d5dffe1c84433a5308c541dd07127c89",
       "operation": "Contrast stretch",
       "parameters": {
         "saturated_pixels": 5.0
       },
-      "reference_sha256": "b6369ac94668c0a038620fd9864e7511b5d92d7711d089b5a59ec3fdd487a530",
+      "reference_sha256": "41fbc7a53e8329680f27d225790efbf7d5dffe1c84433a5308c541dd07127c89",
       "shape": [
         5,
         5
@@ -2829,6 +3324,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2860,6 +3357,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -2910,7 +3409,8 @@
       "mpips_sha256": "f7ae402dc7228ff6ee26b1d51bf3e2fad84ca3954ea296a373fd58da88c9f631",
       "operation": "Hybrid Median 3x3",
       "parameters": {
-        "kernel_size": 3
+        "kernel_size": 3,
+        "repetitions": 1
       },
       "reference_sha256": "590da7a33f3d79c2cfa83ae1b1b0c8ff184e0c7a203ac4dab41620c928a6630c",
       "shape": [
@@ -2946,7 +3446,8 @@
       "mpips_sha256": "3c4f8a3af0c57823409e5909095b97dcbf65335ec0a61d31b7ae760e4ee2bb9f",
       "operation": "Hybrid Median 5x5",
       "parameters": {
-        "kernel_size": 5
+        "kernel_size": 5,
+        "repetitions": 1
       },
       "reference_sha256": "590da7a33f3d79c2cfa83ae1b1b0c8ff184e0c7a203ac4dab41620c928a6630c",
       "shape": [
@@ -2982,9 +3483,154 @@
       "mpips_sha256": "b9ec90cbb485e2ff047e8f527d4f83b2efdd7b4756e4405f7e21f9e4b8955eb8",
       "operation": "Hybrid Median 7x7",
       "parameters": {
-        "kernel_size": 7
+        "kernel_size": 7,
+        "repetitions": 1
       },
       "reference_sha256": "590da7a33f3d79c2cfa83ae1b1b0c8ff184e0c7a203ac4dab41620c928a6630c",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "project": "ImageJ plugin site",
+        "retrieval": "https://wsr.imagej.net/ij/plugins/download/Hybrid_2D_Median_Filter.java",
+        "sha256": "494cc92747ba8e01e9ad19f16d735ffe8faf0b65eba00f02fda691bc5529af03",
+        "source": "Hybrid_2D_Median_Filter.java by Christopher Philip Mauer"
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          1,
+          3
+        ],
+        "mpips": 49601,
+        "reference": 44461
+      },
+      "fixture": "hybrid_9x9",
+      "max_absolute_difference": 18247,
+      "mismatch_count": 36,
+      "mismatch_fraction": 0.4444444444444444,
+      "mpips_sha256": "6bcf03c3e47ce9bcccf3b3bd22da89271bcfe6d48afd6a561666a79402b0e5e7",
+      "operation": "Hybrid Median 3x3",
+      "parameters": {
+        "kernel_size": 3,
+        "repetitions": 1
+      },
+      "reference_sha256": "b3dbc7cb74072ebd93450e567d32540c70a8681e08f353c05a850ac7cebec3fd",
+      "shape": [
+        9,
+        9
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "project": "ImageJ plugin site",
+        "retrieval": "https://wsr.imagej.net/ij/plugins/download/Hybrid_2D_Median_Filter.java",
+        "sha256": "494cc92747ba8e01e9ad19f16d735ffe8faf0b65eba00f02fda691bc5529af03",
+        "source": "Hybrid_2D_Median_Filter.java by Christopher Philip Mauer"
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          1,
+          5
+        ],
+        "mpips": 30583,
+        "reference": 26214
+      },
+      "fixture": "hybrid_9x9",
+      "max_absolute_difference": 21074,
+      "mismatch_count": 35,
+      "mismatch_fraction": 0.43209876543209874,
+      "mpips_sha256": "8cf25fc5d60722bd27ae566868f11d96dd43f66135c43b0133908828515ca398",
+      "operation": "Hybrid Median 5x5",
+      "parameters": {
+        "kernel_size": 5,
+        "repetitions": 2
+      },
+      "reference_sha256": "dbfe83308e826c724c43415ae7f69699d0f02a39ebf61bbbde319c07ea61379e",
+      "shape": [
+        9,
+        9
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "project": "ImageJ plugin site",
+        "retrieval": "https://wsr.imagej.net/ij/plugins/download/Hybrid_2D_Median_Filter.java",
+        "sha256": "494cc92747ba8e01e9ad19f16d735ffe8faf0b65eba00f02fda691bc5529af03",
+        "source": "Hybrid_2D_Median_Filter.java by Christopher Philip Mauer"
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          1,
+          2
+        ],
+        "mpips": 40606,
+        "reference": 44461
+      },
+      "fixture": "hybrid_9x9",
+      "max_absolute_difference": 21074,
+      "mismatch_count": 33,
+      "mismatch_fraction": 0.4074074074074074,
+      "mpips_sha256": "d8ccf2aac7dbe729662681222084a7c29212591626336ea081513d99a06f8b9d",
+      "operation": "Hybrid Median 7x7",
+      "parameters": {
+        "kernel_size": 7,
+        "repetitions": 1
+      },
+      "reference_sha256": "b3dbc7cb74072ebd93450e567d32540c70a8681e08f353c05a850ac7cebec3fd",
+      "shape": [
+        9,
+        9
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "PARITY CONFIRMED",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": true,
+      "first_mismatch": null,
+      "fixture": "median_grid",
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
+      "mpips_sha256": "591fb6b495566b159d3608336c22e84074ba41eaa092677626206f63eff29ad9",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 0.5
+      },
+      "reference_sha256": "591fb6b495566b159d3608336c22e84074ba41eaa092677626206f63eff29ad9",
       "shape": [
         5,
         5
@@ -2999,6 +3645,8 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -3030,6 +3678,114 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          0,
+          1
+        ],
+        "mpips": 1799,
+        "reference": 1028
+      },
+      "fixture": "median_grid",
+      "max_absolute_difference": 771,
+      "mismatch_count": 11,
+      "mismatch_fraction": 0.44,
+      "mpips_sha256": "12cba42e4296eac0dd557f6a9106f1acba6073014076bae71f2701bb0504a6c5",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 1.5
+      },
+      "reference_sha256": "b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "PARITY CONFIRMED",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": true,
+      "first_mismatch": null,
+      "fixture": "median_grid",
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
+      "mpips_sha256": "b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 1.74
+      },
+      "reference_sha256": "b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "PARITY CONFIRMED",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": true,
+      "first_mismatch": null,
+      "fixture": "median_grid",
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
+      "mpips_sha256": "b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 1.75
+      },
+      "reference_sha256": "b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -3061,6 +3817,114 @@
         "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
         "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
         "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          0,
+          2
+        ],
+        "mpips": 1028,
+        "reference": 1542
+      },
+      "fixture": "median_grid",
+      "max_absolute_difference": 514,
+      "mismatch_count": 8,
+      "mismatch_fraction": 0.32,
+      "mpips_sha256": "af5398c57504217097440e2a525bb1b2026315083306d7f36a9d27430504a7a8",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 2.5
+      },
+      "reference_sha256": "b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "PARITY CONFIRMED",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": true,
+      "first_mismatch": null,
+      "fixture": "median_grid",
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
+      "mpips_sha256": "b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 2.84
+      },
+      "reference_sha256": "b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
+        "version": "1.54p"
+      },
+      "classification": "PARITY CONFIRMED",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": true,
+      "first_mismatch": null,
+      "fixture": "median_grid",
+      "max_absolute_difference": 0,
+      "mismatch_count": 0,
+      "mismatch_fraction": 0.0,
+      "mpips_sha256": "b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6",
+      "operation": "Circular Median",
+      "parameters": {
+        "radius": 2.85
+      },
+      "reference_sha256": "b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6",
+      "shape": [
+        5,
+        5
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "artifact": "ij-1.54p.jar",
+        "project": "imagej/ImageJ",
+        "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
+        "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+        "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+        "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+        "source_tag": "v1.54p",
         "version": "1.54p"
       },
       "classification": "PARITY CONFIRMED",
@@ -3097,24 +3961,27 @@
           "Util.java": "4dbe118c08eaa36a5f87c78930169383a602a84f25ca7b975284cb089bdd1689"
         }
       },
-      "classification": "REFERENCE NOT RESOLVED",
+      "classification": "FIDELITY FAILURE",
       "comparison_mode": "exact",
       "dtype": "uint16",
       "equal": false,
       "first_mismatch": null,
-      "fixture": "clahe_128x128_full_bin_ramp",
+      "fixture": "clahe_runtime",
       "max_absolute_difference": null,
       "mismatch_count": null,
       "mismatch_fraction": null,
       "mpips_sha256": "488637c5087899a587eb1caa8bf2937da8b64e2ff58bc43e8f3ec29d9f678369",
       "operation": "CLAHE Flat / precise",
       "parameters": {
+        "block_radius": 63,
         "blocksize": 127,
         "composite": true,
         "histogram_bins": 256,
+        "internal_bins": 255,
         "maximum_slope": 0.6
       },
-      "reference_error": "reference failed: /tmp/mpips-imagej-reference-LyDbYJ/jdk/jdk-17.0.19+10/bin/java -Djava.awt.headless=true -cp /tmp/mpips-imagej-reference-LyDbYJ/harness:/tmp/mpips-imagej-reference-LyDbYJ/imagej/classes2:/tmp/mpips-imagej-reference-LyDbYJ/imagej/ij-1.54p.jar ReferenceHarness clahe_flat uint16 128 128 63 256 0.6\nException in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)\n\tat mpicbg.ij.clahe.Util.transferValue(Util.java:215)\n\tat mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:454)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:376)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:222)\n\tat ReferenceHarness.main(ReferenceHarness.java:96)\n",
+      "reference_error": "reference failed: /tmp/mpips-imagej-reference-LyDbYJ/jdk/jdk-17.0.19+10/bin/java -Djava.awt.headless=true -cp /tmp/mpips-imagej-reference-LyDbYJ/harness-remediation:/tmp/mpips-imagej-reference-LyDbYJ/imagej/classes2:/tmp/mpips-imagej-reference-LyDbYJ/imagej/ij-1.54p.jar ReferenceHarness clahe_flat uint16 128 128 63 255 0.6\nException in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)\n\tat mpicbg.ij.clahe.Util.transferValue(Util.java:215)\n\tat mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:454)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:376)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:222)\n\tat ReferenceHarness.main(ReferenceHarness.java:87)\n",
+      "reference_execution_error": true,
       "reference_sha256": null,
       "shape": [
         128,
@@ -3135,28 +4002,123 @@
           "Util.java": "4dbe118c08eaa36a5f87c78930169383a602a84f25ca7b975284cb089bdd1689"
         }
       },
-      "classification": "REFERENCE NOT RESOLVED",
+      "classification": "FIDELITY FAILURE",
       "comparison_mode": "exact",
       "dtype": "uint16",
       "equal": false,
       "first_mismatch": null,
-      "fixture": "clahe_128x128_full_bin_ramp",
+      "fixture": "clahe_runtime",
       "max_absolute_difference": null,
       "mismatch_count": null,
       "mismatch_fraction": null,
       "mpips_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
       "operation": "CLAHE FastFlat / fast",
       "parameters": {
+        "block_radius": 63,
         "blocksize": 127,
         "composite": true,
         "histogram_bins": 256,
+        "internal_bins": 255,
         "maximum_slope": 0.6
       },
-      "reference_error": "reference failed: /tmp/mpips-imagej-reference-LyDbYJ/jdk/jdk-17.0.19+10/bin/java -Djava.awt.headless=true -cp /tmp/mpips-imagej-reference-LyDbYJ/harness:/tmp/mpips-imagej-reference-LyDbYJ/imagej/classes2:/tmp/mpips-imagej-reference-LyDbYJ/imagej/ij-1.54p.jar ReferenceHarness clahe_fast uint16 128 128 63 256 0.6\nException in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)\n\tat mpicbg.ij.clahe.Util.createTransfer(Util.java:145)\n\tat mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:376)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:222)\n\tat mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)\n\tat ReferenceHarness.main(ReferenceHarness.java:97)\n",
+      "reference_error": "reference failed: /tmp/mpips-imagej-reference-LyDbYJ/jdk/jdk-17.0.19+10/bin/java -Djava.awt.headless=true -cp /tmp/mpips-imagej-reference-LyDbYJ/harness-remediation:/tmp/mpips-imagej-reference-LyDbYJ/imagej/classes2:/tmp/mpips-imagej-reference-LyDbYJ/imagej/ij-1.54p.jar ReferenceHarness clahe_fast uint16 128 128 63 255 0.6\nException in thread \"main\" java.lang.ArithmeticException: / by zero\n\tat mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)\n\tat mpicbg.ij.clahe.Util.createTransfer(Util.java:145)\n\tat mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:376)\n\tat mpicbg.ij.clahe.Flat.run(Flat.java:222)\n\tat mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)\n\tat ReferenceHarness.main(ReferenceHarness.java:88)\n",
+      "reference_execution_error": true,
       "reference_sha256": null,
       "shape": [
         128,
         128
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "commit": "0ed8a9d0592b1b679311f798b0b4dac6f44d3ef0",
+        "project": "axtimwalde/mpicbg",
+        "retrieval": "https://github.com/axtimwalde/mpicbg",
+        "source": "mpicbg.ij.clahe.Flat, FastFlat, Util",
+        "source_sha256": {
+          "FastFlat.java": "09fa2048f80d258a2ce02b8940373e2a9e9b8176e5b86e0a4c5ae6710114b3fd",
+          "Flat.java": "112ba574034acb2c740dfcc5365fb9489305d62e9527df71665cac8971dedee2",
+          "Util.java": "4dbe118c08eaa36a5f87c78930169383a602a84f25ca7b975284cb089bdd1689"
+        }
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          0,
+          1
+        ],
+        "mpips": 0,
+        "reference": 771
+      },
+      "fixture": "clahe_small",
+      "max_absolute_difference": 3855,
+      "mismatch_count": 240,
+      "mismatch_fraction": 0.9375,
+      "mpips_sha256": "076a27c79e5ace2a3d47f9dd2e83e4ff6ea8872b3c2218f66c92b89b55f36560",
+      "operation": "CLAHE Flat / precise",
+      "parameters": {
+        "block_radius": 2,
+        "blocksize": 5,
+        "composite": true,
+        "histogram_bins": 16,
+        "internal_bins": 15,
+        "maximum_slope": 3.0
+      },
+      "reference_sha256": "8a254fdf13806755c86ef02a2827c7c6ca8034a1020a83070a73503ba0bec97e",
+      "shape": [
+        16,
+        16
+      ],
+      "tolerance": null,
+      "tolerance_rationale": null
+    },
+    {
+      "authoritative": {
+        "commit": "0ed8a9d0592b1b679311f798b0b4dac6f44d3ef0",
+        "project": "axtimwalde/mpicbg",
+        "retrieval": "https://github.com/axtimwalde/mpicbg",
+        "source": "mpicbg.ij.clahe.Flat, FastFlat, Util",
+        "source_sha256": {
+          "FastFlat.java": "09fa2048f80d258a2ce02b8940373e2a9e9b8176e5b86e0a4c5ae6710114b3fd",
+          "Flat.java": "112ba574034acb2c740dfcc5365fb9489305d62e9527df71665cac8971dedee2",
+          "Util.java": "4dbe118c08eaa36a5f87c78930169383a602a84f25ca7b975284cb089bdd1689"
+        }
+      },
+      "classification": "FIDELITY FAILURE",
+      "comparison_mode": "exact",
+      "dtype": "uint16",
+      "equal": false,
+      "first_mismatch": {
+        "coordinate": [
+          0,
+          0
+        ],
+        "mpips": 3641,
+        "reference": 0
+      },
+      "fixture": "clahe_small",
+      "max_absolute_difference": 9388,
+      "mismatch_count": 256,
+      "mismatch_fraction": 1.0,
+      "mpips_sha256": "c7b2cd124035f63b15bdba0d29477516c4fb9da581058416697c173a111d6fda",
+      "operation": "CLAHE FastFlat / fast",
+      "parameters": {
+        "block_radius": 2,
+        "blocksize": 5,
+        "composite": true,
+        "histogram_bins": 16,
+        "internal_bins": 15,
+        "maximum_slope": 3.0
+      },
+      "reference_sha256": "e668b0ea766ba91849ee80ca3fcba37a400f166fd17345bf889dbd05da4f9985",
+      "shape": [
+        16,
+        16
       ],
       "tolerance": null,
       "tolerance_rationale": null
@@ -3187,7 +4149,14 @@
       "retrieval": "https://repo1.maven.org/maven2/net/imagej/ij/1.54p/ij-1.54p.jar",
       "sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
       "source": "ij.plugin.ContrastEnhancer and ij.plugin.filter.RankFilters",
+      "source_retrieval": "https://github.com/imagej/ImageJ/tree/v1.54p",
+      "source_tag": "v1.54p",
       "version": "1.54p"
+    },
+    "repository": {
+      "adapter_build_command": "javac -cp ij-1.54p.jar:classes -d harness scripts/imagej_reference/ReferenceHarness.java",
+      "adapter_sha256": "86189871e94cc0d34f09976a8f61c1672fe05cc94c3226ecb51c137926d0ff56",
+      "adapter_source": "/var/www/mpips/scripts/imagej_reference/ReferenceHarness.java"
     },
     "runtime": {
       "archive": "OpenJDK17U-jdk_x64_linux_hotspot_17.0.19_10.tar.gz",
@@ -3198,7 +4167,10 @@
       "java_version_output": "openjdk version \"17.0.19\" 2026-04-21\nOpenJDK Runtime Environment Temurin-17.0.19+10 (build 17.0.19+10)\nOpenJDK 64-Bit Server VM Temurin-17.0.19+10 (build 17.0.19+10, mixed mode, sharing)",
       "javac_version_output": "javac 17.0.19",
       "mpips_dependencies_changed": false,
+      "official_checksum_url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.19%2B10/OpenJDK17U-jdk_x64_linux_hotspot_17.0.19_10.tar.gz.sha256.txt",
+      "official_download_url": "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-17.0.19%2B10/OpenJDK17U-jdk_x64_linux_hotspot_17.0.19_10.tar.gz",
       "persistent_environment_change": false,
+      "platform": "Linux x86_64",
       "release_tag": "jdk-17.0.19+10",
       "system_java_initially_available": false,
       "system_wide_installation": false,
@@ -3212,10 +4184,10 @@
     "temporal_median": "NOT PRODUCTION-REACHABLE"
   },
   "summary": {
-    "CLAHE FastFlat / fast": "REFERENCE NOT RESOLVED",
-    "CLAHE Flat / precise": "REFERENCE NOT RESOLVED",
-    "Circular Median": "PARITY CONFIRMED",
-    "Contrast stretch": "FIDELITY FAILURE",
+    "CLAHE FastFlat / fast": "FIDELITY FAILURE",
+    "CLAHE Flat / precise": "FIDELITY FAILURE",
+    "Circular Median": "FIDELITY FAILURE",
+    "Contrast stretch": "PARITY CONFIRMED",
     "Equalize classic": "PARITY CONFIRMED",
     "Equalize weighted": "PARITY CONFIRMED",
     "Hybrid Median 3x3": "FIDELITY FAILURE",
