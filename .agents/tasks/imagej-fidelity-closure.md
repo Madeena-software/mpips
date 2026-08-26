@@ -1,7 +1,7 @@
 ---
 title: MPIPS ImageJ/Fiji Fidelity Closure
 document_id: AGENT-TASK-IMAGEJ-FIDELITY-CLOSURE-001
-version: 1.1
+version: 1.2
 status: Validated/Published
 language: en-US
 last_updated: 2026-08-26
@@ -53,7 +53,14 @@ The task revision and implementation baseline are separate. A later material
 phase MUST republish this same task path at a new immutable revision before
 execution.
 
-**Current released phase:** **PHASE 2 — ACCEPTED PARITY + N/A CLOSURE**
+**Current released phase:** **PHASE 3 — CLAHE SEMANTIC CLOSURE**
+
+**Accepted Phase-2 baseline:**
+`b4c032ce58605095de82c67097c61ebf458041a5`
+
+`fdf38094320de1dc81037e6516c17e11022d4fde` is the accepted direct
+predecessor. Phase 1 and Phase 2 are accepted/closed. Phase 4 and all later
+phases remain unauthorized.
 
 **Accepted Phase-1 evidence revision:**
 `1be8ba791bc187be0c8b107cf165ac24f88ee412`
@@ -61,7 +68,7 @@ execution.
 Phase 1 is accepted at that revision. Its conclusions are not reopened unless
 direct contradictory repository evidence is found.
 
-This publication explicitly authorizes Phase 1 execution to:
+The prior Phase-1 publication authorized Phase 1 execution to:
 
 - inspect repository source, configuration, and call paths;
 - inspect accepted ImageJ/Fiji evidence;
@@ -222,10 +229,10 @@ rechecked rather than assumed.
 
 ## Gated phases
 
-Publication releases Phase 1 planning/inventory only. No later phase is
-automatically authorized. Each phase ends at `Review Required`; material next
-phase work requires Planner/Reviewer review and a new immutable revision of
-this same task path.
+The prior publication released Phase 1 planning/inventory, followed by the
+accepted Phase-2 publication. This revision releases Phase 3 only. Each phase
+ends at `Review Required`; material next-phase work requires Planner/Reviewer
+review and a new immutable revision of this same task path.
 
 ### Phase 1 — Inventory / Reachability Closure
 
@@ -252,9 +259,9 @@ verification and permitted by the retained environment.
 
 **Gate:** Review Required; publish the next revision before Phase 2.
 
-### Phase 2 — Accepted Parity + N/A Closure
+### Phase 2 — Accepted Parity + N/A Closure (Accepted / Closed)
 
-Phase 2 is explicitly released by this task revision for exactly the following
+The prior Phase-2 publication released exactly the following
 settled items:
 
 - Contrast Stretch, uint8 and uint16;
@@ -286,20 +293,46 @@ behavior, or either MPIPS CLAHE implementation. Circular Median remains
 unchanged and unauthorized for Phase 2: do not fix it, change radius handling,
 remove/deprecate its exposure, or establish new parity claims.
 
-Phase 3 and all later phases remain unauthorized until Planner/Reviewer review,
-acceptance or remediation, and republication of this same stable task path at
-a new immutable revision.
+Phase 2 was accepted at baseline
+`b4c032ce58605095de82c67097c61ebf458041a5`. Its conclusions remain closed
+unless contradictory current evidence is found.
 
-**Gate:** Review Required; republish before Phase 3.
+**Gate:** Review Required; republish before Phase 4.
 
 ### Phase 3 — CLAHE Semantic Closure
 
-Document MPIPS precise, MPIPS fast/OpenCV, Fiji Flat, and Fiji FastFlat
-contracts, uint8/uint16 semantics, parameter domains, reachability, and
-truthful labels using accepted I-4C0/I-5A/I-5B evidence. Do not change slope
-`0.6` automatically.
+Phase 3 is the current released phase. The governing Planner decision is
+**Option A — Legacy MPIPS Contract**. Document MPIPS precise, MPIPS
+fast/OpenCV, Fiji Flat, and Fiji FastFlat contracts, uint8/uint16 semantics,
+parameter domains, reachability, and truthful labels using accepted
+I-4C0/I-5A/I-5B evidence. No production algorithm change is authorized.
 
-The contract MUST be deliberately selected as exactly one of:
+MPIPS precise CLAHE remains the production-reachable default contract and is
+not Fiji Flat parity. Its difference is classified
+`INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED`.
+
+MPIPS fast/OpenCV remains a production-reachable configurable alternate, not
+the default, and is not Fiji FastFlat parity. Its difference is classified
+`INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED`.
+
+Fiji Flat and Fiji FastFlat remain reference-only and not production
+reachable. They must not be equated with OpenCV CLAHE or implemented in
+production.
+
+The current production configuration remains unchanged: `use_clahe=true`,
+`clahe_blocksize=127`, `clahe_histogram_bins=256`, `clahe_max_slope=0.6`,
+`clahe_fast=false`, and `clahe_composite=true`. The slope is
+`INHERITED MPIPS DEFAULT — RATIONALE NOT RECOVERED`; no optimality, clinical,
+quality-superiority, Fiji-compatibility, or I-5A/I-5B parameter-selection
+claim is authorized. Parameter optimization remains out of scope.
+
+Phase-3 evidence work may update only
+`.agents/evidence/imagej-fidelity-closure.md` and, if genuinely necessary,
+the smallest existing CLAHE regression-test file. Existing deterministic
+sentinels must be inspected first; no new test file and no `mpips/**` change
+are authorized.
+
+The retained contract alternatives are:
 
 - **Option A — Legacy MPIPS Contract:** current custom MPIPS semantics remain
   authoritative; stop claiming Fiji parity; slope remains a later
@@ -310,8 +343,10 @@ The contract MUST be deliberately selected as exactly one of:
 - **Option C — Fiji FastFlat Contract:** FastFlat remains a distinct intended
   algorithm and requires separate fidelity implementation and validation.
 
-If authority is insufficient, stop with `PLANNING REQUIRED — CLAHE SEMANTIC
-SELECTION`. Do not infer a quality recommendation from execution-safe floors.
+Option A is selected and governing; Options B and C are not selected. Do not
+infer a quality recommendation from execution-safe floors. The pinned
+execution-domain facts (`~1.02722168` for Fiji Flat and `~1.00394` for Fiji
+FastFlat) are not production recommendations or replacements for slope `0.6`.
 
 **Gate:** Review Required; republish before any implementation/remediation.
 
