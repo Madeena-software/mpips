@@ -1,7 +1,7 @@
 ---
 title: MPIPS ImageJ/Fiji Fidelity Closure
 document_id: AGENT-TASK-IMAGEJ-FIDELITY-CLOSURE-001
-version: 1.6
+version: 1.7
 status: Validated/Published
 language: en-US
 last_updated: 2026-08-26
@@ -44,7 +44,7 @@ reopened here, and no stage-order work is authorized.
 ## Baseline and task revision
 
 **Implementation baseline:**
-`8396fbc768285cc68ed3bbe572561cd664b70e8b`
+`232f148ce24d6df5569a4b2c290e93adf0a03d5f`
 
 **Task revision:** `.agents/tasks/imagej-fidelity-closure.md @ the full
 publication commit containing this file`.
@@ -55,13 +55,24 @@ execution.
 
 **Current released phase:** **PHASE 5 — BOUNDED PERFORMANCE BASELINE**
 
-**Phase-5 status:** **IN PROGRESS — REFERENCE RUNTIME RECONSTRUCTION**
+**Phase-5 status:** **IN PROGRESS — BOUNDED PERFORMANCE MEASUREMENT**
 
-The initial Phase-5 attempt is `REVIEW BLOCKED — RETAINED FIJI REFERENCE
-RUNTIME UNAVAILABLE`: the documented temporary runtime directory, pinned
-`ij-1.54p.jar`, and Temurin Java executable were absent, and no measurements
-were performed. This is an environment prerequisite failure, not a product
-defect, fidelity result, or reason to omit Fiji.
+**Accepted sub-gate:** **REFERENCE RUNTIME RECONSTRUCTION — ACCEPTED / CLOSED**
+
+The accepted runtime is **RECONSTRUCTED FROM ACCEPTED PINNED PROVENANCE**
+under governing publication
+`e7e3669bcbf0c2e3242b2f44f6bd2b2ac0d422f8`, at
+`/tmp/mpips-imagej-reference-phase5-iY6Lqk`. No tracked reconstruction files
+or reconstruction commit exist. The reconstructed JDK, ImageJ JAR, pinned
+Fiji CLAHE sources, Hybrid source, and tracked harness matched the identities
+and hashes below; Fiji Flat and FastFlat each completed two deterministic
+128x128 uint16 smoke runs at slope 1.5, block radius 63, and internal bins
+255. Flat output SHA256 was
+`b12db91a188b0dccdf2703dc3caa948bab24613e61256ef0002023d147daa34b` and
+FastFlat output SHA256 was
+`b4a4958976bd092c0bc12d4d02b52e80d693549a72ee9ec9a7916cbf319b8fda`.
+The smoke result establishes runtime availability and determinism only; it is
+not performance evidence.
 
 **Accepted Phase-2 baseline:**
 `b4c032ce58605095de82c67097c61ebf458041a5`
@@ -414,9 +425,17 @@ MATRIX`; universal parity for all positive radii is not authorized.
 
 ### Phase 5 — Bounded Performance Baseline
 
-Phase 5 is in progress, and its current gate is **REFERENCE RUNTIME
-RECONSTRUCTION**. Performance measurements remain blocked until this gate is
-accepted. Reconstruct only the exact already-pinned runtime from
+Phase 5 is in progress, its reconstruction sub-gate is accepted/closed, and
+its current released gate is **BOUNDED PERFORMANCE MEASUREMENT**. Use only the
+accepted reconstructed runtime described below. Before any benchmark, verify
+that its temporary root still exists and contains the accepted runtime; do
+not assume `/tmp` persistence. At minimum, verify the absolute Java path,
+Temurin 17.0.19+10 identity, ImageJ JAR SHA, tracked harness SHA, and all
+final classpath components. If the root is missing or materially altered,
+stop with `REVIEW BLOCKED — ACCEPTED RECONSTRUCTED RUNTIME NO LONGER
+AVAILABLE`; do not reconstruct again under the benchmark gate.
+
+The accepted reconstruction used only the exact already-pinned runtime from
 `scripts/imagej_reference/README.md`:
 
 - Eclipse Temurin 17.0.19+10 HotSpot Linux x86_64, archive
@@ -441,7 +460,8 @@ Downloaded content remains untrusted until its identity check passes. No JDK,
 JAR, source, class, benchmark binary, or other reconstruction artifact may be
 tracked or committed.
 
-After hash verification and compilation, the gate must smoke-test Fiji Flat
+After hash verification and compilation, the reconstruction gate smoke-tested
+Fiji Flat
 and Fiji FastFlat at the already accepted common context: slope 1.5, block
 radius 63, internal bins 255, using a small deterministic fixture. This is
 environment verification, not the Phase-5 benchmark. Do not rerun the full
@@ -450,8 +470,8 @@ runtime must be described as **RECONSTRUCTED FROM ACCEPTED PINNED PROVENANCE**,
 not as an original retained runtime. The reconstruction gate makes no tracked
 file changes and does not automatically start benchmarking.
 
-Once the reconstruction is accepted, Phase 5 remains performance
-characterization only. Measure, when executable, MPIPS
+Phase 5 execution is performance characterization only. Measure, when
+executable, MPIPS
 precise CLAHE (`fast=False`), MPIPS fast/OpenCV CLAHE (`fast=True`), pinned
 Fiji Flat, and pinned Fiji FastFlat. These four implementations are not
 semantically equivalent; do not treat this as a benchmark of interchangeable
@@ -575,12 +595,11 @@ SELECTION` for the CLAHE decision stop and MUST NOT invent the decision.
 - Create only `.agents/tasks/imagej-fidelity-closure.md`.
 - Run `git diff --check`, inspect the task-only diff, commit the task
   publication, and push normally to `origin/refactor/package-boundaries`.
-- This revision authorizes the later Phase-5 execution only in
+- This revision authorizes the later Phase-5 bounded measurement only in
   `.agents/evidence/imagej-fidelity-closure.md`, subject to the Phase-5
   constraints above.
-- The Phase-5 reconstruction gate may use the exact pinned network artifacts
-  and temporary `/tmp` storage described above, with no tracked output or
-  persistent system/environment change.
+- The accepted reconstructed runtime is an execution precondition; future
+  measurement may not reconstruct it again under this revision.
 
 ### Not authorized
 
@@ -592,7 +611,8 @@ SELECTION` for the CLAHE decision stop and MUST NOT invent the decision.
 ## Expected terminal outcome
 
 This publication ends at **Review Required** with the immutable publication
-commit as the task revision. It does not download, reconstruct, or measure.
+commit as the task revision. It does not benchmark; the accepted runtime
+smoke was performed before this publication.
 
 ## Review and remediation handling
 
