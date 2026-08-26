@@ -35,6 +35,8 @@ research/**/.ipynb_checkpoints/
 *.npz
 research/kambing-260714/data/output
 research/phantom-gotri-thorax
+research/real-thorax-dicom/
+output/
 
 # Python packaging / build artifacts
 *.egg-info/
