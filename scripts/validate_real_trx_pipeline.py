@@ -540,7 +540,7 @@ def run_local_real_trx_pipeline(
             "NONE",
         ),
     }
-    if SUPPORT_DIR.is_dir():
+    if "HISTORICAL_789ADFF_REMAP" in modes and SUPPORT_DIR.is_dir():
         result["neural_support"] = inspect_neural_support()
         (output / "neural-support.json").write_text(
             json.dumps(result["neural_support"], indent=2) + "\n"

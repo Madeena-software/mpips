@@ -926,6 +926,45 @@ def test_local_pipeline_uses_only_requested_modes_without_historical_support(
     assert "HISTORICAL_789ADFF_REMAP" not in calls
 
 
+def test_production_modes_skip_historical_support_observability(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from scripts import validate_real_trx_pipeline as trx
+
+    support_dir = tmp_path / "historical-support"
+    support_dir.mkdir()
+    monkeypatch.setattr(
+        trx,
+        "validate_real_thorax_inputs",
+        lambda data_dir: {"REAL_THORAX_INPUTS_ALL_PASS": "PASS"},
+    )
+    monkeypatch.setattr(trx, "SUPPORT_DIR", support_dir)
+    monkeypatch.setattr(
+        trx,
+        "inspect_neural_support",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("production validation inspected historical support")
+        ),
+    )
+    monkeypatch.setattr(
+        trx,
+        "_case",
+        lambda data_dir, neural_dir, case, mode, output: {
+            "pipeline_result": "PASS",
+            "first_geometry_failure_stage": "NONE",
+        },
+    )
+
+    result = trx.run_local_real_trx_pipeline(
+        tmp_path / "data",
+        tmp_path / "calibration",
+        tmp_path / "output",
+        modes=promotion.PRODUCTION_PROMOTION_MODES,
+    )
+
+    assert result["REAL_TRX_LOCAL_PIPELINE"] == "PASS"
+
+
 def test_local_pipeline_defaults_to_research_modes(tmp_path: Path, monkeypatch) -> None:
     from scripts import validate_real_trx_pipeline as trx
 
