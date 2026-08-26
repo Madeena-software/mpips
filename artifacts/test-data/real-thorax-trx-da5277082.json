@@ -1,0 +1,24 @@
+{
+  "radiograph": {
+    "file_id": "1ocIGsYS6RHIurhRuOwJCzSHTv-6STc_m",
+    "filename": "TRX_1787727857802.npz",
+    "size": 71253472,
+    "sha256": "954fee2669755fce140b600d4b7d6a67f5a8a141f5a639a0a82317d973963cf2"
+  },
+  "gain": {
+    "file_id": "1kI99se2CjzCgo4qInMEGUuJ-ZJZE3iQY",
+    "filename": "TRX_1787726609597.npz",
+    "size": 17190412,
+    "sha256": "38918e436e5329e28b08c844e8df3766a1ab83a1fc3135c83df56370c480b2a9"
+  },
+  "expected": {
+    "detector_mode": "TRX",
+    "external_detector_type": "THORAX",
+    "image_shape": [
+      3000,
+      4096
+    ],
+    "camera_serial": "DA5277082",
+    "gain_id": "1787726609597"
+  }
+}
