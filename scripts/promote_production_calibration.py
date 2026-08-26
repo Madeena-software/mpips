@@ -21,14 +21,15 @@ import numpy as np
 import pydicom
 
 from scripts.validate_calibration_layout import validate_calibration_layout
+from mpips.workflows.imager_pipeline.calibration import validate_fixed_canvas_remap
 
-EXPECTED_CARRIER_SIZE = 70488061
-EXPECTED_CARRIER_FILE_ID = "1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr"
+EXPECTED_CARRIER_SIZE = 72013356
+EXPECTED_CARRIER_FILE_ID = "NOT_PUBLISHED"
 EXPECTED_CARRIER_SHA256 = (
-    "39ead140fded085377ca52e9e7cf152549224e0816ccc3e73ed9a3ba7b0cdc61"
+    "2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556"
 )
 EXPECTED_FINGERPRINT = (
-    "789adff52ed296d956f81ae8dc38247a73768d863495f91a916fc251aaf67811"
+    "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
 )
 EXPECTED_SHAPE = (3000, 4096)
 CAMERA_INDEPENDENT_BASELINE = "d175a6fa56ca32cf78007c39baff24075dbd5a0e"
@@ -278,6 +279,10 @@ def _validate_trx(directory: Path) -> None:
         raise PromotionError("TRX fingerprint mismatch")
     if metadata.get("image_shape") != list(EXPECTED_SHAPE):
         raise PromotionError("TRX image shape mismatch")
+    if metadata.get("grid_shape") != [18, 25]:
+        raise PromotionError("TRX grid shape mismatch")
+    if metadata.get("transform_kind") != "geometric_calibration":
+        raise PromotionError("TRX transform kind mismatch")
     source = metadata.get("source_metadata", {})
     if not isinstance(source, dict) or source.get("detector_mode") != "TRX":
         raise PromotionError("TRX detector mode mismatch")
@@ -294,6 +299,12 @@ def _validate_trx(directory: Path) -> None:
                 np.isfinite(remap["map_y"])
             ):
                 raise PromotionError("TRX remap contains non-finite values")
+            try:
+                validate_fixed_canvas_remap(
+                    remap["map_x"], remap["map_y"], *EXPECTED_SHAPE[::-1]
+                )
+            except (TypeError, ValueError, RuntimeError) as exc:
+                raise PromotionError("TRX remap geometry is unsafe") from exc
     except (OSError, ValueError, zipfile.BadZipFile) as exc:
         raise PromotionError("invalid TRX remap") from exc
 

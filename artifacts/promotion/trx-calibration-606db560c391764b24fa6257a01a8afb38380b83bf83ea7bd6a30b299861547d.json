@@ -1,0 +1,22 @@
+{
+  "artifact_type": "mpips-calibration",
+  "detector_mode": "TRX",
+  "fingerprint": "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d",
+  "image_shape": [
+    3000,
+    4096
+  ],
+  "grid_shape": [
+    18,
+    25
+  ],
+  "transform_kind": "geometric_calibration",
+  "archive_size": 72013356,
+  "archive_sha256": "2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556",
+  "required_files": [
+    "metadata.json",
+    "remap.npz"
+  ],
+  "validated": true,
+  "carrier": "NOT_PUBLISHED"
+}

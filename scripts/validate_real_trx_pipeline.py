@@ -17,7 +17,6 @@ from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
 from mpips.workflows.imager_pipeline.npz_io import load_gain_catalog, load_radiograph
 from mpips.workflows.imager_pipeline.pipeline import process_radiography_arrays
 from scripts.promote_production_calibration import (
-    EXPECTED_FINGERPRINT,
     _extract_carrier,
     validate_real_thorax_inputs,
     verify_carrier,
@@ -34,6 +33,9 @@ MODES = (
 )
 SUPPORT_DIR = Path(
     "research/phantom-gotri-thorax/output/neural_model/"
+    "789adff52ed296d956f81ae8dc38247a73768d863495f91a916fc251aaf67811"
+)
+HISTORICAL_FINGERPRINT = (
     "789adff52ed296d956f81ae8dc38247a73768d863495f91a916fc251aaf67811"
 )
 
@@ -332,7 +334,7 @@ def _case(
         "first_geometry_failure_stage": "DICOM_ENCODING" if failed else "NONE",
         "pipeline_result": "FAIL" if failed else "PASS",
         "calibration_fingerprint": (
-            EXPECTED_FINGERPRINT if mode == "CURRENT_NEURAL_REMAP" else None
+            HISTORICAL_FINGERPRINT if mode == "CURRENT_NEURAL_REMAP" else None
         ),
     }
     if mode in ("CURRENT_NEURAL_REMAP", "SUPPORT_BOUNDED_REMAP"):

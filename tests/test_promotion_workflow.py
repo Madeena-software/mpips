@@ -23,10 +23,10 @@ ROOT = Path(__file__).parents[1]
 MANIFEST = (
     ROOT
     / "artifacts/promotion"
-    / "trx-calibration-789adff52ed296d956f81ae8dc38247a73768d863495f91a916"
-    "fc251aaf67811.json"
+    / "trx-calibration-606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
+    ".json"
 )
-FINGERPRINT = "789adff52ed296d956f81ae8dc38247a73768d863495f91a916fc251aaf67811"
+FINGERPRINT = "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
 FUNCTIONAL_PASS = {
     field: "PASS"
     for field in (
@@ -83,6 +83,8 @@ def _carrier(
         "validated": True,
         "fingerprint": fingerprint,
         "image_shape": [3000, 4096],
+        "grid_shape": [18, 25],
+        "transform_kind": "geometric_calibration",
         "source_metadata": {
             "detector_mode": "TRX",
             "camera_params": {"serialNumber": "old"},
@@ -107,16 +109,15 @@ def _carrier(
 
 def test_manifest_pins_exact_carrier() -> None:
     manifest = json.loads(MANIFEST.read_text())
-    assert manifest["carrier"] == {
-        "type": "google-drive",
-        "file_id": "1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr",
-    }
-    assert manifest["archive_size"] == 70488061
+    assert manifest["carrier"] == "NOT_PUBLISHED"
+    assert manifest["archive_size"] == 72013356
     assert (
         manifest["archive_sha256"]
-        == "39ead140fded085377ca52e9e7cf152549224e0816ccc3e73ed9a3ba7b0cdc61"
+        == "2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556"
     )
     assert manifest["fingerprint"] == FINGERPRINT
+    assert manifest["grid_shape"] == [18, 25]
+    assert manifest["transform_kind"] == "geometric_calibration"
 
 
 def test_workflow_is_guarded_manual_production_workflow() -> None:
@@ -142,6 +143,16 @@ def test_hash_mismatch_fails_before_extraction(tmp_path: Path) -> None:
     with pytest.raises(PromotionError, match="carrier SHA-256"):
         verify_carrier(carrier, 5, "0" * 64)
     assert not (tmp_path / "trx-calibration").exists()
+
+
+def test_historical_trx_fingerprint_is_rejected(tmp_path: Path) -> None:
+    carrier = tmp_path / "carrier.tar.gz"
+    _carrier(
+        carrier,
+        fingerprint="789adff52ed296d956f81ae8dc38247a73768d863495f91a916fc251aaf67811",
+    )
+    with pytest.raises(PromotionError, match="TRX fingerprint mismatch"):
+        promotion._validate_trx(promotion._extract_carrier(carrier, tmp_path / "stage"))
 
 
 def test_runtime_preflight_rejects_old_runtime_before_mutation(tmp_path: Path) -> None:
