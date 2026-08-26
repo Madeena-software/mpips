@@ -1,5 +1,6 @@
 from pathlib import Path
 import numpy as np
+import pydicom
 import pytest
 from pydicom.dataset import FileDataset, FileMetaDataset
 from pydicom.uid import ExplicitVRLittleEndian, generate_uid
@@ -7,6 +8,8 @@ from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 from scripts.diagnose_production_dicom_e2e import (
     ALLOWED_DRIVE_IDS,
     classify_mhcs_response,
+    classify_mhcs_probe,
+    camera_compatibility,
     classify_runtime,
     discover_worker,
     final_classification,
@@ -19,6 +22,24 @@ from scripts.diagnose_production_dicom_e2e import (
 
 ROOT = Path(__file__).parents[1]
 WORKFLOW = ROOT / ".github/workflows/diagnose-production-dicom-e2e.yml"
+
+
+def _valid_dicom(path):
+    meta = FileMetaDataset()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.1.1.1"
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    ds = FileDataset(path, {}, file_meta=meta, preamble=b"\0" * 128)
+    ds.SOPClassUID, ds.SOPInstanceUID = (
+        meta.MediaStorageSOPClassUID,
+        meta.MediaStorageSOPInstanceUID,
+    )
+    ds.StudyInstanceUID, ds.SeriesInstanceUID = generate_uid(), generate_uid()
+    ds.Rows, ds.Columns = 2, 2
+    ds.SamplesPerPixel, ds.PhotometricInterpretation = 1, "MONOCHROME2"
+    ds.BitsAllocated, ds.BitsStored, ds.HighBit, ds.PixelRepresentation = 16, 16, 15, 0
+    ds.PixelData = np.zeros((2, 2), dtype=np.uint16).tobytes()
+    ds.save_as(path)
 
 
 def test_workflow_is_manual_and_production_only():
@@ -95,20 +116,7 @@ def test_report_does_not_contain_api_key_literal():
 
 def test_valid_dicom_structure_is_behaviorally_validated(tmp_path):
     path = tmp_path / "valid.dcm"
-    meta = FileMetaDataset()
-    meta.TransferSyntaxUID = ExplicitVRLittleEndian
-    meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.1.1.1"
-    meta.MediaStorageSOPInstanceUID = generate_uid()
-    ds = FileDataset(path, {}, file_meta=meta, preamble=b"\0" * 128)
-    ds.SOPClassUID = meta.MediaStorageSOPClassUID
-    ds.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
-    ds.StudyInstanceUID = generate_uid()
-    ds.SeriesInstanceUID = generate_uid()
-    ds.Rows, ds.Columns = 2, 2
-    ds.SamplesPerPixel, ds.PhotometricInterpretation = 1, "MONOCHROME2"
-    ds.BitsAllocated, ds.BitsStored, ds.HighBit, ds.PixelRepresentation = 16, 16, 15, 0
-    ds.PixelData = np.zeros((2, 2), dtype=np.uint16).tobytes()
-    ds.save_as(path)
+    _valid_dicom(path)
     assert validate_dicom_structure(path)["rows"] == 2
 
 
@@ -128,6 +136,32 @@ def test_dicom_validator_rejects_missing_syntax_uint_and_private(tmp_path):
     ds.add_new(0x00110010, "LO", "private")
     ds.save_as(path)
     with pytest.raises(ValueError, match="transfer syntax"):
+        validate_dicom_structure(path)
+
+
+@pytest.mark.parametrize(
+    ("change", "message"),
+    [
+        ("syntax", "unsupported"),
+        ("signed", "unsigned"),
+        ("private", "private"),
+        ("uid", "missing"),
+    ],
+)
+def test_dicom_validator_rejects_each_invalid_condition(tmp_path, change, message):
+    path = tmp_path / f"{change}.dcm"
+    _valid_dicom(path)
+    ds = pydicom.dcmread(path)
+    if change == "syntax":
+        ds.file_meta.TransferSyntaxUID = "1.2.840.10008.1.2"
+    elif change == "signed":
+        ds.PixelRepresentation = 1
+    elif change == "private":
+        ds.add_new(0x00110010, "LO", "private")
+    else:
+        ds.StudyInstanceUID = "not-a-uid"
+    ds.save_as(path, write_like_original=False)
+    with pytest.raises(ValueError, match=message):
         validate_dicom_structure(path)
 
 
@@ -306,3 +340,54 @@ def test_mhcs_response_classifies_explicit_failures():
     assert classify_mhcs_response({**base, "dns": False}) == "DNS_FAILED"
     assert classify_mhcs_response({**base, "health_status": 500}) == "HEALTH_FAILED"
     assert classify_mhcs_response({**base, "http_status": 500}) == "FAIL"
+
+
+def test_camera_compatibility_uses_all_sources_and_aliases():
+    assert (
+        camera_compatibility(
+            {"serialNumber": "cam-A"},
+            {"serialNumber": "cam-A"},
+            {"serialNumber": "cam-A"},
+        )
+        == "PASS"
+    )
+    assert (
+        camera_compatibility(
+            {"serialNumber": "cam-A"},
+            {"serialNumber": "cam-B"},
+            {"serialNumber": "cam-A"},
+        )
+        == "FAIL"
+    )
+    assert (
+        camera_compatibility(
+            {"serialNumber": "cam-A"},
+            {"serialNumber": "cam-A"},
+            {"cameraSerial": "cam-B"},
+        )
+        == "FAIL"
+    )
+    assert camera_compatibility({}, {}, {}) == "UNKNOWN"
+    assert (
+        camera_compatibility({"cameraSerial": "cam-A"}, {"serialNumber": "cam-A"}, {})
+        == "PASS"
+    )
+
+
+def test_mhcs_probe_stage_mapping_is_explicit():
+    assert (
+        classify_mhcs_probe({"ok": False, "stage": "config"}, "BED")
+        == "MHCS_MPIPS_CONFIG_FAILED"
+    )
+    assert (
+        classify_mhcs_probe({"ok": False, "stage": "dns"}, "BED")
+        == "MHCS_MPIPS_DNS_FAILED"
+    )
+    assert (
+        classify_mhcs_probe({"ok": False, "stage": "health"}, "BED")
+        == "MHCS_MPIPS_HEALTH_FAILED"
+    )
+    assert (
+        classify_mhcs_probe({"ok": False, "stage": "mpips_client"}, "THORAX")
+        == "MHCS_THORAX_MPIPSCLIENT_FAILED"
+    )

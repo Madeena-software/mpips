@@ -154,6 +154,28 @@ def classify_mhcs_response(info: dict) -> str:
     return "PASS" if info.get("dicom_structure") is True else "DICOM_INVALID"
 
 
+def classify_mhcs_probe(info: dict, mode: str) -> str:
+    stage = info.get("stage")
+    if stage in {"bootstrap", "config"}:
+        return "MHCS_MPIPS_CONFIG_FAILED"
+    if stage == "dns":
+        return "MHCS_MPIPS_DNS_FAILED"
+    if stage == "health":
+        return "MHCS_MPIPS_HEALTH_FAILED"
+    if stage in {"mpips_client", "response"}:
+        return f"MHCS_{mode}_MPIPSCLIENT_FAILED"
+    return classify_mhcs_response(info)
+
+
+def camera_compatibility(*cameras: dict) -> str:
+    serials = {
+        str(camera.get("serialNumber") or camera.get("cameraSerial"))
+        for camera in cameras
+        if camera.get("serialNumber") or camera.get("cameraSerial")
+    }
+    return "UNKNOWN" if not serials else "PASS" if len(serials) == 1 else "FAIL"
+
+
 def safe_cleanup_path(root: Path, name: str) -> Path:
     path = (root / name).resolve()
     if path.parent != root.resolve() or path == root.resolve():
@@ -275,7 +297,11 @@ def _calibrations(root: Path) -> dict[str, dict]:
 
 
 def find_calibration(
-    root: Path, mode: str, shape: tuple[int, int], camera: dict
+    root: Path,
+    mode: str,
+    shape: tuple[int, int],
+    camera: dict,
+    gain_camera: dict | None = None,
 ) -> dict:
     calibration = _calibrations(root).get(mode)
     if not calibration:
@@ -289,12 +315,7 @@ def find_calibration(
             "shape": (),
         }
     source_camera = calibration["source"].get("camera_params", {})
-    camera_ids = {
-        str(value.get(key, ""))
-        for value in (camera, source_camera)
-        for key in ("serialNumber", "cameraSerial")
-        if value.get(key)
-    }
+    camera_result = camera_compatibility(camera, gain_camera or {}, source_camera)
     metadata = calibration["meta"]
     remap_ok = False
     try:
@@ -306,13 +327,10 @@ def find_calibration(
             )
     except (OSError, ValueError):
         pass
-    camera_compatibility = (
-        "PASS" if camera_ids else "UNKNOWN" if not camera_ids else "FAIL"
-    )
     compatible = (
         tuple(metadata.get("image_shape", ())) == tuple(shape)
         and remap_ok
-        and camera_compatibility == "PASS"
+        and camera_result == "PASS"
     )
     return {
         "present": True,
@@ -320,8 +338,8 @@ def find_calibration(
         "compatible": compatible,
         "mode": mode,
         "shape": tuple(metadata.get("image_shape", ())),
-        "camera_compatible": len(camera_ids) <= 1,
-        "camera_compatibility": camera_compatibility,
+        "camera_compatible": camera_result == "PASS",
+        "camera_compatibility": camera_result,
         "fingerprint": bool(metadata.get("fingerprint")),
         "remap": remap_ok,
     }
@@ -542,24 +560,29 @@ def _mhcs_probe(
     remote = f"/tmp/{token}"
     php = out.parent / f"{token}.php"
     php.write_text("""<?php
-require '/var/www/html/vendor/autoload.php';
-$app = require '/var/www/html/bootstrap/app.php';
-$app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
-$base = config('mhcs.mpips.base_url');
-$host = parse_url($base, PHP_URL_HOST);
-$dns = $host ? gethostbyname($host) !== $host || filter_var($host, FILTER_VALIDATE_IP) : false;
-$health = Illuminate\\Support\\Facades\\Http::timeout(10)->get(
-    rtrim($base, '/').'/health'
-); # noqa: E501
-$r = (new App\\Modules\\ImageGateway\\Infrastructure\\MpipsClient())->convert(
-    $argv[1], $argv[2], file_get_contents($argv[3])
-); # noqa: E501
-file_put_contents($argv[4], $r->body());
-echo json_encode([
-    'status'=>$r->status(), 'content_type'=>$r->header('Content-Type'),
-    'bytes'=>strlen($r->body()), 'target'=>parse_url($base, PHP_URL_SCHEME).'://'.parse_url($base, PHP_URL_HOST).':'.(parse_url($base, PHP_URL_PORT) ?: 80),
-    'health_status'=>$health->status(), 'dns'=>$dns
-]); # noqa: E501
+$stage = 'bootstrap';
+try {
+    require '/var/www/html/vendor/autoload.php';
+    $app = require '/var/www/html/bootstrap/app.php';
+    $app->make(Illuminate\\Contracts\\Console\\Kernel::class)->bootstrap();
+    $stage = 'config';
+    $base = config('mhcs.mpips.base_url');
+    if (!is_string($base) || trim($base) === '' || !parse_url($base, PHP_URL_HOST)) throw new RuntimeException(); # noqa: E501
+    $stage = 'dns';
+    $host = parse_url($base, PHP_URL_HOST);
+    $dns = $host ? gethostbyname($host) !== $host || filter_var($host, FILTER_VALIDATE_IP) : false; # noqa: E501
+    if (!$dns) throw new RuntimeException();
+    $stage = 'health';
+    $health = Illuminate\\Support\\Facades\\Http::timeout(10)->get(rtrim($base, '/').'/health'); # noqa: E501
+    if ($health->status() !== 200) throw new RuntimeException();
+    $stage = 'mpips_client';
+    $r = (new App\\Modules\\ImageGateway\\Infrastructure\\MpipsClient())->convert($argv[1], $argv[2], file_get_contents($argv[3])); # noqa: E501
+    $stage = 'response';
+    file_put_contents($argv[4], $r->body());
+    echo json_encode(['ok'=>true, 'status'=>$r->status(), 'content_type'=>$r->header('Content-Type'), 'bytes'=>strlen($r->body()), 'target'=>parse_url($base, PHP_URL_SCHEME).'://'.parse_url($base, PHP_URL_HOST).':'.(parse_url($base, PHP_URL_PORT) ?: 80), 'health_status'=>$health->status(), 'dns'=>$dns]); # noqa: E501
+} catch (\\Throwable $e) {
+    echo json_encode(['ok'=>false, 'stage'=>$stage]);
+}
 """)
     try:
         _docker("exec", container, "mkdir", remote)
@@ -578,8 +601,10 @@ echo json_encode([
             f"{remote}/manifest.json",
             f"{remote}/out.dcm",
         )
-        _docker("cp", f"{container}:{remote}/out.dcm", str(out))
         info = json.loads(result)
+        if not info.get("ok"):
+            return info
+        _docker("cp", f"{container}:{remote}/out.dcm", str(out))
         info["http_status"] = info.pop("status", None)
         info["response_bytes"] = info.pop("bytes", 0)
         info["dicom_structure"] = False
@@ -646,6 +671,7 @@ def main() -> int:
                 "BED",
                 rm["raw"].shape,
                 rm["camera"],
+                gm["camera"],
             )
             record_calibration(results, "BED", bed_cal)
             results["BED_CALIBRATION"] = (
@@ -694,6 +720,7 @@ def main() -> int:
                 "TRX",
                 tm["raw"].shape,
                 tm["camera"],
+                tgm["camera"],
             )
             record_calibration(results, "TRX", trx_cal)
             results["TRX_CALIBRATION"] = (
@@ -759,18 +786,29 @@ def main() -> int:
                     _manifest(rad, gain, "BED"),
                     root / "mhcs-bed.dcm",
                 )
+                stage = bed_mhcs.get("stage")
                 results["MHCS_MPIPS_CONFIG"] = (
-                    "PASS" if bed_mhcs.get("target") else "FAIL"
+                    "FAIL" if stage in {"bootstrap", "config"} else "PASS"
                 )
                 results["MHCS_MPIPS_TARGET"] = bed_mhcs.get("target", "UNPROVEN")
-                results["MHCS_MPIPS_DNS"] = "PASS" if bed_mhcs.get("dns") else "FAIL"
+                results["MHCS_MPIPS_DNS"] = (
+                    "FAIL"
+                    if stage == "dns"
+                    else "PASS" if stage not in {"bootstrap", "config"} else "NOT_RUN"
+                )
                 results["MHCS_MPIPS_HEALTH"] = (
-                    "PASS" if bed_mhcs.get("health_status") == 200 else "FAIL"
+                    "FAIL"
+                    if stage == "health"
+                    else (
+                        "PASS"
+                        if stage not in {"bootstrap", "config", "dns"}
+                        else "NOT_RUN"
+                    )
                 )
                 results["MHCS_MPIPS_HEALTH_STATUS"] = bed_mhcs.get(
                     "health_status", "UNPROVEN"
                 )
-                results["MHCS_BED_MPIPSCLIENT"] = classify_mhcs_response(bed_mhcs)
+                results["MHCS_BED_MPIPSCLIENT"] = classify_mhcs_probe(bed_mhcs, "BED")
                 results["MHCS_BED_DICOM_STRUCTURE"] = (
                     "PASS" if bed_mhcs.get("dicom_structure") else "FAIL"
                 )
@@ -781,7 +819,9 @@ def main() -> int:
                     _manifest(trx_rad, trx_gain, "THORAX"),
                     root / "mhcs-thorax.dcm",
                 )
-                results["MHCS_THORAX_MPIPSCLIENT"] = classify_mhcs_response(thorax_mhcs)
+                results["MHCS_THORAX_MPIPSCLIENT"] = classify_mhcs_probe(
+                    thorax_mhcs, "THORAX"
+                )
                 results["MHCS_THORAX_DICOM_STRUCTURE"] = (
                     "PASS" if thorax_mhcs.get("dicom_structure") else "FAIL"
                 )
