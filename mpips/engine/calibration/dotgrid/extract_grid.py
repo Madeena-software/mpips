@@ -6,6 +6,9 @@ import os
 import cv2
 import numpy as np
 
+_BORDER_DISTANCE = 20
+_BORDER_ARTIFACT_AREA = 100
+
 
 def extract_grid(
     image_path,
@@ -43,7 +46,17 @@ def extract_grid(
                 circularity = 0
 
             dots.append(
-                {"x": x, "y": y, "diameter": diameter, "circularity": circularity}
+                {
+                    "x": x,
+                    "y": y,
+                    "area": area,
+                    "diameter": diameter,
+                    "circularity": circularity,
+                    "bbox": cv2.boundingRect(cnt),
+                    "border_distance": min(
+                        x, y, img.shape[1] - 1 - x, img.shape[0] - 1 - y
+                    ),
+                }
             )
 
     print(f"Extracted {len(dots)} valid dots.")
@@ -82,11 +95,64 @@ def extract_grid(
     for i, r in enumerate(rows):
         print(f"Row {i+1}: {len(r)} columns")
 
+    # Tiny components at the detector edge are clipped border fragments, not
+    # recoverable phantom dots.  The area bound is below legitimate clipped
+    # dots in the source image and is paired with border proximity.
+    row_data = [
+        (row, any(dot["border_distance"] < _BORDER_DISTANCE for dot in row))
+        for row in rows
+    ]
+    excluded_border_components = [
+        dot
+        for row, _ in row_data
+        for dot in row
+        if dot["border_distance"] < _BORDER_DISTANCE
+        and dot["area"] < _BORDER_ARTIFACT_AREA
+    ]
+    if excluded_border_components:
+        excluded_ids = {id(dot) for dot in excluded_border_components}
+        row_data = [
+            ([dot for dot in row if id(dot) not in excluded_ids], touched_border)
+            for row, touched_border in row_data
+        ]
+        row_data = [(row, touched) for row, touched in row_data if row]
+        print(
+            "Excluded "
+            f"{len(excluded_border_components)} tiny detector-border components."
+        )
+
+    from collections import Counter
+
+    widths = [len(row) for row, _ in row_data]
+    if len(row_data) < 2 or not widths:
+        raise ValueError(
+            "Detected dot grid has insufficient rows after border filtering"
+        )
+    expected_width = Counter(widths).most_common(1)[0][0]
+    partial_rows = [
+        row
+        for row, touched_border in row_data
+        if len(row) != expected_width
+        and (
+            touched_border
+            or min(dot["y"] for dot in row) < row_tolerance
+            or max(dot["y"] for dot in row) >= img.shape[0] - row_tolerance
+        )
+    ]
+    if partial_rows:
+        partial_ids = {id(row) for row in partial_rows}
+        row_data = [
+            (row, touched) for row, touched in row_data if id(row) not in partial_ids
+        ]
+        print(f"Excluded {len(partial_rows)} partial edge rows.")
+
+    rows = [row for row, _ in row_data]
     row_widths = {len(row) for row in rows}
     if len(rows) < 2 or len(row_widths) != 1 or next(iter(row_widths)) < 2:
         widths = ", ".join(str(len(row)) for row in rows)
         raise ValueError(
-            "Detected dot grid is not rectangular; refusing to discard rows; "
+            "Detected dot grid has inconsistent row widths; refusing to discard "
+            "rows; "
             f"row widths: {widths}"
         )
 

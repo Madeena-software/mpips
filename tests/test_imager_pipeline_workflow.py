@@ -323,9 +323,49 @@ def test_extract_dot_grid_rejects_irregular_rows_instead_of_trimming() -> None:
 
     with pytest.raises(
         CalibrationValidationError,
-        match=r"not rectangular; refusing to discard rows; row widths: "
+        match=r"inconsistent row widths; refusing to discard rows; row widths: "
         r"5, 5, 4, 5, 5, 5",
     ):
+        extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
+
+
+def test_extract_dot_grid_recovers_lattice_from_border_fragments() -> None:
+    image = np.zeros((220, 220), dtype=np.uint8)
+    for row in range(4):
+        for column in range(5):
+            cv2.circle(image, (30 + column * 40, 30 + row * 40), 7, 255, -1)
+    cv2.circle(image, (218, 110), 2, 255, -1)
+    cv2.circle(image, (218, 114), 2, 255, -1)
+
+    coords, diameters, circularity = extract_dot_grid(
+        image, NeuralCalibrationConfig(row_tolerance=20)
+    )
+
+    assert coords.shape == (4, 5, 2)
+    assert diameters.shape == (4, 5)
+    assert circularity.shape == (4, 5)
+
+
+def test_extract_dot_grid_excludes_only_clipped_outer_rows() -> None:
+    image = np.zeros((220, 220), dtype=np.uint8)
+    for row in range(6):
+        for column in range(5):
+            if row not in {0, 5}:
+                cv2.circle(image, (30 + column * 40, 30 + row * 40), 7, 255, -1)
+
+    coords, _, _ = extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
+
+    assert coords.shape == (4, 5, 2)
+
+
+def test_extract_dot_grid_rejects_interior_extra_dot() -> None:
+    image = np.zeros((180, 220), dtype=np.uint8)
+    for row in range(4):
+        for column in range(5):
+            cv2.circle(image, (30 + column * 40, 30 + row * 40), 7, 255, -1)
+    cv2.circle(image, (50, 110), 7, 255, -1)
+
+    with pytest.raises(CalibrationValidationError, match="row widths"):
         extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
 
 
