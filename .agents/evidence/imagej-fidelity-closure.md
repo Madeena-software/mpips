@@ -260,6 +260,144 @@ converter, main, deployment, or release action changed in Phase 3.
 
 **Terminal state: Review Required.**
 
+## Phase 7 — Final ImageJ/Fiji Fidelity Closure
+
+THIS SECTION IS THE AUTHORITATIVE FINAL CLOSURE SUMMARY; EARLIER PHASE
+SECTIONS REMAIN HISTORICAL EVIDENCE.
+
+### Governing identity
+
+- Governing task publication: `57bac7a47ec8924b2ed2620764e2839ea75cd348`.
+- Accepted Phase-6 baseline: `7a95a66641e146378df9a75b977aa2aa90fb55d9`.
+- Accepted Phase-5 baseline: `a625deac10153a2c7c69a3523dd77751518b298e`.
+- Accepted Phase-4 implementation baseline: `232f148ce24d6df5569a4b2c290e93adf0a03d5f`.
+- Pre-execution HEAD: `57bac7a47ec8924b2ed2620764e2839ea75cd348`.
+- Branch: `refactor/package-boundaries`.
+
+### Final authoritative operation matrix
+
+| Operation | Semantic/reference authority | Production reachability | Production status | Final fidelity classification | Deterministic regression protection | Bounded performance note | Final closure state |
+|---|---|---|---|---|---|---|---|
+| Contrast Stretch | ImageJ `ContrastEnhancer` semantics | Configurable, not default | Available through contrast mode `stretch` | `PARITY CONFIRMED — REGRESSION PROTECTED` | Accepted uint8/uint16 deterministic protection | Phase-5 CLAHE measurements do not apply | CLOSED |
+| Weighted Equalization | ImageJ weighted `ContrastEnhancer` equalization | Production reachable, default contrast mode | `contrast_mode="equalize"`, classic false | `PARITY CONFIRMED — REGRESSION PROTECTED` | Accepted uint8/uint16 hashes | No separate performance claim | CLOSED |
+| Classic Equalization | ImageJ classic equalization variant | Configurable, not default | `contrast_classic_equalization=true` under equalization | `PARITY CONFIRMED — REGRESSION PROTECTED` | Accepted uint8/uint16 hashes | No separate performance claim | CLOSED |
+| Hybrid Median | Accepted pinned `Hybrid_2D_Median_Filter.java` semantics | Production reachable, default median filter | `hybrid_imagej`, radius 2 | `REMEDIATED AND PARITY CONFIRMED — REGRESSION PROTECTED` | Accepted 3x3/5x5/7x7 kernel/radius protection | No new benchmark; Phase-5 note is CLAHE-only | CLOSED |
+| CLAHE — MPIPS precise | `LEGACY MPIPS CONTRACT` | Production reachable, default CLAHE path | `use_clahe=true`, blocksize 127, bins 256, slope 0.6, `fast=false`, composite true | `INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED; NOT FIJI FLAT PARITY; REGRESSION PROTECTED` | uint16 `cf206761…`; uint8 `4b7790…` | Phase-5 bounded warm in-process measurements only | CLOSED AS GOVERNED INTENTIONAL DIVERGENCE |
+| CLAHE — MPIPS fast/OpenCV | `MPIPS/OPENCV ALTERNATE CONTRACT` | Configurable, not default | `fast=true` alternate | `INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED; NOT FIJI FASTFLAT PARITY; REGRESSION PROTECTED` | uint16 `6dc3be…`; uint8 `dee626…` | Phase-5 bounded warm in-process measurements only | CLOSED AS GOVERNED INTENTIONAL DIVERGENCE |
+| Fiji Flat | Pinned Fiji `Flat.java` reference | Not production reachable; reference only | No production invocation | `REFERENCE SEMANTICS ESTABLISHED; N/A FOR PRODUCTION PARITY REQUIREMENT` | Accepted reference constant `b12db9…` | Phase-5 harness end-to-end timing only | CLOSED — REFERENCE ONLY |
+| Fiji FastFlat | Pinned Fiji `FastFlat.java` reference | Not production reachable; reference only | No production invocation | `REFERENCE SEMANTICS ESTABLISHED; N/A FOR PRODUCTION PARITY REQUIREMENT` | Accepted reference constant `b4a495…` | Phase-5 harness end-to-end timing only | CLOSED — REFERENCE ONLY |
+| Circular Median | ImageJ `RankFilters` circular median semantics | Configurable, not default | `circular_imagej`; default remains Hybrid Median | `REMEDIATED AND PARITY CONFIRMED ACROSS ACCEPTED I-4A CHARACTERIZATION MATRIX; REGRESSION PROTECTED` | Complete accepted 10 radii x 2 dtypes matrix | No new benchmark | CLOSED WITH ACCEPTED MATRIX BOUNDARY |
+| Temporal Median | ImageJ `Fast_Temporal_Median.java` identity | Not production reachable | Standalone method only; no caller/config/API/schema/worker/workflow route | `N/A — CLOSED` | No artificial output sentinel required | No performance claim | CLOSED — N/A |
+
+### Production reachability summary
+
+The bounded recheck found no material drift. Weighted equalization remains the
+default contrast mode; Classic Equalization and Contrast Stretch remain
+configurable and not default. Hybrid Median remains the default median filter;
+Circular Median remains configurable and not default. CLAHE remains enabled
+with `blocksize=127`, `histogram_bins=256`, `max_slope=0.6`, `fast=False`, and
+`composite=True`; precise remains default and fast/OpenCV remains configurable.
+Fiji Flat/FastFlat remain reference-only. Temporal Median has no production
+caller, configuration, API, schema, worker, or workflow route.
+
+### CLAHE semantic authority
+
+MPIPS precise is the `LEGACY MPIPS CONTRACT`. MPIPS fast/OpenCV is the
+`MPIPS/OPENCV ALTERNATE CONTRACT`. Both are
+`INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED` and neither claims Fiji
+Flat/FastFlat parity. Slope 0.6 remains `INHERITED MPIPS DEFAULT — RATIONALE
+NOT RECOVERED`; no optimality, Fiji compatibility, image-quality superiority,
+or clinical superiority claim is made.
+
+### Regression protection
+
+Accepted Phase-6 protection is carried forward: Contrast Stretch and weighted
+and classic Equalization retain accepted deterministic uint8/uint16 coverage;
+Hybrid Median retains accepted kernel/radius protection; Circular Median
+retains the complete accepted I-4A 10-radii x 2-dtypes matrix. CLAHE precise
+retains uint16 `cf2067619fe4078bb2294d5449fd0ed2541e0286fda341fa0452af3595b1867d`
+and uint8 `4b7790391a5d0fcc5dabc7059b44a6f877df5ea4236252560ba81ec7d578797e`;
+fast/OpenCV retains uint16
+`6dc3be3cb86149a8cd8ae9677da482c32cabea0326930d028b2260bac2ceea02` and uint8
+`dee626ac2c1c97e49ff9f810c3429660a40dea9c0ca0b1d9a9a3bad7b53013c9`. Fiji
+reference constants remain Flat `b12db91a188b0dccdf2703dc3caa948bab24613e61256ef0002023d147daa34b`
+and FastFlat `b4a4958976bd092c0bc12d4d02b52e80d693549a72ee9ec9a7916cbf319b8fda`.
+Routine regression does not require Java, Fiji, or network access.
+
+### Phase-5 bounded performance note
+
+The carried fixture is 1024x1024 uint16. Accepted median measurements are:
+MPIPS precise/OpenCV at slope 0.6: `1.583727094 s` / `0.005403822 s`;
+MPIPS precise/OpenCV at slope 1.5: `1.550276505 s` / `0.005421374 s`; Fiji
+Flat/FastFlat at slope 1.5: `2.095351675 s` / `1.864892977 s`. MPIPS values
+are warm in-process CLAHE invocation timing. Fiji values are reference-harness
+end-to-end wall time including JVM/process startup, input parsing, execution,
+and serialization. These scopes are not equivalent and imply no optimization,
+production selection, or quality conclusion.
+
+### Documentation correction
+
+`mpips/processing/imagej.py` now describes ImageJ-derived/ImageJ-related
+compatibility helpers and operation-specific fidelity. It preserves
+supported parity wording for ContrastEnhancer/Equalization and Median
+operations, while stating that MPIPS CLAHE does not claim Fiji Flat/FastFlat
+parity; `fast=False` is the governed Legacy MPIPS precise contract; `fast=True`
+is the governed MPIPS/OpenCV alternate contract; and Fiji Flat/FastFlat are
+reference semantics only. The source change is documentation/comment-only;
+no functional source change was made.
+
+### Final unresolved-fidelity assessment
+
+NO UNRESOLVED PRODUCTION-REACHABLE IMAGEJ/FIJI FIDELITY FAILURE
+
+Contrast Stretch, Weighted Equalization, and Classic Equalization are parity
+confirmed and protected. Hybrid Median and Circular Median are remediated,
+parity confirmed within their accepted boundaries, and protected. MPIPS
+CLAHE divergence is intentional, selected, documented, and regression
+protected rather than hidden unresolved failure. Fiji Flat/FastFlat are
+reference-only and not production reachable. Temporal Median is not production
+reachable. Therefore no unresolved production-reachable fidelity failure
+remains within the accepted contract boundaries.
+
+### Residual limitations and release boundary
+
+- MPIPS CLAHE does not claim Fiji parity.
+- Slope 0.6 remains `INHERITED MPIPS DEFAULT — RATIONALE NOT RECOVERED`; it is
+  not claimed optimal.
+- No image-quality or clinical superiority claim is made.
+- Circular Median parity is bounded to the accepted I-4A matrix; Hybrid Median
+  parity is bounded to accepted characterized kernel sizes.
+- Phase-5 performance is bounded to its environment, fixture, and timing
+  scopes; Fiji timings include process/JVM/I/O overhead.
+- Final fidelity closure is not full production qualification.
+
+These are governed limitations, not unresolved fidelity failures.
+
+IMAGEJ/FIJI FIDELITY CLOSURE ACCEPTANCE DOES NOT AUTHORIZE PRODUCTION RELEASE,
+MAIN PROMOTION, DEPLOYMENT, OR RADIOGRAPHY PIPELINE OPTIMIZATION.
+
+### Verification and terminal state
+
+Protected converter SHA before and after:
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+```text
+./.venv/bin/python -m pytest -q tests/test_imagej_migration.py
+14 passed
+
+./.venv/bin/python -m pytest -q tests/test_filtering_processing.py
+39 passed
+```
+
+These are **LOCAL TESTS, NOT CI**. The documentation diff was inspected with
+both normal and word diffs and contains zero executable-code delta. Exact
+tracked write surfaces were `mpips/processing/imagej.py` and this evidence
+file only. No tests, task, scripts, dependencies, configuration, schema, API,
+worker, converter, or reference harness changed. No closed phase was rerun;
+no main, deployment, or release action occurred.
+
+**Terminal state: Review Required.**
+
 ## Phase 6 — Minimal Reference / Regression Sentinel Suite
 
 **Status:** **EXECUTED — REVIEW REQUIRED**. This phase added only minimal

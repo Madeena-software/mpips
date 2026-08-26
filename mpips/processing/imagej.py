@@ -1,9 +1,14 @@
 """
-Replicator untuk fungsi pemrosesan citra ImageJ di Python.
+ImageJ-derived and ImageJ-related compatibility helpers for image processing
+in Python. Fidelity is operation-specific: ContrastEnhancer/Equalization and
+the accepted Median contracts retain their supported ImageJ parity wording,
+while the MPIPS CLAHE contracts are governed alternatives rather than Fiji
+Flat/FastFlat implementations.
 
 Termasuk implementasi:
 - ContrastEnhancer (Enhance Contrast)
-- CLAHE (Contrast Limited Adaptive Histogram Equalization)
+- CLAHE (Contrast Limited Adaptive Histogram Equalization; governed MPIPS
+  precise and MPIPS/OpenCV alternate contracts)
 - Hybrid 2D Median Filter (3x3, 5x5, 7x7)
 - Fast Temporal Median Filter (running median subtraction untuk stack)
 - Median Filter (circular kernel, Process > Filters > Median...)
@@ -31,8 +36,9 @@ BINS_UINT16 = 65536
 
 class ImageJReplicator:
     """
-    Kelas utilitas untuk mereplikasi fungsi pemrosesan citra ImageJ
-    di lingkungan Python/OpenCV dengan presisi tinggi.
+    Kelas utilitas untuk fungsi ImageJ-derived dan ImageJ-related di
+    lingkungan Python/OpenCV. Beberapa operasi memiliki kontrak parity ImageJ
+    yang diterima; CLAHE memakai kontrak MPIPS yang diatur, bukan parity Fiji.
 
     Implementasi ini mengikuti logika ContrastEnhancer.java dari ImageJ
     untuk memastikan hasil yang identik.
@@ -368,8 +374,10 @@ class ImageJReplicator:
         """
         Menerapkan CLAHE (Contrast Limited Adaptive Histogram Equalization).
 
-        Mereplikasi plugin CLAHE dari ImageJ/Fiji (mpicbg.ij.clahe)
-        yang dikembangkan oleh Stephan Saalfeld.
+        ``fast=False`` menjalankan governed Legacy MPIPS precise CLAHE
+        contract; ``fast=True`` menjalankan governed MPIPS/OpenCV alternate
+        contract. Neither path claims Fiji Flat/FastFlat parity. Fiji
+        Flat/FastFlat remain reference semantics only.
 
         Reference:
             Zuiderveld, Karel. "Contrast limited adaptive histogram equalization."
@@ -381,7 +389,8 @@ class ImageJReplicator:
             histogram_bins: Jumlah histogram bins (default: 256)
             max_slope: Maximum slope untuk contrast limiting (default: 3.0)
             mask: Optional mask (ByteProcessor equivalent)
-            fast: Gunakan metode cepat yang kurang akurat (default: True)
+            fast: Gunakan governed MPIPS/OpenCV alternate contract when True;
+                the governed Legacy MPIPS precise contract is used when False.
             composite: Untuk RGB, proses setiap channel terpisah (default: True)
 
         Returns:
