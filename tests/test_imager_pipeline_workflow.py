@@ -314,6 +314,21 @@ def test_extract_dot_grid_requires_rectangular_grid() -> None:
     assert circularity.shape == (4, 5)
 
 
+def test_extract_dot_grid_rejects_irregular_rows_instead_of_trimming() -> None:
+    image = np.zeros((260, 220), dtype=np.uint8)
+    for row in range(6):
+        for column in range(5):
+            if row != 2 or column != 4:
+                cv2.circle(image, (30 + column * 40, 30 + row * 40), 7, 255, -1)
+
+    with pytest.raises(
+        CalibrationValidationError,
+        match=r"not rectangular; refusing to discard rows; row widths: "
+        r"5, 5, 4, 5, 5, 5",
+    ):
+        extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
+
+
 def test_supplied_gotri_extracts_19_by_26_grid() -> None:
     source = Path("research/kambing-260714/data/kalibrasi-gotri/BED_1783219960026.npz")
     gain = Path("research/kambing-260714/data/gain/BED_1783219207291.npz")
