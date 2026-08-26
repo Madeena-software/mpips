@@ -72,7 +72,7 @@ both dtypes. Every new sentinel also asserts shape and dtype.
 Observed local verification:
 
 ```text
-.venv/bin/python -m pytest -q tests/test_imagej_migration.py       6 passed
+.venv/bin/python -m pytest -q tests/test_imagej_migration.py       10 passed
 .venv/bin/python -m pytest -q tests/test_hybrid_median_fidelity.py 12 passed
 ```
 
