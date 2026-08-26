@@ -197,10 +197,12 @@ def test_real_thorax_manifest_pins_all_three_cases() -> None:
 
 def test_workflow_is_guarded_manual_production_workflow() -> None:
     text = (ROOT / ".github/workflows/promote-production-calibration.yml").read_text()
+    assert "uses: actions/checkout@v4" in text
+    assert "fetch-depth: 0" in text
     assert "workflow_dispatch:" in text
     assert "runs-on: [self-hosted, production]" in text
     assert "group: mpips-internal-beta" in text
-    assert "timeout-minutes:" in text
+    assert "timeout-minutes: 90" in text
     for forbidden in (
         "push:",
         "pull_request:",
