@@ -36,6 +36,61 @@ class CalibrationValidationError(RuntimeError):
     """Raised when canonical calibration validation rejects an artifact set."""
 
 
+# Fixed-canvas remaps must retain most of the detector, not just a valid-sized mask.
+MIN_REMAP_VALID_FRACTION = 0.85
+MIN_REMAP_WIDTH_RATIO = 0.75
+MIN_REMAP_HEIGHT_RATIO = 0.75
+
+
+def remap_geometry_evidence(
+    map_x: np.ndarray, map_y: np.ndarray, width: int, height: int
+) -> dict[str, Any]:
+    """Return full-frame coverage evidence for a fixed-canvas remap."""
+    if map_x.shape != map_y.shape or map_x.shape != (height, width):
+        raise CalibrationValidationError("remap maps do not match the fixed canvas")
+    if not np.isfinite(map_x).all() or not np.isfinite(map_y).all():
+        raise CalibrationValidationError("remap maps contain non-finite coordinates")
+    valid = (map_x >= 0) & (map_x <= width - 1) & (map_y >= 0) & (map_y <= height - 1)
+    ys, xs = np.where(valid)
+    if not xs.size:
+        bbox = None
+        width_ratio = height_ratio = 0.0
+    else:
+        bbox = [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())]
+        width_ratio = (bbox[2] - bbox[0] + 1) / width
+        height_ratio = (bbox[3] - bbox[1] + 1) / height
+    valid_fraction = float(np.mean(valid))
+    return {
+        "REMAP_VALID_FRACTION": valid_fraction,
+        "REMAP_OUT_OF_BOUNDS_FRACTION": 1.0 - valid_fraction,
+        "VALID_REMAP_BBOX": bbox,
+        "VALID_REMAP_WIDTH_RATIO": float(width_ratio),
+        "VALID_REMAP_HEIGHT_RATIO": float(height_ratio),
+        "MAP_X_MIN": float(map_x.min()),
+        "MAP_X_MAX": float(map_x.max()),
+        "MAP_Y_MIN": float(map_y.min()),
+        "MAP_Y_MAX": float(map_y.max()),
+    }
+
+
+def validate_fixed_canvas_remap(
+    map_x: np.ndarray, map_y: np.ndarray, width: int, height: int
+) -> dict[str, Any]:
+    """Reject maps whose valid coordinates collapse the fixed output canvas."""
+    evidence = remap_geometry_evidence(map_x, map_y, width, height)
+    if (
+        evidence["REMAP_VALID_FRACTION"] < MIN_REMAP_VALID_FRACTION
+        or evidence["VALID_REMAP_WIDTH_RATIO"] < MIN_REMAP_WIDTH_RATIO
+        or evidence["VALID_REMAP_HEIGHT_RATIO"] < MIN_REMAP_HEIGHT_RATIO
+    ):
+        raise CalibrationValidationError(
+            "Fixed-canvas remap coverage is unsafe: "
+            f"valid_fraction={evidence['REMAP_VALID_FRACTION']:.6f}, "
+            f"bbox={evidence['VALID_REMAP_BBOX']}"
+        )
+    return evidence
+
+
 def _load_calibration_image(
     calibration_npz: str | Path,
     calibration_gain_npz: str | Path | None = None,
@@ -375,6 +430,10 @@ def build_or_load_calibration(
     map_x, map_y, remap_stats = build_inverse_maps(
         model, width, height, norm_scale, config, coordinates=coordinates
     )
+    if config.canvas_mode == "fixed":
+        remap_stats.update(validate_fixed_canvas_remap(map_x, map_y, width, height))
+    else:
+        remap_stats.update(remap_geometry_evidence(map_x, map_y, width, height))
     np.savez_compressed(remap_path, map_x=map_x, map_y=map_y)
     valid_mask = (
         (map_x >= 0) & (map_x <= width - 1) & (map_y >= 0) & (map_y <= height - 1)

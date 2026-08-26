@@ -10,6 +10,10 @@ from pathlib import Path
 
 import numpy as np
 
+MIN_REMAP_VALID_FRACTION = 0.85
+MIN_REMAP_WIDTH_RATIO = 0.75
+MIN_REMAP_HEIGHT_RATIO = 0.75
+
 
 def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
     errors: list[str] = []
@@ -92,6 +96,44 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
                         errors.append(
                             f"{expected_mode}: remap maps contain non-finite values"
                         )
+                    elif (
+                        metadata.get("config", {}).get("canvas_mode", "fixed")
+                        == "fixed"
+                    ):
+                        valid = (
+                            (map_x >= 0)
+                            & (map_x <= map_x.shape[1] - 1)
+                            & (map_y >= 0)
+                            & (map_y <= map_y.shape[0] - 1)
+                        )
+                        ys, xs = np.where(valid)
+                        valid_fraction = float(np.mean(valid))
+                        bbox = (
+                            [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())]
+                            if xs.size
+                            else None
+                        )
+                        width_ratio = (
+                            (bbox[2] - bbox[0] + 1) / map_x.shape[1] if bbox else 0.0
+                        )
+                        height_ratio = (
+                            (bbox[3] - bbox[1] + 1) / map_x.shape[0] if bbox else 0.0
+                        )
+                        if (
+                            valid_fraction < MIN_REMAP_VALID_FRACTION
+                            or width_ratio < MIN_REMAP_WIDTH_RATIO
+                            or height_ratio < MIN_REMAP_HEIGHT_RATIO
+                        ):
+                            errors.append(
+                                f"{expected_mode}: fixed-canvas remap coverage "
+                                "is unsafe (REMAP_VALID_FRACTION="
+                                f"{valid_fraction:.6f}, "
+                                "REMAP_OUT_OF_BOUNDS_FRACTION="
+                                f"{1 - valid_fraction:.6f}, "
+                                f"VALID_REMAP_BBOX={bbox}, "
+                                f"VALID_REMAP_WIDTH_RATIO={width_ratio:.6f}, "
+                                f"VALID_REMAP_HEIGHT_RATIO={height_ratio:.6f})"
+                            )
         except (OSError, ValueError, zipfile.BadZipFile) as exc:
             errors.append(f"{expected_mode}: invalid remap.npz ({exc})")
     return errors

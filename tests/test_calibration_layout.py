@@ -5,6 +5,11 @@ import numpy as np
 import pytest
 
 from scripts.validate_calibration_layout import validate_calibration_layout
+from mpips.workflows.imager_pipeline.calibration import (
+    CalibrationValidationError,
+    remap_geometry_evidence,
+    validate_fixed_canvas_remap,
+)
 
 
 def _write_artifact(
@@ -168,3 +173,37 @@ def test_trx_promotion_manifest_is_immutable():
             "file_id": "1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr",
         },
     }
+
+
+def test_identity_remap_passes_full_frame_geometry_validation():
+    height, width = 100, 120
+    map_x, map_y = np.meshgrid(
+        np.arange(width, dtype=np.float32), np.arange(height, dtype=np.float32)
+    )
+    evidence = validate_fixed_canvas_remap(map_x, map_y, width, height)
+    assert evidence["REMAP_VALID_FRACTION"] == 1.0
+    assert evidence["VALID_REMAP_BBOX"] == [0, 0, width - 1, height - 1]
+
+
+def test_mild_edge_displacement_passes_full_frame_geometry_validation():
+    height, width = 100, 120
+    map_x, map_y = np.meshgrid(
+        np.arange(width, dtype=np.float32) - 2,
+        np.arange(height, dtype=np.float32) - 2,
+    )
+    evidence = validate_fixed_canvas_remap(map_x, map_y, width, height)
+    assert evidence["REMAP_VALID_FRACTION"] > 0.9
+    assert evidence["REMAP_OUT_OF_BOUNDS_FRACTION"] < 0.1
+
+
+def test_catastrophic_remap_is_rejected_even_with_correct_mask_dimensions():
+    height, width = 100, 120
+    map_x, map_y = np.meshgrid(
+        np.arange(width, dtype=np.float32), np.arange(height, dtype=np.float32)
+    )
+    map_x[28:] = -1
+    map_y[28:] = -1
+    evidence = remap_geometry_evidence(map_x, map_y, width, height)
+    assert 0.27 < evidence["REMAP_VALID_FRACTION"] < 0.29
+    with pytest.raises(CalibrationValidationError, match="coverage is unsafe"):
+        validate_fixed_canvas_remap(map_x, map_y, width, height)
