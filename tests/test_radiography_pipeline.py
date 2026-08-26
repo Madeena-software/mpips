@@ -13,6 +13,7 @@ from typing import Any
 import numpy as np
 import pytest
 
+import mpips.pipelines.radiography as radiography_pipeline
 from mpips.pipelines import ImagerPipelineConfig, RadiographyPipeline
 import mpips.workflows.imager_pipeline.pipeline as workflow_pipeline
 from mpips.workflows.imager_pipeline.pipeline import process_radiography_arrays
@@ -91,6 +92,61 @@ def test_default_recipe_matches_legacy_array_result() -> None:
     legacy = _legacy_result(raw, dark, flat, config)
 
     np.testing.assert_array_equal(direct, legacy)
+
+
+def test_trx_bypasses_threshold_and_preserves_config() -> None:
+    raw, dark, flat = _recipe_fixture()
+    active = _minimal_config(
+        threshold_method="auto",
+        use_threshold=True,
+        use_clahe=True,
+        clahe_blocksize=17,
+        median_filter_radius=3,
+    )
+    skipped = _minimal_config(
+        threshold_method="none",
+        use_threshold=True,
+        use_clahe=True,
+        clahe_blocksize=17,
+        median_filter_radius=3,
+    )
+
+    active_result = RadiographyPipeline(active).process(raw, dark, flat, "TRX")
+    skipped_result = RadiographyPipeline(skipped).process(raw, dark, flat, "TRX")
+
+    np.testing.assert_array_equal(active_result, skipped_result)
+    assert active.use_threshold is True
+    assert active.threshold_method == "auto"
+    assert active.use_clahe is True
+    assert active.clahe_blocksize == 17
+    assert active.median_filter_radius == 3
+
+
+def test_bed_preserves_configured_threshold_and_skip_behavior(monkeypatch) -> None:
+    raw, dark, flat = _recipe_fixture()
+    config = _minimal_config(threshold_method="auto", use_threshold=True)
+    calls = 0
+    original = radiography_pipeline.detect_threshold
+
+    def count_detect(*args: object, **kwargs: object) -> float:
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(radiography_pipeline, "detect_threshold", count_detect)
+    result = RadiographyPipeline(config).process(raw, dark, flat, "BED")
+    assert result.dtype == np.uint16
+    assert calls == 1
+
+    skipped = _minimal_config(threshold_method="none", use_threshold=True)
+    skipped_result = RadiographyPipeline(skipped).process(raw, dark, flat, "BED")
+    assert not np.array_equal(result, skipped_result)
+    assert config.threshold_method == "auto"
+    assert config.use_threshold is True
+
+    disabled = _minimal_config(threshold_method="auto", use_threshold=False)
+    disabled_result = RadiographyPipeline(disabled).process(raw, dark, flat, "BED")
+    np.testing.assert_array_equal(disabled_result, skipped_result)
 
 
 _BRANCH_CASES = (

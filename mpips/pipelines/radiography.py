@@ -86,7 +86,11 @@ class RadiographyPipeline:
             normalized_result = ffc_result.copy()
 
         threshold_method = self.config.threshold_method.lower()
-        if not self.config.use_threshold or threshold_method in _THRESHOLD_SKIP_VALUES:
+        if (
+            detector_mode.upper() == "TRX"
+            or not self.config.use_threshold
+            or threshold_method in _THRESHOLD_SKIP_VALUES
+        ):
             threshold_result = normalized_result.copy()
         else:
             threshold = detect_threshold(normalized_result, method=threshold_method)

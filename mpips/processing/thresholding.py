@@ -1,7 +1,7 @@
 """Canonical threshold-detection operation."""
 
 import os
-from typing import Any, cast
+from typing import cast
 
 import cv2
 import numpy as np
@@ -136,29 +136,17 @@ def detect_threshold(
         )
 
     # Method 4: Otsu's method (convert to uint16 first for OpenCV)
-    threshold_otsu: Any
     if image.dtype == np.float32:
         # Convert to uint16 for Otsu
         image_uint16 = (image * MAX_16BIT).clip(0, MAX_16BIT).astype(np.uint16)
-        _, threshold_otsu_uint16 = cv2.threshold(
+        threshold_otsu_uint16, _ = cv2.threshold(
             image_uint16, 0, MAX_16BIT, cv2.THRESH_BINARY + cv2.THRESH_OTSU
         )
-        threshold_otsu = (
-            threshold_otsu_uint16 / MAX_16BIT
-        )  # Convert back to float32 range
+        threshold_otsu_val = float(threshold_otsu_uint16) / MAX_16BIT
     else:
-        _, threshold_otsu = cv2.threshold(
+        threshold_otsu, _ = cv2.threshold(
             image, 0, MAX_16BIT, cv2.THRESH_BINARY + cv2.THRESH_OTSU
         )
-    # Ensure threshold_otsu is a scalar for formatting/plotting
-    if isinstance(threshold_otsu, np.ndarray):
-        if threshold_otsu.size == 1:
-            threshold_otsu_val = float(threshold_otsu.flat[0])
-        else:
-            threshold_otsu_val = float(
-                threshold_otsu.ravel()[0]
-            )  # Take first value if array has multiple elements
-    else:
         threshold_otsu_val = float(threshold_otsu)
     if debug_enabled:
         plt.axvline(
@@ -217,7 +205,7 @@ def detect_threshold(
         "percentile_25": threshold_25,
         "valley": threshold_valley,
         "knee": threshold_knee,
-        "otsu": threshold_otsu,
+        "otsu": threshold_otsu_val,
     }
 
     if threshold_secondary is not None:

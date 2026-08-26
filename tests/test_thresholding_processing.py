@@ -4,12 +4,14 @@ import textwrap
 from pathlib import Path
 from typing import Any, cast
 
+import cv2
 import numpy as np
 import pytest
 
 import mpips.processing.radiography as radiography
 from mpips.processing import apply_threshold_separation, auto_threshold
 from mpips.processing.thresholding import (
+    MAX_16BIT,
     apply_threshold_separation as canonical_apply_threshold_separation,
     detect_threshold,
 )
@@ -21,7 +23,7 @@ radiography_apply_threshold_separation = cast(
 EXPECTED_THRESHOLDS = {
     "auto": np.float32(0.21826171875),
     "valley": np.float32(0.21826171875),
-    "otsu": 0.0,
+    "otsu": np.float32(0.2),
     "knee": np.float32(0.18681641),
     "percentile_25": np.float32(0.175),
     "secondary_peak": np.float32(0.118457034),
@@ -165,3 +167,38 @@ def test_debug_output_is_opt_in_and_keeps_threshold_value(tmp_path: Path) -> Non
 
     np.testing.assert_equal(result, EXPECTED_THRESHOLDS["auto"])
     assert (tmp_path / "debug_histogram_thresholds_fixture.png").is_file()
+
+
+def test_float32_otsu_uses_direct_uint16_scalar() -> None:
+    image = _threshold_fixture()
+    image_uint16 = (image * MAX_16BIT).astype(np.uint16)
+    expected_uint16, _ = cv2.threshold(
+        image_uint16, 0, MAX_16BIT, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
+
+    result = detect_threshold(image, method="otsu")
+
+    assert isinstance(result, float)
+    assert result == float(expected_uint16) / MAX_16BIT
+    assert 0 <= result <= 1
+
+
+def test_uint16_otsu_stays_in_input_domain() -> None:
+    image = np.array([[100, 100, 100, 500, 500, 500]], dtype=np.uint16)
+    expected, _ = cv2.threshold(
+        image, 0, MAX_16BIT, cv2.THRESH_BINARY + cv2.THRESH_OTSU
+    )
+
+    result = detect_threshold(image, method="otsu")
+
+    assert isinstance(result, float)
+    assert result == float(expected)
+    assert 0 <= result <= MAX_16BIT
+
+
+def test_otsu_is_deterministic_and_ignores_thresholded_first_pixel() -> None:
+    image = np.array([[100, 100, 100, 500, 500, 500]], dtype=np.uint16)
+
+    results = [detect_threshold(image, method="otsu") for _ in range(3)]
+
+    assert results == [100.0, 100.0, 100.0]

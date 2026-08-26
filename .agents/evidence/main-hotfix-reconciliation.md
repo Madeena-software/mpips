@@ -290,3 +290,86 @@ the equivalent `/dev/null` versus evidence-file check was also run and passed.
 
 **Review Required**. Phase 2–5 remain unauthorized until review acceptance and
 republished task authority.
+
+## Phase 2 — Canonical Hotfix Port
+
+### Governing identity
+
+- Governing publication: `c652c0b47aa9560cf794a627550e65c8fe1f496b`.
+- Pre-execution HEAD: `c652c0b47aa9560cf794a627550e65c8fe1f496b`.
+- Branch: `refactor/package-boundaries`.
+- `origin/refactor/package-boundaries`: `c652c0b47aa9560cf794a627550e65c8fe1f496b`.
+- Frozen main: `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd` (resolvable).
+- Task: `.agents/tasks/main-hotfix-reconciliation.md`, version `1.1`.
+- Worktree was clean before execution. No newer main commits were absorbed.
+
+### Otsu correction
+
+The previous implementation retained OpenCV's thresholded output array and
+used its first element as the threshold, producing `0.0` for the
+representative fixture. The corrected implementation unpacks
+`threshold_value, thresholded_image = cv2.threshold(...)`, uses the scalar
+first return value, and discards the image output. Float32 input is converted
+to uint16 and the scalar is divided by `65535`; non-float32 input retains the
+scalar in its input intensity domain. The obsolete ndarray/first-pixel
+fallback was removed.
+
+Independent characterization on `_threshold_fixture()` produced OpenCV scalar
+`13107.0`, first thresholded-output pixel `0`, and normalized scalar
+`0.2`; the canonical result is `0.2`. Repeated calls returned `0.2`.
+The accepted representative Otsu golden is `0.2`.
+
+The deterministic uint16 fixture produced direct and canonical scalar `100.0`.
+The float32 result was scalar `0.2` in `[0, 1]`; the uint16 result was scalar
+`100.0` in `[0, 65535]`.
+
+### TRX/BED policy
+
+- TRX: **BYPASS BY DEFAULT**.
+- BED: **CONFIGURED THRESHOLD PRESERVED**.
+- Canonical orchestration location: `mpips/pipelines/radiography.py`.
+- Detector-agnostic threshold detection remains in
+  `mpips/processing/thresholding.py`.
+
+TRX bypasses threshold separation without mutating `use_threshold`,
+`threshold_method`, or unrelated CLAHE/median configuration. BED continues to
+invoke configured threshold detection; `none` and `use_threshold=False` retain
+the bypass behavior.
+
+### Regression evidence
+
+- `./.venv/bin/python -m pytest -q tests/test_thresholding_processing.py` — **18 passed**.
+- `./.venv/bin/python -m pytest -q tests/test_radiography_pipeline.py` — **28 passed, 11 warnings**.
+- Combined focused run — **46 passed, 11 warnings**.
+- `./.venv/bin/python -m pytest -q tests/test_imager_pipeline_workflow.py` — **27 passed, 1 skipped, 3 warnings**.
+- `./.venv/bin/python -m pytest -q tests/test_imagej_migration.py` — **14 passed**.
+- `git diff --check` — **PASS**.
+- Protected converter SHA-256 remained
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+The default BED regression remained unchanged. AUTO remains unchanged because
+the representative fixture selects Valley before Otsu; Otsu is not selected.
+
+### Explicit exclusions
+
+Diagnostic override, stage observer, collapse gate, calibration, camera
+metadata compatibility, production infrastructure, later main commits,
+I-5B rerun, and ImageJ reopening were not ported or performed. The protected
+converter was not modified.
+
+### Remaining reconciliation items
+
+Calibration reconciliation, the camera metadata compatibility decision, and
+Phase-4 revalidation of the bounded 36-row I-5B AUTO/Otsu affected set remain
+explicitly unresolved and unauthorized.
+
+### Converter
+
+Protected converter:
+`mpips/conversion/tiff_json_to_dcm.py`.
+SHA-256: `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+### Terminal state
+
+**Review Required**. Phase 3–5 remain unauthorized pending review and
+republished task authority. Acceptance is not release authorization.
