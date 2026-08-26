@@ -95,7 +95,7 @@ It is therefore closed as `NOT PRODUCTION REACHABLE — N/A — CLOSED`.
 | CLAHE — MPIPS fast/OpenCV | Pinned Fiji `FastFlat.java` retained as comparison reference; governed contract is separate | `ImageJReplicator.apply_clahe(..., fast=True)` -> OpenCV `createCLAHE` path | PRODUCTION-REACHABLE — CONFIGURABLE | NOT DEFAULT; `clahe_fast=false` | uint8 and uint16; OpenCV preserves the single-channel dtype | MPIPS/OpenCV is not Fiji FastFlat parity (historical mismatch) | MPIPS/OPENCV ALTERNATE CONTRACT; INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED; NOT FIJI FASTFLAT PARITY | No semantic identity gap under Option A; performance and broader regression remain separate | Phase 5 runtime measurement; Phase 6/7 later if authorized |
 | Fiji CLAHE Flat reference | Pinned `axtimwalde/mpicbg` `Flat.java` and supporting `Apply`/`ShortApply` code | No Java/Fiji runtime in MPIPS production path; retained reference tooling only | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Byte working domain; uint16 uses ShortProcessor 8-bit working representation and ShortApply mapping | REFERENCE ONLY / historical cross-reference mismatch | REFERENCE ONLY; NOT PRODUCTION REACHABLE | No production contract obligation; retained provenance and execution limits remain | Phase 5 reference measurement if authorized |
 | Fiji CLAHE FastFlat reference | Pinned `axtimwalde/mpicbg` `FastFlat.java` and supporting fast apply code | No Java/Fiji runtime in MPIPS production path; retained reference tooling only | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Distinct byte working representation and dtype-specific uint16 mapping | REFERENCE ONLY / historical cross-reference mismatch | REFERENCE ONLY; NOT PRODUCTION REACHABLE | No production contract obligation; retained provenance and execution limits remain | Phase 5 reference measurement if authorized |
-| Circular Median | ImageJ core `RankFilters.MEDIAN` circular-kernel semantics | `ImageJReplicator.median_filter_imagej`; `filtering.apply_median_filter("circular_imagej")` | PRODUCTION-REACHABLE — CONFIGURABLE through canonical/config paths; DICOM endpoint itself supplies no alternate processing config | NOT DEFAULT; default type is `hybrid_imagej`, radius 2 | uint8 and uint16 | FIDELITY FAILURE for accepted special-radius cases; exposed alternative, not active default | PLANNING REQUIRED — CIRCULAR MEDIAN REMEDIATION: fractional `from_dict` config can reach the circular implementation; accepted failures at 1.5 and 2.5 remain applicable | Fractional config reachability and complete integer-domain parity are unresolved; no remediation performed | Phase 4 remediation planning |
+| Circular Median | ImageJ core `RankFilters.MEDIAN` circular-kernel semantics | `ImageJReplicator.median_filter_imagej`; `filtering.apply_median_filter("circular_imagej")` | PRODUCTION-REACHABLE — CONFIGURABLE through canonical/config paths; DICOM endpoint itself supplies no alternate processing config | NOT DEFAULT; default type is `hybrid_imagej`, radius 2 | uint8 and uint16 | FIDELITY FAILURE for accepted special-radius cases; exposed alternative, not active default | REMEDIATED AND PARITY CONFIRMED ACROSS ACCEPTED I-4A CHARACTERIZATION MATRIX | No universal positive-radius parity claim; broader domain and typing/documentation debt remain separate | Phase 5+ only if later authorized |
 | Temporal Median | ImageJ `Fast_Temporal_Median.java` plugin identity | `ImageJReplicator.fast_temporal_median(stack, ...)` only; no wrapper/config/pipeline caller found | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Library method accepts 3D uint8/uint16 stacks | NOT PRODUCTION-REACHABLE — N/A | NOT PRODUCTION REACHABLE — N/A — CLOSED; refreshed caller/config/API/schema search remains empty | No production fidelity obligation established; standalone method remains outside current production surface | Phase 3 — no further Phase-2 work |
 
 ## Phase 3 — CLAHE semantic closure
@@ -415,6 +415,85 @@ accepted CLAHE classifications are unchanged, and Circular Median remains
 the only unresolved subject of this first gate.
 
 **Terminal state: Planning Required — Circular Median Remediation.**
+
+## Phase 4 — Circular Median Fidelity Remediation
+
+### Governing identity and bounded execution
+
+- Governing task publication: `98d0d9eadee94f0c801eb8ada97491870a1dae4d`.
+- Accepted first-gate baseline: `84b4a8cd271fcf7b262bd625530a974357704f9b`.
+- Pre-remediation HEAD: `98d0d9eadee94f0c801eb8ada97491870a1dae4d`.
+- Remediation: **IMAGEJ RANKFILTERS SEMANTIC REMEDIATION**.
+- No integer-only contract tightening was introduced.
+
+The targeted root cause was the omission of ImageJ 1.54p
+`RankFilters.makeLineRadii(double radius)` compatibility normalization in
+`ImageJReplicator._make_circular_kernel_imagej()`. Before the existing
+`r2 = int(radius * radius) + 1` calculation, the implementation now maps
+`1.5 <= radius < 1.75` to effective radius `1.75` and
+`2.5 <= radius < 2.85` to effective radius `2.85`. The existing footprint
+construction, SciPy `median_filter`, `mode="nearest"`, median selection,
+dtype handling, channel handling, validation, and public signature are
+unchanged.
+
+### Fixture and accepted reference matrix
+
+The test uses the accepted I-4A 5x5 `median_grid` fixture:
+
+```text
+[[9, 2, 7, 4, 6],
+ [3, 8, 1, 5, 0],
+ [6, 4, 9, 2, 7],
+ [5, 1, 8, 3, 6],
+ [0, 7, 2, 9, 4]]
+```
+
+The uint8 fixture is direct; uint16 is the same fixture multiplied by 257.
+The accepted reference hashes are:
+
+| Dtype | Radius 0.5 | 1.0 | 1.5 | 1.74 | 1.75 | 2.0 | 2.5 | 2.84 | 2.85 | 3.0 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| uint8 | `5157cd80de4ea935cee4a786a516ff7f2041260c36fdb0ccb67fa682e82c0992` | `0fcd11108eedbad87ff6f194652203a9478e0e997024716a46db80748ef5bb3b` | `e72a4b5f10de3bd85f019d2cea69faec40726c470bc7217984ec849e92a52de7` | `e72a4b5f10de3bd85f019d2cea69faec40726c470bc7217984ec849e92a52de7` | `e72a4b5f10de3bd85f019d2cea69faec40726c470bc7217984ec849e92a52de7` | `89b7c92981dbe70477e5e60a21ef40d927ffeb270212b097699d401a74bef8c7` | `90e689333cf6fe68d803bd0f087ff303e67e23f6c821d0969b5bdd13dfd597b0` | `90e689333cf6fe68d803bd0f087ff303e67e23f6c821d0969b5bdd13dfd597b0` | `90e689333cf6fe68d803bd0f087ff303e67e23f6c821d0969b5bdd13dfd597b0` | `8e4e5923599608e8bbe2f7834794f8881475a32e6db199cd70ac50668634a6d1` |
+| uint16 | `591fb6b495566b159d3608336c22e84074ba41eaa092677626206f63eff29ad9` | `12cba42e4296eac0dd557f6a9106f1acba6073014076bae71f2701bb0504a6c5` | `b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05` | `b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05` | `b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05` | `af5398c57504217097440e2a525bb1b2026315083306d7f36a9d27430504a7a8` | `b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6` | `b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6` | `b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6` | `b65b95665a2d108ad31a02b7b66554b22f77a2418f880db0d6c97c90be64605c` |
+
+### Results and claim boundary
+
+The required transition cases (`1.5`, `1.74`, `1.75`, `2.5`, `2.84`, `2.85`)
+and non-regression cases (`0.5`, `1.0`, `2.0`, `3.0`) all matched the accepted
+reference hashes for both dtypes: **20/20 passed**. The final classification
+is:
+
+`REMEDIATED AND PARITY CONFIRMED ACROSS ACCEPTED I-4A CHARACTERIZATION MATRIX`
+
+This does not establish universal parity for all positive radii. The
+configuration domain remains broader than the accepted matrix.
+
+### Verification and preserved boundaries
+
+```text
+.venv/bin/python -m pytest -q tests/test_filtering_processing.py -k circular_median_matches_accepted_i4a_matrix
+20 passed, 19 deselected
+
+.venv/bin/python -m pytest -q tests/test_filtering_processing.py
+39 passed
+
+.venv/bin/python -m pytest -q tests/test_imagej_migration.py
+10 passed
+```
+
+These are **LOCAL TESTS, NOT CI**. The test file was modified only to add the
+accepted reference-backed Circular Median matrix; no new test file was
+created. The stable evidence file was also updated. No config parsing,
+validation, API/schema, worker, DICOM default, Hybrid Median, CLAHE, or
+converter behavior changed. Integer-oriented annotations remain
+`TYPING / CONTRACT-DOCUMENTATION DEBT — NO RUNTIME EFFECT`.
+
+The protected converter SHA remained
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0` before
+and after. Phase 5+ remain unauthorized; no performance, deployment, release,
+or main action occurred.
+
+**Terminal state: Review Required.**
 
 ## Direct reachability observations
 

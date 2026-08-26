@@ -1102,6 +1102,12 @@ class ImageJReplicator:
         Returns:
             np.ndarray: Boolean 2D array sebagai footprint kernel.
         """
+        # Preserve ImageJ RankFilters' legacy fractional-radius transitions.
+        if 1.5 <= radius < 1.75:
+            radius = 1.75
+        elif 2.5 <= radius < 2.85:
+            radius = 2.85
+
         r2 = int(radius * radius) + 1
         k_radius = int(math.sqrt(r2 + 1e-10))
         size = 2 * k_radius + 1
