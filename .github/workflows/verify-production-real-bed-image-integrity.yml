@@ -27,6 +27,7 @@ jobs:
         run: |
           python -m pip install uv
           uv sync --frozen --extra service
+          .venv/bin/python -m pip install gdown==6.1.0
 
       - name: Verify production real BED image integrity
         env:

@@ -6,11 +6,10 @@ from __future__ import annotations
 import hashlib
 import json
 import os
-import re
 import shutil
 import subprocess
 import tempfile
-import urllib.request
+import uuid
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -144,6 +143,32 @@ def read_runtime_provenance(
     )
 
 
+def discover_api_container(output: str) -> str:
+    containers = [line.strip() for line in output.splitlines() if line.strip()]
+    if len(containers) != 1:
+        raise RuntimeProvenanceError(
+            "expected exactly one running production API container"
+        )
+    return containers[0]
+
+
+def validate_container_identity(details: dict[str, Any], api_port: str) -> None:
+    config = details.get("Config", {})
+    labels = config.get("Labels", details.get("ConfigLabels", {})) or {}
+    if labels.get("com.docker.compose.project") != "mpips-internal-beta":
+        raise RuntimeProvenanceError("Compose project label mismatch")
+    if labels.get("com.docker.compose.service") != "mpips-api":
+        raise RuntimeProvenanceError("Compose service label mismatch")
+    if config.get("Image") != EXPECTED_API_IMAGE:
+        raise RuntimeProvenanceError("API image mismatch")
+    if api_port not in {"127.0.0.1:8014", "127.0.0.1:8014->8000/tcp"}:
+        raise RuntimeProvenanceError("API port binding mismatch")
+
+
+def has_unexpected_private_tags(dataset: pydicom.Dataset) -> bool:
+    return any(element.tag.is_private for element in dataset)
+
+
 def calculate_metrics(image: np.ndarray) -> ImageMetrics:
     if image.ndim != 2 or image.dtype != np.uint16 or image.size == 0:
         raise VerificationError("DICOM pixel array must be non-empty 2-D uint16")
@@ -178,11 +203,18 @@ def calculate_metrics(image: np.ndarray) -> ImageMetrics:
 
 def evaluate_image_integrity(metrics: ImageMetrics) -> bool:
     return (
-        metrics.maximum > metrics.minimum
-        and metrics.zero_ratio < 0.5
-        and metrics.support_width_ratio > 0.80
-        and metrics.support_height_ratio > 0.80
+        classify_image_integrity(metrics) == "REAL_BED_PRODUCTION_IMAGE_INTEGRITY_PASS"
     )
+
+
+def classify_image_integrity(metrics: ImageMetrics) -> str:
+    if metrics.zero_ratio >= 0.5:
+        return "PRODUCTION_BED_IMAGE_COLLAPSE"
+    if metrics.support_width_ratio <= 0.80 or metrics.support_height_ratio <= 0.80:
+        return "PRODUCTION_BED_SUPPORT_COLLAPSE"
+    if metrics.maximum <= metrics.minimum:
+        return "PRODUCTION_BED_NONTRIVIAL_IMAGE_FAILED"
+    return "REAL_BED_PRODUCTION_IMAGE_INTEGRITY_PASS"
 
 
 def validate_bed_inputs(radiograph: dict[str, Any], gain: Any) -> None:
@@ -208,59 +240,101 @@ def validate_download(path: Path, expected_size: int, expected_sha: str) -> None
         raise VerificationError(f"invalid NPZ structure for {path.name}") from exc
 
 
-def download_drive_file(file_id: str, destination: Path) -> None:
-    url = f"https://drive.usercontent.google.com/download?id={file_id}&export=download"
-    request = urllib.request.Request(url, headers={"User-Agent": "mpips-verifier"})
-    with (
-        urllib.request.urlopen(request, timeout=120) as response,
-        destination.open("wb") as output,
-    ):
-        shutil.copyfileobj(response, output, length=1024 * 1024)
-    if destination.read_bytes()[:100].lstrip().startswith(b"<"):
-        text = destination.read_text(errors="ignore")
-        token = re.search(r"confirm=([0-9A-Za-z_-]+)", text)
-        if not token:
-            raise VerificationError(
-                f"Google Drive download did not return NPZ: {destination.name}"
-            )
-        destination.unlink()
-        confirm_url = f"{url}&confirm={token.group(1)}"
-        request = urllib.request.Request(
-            confirm_url, headers={"User-Agent": "mpips-verifier"}
-        )
-        with (
-            urllib.request.urlopen(request, timeout=120) as response,
-            destination.open("wb") as output,
-        ):
-            shutil.copyfileobj(response, output, length=1024 * 1024)
+def download_drive_file(
+    file_id: str, destination: Path, expected_size: int, expected_sha: str
+) -> None:
+    import gdown
+
+    partial = destination.with_name(destination.name + ".part")
+    try:
+        if file_id not in {item[0] for item in EXPECTED_FILES.values()}:
+            raise VerificationError("TEST_DATA_DOWNLOAD_BLOCKED")
+        if gdown.download(id=file_id, output=str(partial), quiet=True) is None:
+            raise VerificationError("TEST_DATA_DOWNLOAD_BLOCKED")
+        validate_download(partial, expected_size, expected_sha)
+        partial.replace(destination)
+    except (OSError, RuntimeError, VerificationError) as exc:
+        if isinstance(exc, VerificationError):
+            raise
+        raise VerificationError("TEST_DATA_DOWNLOAD_BLOCKED") from exc
+    finally:
+        partial.unlink(missing_ok=True)
 
 
 def select_calibration(root: Path, detector_mode: str) -> Path:
-    if (root / "metadata.json").is_file():
-        return root
-    for directory in sorted(root.iterdir()):
-        if directory.is_dir() and (directory / "metadata.json").is_file():
-            metadata = json.loads((directory / "metadata.json").read_text())
-            if (
-                metadata.get("source_metadata", {}).get("detector_mode")
-                == detector_mode
-            ):
-                return directory
-    raise VerificationError("BED calibration was not found")
+    candidates = [root] + sorted(
+        directory for directory in root.iterdir() if directory.is_dir()
+    )
+    for directory in candidates:
+        metadata_path = directory / "metadata.json"
+        if not metadata_path.is_file() or not (directory / "remap.npz").is_file():
+            continue
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if (
+            metadata.get("source_metadata", {}).get("detector_mode") == detector_mode
+            and metadata.get("validated") is True
+        ):
+            return directory
+    raise VerificationError("BED_CALIBRATION_NOT_AVAILABLE")
 
 
 def make_manifest(
     radiograph: dict[str, Any], radiograph_path: Path, gain_path: Path
 ) -> bytes:
+    now = "2026-08-26T00:00:00+00:00"
     return json.dumps(
         {
             "manifest_version": "1.0",
+            "conversion_job_id": str(uuid.uuid4()),
+            "submission_id": str(uuid.uuid4()),
+            "correlation_id": str(uuid.uuid4()),
+            "examination": {
+                "examination_id": "MPIPS-REAL-BED-VERIFICATION",
+                "booking_id": "MPIPS-REAL-BED-VERIFICATION",
+                "service_request_id": "MPIPS-REAL-BED-VERIFICATION",
+                "encounter_id": "MPIPS-REAL-BED-VERIFICATION",
+                "accession_number": "MPIPS-BED-VERIFY",
+                "study_id": "MPIPS-BED-VERIFY",
+                "performed_at": now,
+                "study_description": "MPIPS real BED verification",
+                "protocol_name": "MPIPS real BED verification",
+            },
             "patient": {
                 "medical_record_number": "BED-VERIFICATION",
-                "name": "BED Verification",
+                "member_id": str(uuid.uuid4()),
+                "name": {
+                    "full_name": "MPIPS Verification",
+                    "family_name": "Verification",
+                },
+                "sex": "unknown",
+                "birth_date": "2000-01-01",
+            },
+            "operator": {
+                "operator_id": str(uuid.uuid4()),
+                "name": {
+                    "full_name": "MPIPS Verification",
+                    "family_name": "Verification",
+                },
+            },
+            "site": {
+                "organization_id": "MPIPS-VERIFICATION",
+                "site_id": "MPIPS-VERIFICATION",
+                "institution_name": "MPIPS Verification",
+                "department_name": "Radiology",
+                "station_name": "MPIPS-VERIFY",
+                "timezone": "UTC",
             },
             "capture": {
+                "capture_id": str(uuid.uuid4()),
+                "protocol_version": "MPIPS-VERIFICATION",
                 "detector_type": "BED",
+                "body_part_examined": "CHEST",
+                "laterality": "U",
+                "projection": "PA",
+                "captured_at": now,
                 "radiograph": {
                     "filename": radiograph_path.name,
                     "byte_size": radiograph_path.stat().st_size,
@@ -272,9 +346,27 @@ def make_manifest(
                     "sha256": sha256(gain_path),
                     "gain_id": radiograph["gain_id"],
                 },
+                "image_spacing": {"row_um": 140.0, "column_um": 140.0},
+            },
+            "dicom": {
+                "study_instance_uid": "1.2.826.0.1.3680043.10.1356.9.1",
+                "series_instance_uid": "1.2.826.0.1.3680043.10.1356.9.2",
+                "sop_instance_uid": "1.2.826.0.1.3680043.10.1356.9.3",
+                "series_number": 1,
+                "instance_number": 1,
+                "series_description": "MPIPS real BED verification",
+                "presentation_intent": "FOR PRESENTATION",
             },
         }
     ).encode()
+
+
+def write_summary(classification: str, lines: list[str] | None = None) -> None:
+    summary = "\n".join([classification, *(lines or [])]) + "\n"
+    print(summary, end="")
+    summary_path = os.getenv("GITHUB_STEP_SUMMARY")
+    if summary_path:
+        Path(summary_path).write_text(summary)
 
 
 def main() -> int:
@@ -286,39 +378,40 @@ def main() -> int:
             or not (runtime_root / ".mpips-worker-image").is_file()
         ):
             raise RuntimeProvenanceError("runtime markers are missing")
-        compose = [
-            "docker",
-            "compose",
-            "--project-name",
-            "mpips-internal-beta",
-            "--env-file",
-            "/dev/null",
-            "-f",
-            "/var/www/mpips-runtime/docker-compose.prod.yml",
-        ]
-        api_container = subprocess.check_output(
-            [*compose, "ps", "-q", "mpips-api"], text=True
-        ).strip()
-        if not api_container or "\n" in api_container:
-            raise RuntimeProvenanceError(
-                "expected exactly one running production API container"
+        api_container = discover_api_container(
+            subprocess.check_output(
+                [
+                    "docker",
+                    "ps",
+                    "--filter",
+                    "label=com.docker.compose.project=mpips-internal-beta",
+                    "--filter",
+                    "label=com.docker.compose.service=mpips-api",
+                    "--filter",
+                    "status=running",
+                    "--format",
+                    "{{.ID}}",
+                ],
+                text=True,
             )
-        image = subprocess.check_output(
-            ["docker", "inspect", "--format", "{{.Config.Image}}", api_container],
-            text=True,
-        ).strip()
+        )
+        details = json.loads(
+            subprocess.check_output(["docker", "inspect", api_container], text=True)
+        )[0]
         port = subprocess.check_output(
             ["docker", "port", api_container, "8000/tcp"], text=True
         ).strip()
-        provenance = read_runtime_provenance(runtime_root, image, port)
+        validate_container_identity(details, port)
+        provenance = read_runtime_provenance(
+            runtime_root, details["Config"]["Image"], port
+        )
         with httpx.Client(timeout=20) as client:
             if client.get(f"{API_URL}/health").status_code != 200:
                 raise VerificationError("production health check failed")
         paths = {}
         for filename, (file_id, size, digest) in EXPECTED_FILES.items():
             path = temporary / filename
-            download_drive_file(file_id, path)
-            validate_download(path, size, digest)
+            download_drive_file(file_id, path, size, digest)
             paths[filename] = path
         from mpips.workflows.imager_pipeline.npz_io import (
             load_gain_catalog,
@@ -379,13 +472,23 @@ def main() -> int:
         dicom_path.write_bytes(response.content)
         dataset = pydicom.dcmread(dicom_path)
         if (
-            dataset.file_meta.TransferSyntaxUID != pydicom.uid.ExplicitVRLittleEndian
+            not getattr(dataset, "file_meta", None)
+            or not getattr(dataset.file_meta, "TransferSyntaxUID", None)
+            or dataset.file_meta.TransferSyntaxUID != pydicom.uid.ExplicitVRLittleEndian
+            or int(getattr(dataset, "Rows", 0)) <= 0
+            or int(getattr(dataset, "Columns", 0)) <= 0
             or dataset.BitsAllocated != 16
             or dataset.PixelRepresentation != 0
-            or any(tag.is_private for tag in dataset)
+            or not hasattr(dataset, "PixelData")
+            or has_unexpected_private_tags(dataset)
         ):
             raise VerificationError("DICOM structure failed")
-        for name in ("StudyInstanceUID", "SeriesInstanceUID", "SOPInstanceUID"):
+        for name in (
+            "StudyInstanceUID",
+            "SeriesInstanceUID",
+            "SOPInstanceUID",
+            "SOPClassUID",
+        ):
             if not pydicom.uid.UID(str(getattr(dataset, name, ""))).is_valid:
                 raise VerificationError(f"invalid DICOM {name}")
         metrics = calculate_metrics(dataset.pixel_array)
@@ -397,9 +500,15 @@ def main() -> int:
             raise VerificationError(
                 "PRODUCTION_CALIBRATION_MUTATED_DURING_VERIFICATION"
             )
-        summary = "\n".join(
+        classification = classify_image_integrity(metrics)
+        if classification != "REAL_BED_PRODUCTION_IMAGE_INTEGRITY_PASS":
+            write_summary(
+                classification, [f"BED zero ratio: {metrics.zero_ratio:.10f}"]
+            )
+            return 1
+        write_summary(
+            classification,
             [
-                "REAL_BED_PRODUCTION_IMAGE_INTEGRITY_PASS",
                 f"Runtime SHA: {provenance.runtime_sha}",
                 f"API image: {provenance.api_image}",
                 f"Worker image: {provenance.worker_image}",
@@ -426,25 +535,33 @@ def main() -> int:
                 f"{metrics.support_height_ratio:.6f}",
                 f"BED calibration: {calibration.fingerprint}",
                 "BED_CALIBRATION_MUTATED=NO",
-            ]
+            ],
         )
-        print(summary)
-        if os.getenv("GITHUB_STEP_SUMMARY"):
-            Path(os.environ["GITHUB_STEP_SUMMARY"]).write_text(summary + "\n")
-        return 0 if evaluate_image_integrity(metrics) else 1
+        return 0
     except (
         KeyError,
         OSError,
         RuntimeError,
         VerificationError,
         RuntimeProvenanceError,
+        httpx.HTTPError,
     ) as exc:
-        classification = (
-            "PRODUCTION_RUNTIME_PROVENANCE_FAILED"
-            if isinstance(exc, RuntimeProvenanceError)
-            else str(exc)
-        )
-        print(classification)
+        if isinstance(exc, RuntimeProvenanceError):
+            classification = "PRODUCTION_RUNTIME_PROVENANCE_FAILED"
+        elif str(exc).startswith("TEST_DATA_DOWNLOAD_BLOCKED"):
+            classification = "TEST_DATA_DOWNLOAD_BLOCKED"
+        elif "gain" in str(exc).lower() or "compatibility" in str(exc).lower():
+            classification = "BED_INPUT_PAIR_INCOMPATIBLE"
+        elif "calibration" in str(exc).lower():
+            classification = "BED_CALIBRATION_NOT_AVAILABLE"
+        elif "DICOM" in str(exc):
+            classification = "BED_DICOM_INVALID"
+        else:
+            classification = "BED_API_FAILED"
+        write_summary(classification)
+        return 1
+    except Exception:
+        write_summary("BED_API_FAILED")
         return 1
     finally:
         shutil.rmtree(temporary, ignore_errors=True)
