@@ -18,23 +18,25 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
 
     metadata_path = directory / "metadata.json"
     remap_path = directory / "remap.npz"
-    if (
-        metadata_path.is_symlink()
-        or not metadata_path.is_file()
-        or metadata_path.stat().st_size == 0
-    ):
+    metadata_is_regular = (
+        not metadata_path.is_symlink()
+        and metadata_path.is_file()
+        and metadata_path.stat().st_size > 0
+    )
+    if not metadata_is_regular:
         errors.append(
             f"{expected_mode}: metadata.json is missing or not a regular file"
         )
-    if (
-        remap_path.is_symlink()
-        or not remap_path.is_file()
-        or remap_path.stat().st_size == 0
-    ):
+    remap_is_regular = (
+        not remap_path.is_symlink()
+        and remap_path.is_file()
+        and remap_path.stat().st_size > 0
+    )
+    if not remap_is_regular:
         errors.append(f"{expected_mode}: remap.npz is missing or not a regular file")
 
     metadata: dict[str, object] = {}
-    if not errors or metadata_path.is_file():
+    if metadata_is_regular:
         try:
             loaded = json.loads(metadata_path.read_text(encoding="utf-8"))
             if not isinstance(loaded, dict):
@@ -54,11 +56,23 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
     ):
         errors.append(f"{expected_mode}: source_metadata.detector_mode mismatch")
 
+    image_shape = metadata.get("image_shape")
     if (
-        remap_path.is_file()
-        and not remap_path.is_symlink()
-        and remap_path.stat().st_size
+        not isinstance(image_shape, (list, tuple))
+        or len(image_shape) != 2
+        or any(
+            not isinstance(dimension, int)
+            or isinstance(dimension, bool)
+            or dimension <= 0
+            for dimension in image_shape
+        )
     ):
+        errors.append(f"{expected_mode}: metadata.image_shape is invalid")
+        expected_shape = None
+    else:
+        expected_shape = tuple(image_shape)
+
+    if remap_is_regular:
         try:
             with np.load(remap_path, allow_pickle=False) as remap:
                 if "map_x" not in remap or "map_y" not in remap:
@@ -69,6 +83,11 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
                     map_x, map_y = remap["map_x"], remap["map_y"]
                     if map_x.shape != map_y.shape:
                         errors.append(f"{expected_mode}: remap map shapes differ")
+                    if expected_shape is not None and map_x.shape != expected_shape:
+                        errors.append(
+                            f"{expected_mode}: metadata.image_shape does not match "
+                            "remap maps"
+                        )
                     if not np.all(np.isfinite(map_x)) or not np.all(np.isfinite(map_y)):
                         errors.append(
                             f"{expected_mode}: remap maps contain non-finite values"

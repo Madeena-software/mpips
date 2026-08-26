@@ -1,0 +1,17 @@
+{
+  "artifact_type": "mpips-calibration",
+  "detector_mode": "TRX",
+  "fingerprint": "789adff52ed296d956f81ae8dc38247a73768d863495f91a916fc251aaf67811",
+  "image_shape": [
+    3000,
+    4096
+  ],
+  "camera_serial": "DA5234480",
+  "archive_size": 70488061,
+  "archive_sha256": "39ead140fded085377ca52e9e7cf152549224e0816ccc3e73ed9a3ba7b0cdc61",
+  "required_files": [
+    "metadata.json",
+    "remap.npz"
+  ],
+  "validated": true
+}
