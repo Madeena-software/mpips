@@ -100,6 +100,35 @@ def test_synthetic_rewrite_changes_only_detector_mode(tmp_path):
         assert after["gainid"].item() == "gain-1"
 
 
+def test_gain_rewrite_preserves_detector_payload_and_metadata(tmp_path):
+    source = tmp_path / "gain-bed.npz"
+    target = tmp_path / "gain-trx.npz"
+    raw = np.array([[100, 200], [300, 400]], dtype=np.uint16)
+    dark = np.array([[7, 11], [13, 17]], dtype=np.uint16)
+    np.savez_compressed(
+        source,
+        id="gain-1",
+        xrayparams=np.asarray({"detectorMode": "BED", "voltage": 70}, dtype=object),
+        cameraparams=np.asarray({"serialNumber": "camera-1"}, dtype=object),
+        rawimage=raw,
+        darkimage=dark,
+    )
+
+    rewrite_detector_mode(source, target)
+
+    with (
+        np.load(source, allow_pickle=True) as before,
+        np.load(target, allow_pickle=True) as after,
+    ):
+        assert before["xrayparams"].item()["detectorMode"] == "BED"
+        assert after["xrayparams"].item()["detectorMode"] == "TRX"
+        assert after["id"].item() == "gain-1"
+        assert after["cameraparams"].item() == before["cameraparams"].item()
+        assert after["xrayparams"].item()["voltage"] == 70
+        assert np.array_equal(after["rawimage"], raw)
+        assert np.array_equal(after["darkimage"], dark)
+
+
 def test_dicom_validator_requires_uint16_and_no_private_tags():
     source = (ROOT / "scripts/diagnose_production_dicom_e2e.py").read_text()
     assert "BitsAllocated" in source
@@ -312,6 +341,39 @@ def test_final_classification_preserves_earliest_diagnostic_failure():
     assert (
         final_classification({"MHCS_THORAX_DICOM_STRUCTURE": "FAIL"})
         == "MHCS_THORAX_DICOM_INVALID"
+    )
+
+
+def test_final_classification_preserves_terminal_mhcs_probe_failure():
+    assert (
+        final_classification(
+            {
+                "MHCS_BED_MPIPSCLIENT": "MHCS_BED_MPIPSCLIENT_FAILED",
+                "MHCS_BED_DICOM_STRUCTURE": "FAIL",
+            }
+        )
+        == "MHCS_BED_MPIPSCLIENT_FAILED"
+    )
+    assert (
+        final_classification(
+            {
+                "MHCS_THORAX_MPIPSCLIENT": "MHCS_THORAX_MPIPSCLIENT_FAILED",
+                "MHCS_THORAX_DICOM_STRUCTURE": "FAIL",
+            }
+        )
+        == "MHCS_THORAX_MPIPSCLIENT_FAILED"
+    )
+    assert (
+        final_classification({"MHCS_MPIPS_CONFIG": "MHCS_MPIPS_CONFIG_FAILED"})
+        == "MHCS_MPIPS_CONFIG_FAILED"
+    )
+    assert (
+        final_classification({"MHCS_MPIPS_DNS": "MHCS_MPIPS_DNS_FAILED"})
+        == "MHCS_MPIPS_DNS_FAILED"
+    )
+    assert (
+        final_classification({"MHCS_MPIPS_HEALTH": "MHCS_MPIPS_HEALTH_FAILED"})
+        == "MHCS_MPIPS_HEALTH_FAILED"
     )
 
 

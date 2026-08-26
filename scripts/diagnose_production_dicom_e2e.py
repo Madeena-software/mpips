@@ -209,10 +209,15 @@ def final_classification(results: dict) -> str:
     )
     for key, classification in ordered:
         value = results.get(key)
-        if value in {"FAIL", "DICOM_INVALID"} or value in {
-            "MHCS_IMAGE_WORKER_NOT_FOUND",
-            "MHCS_IMAGE_WORKER_AMBIGUOUS",
-        }:
+        if (
+            value == classification
+            or value in {"FAIL", "DICOM_INVALID"}
+            or value
+            in {
+                "MHCS_IMAGE_WORKER_NOT_FOUND",
+                "MHCS_IMAGE_WORKER_AMBIGUOUS",
+            }
+        ):
             return value if key == "MHCS_IMAGE_WORKER" else classification
     if results.get("runtime_provenance") == "DIFFERS_FROM_WORKFLOW_SHA":
         return "PRODUCTION_RUNTIME_NOT_WORKFLOW_SHA"
