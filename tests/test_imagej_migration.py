@@ -192,11 +192,65 @@ def test_imagej_equalization_sparse_fixture_matches_accepted_references(
     classic: bool, dtype: type[np.generic], expected_hash: str
 ) -> None:
     values = np.asarray([0] * 20 + [17, 17, 200, 255, 255], dtype=np.uint16)
-    image = (
-        values * 257 if dtype == np.uint16 else values.astype(np.uint8)
-    ).reshape(5, 5)
+    image = (values * 257 if dtype == np.uint16 else values.astype(np.uint8)).reshape(
+        5, 5
+    )
     output = processing.imagej_equalize(image, classic=classic)
 
     assert output.shape == image.shape
     assert output.dtype == image.dtype
+    assert hashlib.sha256(output.tobytes()).hexdigest() == expected_hash
+
+
+@pytest.mark.parametrize(
+    ("fast", "fiji_hash", "legacy_hash"),
+    (
+        (
+            False,
+            "b12db91a188b0dccdf2703dc3caa948bab24613e61256ef0002023d147daa34b",
+            "cf2067619fe4078bb2294d5449fd0ed2541e0286fda341fa0452af3595b1867d",
+        ),
+        (
+            True,
+            "b4a4958976bd092c0bc12d4d02b52e80d693549a72ee9ec9a7916cbf319b8fda",
+            "6dc3be3cb86149a8cd8ae9677da482c32cabea0326930d028b2260bac2ceea02",
+        ),
+    ),
+)
+def test_clahe_uint16_preserves_governed_mpips_divergence(
+    fast: bool, fiji_hash: str, legacy_hash: str
+) -> None:
+    y, x = np.indices((128, 128), dtype=np.uint64)
+    image = ((x * 257 + y * 509 + ((x * y) % 251) * 131) % 65536).astype(np.uint16)
+
+    assert hashlib.sha256(image.tobytes()).hexdigest() == (
+        "01941aeb2b4070d224e0271e9ef3f8bd6075001638d4cd75f9bfd06e4b0355c1"
+    )
+    output = processing.apply_clahe(image, 127, 256, 1.5, fast=fast, composite=True)
+    output_hash = hashlib.sha256(output.tobytes()).hexdigest()
+
+    assert output.shape == image.shape
+    assert output.dtype == np.uint16
+    assert output_hash == legacy_hash
+    assert output_hash != fiji_hash
+
+
+@pytest.mark.parametrize(
+    ("fast", "expected_hash"),
+    (
+        (False, "4b7790391a5d0fcc5dabc7059b44a6f877df5ea4236252560ba81ec7d578797e"),
+        (True, "dee626ac2c1c97e49ff9f810c3429660a40dea9c0ca0b1d9a9a3bad7b53013c9"),
+    ),
+)
+def test_clahe_uint8_preserves_legacy_mpips_contract(
+    fast: bool, expected_hash: str
+) -> None:
+    image = np.arange(64, dtype=np.uint8).reshape(8, 8)
+    assert hashlib.sha256(image.tobytes()).hexdigest() == (
+        "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108"
+    )
+    output = processing.apply_clahe(image, 5, 256, 0.6, fast=fast, composite=True)
+
+    assert output.shape == image.shape
+    assert output.dtype == np.uint8
     assert hashlib.sha256(output.tobytes()).hexdigest() == expected_hash

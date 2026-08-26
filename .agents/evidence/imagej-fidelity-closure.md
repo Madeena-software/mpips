@@ -260,6 +260,143 @@ converter, main, deployment, or release action changed in Phase 3.
 
 **Terminal state: Review Required.**
 
+## Phase 6 — Minimal Reference / Regression Sentinel Suite
+
+**Status:** **EXECUTED — REVIEW REQUIRED**. This phase added only minimal
+deterministic regression protection. No production algorithm, configuration,
+reference tooling, dependency, benchmark, or real-radiograph experiment was
+changed or run.
+
+### Governing identity
+
+- Governing task publication: `a92d5283b7c703d03c57b97807b8a7966103fd3f`.
+- Accepted Phase-5 baseline: `a625deac10153a2c7c69a3523dd77751518b298e`.
+- Accepted Phase-4 implementation baseline:
+  `232f148ce24d6df5569a4b2c290e93adf0a03d5f`.
+- Pre-execution HEAD: `a92d5283b7c703d03c57b97807b8a7966103fd3f`.
+- Branch: `refactor/package-boundaries`.
+- Protected converter SHA256 before and after:
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+### Audit and sentinel inventory
+
+| Operation | Accepted contract/status | Existing deterministic protection | Phase-6 action |
+|---|---|---|---|
+| Contrast Stretch | PARITY CONFIRMED | Accepted uint16 and prior uint8 behavior hashes in `tests/test_imagej_migration.py` | NO NEW SENTINEL REQUIRED |
+| Weighted Equalization | PARITY CONFIRMED | Accepted uint8/uint16 hashes in `tests/test_imagej_migration.py` | NO NEW SENTINEL REQUIRED |
+| Classic Equalization | PARITY CONFIRMED | Accepted uint8/uint16 hashes in `tests/test_imagej_migration.py` | NO NEW SENTINEL REQUIRED |
+| Hybrid Median | REMEDIATED AND PARITY CONFIRMED | Accepted kernel/radius behavior protection in existing tests | NO NEW SENTINEL REQUIRED |
+| CLAHE — MPIPS precise | INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED; LEGACY MPIPS CONTRACT; NOT FIJI FLAT PARITY | Existing uint16 hash; divergence was not executable | Added uint16 divergence and uint8 contract sentinels |
+| CLAHE — MPIPS fast/OpenCV | INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED; MPIPS/OPENCV ALTERNATE CONTRACT; NOT FIJI FASTFLAT PARITY | Existing uint16 hash; divergence was not executable | Added uint16 divergence and uint8 contract sentinels |
+| Fiji Flat reference | REFERENCE ONLY; NOT PRODUCTION REACHABLE | Accepted reference hash from Phase-5 reconstruction smoke | NO NEW SENTINEL REQUIRED; constant used for inequality only |
+| Fiji FastFlat reference | REFERENCE ONLY; NOT PRODUCTION REACHABLE | Accepted reference hash from Phase-5 reconstruction smoke | NO NEW SENTINEL REQUIRED; constant used for inequality only |
+| Circular Median | REMEDIATED AND PARITY CONFIRMED across accepted I-4A matrix | Complete 10-radius × 2-dtype exact matrix | NO NEW SENTINEL REQUIRED |
+| Temporal Median | NOT PRODUCTION REACHABLE — N/A — CLOSED | Reachability status, not production output | NO NEW SENTINEL REQUIRED; refreshed bounded search remains empty |
+
+Existing Contrast Stretch, Equalization, Hybrid Median, and Circular Median
+coverage was reused. `tests/test_filtering_processing.py` was unchanged.
+
+### CLAHE uint16 divergence sentinel
+
+The exact accepted reconstruction smoke fixture was generated in memory:
+
+```text
+shape: 128 x 128
+dtype: uint16
+value = (x*257 + y*509 + ((x*y)%251)*131) % 65536
+input SHA256: 01941aeb2b4070d224e0271e9ef3f8bd6075001638d4cd75f9bfd06e4b0355c1
+```
+
+The common context was slope `1.5`, blocksize `127`, block radius `63`,
+displayed histogram bins `256`, internal Fiji bins `255`, and
+`composite=True` for MPIPS. Accepted Fiji reference constants were Flat
+`b12db91a188b0dccdf2703dc3caa948bab24613e61256ef0002023d147daa34b` and
+FastFlat
+`b4a4958976bd092c0bc12d4d02b52e80d693549a72ee9ec9a7916cbf319b8fda`.
+
+Two pre-edit runs of each current implementation were deterministic:
+
+| MPIPS contract | Output SHA256 on both runs | Classification |
+|---|---|---|
+| Precise (`fast=False`) | `cf2067619fe4078bb2294d5449fd0ed2541e0286fda341fa0452af3595b1867d` | LEGACY MPIPS CONTRACT REGRESSION BASELINE |
+| Fast/OpenCV (`fast=True`) | `6dc3be3cb86149a8cd8ae9677da482c32cabea0326930d028b2260bac2ceea02` | LEGACY MPIPS CONTRACT REGRESSION BASELINE |
+
+The new parameterized test in `tests/test_imagej_migration.py` asserts the
+fixture identity, output shape and uint16 dtype, each frozen Legacy MPIPS
+hash, and inequality to its corresponding accepted Fiji reference hash. The
+inequality encodes only **INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED**; it is
+not a failure, superiority, quality, or clinical claim.
+
+### CLAHE uint8 audit
+
+The bounded repository audit found no explicit accepted uint8 CLAHE golden
+sentinel for either MPIPS precise or MPIPS fast/OpenCV. A single parameterized
+test was therefore added using `np.arange(64, dtype=np.uint8).reshape(8, 8)`
+with input SHA256
+`fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108`,
+blocksize `5`, histogram bins `256`, slope `0.6`, and `composite=True`.
+Two pre-edit runs of each path were deterministic. The frozen values are
+classified as **LEGACY MPIPS CONTRACT REGRESSION BASELINE**, not Fiji
+references:
+
+| MPIPS contract | Output SHA256 |
+|---|---|
+| Precise (`fast=False`) | `4b7790391a5d0fcc5dabc7059b44a6f877df5ea4236252560ba81ec7d578797e` |
+| Fast/OpenCV (`fast=True`) | `dee626ac2c1c97e49ff9f810c3429660a40dea9c0ca0b1d9a9a3bad7b53013c9` |
+
+### Temporal Median reachability refresh
+
+The bounded current search found only the standalone
+`ImageJReplicator.fast_temporal_median` definition and its documentation/example.
+No production caller, configuration, API, schema, workflow, or worker path was
+found. Status remains **NOT PRODUCTION REACHABLE — N/A — CLOSED**. No
+algorithm-output sentinel was created.
+
+### Routine-regression dependency boundary
+
+**NO JAVA / FIJI RUNTIME / NETWORK REQUIRED BY PHASE-6 ORDINARY PYTEST
+SENTINELS.** The new tests use accepted Fiji SHA constants only and execute
+through the normal Python MPIPS implementation.
+
+### Verification
+
+All results below are **LOCAL TESTS, NOT CI**:
+
+```text
+./.venv/bin/python -m pytest -q tests/test_imagej_migration.py -k 'governed_mpips_divergence or legacy_mpips_contract'
+4 passed, 10 deselected
+
+./.venv/bin/python -m pytest -q tests/test_imagej_migration.py
+14 passed
+
+./.venv/bin/python -m pytest -q tests/test_filtering_processing.py
+39 passed
+```
+
+`git diff --check` passed. No Phase-5 benchmark was rerun. The protected
+converter hash remained exact before and after.
+
+### Remaining closure gaps
+
+- Final all-operation closure and review remain Phase 7 work; Phase 7 is not
+  authorized by this execution.
+- Existing source documentation still contains the previously recorded CLAHE
+  “replicates” misnomer; correcting it requires separately authorized scope.
+- No universal Circular Median parity claim beyond the accepted I-4A matrix is
+  made.
+
+### Exact modified files
+
+- `tests/test_imagej_migration.py`
+- `.agents/evidence/imagej-fidelity-closure.md`
+
+No task, filtering test, production source, script, dependency, configuration,
+schema, API, worker, or reference-harness file changed. Phase-6 execution did
+not modify or require Java/Fiji runtime files, and no main/deployment/release
+action occurred.
+
+**Terminal state: Review Required.**
+
 ## Phase 5 — Bounded Performance Baseline
 
 **Status:** **LOCAL PERFORMANCE CHARACTERIZATION, NOT CI**. This section
