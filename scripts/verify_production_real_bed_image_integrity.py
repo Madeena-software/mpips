@@ -6,9 +6,11 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import tempfile
+import time
 import uuid
 import zipfile
 from dataclasses import dataclass
@@ -44,6 +46,17 @@ class RuntimeProvenanceError(RuntimeError):
 
 class VerificationError(RuntimeError):
     pass
+
+
+class FailureEvidence:
+    def __init__(self) -> None:
+        self.values: dict[str, str] = {}
+
+    def set(self, key: str, value: object) -> None:
+        self.values[key] = str(value)
+
+    def lines(self) -> list[str]:
+        return [f"{key}={value}" for key, value in self.values.items()]
 
 
 @dataclass(frozen=True)
@@ -169,6 +182,42 @@ def has_unexpected_private_tags(dataset: pydicom.Dataset) -> bool:
     return any(element.tag.is_private for element in dataset)
 
 
+def extract_api_detail(body: bytes) -> str | None:
+    try:
+        value = json.loads(body[:4096]).get("detail")
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return None
+    return (
+        value
+        if isinstance(value, str) and re.fullmatch(r"[A-Z0-9_]{1,80}", value)
+        else None
+    )
+
+
+def classify_http_failure(
+    status: int | None, detail: str | None, error: Exception | None = None
+) -> str:
+    if isinstance(error, httpx.ConnectTimeout):
+        return "BED_API_CONNECT_TIMEOUT"
+    if isinstance(error, httpx.ReadTimeout):
+        return "BED_CLIENT_READ_TIMEOUT"
+    if isinstance(error, httpx.HTTPError):
+        return "BED_API_TRANSPORT_FAILURE"
+    return {
+        401: "BED_API_AUTH_FAILED",
+        413: "BED_API_UPLOAD_LIMIT_FAILED",
+        429: "BED_API_CONCURRENCY_LIMIT",
+        500: "BED_CONVERSION_WORKER_FAILURE",
+        504: "BED_CONVERSION_TIMEOUT",
+    }.get(
+        status,
+        {
+            "MANIFEST_SCHEMA_INVALID": "BED_MANIFEST_SCHEMA_INVALID",
+            "NPZ_VALIDATION_ERROR": "BED_INPUT_OR_CALIBRATION_VALIDATION_FAILED",
+        }.get(detail or "", "BED_API_FAILED"),
+    )
+
+
 def calculate_metrics(image: np.ndarray) -> ImageMetrics:
     if image.ndim != 2 or image.dtype != np.uint16 or image.size == 0:
         raise VerificationError("DICOM pixel array must be non-empty 2-D uint16")
@@ -282,13 +331,16 @@ def select_calibration(root: Path, detector_mode: str) -> Path:
 
 
 def make_manifest(
-    radiograph: dict[str, Any], radiograph_path: Path, gain_path: Path
+    radiograph: dict[str, Any],
+    radiograph_path: Path,
+    gain_path: Path,
+    conversion_job_id: str | None = None,
 ) -> bytes:
     now = "2026-08-26T00:00:00+00:00"
     return json.dumps(
         {
             "manifest_version": "1.0",
-            "conversion_job_id": str(uuid.uuid4()),
+            "conversion_job_id": conversion_job_id or str(uuid.uuid4()),
             "submission_id": str(uuid.uuid4()),
             "correlation_id": str(uuid.uuid4()),
             "examination": {
@@ -369,9 +421,35 @@ def write_summary(classification: str, lines: list[str] | None = None) -> None:
         Path(summary_path).write_text(summary)
 
 
+def record_after_health(evidence: FailureEvidence) -> None:
+    try:
+        with httpx.Client(timeout=10) as client:
+            evidence.set(
+                "HEALTH_AFTER_BED_HTTP", client.get(f"{API_URL}/health").status_code
+            )
+    except httpx.HTTPError:
+        evidence.set("HEALTH_AFTER_BED_HTTP", "UNAVAILABLE")
+
+
+def verify_calibration_unchanged(
+    calibration: CalibrationSnapshot, evidence: FailureEvidence
+) -> None:
+    after = CalibrationSnapshot.from_directory(calibration.directory)
+    if (
+        calibration.metadata_sha256 != after.metadata_sha256
+        or calibration.remap_sha256 != after.remap_sha256
+    ):
+        raise VerificationError("PRODUCTION_CALIBRATION_MUTATED_DURING_VERIFICATION")
+    evidence.set("BED_CALIBRATION_MUTATED", "NO")
+
+
 def main() -> int:
     temporary = Path(tempfile.mkdtemp(prefix="mpips-real-bed-"))
+    evidence = FailureEvidence()
+    calibration: CalibrationSnapshot | None = None
+    metrics: ImageMetrics | None = None
     try:
+        evidence.set("EXECUTION_ENVIRONMENT", "SELF_HOSTED_PRODUCTION")
         runtime_root = Path("/var/www/mpips-runtime")
         if (
             not (runtime_root / ".mpips-version").is_file()
@@ -405,13 +483,28 @@ def main() -> int:
         provenance = read_runtime_provenance(
             runtime_root, details["Config"]["Image"], port
         )
+        evidence.set("RUNTIME_PROVENANCE", "PASS")
+        evidence.set("PRODUCTION_RUNTIME_SHA", provenance.runtime_sha)
+        evidence.set("PRODUCTION_API_IMAGE", provenance.api_image)
+        evidence.set("PRODUCTION_WORKER_IMAGE", provenance.worker_image)
         with httpx.Client(timeout=20) as client:
-            if client.get(f"{API_URL}/health").status_code != 200:
+            health = client.get(f"{API_URL}/health").status_code
+            evidence.set("HEALTH_HTTP", health)
+            if health != 200:
                 raise VerificationError("production health check failed")
         paths = {}
         for filename, (file_id, size, digest) in EXPECTED_FILES.items():
             path = temporary / filename
+            started = time.monotonic()
             download_drive_file(file_id, path, size, digest)
+            prefix = (
+                "RADIOGRAPH" if filename.startswith("BED_1785646321389") else "GAIN"
+            )
+            evidence.set(f"{prefix}_DOWNLOAD", "PASS")
+            evidence.set(f"{prefix}_INTEGRITY", "PASS")
+            evidence.set(
+                f"{prefix}_DOWNLOAD_SECONDS", f"{time.monotonic() - started:.3f}"
+            )
             paths[filename] = path
         from mpips.workflows.imager_pipeline.npz_io import (
             load_gain_catalog,
@@ -425,20 +518,34 @@ def main() -> int:
         if gain is None:
             raise VerificationError("radiograph gain id is absent from gain NPZ")
         validate_bed_inputs(radiograph, gain)
+        evidence.set("BED_INPUT_COMPATIBILITY", "PASS")
         calibration = CalibrationSnapshot.from_directory(
             select_calibration(CALIBRATION_ROOT, "BED")
         )
         if not calibration.validated or calibration.detector_mode != "BED":
             raise VerificationError("BED calibration is not validated")
+        evidence.set("BED_CALIBRATION_PRESENT", "PASS")
+        evidence.set("BED_CALIBRATION_VALIDATED", "PASS")
+        evidence.set("BED_CALIBRATION_FINGERPRINT", calibration.fingerprint)
+        evidence.set("BED_CALIBRATION_SOURCE_SHAPE", calibration.image_shape)
+        evidence.set("BED_CALIBRATION_REMAP_SHAPE", calibration.remap_shape)
+        conversion_job_id = str(uuid.uuid4())
+        evidence.set("BED_CONVERSION_JOB_ID", conversion_job_id)
+        if os.getenv("GITHUB_ENV"):
+            with Path(os.environ["GITHUB_ENV"]).open("a", encoding="utf-8") as env_file:
+                env_file.write(f"MPIPS_VERIFY_JOB_ID={conversion_job_id}\n")
         manifest = temporary / "manifest.json"
         manifest.write_bytes(
             make_manifest(
                 radiograph,
                 paths["BED_1785646321389.npz"],
                 paths["BED_1785642964117.npz"],
+                conversion_job_id,
             )
         )
         key = os.environ["MPIPS_API_KEY"]
+        evidence.set("BED_REQUEST_STARTED", "YES")
+        request_started = time.monotonic()
         with (
             httpx.Client(timeout=360) as client,
             paths["BED_1785646321389.npz"].open("rb") as rad,
@@ -462,12 +569,23 @@ def main() -> int:
                     "manifest": ("manifest.json", form, "application/json"),
                 },
             )
+        evidence.set("BED_REQUEST_SECONDS", f"{time.monotonic() - request_started:.3f}")
+        evidence.set("BED_HTTP_STATUS", response.status_code)
+        evidence.set(
+            "BED_CONTENT_TYPE",
+            response.headers.get("content-type", "").split(";", 1)[0],
+        )
         if (
             response.status_code != 200
             or response.headers.get("content-type", "").split(";")[0]
             != "application/dicom"
         ):
-            raise VerificationError(f"BED API failed with HTTP {response.status_code}")
+            detail = extract_api_detail(response.content)
+            if detail:
+                evidence.set("BED_API_DETAIL", detail)
+            if response.status_code == 200:
+                raise VerificationError("BED_DICOM_CONTENT_TYPE_INVALID")
+            raise VerificationError(classify_http_failure(response.status_code, detail))
         dicom_path = temporary / "result.dcm"
         dicom_path.write_bytes(response.content)
         dataset = pydicom.dcmread(dicom_path)
@@ -482,7 +600,7 @@ def main() -> int:
             or not hasattr(dataset, "PixelData")
             or has_unexpected_private_tags(dataset)
         ):
-            raise VerificationError("DICOM structure failed")
+            raise VerificationError("BED_DICOM_INVALID")
         for name in (
             "StudyInstanceUID",
             "SeriesInstanceUID",
@@ -490,53 +608,19 @@ def main() -> int:
             "SOPClassUID",
         ):
             if not pydicom.uid.UID(str(getattr(dataset, name, ""))).is_valid:
-                raise VerificationError(f"invalid DICOM {name}")
+                raise VerificationError("BED_DICOM_INVALID")
         metrics = calculate_metrics(dataset.pixel_array)
-        after = CalibrationSnapshot.from_directory(calibration.directory)
-        if (
-            calibration.metadata_sha256 != after.metadata_sha256
-            or calibration.remap_sha256 != after.remap_sha256
-        ):
-            raise VerificationError(
-                "PRODUCTION_CALIBRATION_MUTATED_DURING_VERIFICATION"
-            )
+        verify_calibration_unchanged(calibration, evidence)
         classification = classify_image_integrity(metrics)
+        evidence.set("BED_ZERO_RATIO", f"{metrics.zero_ratio:.10f}")
+        evidence.set("BED_NONZERO_RATIO", f"{metrics.nonzero_ratio:.10f}")
+        evidence.set("BED_SUPPORT_WIDTH_RATIO", f"{metrics.support_width_ratio:.6f}")
+        evidence.set("BED_SUPPORT_HEIGHT_RATIO", f"{metrics.support_height_ratio:.6f}")
+        record_after_health(evidence)
         if classification != "REAL_BED_PRODUCTION_IMAGE_INTEGRITY_PASS":
-            write_summary(
-                classification, [f"BED zero ratio: {metrics.zero_ratio:.10f}"]
-            )
+            write_summary(classification, evidence.lines())
             return 1
-        write_summary(
-            classification,
-            [
-                f"Runtime SHA: {provenance.runtime_sha}",
-                f"API image: {provenance.api_image}",
-                f"Worker image: {provenance.worker_image}",
-                "Health HTTP: 200",
-                "Radiograph integrity: PASS",
-                "Gain integrity: PASS",
-                "BED compatibility: PASS",
-                f"BED calibration canvas: {calibration.canvas_mode}",
-                f"BED calibration source shape: {calibration.image_shape}",
-                f"BED calibration remap shape: {calibration.remap_shape}",
-                "BED HTTP status: 200",
-                "BED content type: application/dicom",
-                f"BED shape: {metrics.shape}",
-                f"BED dtype: {metrics.dtype}",
-                f"BED min/max: {metrics.minimum}/{metrics.maximum}",
-                f"BED mean: {metrics.mean:.6f}",
-                f"BED p01/p05/p50/p95/p99: {metrics.p01:.6f}/"
-                f"{metrics.p05:.6f}/{metrics.p50:.6f}/{metrics.p95:.6f}/"
-                f"{metrics.p99:.6f}",
-                f"BED zero ratio: {metrics.zero_ratio:.10f}",
-                f"BED nonzero ratio: {metrics.nonzero_ratio:.10f}",
-                f"BED nonzero bbox: {metrics.nonzero_bbox}",
-                f"BED support: {metrics.support_width_ratio:.6f} x "
-                f"{metrics.support_height_ratio:.6f}",
-                f"BED calibration: {calibration.fingerprint}",
-                "BED_CALIBRATION_MUTATED=NO",
-            ],
-        )
+        write_summary(classification, evidence.lines())
         return 0
     except (
         KeyError,
@@ -546,22 +630,58 @@ def main() -> int:
         RuntimeProvenanceError,
         httpx.HTTPError,
     ) as exc:
-        if isinstance(exc, RuntimeProvenanceError):
+        if "request_started" in locals():
+            evidence.set(
+                "BED_REQUEST_SECONDS",
+                f"{time.monotonic() - request_started:.3f}",
+            )
+        message = str(exc)
+        if isinstance(exc, httpx.HTTPError):
+            classification = classify_http_failure(None, None, exc)
+        elif isinstance(exc, RuntimeProvenanceError):
             classification = "PRODUCTION_RUNTIME_PROVENANCE_FAILED"
-        elif str(exc).startswith("TEST_DATA_DOWNLOAD_BLOCKED"):
+        elif message.startswith("TEST_DATA_DOWNLOAD_BLOCKED"):
             classification = "TEST_DATA_DOWNLOAD_BLOCKED"
-        elif "gain" in str(exc).lower() or "compatibility" in str(exc).lower():
+        elif message in {
+            "BED_API_AUTH_FAILED",
+            "BED_API_UPLOAD_LIMIT_FAILED",
+            "BED_API_CONCURRENCY_LIMIT",
+            "BED_CONVERSION_WORKER_FAILURE",
+            "BED_CONVERSION_TIMEOUT",
+            "BED_MANIFEST_SCHEMA_INVALID",
+            "BED_INPUT_OR_CALIBRATION_VALIDATION_FAILED",
+            "PRODUCTION_CALIBRATION_MUTATED_DURING_VERIFICATION",
+        }:
+            classification = message
+        elif "gain" in message.lower() or "compatibility" in message.lower():
             classification = "BED_INPUT_PAIR_INCOMPATIBLE"
-        elif "calibration" in str(exc).lower():
+        elif "calibration" in message.lower():
             classification = "BED_CALIBRATION_NOT_AVAILABLE"
-        elif "DICOM" in str(exc):
+        elif "DICOM" in message:
             classification = "BED_DICOM_INVALID"
         else:
             classification = "BED_API_FAILED"
-        write_summary(classification)
+        if calibration is not None:
+            try:
+                verify_calibration_unchanged(calibration, evidence)
+            except VerificationError:
+                classification = "PRODUCTION_CALIBRATION_MUTATED_DURING_VERIFICATION"
+        record_after_health(evidence)
+        write_summary(classification, evidence.lines())
         return 1
-    except Exception:
-        write_summary("BED_API_FAILED")
+    except Exception as exc:
+        if "request_started" in locals():
+            evidence.set(
+                "BED_REQUEST_SECONDS",
+                f"{time.monotonic() - request_started:.3f}",
+            )
+        if calibration is not None:
+            try:
+                verify_calibration_unchanged(calibration, evidence)
+            except VerificationError:
+                evidence.set("BED_CALIBRATION_MUTATED", "UNKNOWN")
+        record_after_health(evidence)
+        write_summary("BED_API_FAILED", evidence.lines())
         return 1
     finally:
         shutil.rmtree(temporary, ignore_errors=True)

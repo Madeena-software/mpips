@@ -34,3 +34,38 @@ jobs:
         run: |
           uv run --with "gdown==6.1.0" \
             python scripts/verify_production_real_bed_image_integrity.py
+
+      - name: Show sanitized production conversion evidence on failure
+        if: failure()
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          api_container="$(docker ps \
+            --filter label=com.docker.compose.project=mpips-internal-beta \
+            --filter label=com.docker.compose.service=mpips-api \
+            --filter status=running \
+            --format '{{.ID}}' | head -n 1)"
+          if [ -z "$api_container" ]; then
+            echo "API_CONTAINER_RUNNING=NO"
+          else
+            if [ -n "${MPIPS_VERIFY_JOB_ID:-}" ] && [ -f /var/www/mpips-runtime/launcher.log ]; then
+              echo "LAUNCHER_JOB_EVIDENCE:"
+              tail -n 500 /var/www/mpips-runtime/launcher.log |
+                grep -F -- "$MPIPS_VERIFY_JOB_ID" | tail -n 40 || true
+            else
+              echo "LAUNCHER_JOB_EVIDENCE=NOT_AVAILABLE"
+            fi
+            echo "API_LOG_EVIDENCE:"
+            docker logs --since 15m "$api_container" 2>&1 |
+              grep -E '/v1/radiographs/dicom|ERROR|CONVERSION|504|500|422' |
+              tail -n 80 || true
+            echo "API_CONTAINER_RUNNING=YES"
+          fi
+          if [ -S /var/www/mpips-runtime/launcher/launcher.sock ]; then
+            echo "LAUNCHER_SOCKET=AVAILABLE"
+          else
+            echo "LAUNCHER_SOCKET=UNAVAILABLE"
+          fi
+          health_status="$(curl -sS -o /dev/null -w '%{http_code}' \
+            --max-time 10 http://127.0.0.1:8014/health || true)"
+          echo "HEALTH_AFTER_BED_HTTP=${health_status:-UNAVAILABLE}"

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
+import httpx
 from mpips.api.schemas.dicom import MHCSManifest
 
 from scripts.verify_production_real_bed_image_integrity import (
@@ -15,7 +16,10 @@ from scripts.verify_production_real_bed_image_integrity import (
     VerificationError,
     calculate_metrics,
     classify_image_integrity,
+    classify_http_failure,
     discover_api_container,
+    extract_api_detail,
+    FailureEvidence,
     evaluate_image_integrity,
     has_unexpected_private_tags,
     make_manifest,
@@ -226,6 +230,51 @@ def test_image_classification_reports_pass_only_after_all_gates() -> None:
     assert classify_image_integrity(calculate_metrics(image)) == (
         "REAL_BED_PRODUCTION_IMAGE_INTEGRITY_PASS"
     )
+
+
+@pytest.mark.parametrize(
+    ("status", "detail", "expected"),
+    [
+        (401, None, "BED_API_AUTH_FAILED"),
+        (413, None, "BED_API_UPLOAD_LIMIT_FAILED"),
+        (422, "MANIFEST_SCHEMA_INVALID", "BED_MANIFEST_SCHEMA_INVALID"),
+        (422, "NPZ_VALIDATION_ERROR", "BED_INPUT_OR_CALIBRATION_VALIDATION_FAILED"),
+        (429, None, "BED_API_CONCURRENCY_LIMIT"),
+        (500, None, "BED_CONVERSION_WORKER_FAILURE"),
+        (504, None, "BED_CONVERSION_TIMEOUT"),
+        (418, "TEAPOT", "BED_API_FAILED"),
+    ],
+)
+def test_http_failure_classification(
+    status: int, detail: str | None, expected: str
+) -> None:
+    assert classify_http_failure(status, detail) == expected
+
+
+def test_timeout_failure_classification() -> None:
+    assert classify_http_failure(None, None, httpx.ReadTimeout("read")) == (
+        "BED_CLIENT_READ_TIMEOUT"
+    )
+
+
+def test_sanitized_api_detail_extraction() -> None:
+    assert extract_api_detail(b'{"detail":"CONVERSION_TIMEOUT","secret":"no"}') == (
+        "CONVERSION_TIMEOUT"
+    )
+    assert extract_api_detail(b"not-json") is None
+
+
+def test_failure_evidence_retains_completed_stages() -> None:
+    evidence = FailureEvidence()
+    evidence.set("RUNTIME_PROVENANCE", "PASS")
+    evidence.set("RADIOGRAPH_DOWNLOAD", "PASS")
+    evidence.set("BED_REQUEST_STARTED", "YES")
+
+    summary = evidence.lines()
+
+    assert "RUNTIME_PROVENANCE=PASS" in summary
+    assert "RADIOGRAPH_DOWNLOAD=PASS" in summary
+    assert "BED_REQUEST_STARTED=YES" in summary
 
 
 def test_calibration_snapshot_hash_mismatch_is_detectable(tmp_path: Path) -> None:
