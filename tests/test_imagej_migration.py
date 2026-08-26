@@ -155,14 +155,48 @@ def test_imagej_wrappers_preserve_baseline_outputs() -> None:
 def test_imagej_uint16_stretch_and_equalization_match_accepted_references() -> None:
     image = (np.arange(25, dtype=np.uint16) * 257).reshape(5, 5)
 
-    assert hashlib.sha256(
-        processing.imagej_stretch(image, 0.35).tobytes()
-    ).hexdigest() == (
+    stretched = processing.imagej_stretch(image, 0.35)
+    assert stretched.shape == image.shape
+    assert stretched.dtype == image.dtype
+    assert hashlib.sha256(stretched.tobytes()).hexdigest() == (
         "776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd"
     )
-    assert hashlib.sha256(processing.imagej_equalize(image).tobytes()).hexdigest() == (
-        "a280d4311f7a210352f54b41db7356224d6a5334d5555632a319fd248b6964dd"
-    )
-    assert hashlib.sha256(
-        processing.imagej_equalize(image, classic=True).tobytes()
-    ).hexdigest() == "a280d4311f7a210352f54b41db7356224d6a5334d5555632a319fd248b6964dd"
+
+
+@pytest.mark.parametrize(
+    ("classic", "dtype", "expected_hash"),
+    (
+        (
+            False,
+            np.uint8,
+            "37c75a82822033dec9f4cc9c504a46664d0a816a648953be4bb054890ffca3f7",
+        ),
+        (
+            True,
+            np.uint8,
+            "3ed1dd4695afb31ff8fb96a14efbe8f22e9b87ff06d5b785f73f1c3c1b9f9e55",
+        ),
+        (
+            False,
+            np.uint16,
+            "172fdc9ad53f216f5c4c41e6de9582abcc5a73217a9b0e6ab3ab616effe695fb",
+        ),
+        (
+            True,
+            np.uint16,
+            "577694133e8f9225f5b45cc07a9f1bd81caab768a70f76c279cd151d19cdf2d8",
+        ),
+    ),
+)
+def test_imagej_equalization_sparse_fixture_matches_accepted_references(
+    classic: bool, dtype: type[np.generic], expected_hash: str
+) -> None:
+    values = np.asarray([0] * 20 + [17, 17, 200, 255, 255], dtype=np.uint16)
+    image = (
+        values * 257 if dtype == np.uint16 else values.astype(np.uint8)
+    ).reshape(5, 5)
+    output = processing.imagej_equalize(image, classic=classic)
+
+    assert output.shape == image.shape
+    assert output.dtype == image.dtype
+    assert hashlib.sha256(output.tobytes()).hexdigest() == expected_hash

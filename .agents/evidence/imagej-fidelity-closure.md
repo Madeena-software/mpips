@@ -53,16 +53,21 @@ uint8/uint16 parity for kernels 3x3, 5x5, and 7x7, repeated passes, edges,
 corners, interiors, PLUS/X/center selection, and the radius-2 wrapper. It was
 not modified.
 
-The only sentinel gap was uint16 reference-backed coverage for Contrast
-Stretch and weighted/classic Equalization. The existing
-`tests/test_imagej_migration.py` was minimally extended with one deterministic
-`ramp * 257` fixture and exact accepted-reference output hashes:
+The only sentinel gaps were uint16 reference-backed coverage for Contrast
+Stretch and uint8 coverage for classic Equalization. The existing
+`tests/test_imagej_migration.py` was minimally extended with the accepted I-4A
+`sparse` fixture (`[0] * 20 + [17, 17, 200, 255, 255]`, scaled by 257 for
+uint16) and exact accepted-reference output hashes. The sparse fixture
+discriminates weighted from classic Equalization; their hashes differ for
+both dtypes. Every new sentinel also asserts shape and dtype.
 
 | Operation | Dtype | Fixture/parameters | Reference-backed output SHA256 |
 |---|---|---|---|
 | Contrast Stretch | uint16 | ramp, `saturated_pixels=0.35` | `776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd` |
-| Weighted Equalization | uint16 | ramp | `a280d4311f7a210352f54b41db7356224d6a5334d5555632a319fd248b6964dd` |
-| Classic Equalization | uint16 | ramp | `a280d4311f7a210352f54b41db7356224d6a5334d5555632a319fd248b6964dd` |
+| Weighted Equalization | uint8 | sparse | `37c75a82822033dec9f4cc9c504a46664d0a816a648953be4bb054890ffca3f7` |
+| Classic Equalization | uint8 | sparse | `3ed1dd4695afb31ff8fb96a14efbe8f22e9b87ff06d5b785f73f1c3c1b9f9e55` |
+| Weighted Equalization | uint16 | sparse × 257 | `172fdc9ad53f216f5c4c41e6de9582abcc5a73217a9b0e6ab3ab616effe695fb` |
+| Classic Equalization | uint16 | sparse × 257 | `577694133e8f9225f5b45cc07a9f1bd81caab768a70f76c279cd151d19cdf2d8` |
 
 Observed local verification:
 
