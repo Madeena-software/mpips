@@ -320,7 +320,7 @@ def _first_collapse_stage(stages: dict[str, dict[str, object]]) -> str:
         "CLAHE",
         "MEDIAN",
         "REMAP_MASK",
-        "DICOM",
+        "FINAL_IMAGE",
     ):
         metrics = stages.get(name)
         if metrics and (
@@ -331,7 +331,12 @@ def _first_collapse_stage(stages: dict[str, dict[str, object]]) -> str:
 
 
 def _case(
-    data_dir: Path, neural_dir: Path, case: int, mode: str, output: Path
+    data_dir: Path,
+    neural_dir: Path,
+    case: int,
+    mode: str,
+    output: Path,
+    threshold_mode: str = "bypass",
 ) -> dict[str, object]:
     manifest = json.loads(MANIFEST.read_text())
     item = next(value for value in manifest["radiographs"] if value["case"] == case)
@@ -378,9 +383,10 @@ def _case(
         map_x=map_x,
         map_y=map_y,
         stage_observer=stages.__setitem__,
+        threshold_method_override=("auto" if threshold_mode == "auto" else None),
     )
     engine._report_stage(stages.__setitem__, "SOURCE_PROCESSED_REFERENCE", reference)
-    mode_dir = output / f"case-{case}" / mode.lower().replace("_", "-")
+    mode_dir = output / f"case-{case}" / threshold_mode / mode.lower().replace("_", "-")
     mode_dir.mkdir(parents=True, exist_ok=True)
     _preview(mode_dir / "final-preview.png", final)
     tiff, adapter, dcm = (
@@ -397,6 +403,7 @@ def _case(
     metrics: dict[str, object] = {
         "case": case,
         "mode": mode,
+        "threshold_mode": threshold_mode,
         "source_filename": item["filename"],
         "raw_shape": list(raw.shape),
         "gain_corrected_shape": list(corrected.shape),
@@ -411,6 +418,15 @@ def _case(
         **geometry,
         "unexpected_border_ratio": geometry["zero_pixel_ratio"],
         "stage_metrics": stages,
+        "dicom_structure_metrics": {
+            "shape": [int(dataset.Rows), int(dataset.Columns)],
+            "dtype": str(dataset.pixel_array.dtype),
+            "valid": bool(
+                int(dataset.BitsAllocated) == 16
+                and int(dataset.PixelRepresentation) == 0
+                and bool(dataset.PixelData)
+            ),
+        },
         "first_geometry_failure_stage": _first_collapse_stage(stages),
         "pipeline_result": "FAIL" if failed else "PASS",
         "calibration_fingerprint": (

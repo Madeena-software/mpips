@@ -940,8 +940,12 @@ def _report_stage(stage_observer, name, image):
     })
 
 
-def threshold_method_for_detector(detector_type, configured_method):
+def threshold_method_for_detector(
+    detector_type, configured_method, diagnostic_override=None
+):
     """Disable destructive threshold separation for TRX; preserve BED."""
+    if diagnostic_override is not None:
+        return diagnostic_override
     return "none" if str(detector_type).upper() == "TRX" else configured_method
 
 
@@ -954,6 +958,7 @@ def process_single_image(
     map_x=None,
     map_y=None,
     stage_observer=None,
+    threshold_method_override=None,
 ):
     """
     Process a single image through the complete pipeline.
@@ -1148,7 +1153,9 @@ def process_single_image(
 
     # Step 6: Auto Thresholding (optional)
     threshold_method = threshold_method_for_detector(
-        detector_type, CONFIG.get("THRESHOLD_METHOD", "auto").lower()
+        detector_type,
+        CONFIG.get("THRESHOLD_METHOD", "auto").lower(),
+        threshold_method_override,
     )
     if threshold_method in ["none", "off", "skip", "no"]:
         print("  [6/10] Thresholding skipped (THRESHOLD_METHOD set to 'none'/'off')")
@@ -1363,7 +1370,7 @@ def process_single_image(
     # Save result
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     cv2.imwrite(output_path, final_result_uint16)
-    _report_stage(stage_observer, "DICOM", final_result_uint16)
+    _report_stage(stage_observer, "FINAL_IMAGE", final_result_uint16)
     print(f"  ✓ Saved to: {output_path}")
 
     return True

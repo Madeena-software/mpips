@@ -65,6 +65,8 @@ def test_pipeline_reports_observed_stage_metrics(tmp_path):
     assert "PRE_THRESHOLD" in observed
     assert observed["PRE_THRESHOLD"]["shape"] == [8, 8]
     assert "exact_zero_ratio" in observed["PRE_THRESHOLD"]
+    assert "FINAL_IMAGE" in observed
+    assert "DICOM" not in observed
 
 
 def test_first_collapse_stage_is_not_dicom_when_invert_collapses():
@@ -79,3 +81,4 @@ def test_first_collapse_stage_is_not_dicom_when_invert_collapses():
 def test_trx_bypasses_destructive_threshold_separation():
     assert pipeline.threshold_method_for_detector("TRX", "auto") == "none"
     assert pipeline.threshold_method_for_detector("BED", "auto") == "auto"
+    assert pipeline.threshold_method_for_detector("TRX", "auto", "auto") == "auto"
