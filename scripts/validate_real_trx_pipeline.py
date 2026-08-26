@@ -33,7 +33,7 @@ MODES = (
     "NO_REMAP",
     "IDENTITY_REMAP",
     "HISTORICAL_789ADFF_REMAP",
-    "NEW_606DB560_REMAP",
+    "REVIEWED_EXPANDED_TRX_REMAP",
 )
 SUPPORT_DIR = Path(
     "research/phantom-gotri-thorax/output/neural_model/"
@@ -433,8 +433,8 @@ def _case(
             HISTORICAL_FINGERPRINT
             if mode == "HISTORICAL_789ADFF_REMAP"
             else (
-                "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
-                if mode == "NEW_606DB560_REMAP"
+                "1979a66b7d83bc0f14c4ebdf7c8ad2e37b6f16d7ead3e1c089381af3e7dd1492"
+                if mode == "REVIEWED_EXPANDED_TRX_REMAP"
                 else None
             )
         ),
@@ -444,7 +444,7 @@ def _case(
         "FINAL_DYNAMIC_RANGE": geometry["final_dynamic_range"],
         "FINAL_PERCENTILES": geometry["final_percentiles"],
     }
-    if mode in ("HISTORICAL_789ADFF_REMAP", "NEW_606DB560_REMAP"):
+    if mode in ("HISTORICAL_789ADFF_REMAP", "REVIEWED_EXPANDED_TRX_REMAP"):
         valid_fraction = float(
             np.mean(
                 (map_x >= 0)
@@ -504,7 +504,9 @@ def run_local_real_trx_pipeline(
             }
             for case in (1, 2, 3)
         }
-    current = [cases[f"case-{case}"]["NEW_606DB560_REMAP"] for case in (1, 2, 3)]
+    current = [
+        cases[f"case-{case}"]["REVIEWED_EXPANDED_TRX_REMAP"] for case in (1, 2, 3)
+    ]
     passthrough = all(
         cases[f"case-{case}"][mode]["pipeline_result"] == "PASS"
         for case in (1, 2, 3)

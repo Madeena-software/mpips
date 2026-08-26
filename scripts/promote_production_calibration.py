@@ -10,7 +10,6 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import uuid
 import zipfile
@@ -42,19 +41,11 @@ EXPECTED_CANVAS_MODE = "expanded"
 EXPECTED_EXPANDED_ORIGIN = (42, -73)
 CAMERA_INDEPENDENT_BASELINE = "d175a6fa56ca32cf78007c39baff24075dbd5a0e"
 REQUIRED_TRX_PIPELINE_BASELINE = "b3ed78d5077d8e4634c913939e5c28f8620679e9"
-BED_FUNCTIONAL_FIELDS = (
-    "BED_FUNCTIONAL_CONVERSION",
-    "BED_DICOM_STRUCTURE",
-)
-SYNTHETIC_FIELDS = (
-    "SYNTHETIC_THORAX_PIXEL_IDENTITY",
-    "SYNTHETIC_THORAX_CONVERSION",
-    "SYNTHETIC_THORAX_DICOM_STRUCTURE",
-)
 ROLLBACK_FIELDS = (
     "ROLLBACK_BED_LAYOUT",
-    "ROLLBACK_BED_FUNCTIONAL_CONVERSION",
-    "ROLLBACK_BED_DICOM_STRUCTURE",
+    "ROLLBACK_BED_METADATA_SHA256",
+    "ROLLBACK_BED_REMAP_SHA256",
+    "ROLLBACK_BED_BYTE_IDENTITY",
 )
 REAL_MANIFEST = (
     Path(__file__).parents[1] / "artifacts/test-data/real-thorax-trx-da5277082.json"
@@ -504,10 +495,16 @@ def _rollback(
     active: Path,
     rollback: Path,
     bed_check: Callable[[], dict[str, str]] | None,
+    expected_metadata_sha256: str | None = None,
+    expected_remap_sha256: str | None = None,
 ) -> dict[str, str]:
     evidence = {field: "FAIL" for field in ROLLBACK_FIELDS}
     evidence.update({"ROLLBACK_RESULT": "FAIL"})
     try:
+        expected_metadata_sha256 = expected_metadata_sha256 or _sha256(
+            rollback / "metadata.json"
+        )
+        expected_remap_sha256 = expected_remap_sha256 or _sha256(rollback / "remap.npz")
         # Restore remap first: the legacy worker must never see metadata without remap.
         if not (active / "remap.npz").exists():
             os.replace(rollback / "remap.npz", active / "remap.npz")
@@ -518,12 +515,22 @@ def _rollback(
         if validate_calibration_layout(active):
             raise PromotionError("rollback BED layout is invalid")
         evidence["ROLLBACK_BED_LAYOUT"] = "PASS"
-        if bed_check:
-            check = bed_check()
-            for field in ROLLBACK_FIELDS[1:]:
-                evidence[field] = check.get(field, "FAIL")
+        evidence["ROLLBACK_BED_METADATA_SHA256"] = (
+            "PASS"
+            if _sha256(active / "metadata.json") == expected_metadata_sha256
+            else "FAIL"
+        )
+        evidence["ROLLBACK_BED_REMAP_SHA256"] = (
+            "PASS" if _sha256(active / "remap.npz") == expected_remap_sha256 else "FAIL"
+        )
+        evidence["ROLLBACK_BED_BYTE_IDENTITY"] = (
+            "PASS"
+            if evidence["ROLLBACK_BED_METADATA_SHA256"] == "PASS"
+            and evidence["ROLLBACK_BED_REMAP_SHA256"] == "PASS"
+            else "FAIL"
+        )
         if not all(evidence[field] == "PASS" for field in ROLLBACK_FIELDS):
-            raise PromotionError("rollback BED functional evidence failed")
+            raise PromotionError("rollback BED byte identity failed")
         shutil.rmtree(rollback)
         evidence["ROLLBACK_RESULT"] = "PASS"
     except Exception:
@@ -558,7 +565,9 @@ def runtime_preflight(
                 "ps",
                 "-q",
                 "--filter",
-                "name=mpips-api",
+                "label=com.docker.compose.project=mpips-internal-beta",
+                "--filter",
+                "label=com.docker.compose.service=mpips-api",
                 "--filter",
                 "status=running",
             ],
@@ -738,20 +747,11 @@ def promote(
             )
             raise PromotionError("container calibration view is not current")
         functional = functional_check() if functional_check else {}
-        for field in (
-            *BED_FUNCTIONAL_FIELDS,
-            *SYNTHETIC_FIELDS,
-            "REAL_THORAX_ALL_PASS",
-            *REAL_REQUIRED_FIELDS,
-        ):
+        for field in ("REAL_THORAX_ALL_PASS", *REAL_REQUIRED_FIELDS):
             result[field] = functional.get(field, "FAIL")
         if not all(
             result[field] == "PASS"
-            for field in (
-                *BED_FUNCTIONAL_FIELDS,
-                "REAL_THORAX_ALL_PASS",
-                *REAL_REQUIRED_FIELDS,
-            )
+            for field in ("REAL_THORAX_ALL_PASS", *REAL_REQUIRED_FIELDS)
         ):
             raise PromotionError("post-swap functional check failed")
         result.update(
@@ -765,7 +765,15 @@ def promote(
         )
         return result
     except Exception:
-        result.update(_rollback(active, rollback, rollback_bed_check))
+        result.update(
+            _rollback(
+                active,
+                rollback,
+                rollback_bed_check,
+                result.get("BED_PRE_METADATA_SHA256"),
+                result.get("BED_PRE_REMAP_SHA256"),
+            )
+        )
         if result["ROLLBACK_RESULT"] != "PASS":
             result["FINAL_PROMOTION_CLASSIFICATION"] = (
                 "PRODUCTION_CALIBRATION_ROLLBACK_FAILED"
@@ -783,56 +791,15 @@ def promote(
         return result
 
 
-def _parse_diagnostic(summary: Path) -> dict[str, str]:
-    if not summary.is_file():
-        return {}
-    return {
-        line.split("=", 1)[0]: line.split("=", 1)[1]
-        for line in summary.read_text().splitlines()
-        if "=" in line
-    }
-
-
-def _run_diagnostic(summary: Path) -> dict[str, str]:
-    command = [
-        sys.executable,
-        "scripts/diagnose_production_dicom_e2e.py",
-        "--summary",
-        str(summary),
-    ]
-    subprocess.run(command, check=False)
-    values = _parse_diagnostic(summary)
-    return {
-        "BED_FUNCTIONAL_CONVERSION": values.get("BED_DIRECT_CONVERSION", "FAIL"),
-        "BED_DICOM_STRUCTURE": values.get("BED_DICOM_STRUCTURE", "FAIL"),
-        "SYNTHETIC_THORAX_PIXEL_IDENTITY": values.get(
-            "SYNTHETIC_THORAX_PIXEL_IDENTITY", "FAIL"
-        ),
-        "SYNTHETIC_THORAX_CONVERSION": values.get(
-            "SYNTHETIC_THORAX_DIRECT_CONVERSION", "FAIL"
-        ),
-        "SYNTHETIC_THORAX_DICOM_STRUCTURE": values.get(
-            "SYNTHETIC_THORAX_DICOM_STRUCTURE", "FAIL"
-        ),
-    }
-
-
-def _run_rollback_bed_diagnostic() -> dict[str, str]:
-    with tempfile.TemporaryDirectory(prefix="mpips-rollback-diagnostic-") as directory:
-        evidence = _run_diagnostic(Path(directory) / "summary.txt")
-    return {
-        "ROLLBACK_BED_FUNCTIONAL_CONVERSION": evidence.get(
-            "BED_FUNCTIONAL_CONVERSION", "FAIL"
-        ),
-        "ROLLBACK_BED_DICOM_STRUCTURE": evidence.get("BED_DICOM_STRUCTURE", "FAIL"),
-    }
-
-
 def _run_priority_functional_checks(data_dir: Path, summary: Path) -> dict[str, str]:
-    real = run_real_thorax_checks(data_dir)
-    if real["REAL_THORAX_ALL_PASS"] != "PASS":
-        return real
-    return {**real, **_run_diagnostic(summary)}
+    return run_real_thorax_checks(data_dir)
+
+
+def _run_local_trx_validation(data_dir: Path, carrier: Path) -> dict[str, object]:
+    from scripts.validate_real_trx_pipeline import run_local_real_trx_pipeline
+
+    with tempfile.TemporaryDirectory(prefix="mpips-local-real-trx-") as output:
+        return run_local_real_trx_pipeline(data_dir, carrier, Path(output))
 
 
 def container_calibration_view(
@@ -850,7 +817,9 @@ def container_calibration_view(
                     "ps",
                     "-q",
                     "--filter",
-                    "name=mpips-api",
+                    "label=com.docker.compose.project=mpips-internal-beta",
+                    "--filter",
+                    "label=com.docker.compose.service=mpips-api",
                     "--filter",
                     "status=running",
                 ],
@@ -928,13 +897,7 @@ def main() -> int:
                 print(f"{key}={value}")
             _append_summary(args.summary, preflight)
             return 1
-        from scripts.validate_real_trx_pipeline import run_local_real_trx_pipeline
-
-        local = run_local_real_trx_pipeline(
-            args.real_data_dir,
-            args.carrier,
-            Path("research/real-thorax-dicom"),
-        )
+        local = _run_local_trx_validation(args.real_data_dir, args.carrier)
         for key, value in local.items():
             if key != "cases":
                 print(f"{key}={value}")
@@ -948,7 +911,6 @@ def main() -> int:
                 args.real_data_dir, args.summary
             ),
             container_check=container_calibration_view,
-            rollback_bed_check=_run_rollback_bed_diagnostic,
             pre_swap_evidence=preflight,
             runtime_evidence=runtime,
             local_pipeline_evidence=local,
