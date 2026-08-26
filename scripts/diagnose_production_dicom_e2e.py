@@ -514,8 +514,11 @@ def main() -> int:
             if not os.environ.get("MPIPS_API_KEY", "").strip():
                 raise DiagnosticFailure("DIAGNOSTIC_INTERNAL_FAILURE")
             rad, gain = root / FILES[RADIOGRAPH_ID], root / FILES[GAIN_ID]
-            _download(RADIOGRAPH_ID, rad)
-            _download(GAIN_ID, gain)
+            try:
+                _download(RADIOGRAPH_ID, rad)
+                _download(GAIN_ID, gain)
+            except Exception:
+                raise DiagnosticFailure(map_failure("download"))
             rm, gm = _metadata(rad), _metadata(gain)
             compatible = (
                 rm["gainid"] == gm["id"]
