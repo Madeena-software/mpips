@@ -40,8 +40,10 @@ def _scalar(data: Any, key: str, *, required: bool = True) -> Any:
     return value.item()
 
 
-def _mapping(data: Any, key: str) -> dict[str, Any]:
-    value = _scalar(data, key)
+def _mapping(data: Any, key: str, *, required: bool = True) -> dict[str, Any]:
+    value = _scalar(data, key, required=required)
+    if value is None:
+        return {}
     if not isinstance(value, dict):
         raise NPZValidationError(f"NPZ key {key!r} must contain a dictionary")
     return value
@@ -90,7 +92,7 @@ def load_gain_catalog(paths: Iterable[str | Path]) -> GainCatalog:
                         f"Gain dark/flat shapes differ: {dark.shape} != {flat.shape}"
                     )
                 xray_params = _mapping(data, "xrayparams")
-                camera_params = _mapping(data, "cameraparams")
+                camera_params = _mapping(data, "cameraparams", required=False)
                 records[gain_id] = GainRecord(
                     id=gain_id,
                     path=path,
@@ -121,7 +123,7 @@ def load_radiograph(path: str | Path) -> dict[str, Any]:
                 "id": str(_scalar(data, "id")),
                 "gain_id": str(gain_id),
                 "raw": _image(data, "rawimage").copy(),
-                "camera_params": _mapping(data, "cameraparams"),
+                "camera_params": _mapping(data, "cameraparams", required=False),
                 "detector_mode": detector_mode(xray_params),
             }
     except (OSError, ValueError) as exc:

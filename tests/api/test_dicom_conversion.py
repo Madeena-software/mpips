@@ -557,8 +557,7 @@ def test_expanded_canvas_remap_shape_accepted(tmp_path: Path) -> None:
     assert Path(tmp_path / "output.tiff").exists()
 
 
-def test_detector_and_camera_mismatch_fails(tmp_path: Path) -> None:
-    # Test A: detector mode mismatch
+def test_detector_mode_mismatch_fails(tmp_path: Path) -> None:
     cal_dir_det = create_test_calibration_artifact(
         tmp_path / "cal_det", detector_mode="TRX"
     )
@@ -584,20 +583,93 @@ def test_detector_and_camera_mismatch_fails(tmp_path: Path) -> None:
     assert res_det["status"] == "failed"
     assert res_det["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
 
-    # Test B: camera serial mismatch
-    cal_dir_cam = create_test_calibration_artifact(
+
+def test_camera_metadata_mismatch_does_not_fail(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(
         tmp_path / "cal_cam", camera_serial="CAM999"
     )
-    args_data["calibration_dir"] = str(cal_dir_cam)
-    args_file_cam = tmp_path / "args_cam.json"
-    args_file_cam.write_text(json.dumps(args_data))
+    r_path, g_path, *_ = generate_test_npzs(str(tmp_path))
+    args_path = tmp_path / "args.json"
+    result_path = tmp_path / "result.json"
+    args_path.write_text(
+        json.dumps(
+            {
+                "radiograph_npz_path": r_path,
+                "gain_npz_path": g_path,
+                "calibration_dir": str(cal_dir),
+                "expected_gain_id": "GAIN-000042",
+                "expected_detector_mode": "BED",
+                "expected_camera_serial": "CAM999",
+                "output_tiff_path": str(tmp_path / "output.tiff"),
+                "result_path": str(result_path),
+            }
+        )
+    )
 
-    with pytest.raises(SystemExit):
-        execute_conversion_worker(str(args_file_cam), str(tmp_path / "result_cam.json"))
+    from mpips.conversion.worker import execute_conversion_worker
 
-    res_cam = json.loads((tmp_path / "result_cam.json").read_text())
-    assert res_cam["status"] == "failed"
-    assert res_cam["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
+    execute_conversion_worker(str(args_path), str(result_path))
+    assert json.loads(result_path.read_text())["status"] == "success"
+
+
+def test_radiograph_and_gain_camera_metadata_mismatch_does_not_fail(
+    tmp_path: Path,
+) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, *_ = generate_test_npzs(str(tmp_path))
+    with np.load(g_path, allow_pickle=True) as data:
+        payload = {key: data[key] for key in data.files}
+    payload["cameraparams"] = np.array({"serialNumber": "CAM999"}, dtype=object)
+    np.savez_compressed(g_path, **payload)
+    args_path = tmp_path / "args.json"
+    result_path = tmp_path / "result.json"
+    args_path.write_text(
+        json.dumps(
+            {
+                "radiograph_npz_path": r_path,
+                "gain_npz_path": g_path,
+                "calibration_dir": str(cal_dir),
+                "expected_gain_id": "GAIN-000042",
+                "expected_detector_mode": "BED",
+                "output_tiff_path": str(tmp_path / "output.tiff"),
+                "result_path": str(result_path),
+            }
+        )
+    )
+
+    from mpips.conversion.worker import execute_conversion_worker
+
+    execute_conversion_worker(str(args_path), str(result_path))
+    assert json.loads(result_path.read_text())["status"] == "success"
+
+
+def test_missing_camera_metadata_does_not_fail(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, *_ = generate_test_npzs(str(tmp_path))
+    for path in (r_path, g_path):
+        with np.load(path, allow_pickle=True) as data:
+            payload = {key: data[key] for key in data.files if key != "cameraparams"}
+        np.savez_compressed(path, **payload)
+    args_path = tmp_path / "args.json"
+    result_path = tmp_path / "result.json"
+    args_path.write_text(
+        json.dumps(
+            {
+                "radiograph_npz_path": r_path,
+                "gain_npz_path": g_path,
+                "calibration_dir": str(cal_dir),
+                "expected_gain_id": "GAIN-000042",
+                "expected_detector_mode": "BED",
+                "output_tiff_path": str(tmp_path / "output.tiff"),
+                "result_path": str(result_path),
+            }
+        )
+    )
+
+    from mpips.conversion.worker import execute_conversion_worker
+
+    execute_conversion_worker(str(args_path), str(result_path))
+    assert json.loads(result_path.read_text())["status"] == "success"
 
 
 def test_calibrated_output_differs_from_uncalibrated_control_fixture() -> None:

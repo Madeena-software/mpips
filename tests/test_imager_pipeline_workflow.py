@@ -189,23 +189,16 @@ def test_calibration_gain_override_is_optional_and_requires_matching_id(
 
 
 @pytest.mark.parametrize(
-    ("shape", "detector_mode", "camera", "message"),
+    ("shape", "detector_mode", "message"),
     [
-        ((7, 8), "BED", None, "shape"),
-        ((8, 8), "TRX", None, "detector mode"),
-        (
-            (8, 8),
-            "BED",
-            {**CAMERA, "cameraSerial": "DIFFERENT"},
-            "camera serial",
-        ),
+        ((7, 8), "BED", "shape"),
+        ((8, 8), "TRX", "detector mode"),
     ],
 )
 def test_calibration_gain_override_validates_compatibility(
     tmp_path: Path,
     shape: tuple[int, int],
     detector_mode: str,
-    camera: dict[str, str] | None,
     message: str,
 ) -> None:
     calibration_path = tmp_path / "calibration.npz"
@@ -215,11 +208,25 @@ def test_calibration_gain_override_validates_compatibility(
         gain_path,
         shape=shape,
         detector_mode=detector_mode,
-        camera=camera,
     )
 
     with pytest.raises(NPZValidationError, match=message):
         _load_calibration_image(calibration_path, gain_path)
+
+
+def test_calibration_gain_camera_mismatch_is_informational(tmp_path: Path) -> None:
+    calibration_path = tmp_path / "calibration.npz"
+    gain_path = tmp_path / "gain.npz"
+    save_calibration(calibration_path)
+    save_gain(gain_path, camera={**CAMERA, "cameraSerial": "DIFFERENT"})
+
+    image, metadata, gain_metadata = _load_calibration_image(
+        calibration_path, gain_path
+    )
+
+    assert image.shape == (8, 8)
+    assert metadata["camera_params"]["cameraSerial"] == "SERIAL-1"
+    assert gain_metadata["id"] == "gain-1"
 
 
 def test_gain_catalog_rejects_duplicate_ids(tmp_path: Path) -> None:
@@ -482,7 +489,7 @@ def test_batch_writes_tiff_and_manifest_and_continues_failures(tmp_path: Path) -
     np.testing.assert_allclose(written, expected, atol=1)
 
 
-def test_batch_records_camera_mismatch_as_failure(tmp_path: Path) -> None:
+def test_batch_accepts_camera_mismatch_as_informational(tmp_path: Path) -> None:
     gain_path = tmp_path / "gain.npz"
     radio_path = tmp_path / "radio.npz"
     save_gain(gain_path)
@@ -497,8 +504,9 @@ def test_batch_records_camera_mismatch_as_failure(tmp_path: Path) -> None:
         tmp_path / "output",
         ImagerPipelineConfig(use_denoise=False),
     )
-    assert result.failed == 1
-    assert "Camera serial mismatch" in (result.items[0].error or "")
+    assert result.succeeded == 1
+    assert result.failed == 0
+    assert result.items[0].output is not None
 
 
 def test_batch_uses_collision_safe_output_names(tmp_path: Path) -> None:

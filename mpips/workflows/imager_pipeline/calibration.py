@@ -61,16 +61,6 @@ def _load_calibration_image(
         )
     if radiograph["detector_mode"] != gain.detector_mode:
         raise NPZValidationError("Calibration and gain detector mode must match")
-    serials = {
-        str(radiograph["camera_params"].get("cameraSerial", "")),
-        str(gain.camera_params.get("cameraSerial", "")),
-    }
-    serials.discard("")
-    if len(serials) > 1:
-        raise NPZValidationError(
-            f"Calibration and gain camera serial must match: {sorted(serials)}"
-        )
-
     corrected = flat_field_correction(
         to_uint16(raw, "calibration raw"),
         to_uint16(gain.dark, "calibration gain dark"),

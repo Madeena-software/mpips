@@ -342,7 +342,6 @@ def run_isolated_dicom_conversion(
             "expected_detector_mode": (
                 manifest.capture.detector_type if manifest.capture else None
             ),
-            "expected_camera_serial": None,
             "max_rows": 16384,
             "max_cols": 16384,
             "max_pixels": 268435456,

@@ -420,6 +420,28 @@ def test_calibration_layout_and_compatibility(tmp_path):
     )
 
 
+def test_calibration_camera_mismatch_is_informational(tmp_path):
+    directory = tmp_path / "TRX"
+    directory.mkdir()
+    np.savez(directory / "remap.npz", map_x=np.zeros((2, 2)), map_y=np.zeros((2, 2)))
+    (directory / "metadata.json").write_text(
+        __import__("json").dumps(
+            {
+                "validated": True,
+                "fingerprint": "fp",
+                "image_shape": [2, 2],
+                "source_metadata": {
+                    "detector_mode": "TRX",
+                    "camera_params": {"serialNumber": "cam-B"},
+                },
+            }
+        )
+    )
+    evidence = find_calibration(tmp_path, "TRX", (2, 2), {"serialNumber": "cam-A"})
+    assert evidence["compatible"] is True
+    assert evidence["camera_compatibility"] == "FAIL"
+
+
 def test_failure_mapping_and_cleanup_safety(tmp_path):
     assert map_failure("download") == "TEST_DATA_DOWNLOAD_BLOCKED"
     assert map_failure("trx_calibration") == "TRX_CALIBRATION_NOT_AVAILABLE"

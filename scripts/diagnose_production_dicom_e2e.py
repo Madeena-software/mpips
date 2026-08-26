@@ -356,11 +356,7 @@ def find_calibration(
             )
     except (OSError, ValueError):
         pass
-    compatible = (
-        tuple(metadata.get("image_shape", ())) == tuple(shape)
-        and remap_ok
-        and camera_result == "PASS"
-    )
+    compatible = tuple(metadata.get("image_shape", ())) == tuple(shape) and remap_ok
     return {
         "present": True,
         "validated": metadata.get("validated") is True,
