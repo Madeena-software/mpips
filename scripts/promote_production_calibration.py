@@ -22,6 +22,12 @@ import pydicom
 from scripts.validate_calibration_layout import validate_calibration_layout
 from mpips.workflows.imager_pipeline.calibration import validate_expanded_canvas_remap
 
+PRODUCTION_PROMOTION_MODES = (
+    "NO_REMAP",
+    "IDENTITY_REMAP",
+    "REVIEWED_EXPANDED_TRX_REMAP",
+)
+
 PROMOTION_MANIFEST = Path(__file__).parents[1] / (
     "artifacts/promotion/trx-calibration-1979a66b7d83bc0f14c4ebdf7c8ad2e37b6f16d7ead3e1"
     "c089381af3e7dd1492.json"
@@ -856,7 +862,9 @@ def _run_local_trx_validation(data_dir: Path, carrier: Path) -> dict[str, object
     from scripts.validate_real_trx_pipeline import run_local_real_trx_pipeline
 
     with tempfile.TemporaryDirectory(prefix="mpips-local-real-trx-") as output:
-        return run_local_real_trx_pipeline(data_dir, carrier, Path(output))
+        return run_local_real_trx_pipeline(
+            data_dir, carrier, Path(output), modes=PRODUCTION_PROMOTION_MODES
+        )
 
 
 def container_calibration_view(

@@ -861,10 +861,11 @@ def test_rollback_does_not_require_bed_e2e(tmp_path: Path) -> None:
 def test_local_real_trx_validation_uses_temporary_output(
     tmp_path: Path, monkeypatch
 ) -> None:
-    observed: dict[str, Path] = {}
+    observed: dict[str, object] = {}
 
-    def fake_pipeline(data_dir, calibration_dir, output):
+    def fake_pipeline(data_dir, calibration_dir, output, *, modes):
         observed["output"] = Path(output)
+        observed["modes"] = modes
         Path(output).mkdir(exist_ok=True)
         (Path(output) / "output.dcm").write_bytes(b"not retained")
         return {"REAL_TRX_LOCAL_PIPELINE": "PASS"}
@@ -875,8 +876,78 @@ def test_local_real_trx_validation_uses_temporary_output(
     )
     result = promotion._run_local_trx_validation(tmp_path, tmp_path / "carrier")
     assert result["REAL_TRX_LOCAL_PIPELINE"] == "PASS"
+    assert observed["modes"] == promotion.PRODUCTION_PROMOTION_MODES
+    assert "HISTORICAL_789ADFF_REMAP" not in observed["modes"]
     assert observed["output"] != ROOT / "research/real-thorax-dicom"
     assert not observed["output"].exists()
+
+
+def test_research_modes_retain_historical_mode() -> None:
+    from scripts import validate_real_trx_pipeline as trx
+
+    assert "HISTORICAL_789ADFF_REMAP" in trx.MODES
+
+
+def test_production_modes_require_reviewed_expanded_mode() -> None:
+    assert "REVIEWED_EXPANDED_TRX_REMAP" in promotion.PRODUCTION_PROMOTION_MODES
+    assert "HISTORICAL_789ADFF_REMAP" not in promotion.PRODUCTION_PROMOTION_MODES
+
+
+def test_local_pipeline_uses_only_requested_modes_without_historical_support(
+    tmp_path: Path, monkeypatch
+) -> None:
+    from scripts import validate_real_trx_pipeline as trx
+
+    calls: list[str] = []
+
+    monkeypatch.setattr(
+        trx,
+        "validate_real_thorax_inputs",
+        lambda data_dir: {"REAL_THORAX_INPUTS_ALL_PASS": "PASS"},
+    )
+    monkeypatch.setattr(trx, "SUPPORT_DIR", tmp_path / "missing-historical-support")
+
+    def fake_case(data_dir, neural_dir, case, mode, output):
+        calls.append(mode)
+        if mode == "HISTORICAL_789ADFF_REMAP":
+            raise AssertionError("production validation requested historical remap")
+        return {"pipeline_result": "PASS", "first_geometry_failure_stage": "NONE"}
+
+    monkeypatch.setattr(trx, "_case", fake_case)
+    result = trx.run_local_real_trx_pipeline(
+        tmp_path / "data",
+        tmp_path / "calibration",
+        tmp_path / "output",
+        modes=promotion.PRODUCTION_PROMOTION_MODES,
+    )
+
+    assert result["REAL_TRX_LOCAL_PIPELINE"] == "PASS"
+    assert calls.count("REVIEWED_EXPANDED_TRX_REMAP") == 3
+    assert "HISTORICAL_789ADFF_REMAP" not in calls
+
+
+def test_local_pipeline_defaults_to_research_modes(tmp_path: Path, monkeypatch) -> None:
+    from scripts import validate_real_trx_pipeline as trx
+
+    calls: list[str] = []
+    monkeypatch.setattr(
+        trx,
+        "validate_real_thorax_inputs",
+        lambda data_dir: {"REAL_THORAX_INPUTS_ALL_PASS": "PASS"},
+    )
+    monkeypatch.setattr(trx, "SUPPORT_DIR", tmp_path / "missing-support")
+    monkeypatch.setattr(
+        trx,
+        "_case",
+        lambda data_dir, neural_dir, case, mode, output: (
+            calls.append(mode)
+            or {"pipeline_result": "PASS", "first_geometry_failure_stage": "NONE"}
+        ),
+    )
+
+    trx.run_local_real_trx_pipeline(tmp_path / "data", tmp_path, tmp_path / "output")
+
+    assert "HISTORICAL_789ADFF_REMAP" in calls
 
 
 def test_container_discovery_requires_compose_labels() -> None:

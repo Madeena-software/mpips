@@ -473,7 +473,11 @@ def _case(
 
 
 def run_local_real_trx_pipeline(
-    data_dir: str | Path, calibration_dir: str | Path, output: str | Path
+    data_dir: str | Path,
+    calibration_dir: str | Path,
+    output: str | Path,
+    *,
+    modes: tuple[str, ...] = MODES,
 ) -> dict[str, object]:
     data_dir, calibration_dir, output = (
         Path(data_dir),
@@ -500,7 +504,7 @@ def run_local_real_trx_pipeline(
             neural_dir = _extract_carrier(calibration_dir, Path(temporary))
         cases = {
             f"case-{case}": {
-                mode: _case(data_dir, neural_dir, case, mode, output) for mode in MODES
+                mode: _case(data_dir, neural_dir, case, mode, output) for mode in modes
             }
             for case in (1, 2, 3)
         }
