@@ -1,0 +1,36 @@
+name: Promote Production Calibration
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: mpips-internal-beta
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: [self-hosted, production]
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install uv
+          uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager
+      - name: Download and promote reviewed calibration
+        env:
+          MPIPS_API_KEY: ${{ secrets.MPIPS_API_KEY }}
+        run: |
+          set -euo pipefail
+          work_dir="$(mktemp -d /tmp/mpips-calibration-promotion.XXXXXX)"
+          trap 'rm -rf "$work_dir"' EXIT
+          carrier="$work_dir/trx-calibration.tar.gz"
+          uv run --with "gdown==6.1.0" gdown --id 1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr -O "$carrier.part"
+          mv "$carrier.part" "$carrier"
+          uv run python scripts/promote_production_calibration.py \
+            --carrier "$carrier" \
+            --active /var/www/mpips-runtime/calibration \
+            --summary "$GITHUB_STEP_SUMMARY"

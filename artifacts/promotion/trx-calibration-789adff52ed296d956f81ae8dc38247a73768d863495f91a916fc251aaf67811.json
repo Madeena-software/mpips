@@ -13,5 +13,9 @@
     "metadata.json",
     "remap.npz"
   ],
+  "carrier": {
+    "type": "google-drive",
+    "file_id": "1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr"
+  },
   "validated": true
 }

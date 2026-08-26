@@ -163,4 +163,8 @@ def test_trx_promotion_manifest_is_immutable():
         ),
         "required_files": ["metadata.json", "remap.npz"],
         "validated": True,
+        "carrier": {
+            "type": "google-drive",
+            "file_id": "1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr",
+        },
     }
