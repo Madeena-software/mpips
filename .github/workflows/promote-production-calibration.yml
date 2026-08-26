@@ -22,6 +22,17 @@ jobs:
         run: |
           python -m pip install uv
           uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager
+      - name: Preflight production calibration promotion
+        env:
+          MPIPS_API_KEY: ${{ secrets.MPIPS_API_KEY }}
+          MPIPS_TRX_CARRIER_FILE_ID: ${{ secrets.MPIPS_TRX_CARRIER_FILE_ID }}
+        run: |
+          uv run python -m scripts.promote_production_calibration \
+            --preflight-only \
+            --active /var/www/mpips-runtime/calibration \
+            --summary "$GITHUB_STEP_SUMMARY"
+      - name: Preflight gdown tooling
+        run: uv run --with "gdown==6.1.0" python -c "import gdown; assert gdown.__version__ == '6.1.0'"
       - name: Download and promote reviewed calibration
         env:
           MPIPS_API_KEY: ${{ secrets.MPIPS_API_KEY }}
@@ -33,28 +44,23 @@ jobs:
           carrier="$work_dir/trx-calibration.tar.gz"
           real_dir="$work_dir/real-thorax"
           mkdir -p "$real_dir"
-          promotion_manifest="artifacts/promotion/trx-calibration-1979a66b7d83bc0f14c4ebdf7c8ad2e37b6f16d7ead3e1c089381af3e7dd1492.json"
-          approved_carrier_id="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["carrier"]["file_id"])' "$promotion_manifest")"
-          carrier_id="${MPIPS_TRX_CARRIER_FILE_ID:-}"
-          if [ -z "$carrier_id" ]; then
-            echo "FINAL_PROMOTION_CLASSIFICATION=TRX_CARRIER_NOT_PUBLISHED"
-            exit 1
-          fi
-          if [ "$carrier_id" != "$approved_carrier_id" ]; then
-            echo "FINAL_PROMOTION_CLASSIFICATION=TRX_CARRIER_ID_MISMATCH"
-            exit 1
-          fi
-          uv run --with "gdown==6.1.0" gdown "$carrier_id" -O "$carrier.part"
+          uv run --with "gdown==6.1.0" gdown "$MPIPS_TRX_CARRIER_FILE_ID" -O "$carrier.part"
           mv "$carrier.part" "$carrier"
+          uv run python -m scripts.promote_production_calibration \
+            --verify-carrier-only --carrier "$carrier" --summary "$GITHUB_STEP_SUMMARY"
           uv run --with "gdown==6.1.0" gdown 1kI99se2CjzCgo4qInMEGUuJ-ZJZE3iQY -O "$real_dir/TRX_1787726609597.npz.part"
           mv "$real_dir/TRX_1787726609597.npz.part" "$real_dir/TRX_1787726609597.npz"
+          uv run python -m scripts.promote_production_calibration --verify-real-input-only --input "$real_dir/TRX_1787726609597.npz" --summary "$GITHUB_STEP_SUMMARY"
           uv run --with "gdown==6.1.0" gdown 1ocIGsYS6RHIurhRuOwJCzSHTv-6STc_m -O "$real_dir/TRX_1787727857802.npz.part"
           mv "$real_dir/TRX_1787727857802.npz.part" "$real_dir/TRX_1787727857802.npz"
+          uv run python -m scripts.promote_production_calibration --verify-real-input-only --input "$real_dir/TRX_1787727857802.npz" --summary "$GITHUB_STEP_SUMMARY"
           uv run --with "gdown==6.1.0" gdown 1G9HTPyJzYFHwbAfZ3SU0sL84k9A6i5BD -O "$real_dir/TRX_1787727066011.npz.part"
           mv "$real_dir/TRX_1787727066011.npz.part" "$real_dir/TRX_1787727066011.npz"
+          uv run python -m scripts.promote_production_calibration --verify-real-input-only --input "$real_dir/TRX_1787727066011.npz" --summary "$GITHUB_STEP_SUMMARY"
           uv run --with "gdown==6.1.0" gdown 1Ft3OALtx_d3ua-z0DSS34jJmywaXjLu2 -O "$real_dir/TRX_1787726886830.npz.part"
           mv "$real_dir/TRX_1787726886830.npz.part" "$real_dir/TRX_1787726886830.npz"
-          uv run python scripts/promote_production_calibration.py \
+          uv run python -m scripts.promote_production_calibration --verify-real-input-only --input "$real_dir/TRX_1787726886830.npz" --summary "$GITHUB_STEP_SUMMARY"
+          uv run python -m scripts.promote_production_calibration \
             --carrier "$carrier" \
             --active /var/www/mpips-runtime/calibration \
             --real-data-dir "$real_dir" \

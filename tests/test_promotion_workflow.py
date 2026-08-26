@@ -1,6 +1,8 @@
 import hashlib
 import io
 import json
+import os
+import subprocess
 import tarfile
 from types import SimpleNamespace
 from pathlib import Path
@@ -212,8 +214,67 @@ def test_workflow_is_guarded_manual_production_workflow() -> None:
         "docker compose restart",
     ):
         assert forbidden not in text
-    assert "TRX_CARRIER_ID_MISMATCH" in text
-    assert "approved_carrier_id=" in text
+    assert "MPIPS_TRX_CARRIER_FILE_ID" in text
+    assert "--preflight-only" in text
+
+
+def test_workflow_fail_fast_order_and_module_entrypoint() -> None:
+    text = (ROOT / ".github/workflows/promote-production-calibration.yml").read_text()
+    preflight = text.index("Preflight production calibration promotion")
+    gdown = text.index("gdown")
+    carrier_verify = text.index("--verify-carrier-only")
+    real_download = text.index("1kI99se2CjzCgo4qInMEGUuJ-ZJZE3iQY")
+    local_pipeline = text.index("--real-data-dir")
+    assert "python scripts/promote_production_calibration.py" not in text
+    assert "python -m scripts.promote_production_calibration" in text
+    assert preflight < gdown < carrier_verify < real_download < local_pipeline
+    assert "--preflight-only" in text
+    assert "--verify-real-input-only" in text
+
+
+def test_preflight_only_is_read_only_and_needs_no_input_files(
+    tmp_path: Path, monkeypatch
+) -> None:
+    active = tmp_path / "active"
+    _artifact(active, "BED")
+    monkeypatch.setattr(
+        promotion,
+        "runtime_preflight",
+        lambda: {
+            "PRODUCTION_RUNTIME_SHA": "sha",
+            "PRODUCTION_API_IMAGE": "api",
+            "PRODUCTION_WORKER_IMAGE": "worker",
+            "CAMERA_INDEPENDENT_RUNTIME": "PASS",
+            "TRX_PIPELINE_RUNTIME": "PASS",
+        },
+    )
+    monkeypatch.setenv("MPIPS_API_KEY", "configured")
+    monkeypatch.setenv("MPIPS_TRX_CARRIER_FILE_ID", promotion.EXPECTED_CARRIER_FILE_ID)
+    before = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
+    result = promotion._pre_download_preflight(active)
+    after = sorted(path.relative_to(tmp_path) for path in tmp_path.rglob("*"))
+    assert result["PRE_DOWNLOAD_PREFLIGHT"] == "PASS"
+    assert result["LEGACY_BED_LAYOUT"] == "PASS"
+    assert before == after
+
+
+def test_module_entrypoint_smoke() -> None:
+    result = subprocess.run(
+        [
+            "uv",
+            "run",
+            "python",
+            "-m",
+            "scripts.promote_production_calibration",
+            "--help",
+        ],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        env={**os.environ, "PYTHONPATH": ""},
+    )
+    assert result.returncode == 0, result.stderr
 
 
 def test_carrier_identity_gate_fails_closed() -> None:
@@ -398,7 +459,8 @@ def test_real_dicom_image_acceptance_rejects_zero_ratio_at_fifty_percent(
 def test_workflow_fails_closed_without_current_carrier() -> None:
     text = (ROOT / ".github/workflows/promote-production-calibration.yml").read_text()
     assert "1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr" not in text
-    assert "NOT_PUBLISHED" in text
+    assert "MPIPS_TRX_CARRIER_FILE_ID: ${{ secrets.MPIPS_TRX_CARRIER_FILE_ID }}" in text
+    assert "--preflight-only" in text
 
 
 def test_runtime_preflight_rejects_image_mismatch(tmp_path: Path) -> None:

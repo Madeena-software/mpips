@@ -114,6 +114,39 @@ def validate_carrier_identity(carrier_id: str | None) -> str:
     return carrier_id
 
 
+def _pre_download_preflight(active: Path) -> dict[str, str]:
+    _promotion_manifest()
+    validate_carrier_identity(os.environ.get("MPIPS_TRX_CARRIER_FILE_ID"))
+    if not os.environ.get("MPIPS_API_KEY"):
+        raise PromotionError("MPIPS_API_KEY_NOT_CONFIGURED")
+    runtime = runtime_preflight()
+    if runtime["CAMERA_INDEPENDENT_RUNTIME"] != "PASS":
+        raise PromotionError(
+            runtime.get(
+                "FINAL_PROMOTION_CLASSIFICATION",
+                "PRODUCTION_RUNTIME_CAMERA_INDEPENDENT_CODE_REQUIRED",
+            )
+        )
+    if runtime["TRX_PIPELINE_RUNTIME"] != "PASS":
+        raise PromotionError(
+            runtime.get(
+                "FINAL_PROMOTION_CLASSIFICATION",
+                "PRODUCTION_RUNTIME_TRX_PIPELINE_CODE_REQUIRED",
+            )
+        )
+    bed = validate_legacy_bed(active)
+    return {
+        "PRE_DOWNLOAD_PREFLIGHT": "PASS",
+        "PROMOTION_MANIFEST": "PASS",
+        "CARRIER_ID_CONFIGURATION": "PASS",
+        "API_KEY_CONFIGURATION": "PASS",
+        **runtime,
+        "LEGACY_BED_LAYOUT": "PASS",
+        "BED_PRE_METADATA_SHA256": bed["metadata_sha256"],
+        "BED_PRE_REMAP_SHA256": bed["remap_sha256"],
+    }
+
+
 def _real_manifest() -> dict:
     try:
         data = json.loads(REAL_MANIFEST.read_text(encoding="utf-8"))
@@ -318,6 +351,30 @@ def verify_carrier(path: str | Path, expected_size: int, expected_sha256: str) -
                 raise PromotionError("carrier member set mismatch")
     except (OSError, tarfile.TarError) as exc:
         raise PromotionError(f"invalid carrier archive: {exc}") from exc
+
+
+def _verify_carrier_artifact(path: Path) -> dict[str, str]:
+    verify_carrier(path, EXPECTED_CARRIER_SIZE, EXPECTED_CARRIER_SHA256)
+    with tempfile.TemporaryDirectory(prefix="mpips-carrier-preflight-") as staging:
+        _validate_trx(_extract_carrier(path, Path(staging)))
+    return {
+        "CARRIER_VERIFICATION": "PASS",
+        "TRX_ARTIFACT_VALIDATION": "PASS",
+    }
+
+
+def _verify_real_input(path: Path) -> dict[str, str]:
+    manifest = _real_manifest()
+    expected = manifest["gain"] if path.name == manifest["gain"]["filename"] else None
+    if expected is None:
+        expected = next(
+            (item for item in manifest["radiographs"] if item["filename"] == path.name),
+            None,
+        )
+    if expected is None:
+        raise PromotionError(f"unknown real THORAX input: {path.name}")
+    _verify_npz_archive(path, expected["size"], expected["sha256"])
+    return {"REAL_INPUT_BYTE_VERIFICATION": "PASS"}
 
 
 def _extract_carrier(path: Path, destination: Path) -> Path:
@@ -876,15 +933,55 @@ def _append_summary(path: Path, result: dict[str, str]) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--carrier", type=Path, required=True)
-    parser.add_argument(
-        "--active", type=Path, default=Path("/var/www/mpips-runtime/calibration")
-    )
-    parser.add_argument("--real-data-dir", type=Path, required=True)
+    parser.add_argument("--carrier", type=Path)
+    parser.add_argument("--active", type=Path)
+    parser.add_argument("--real-data-dir", type=Path)
+    parser.add_argument("--input", type=Path)
+    parser.add_argument("--preflight-only", action="store_true")
+    parser.add_argument("--verify-carrier-only", action="store_true")
+    parser.add_argument("--verify-real-input-only", action="store_true")
     parser.add_argument("--summary", type=Path, required=True)
     args = parser.parse_args()
+    modes = sum(
+        (
+            args.preflight_only,
+            args.verify_carrier_only,
+            args.verify_real_input_only,
+        )
+    )
+    if modes > 1:
+        parser.error("verification modes are mutually exclusive")
+    if args.preflight_only:
+        if args.active is None:
+            parser.error("--preflight-only requires --active")
+    elif args.verify_carrier_only:
+        if args.carrier is None:
+            parser.error("--verify-carrier-only requires --carrier")
+    elif args.verify_real_input_only:
+        if args.input is None:
+            parser.error("--verify-real-input-only requires --input")
+    else:
+        if args.carrier is None or args.active is None or args.real_data_dir is None:
+            parser.error("promotion requires --carrier, --active, and --real-data-dir")
+    if args.active is None:
+        args.active = Path("/var/www/mpips-runtime/calibration")
     result: dict[str, str]
     try:
+        if args.preflight_only:
+            result = _pre_download_preflight(args.active)
+            for key, value in result.items():
+                print(f"{key}={value}")
+            return 0
+        if args.verify_carrier_only:
+            result = _verify_carrier_artifact(args.carrier)
+            for key, value in result.items():
+                print(f"{key}={value}")
+            return 0
+        if args.verify_real_input_only:
+            result = _verify_real_input(args.input)
+            for key, value in result.items():
+                print(f"{key}={value}")
+            return 0
         runtime = runtime_preflight()
         if runtime["CAMERA_INDEPENDENT_RUNTIME"] != "PASS":
             for key, value in runtime.items():
@@ -930,7 +1027,7 @@ def main() -> int:
             "PRODUCTION_CALIBRATION_BED_TRX_PROMOTION_PASS"
         )
     except PromotionError as exc:
-        print(f"PROMOTION_FAILED={type(exc).__name__}")
+        print(f"FINAL_PROMOTION_CLASSIFICATION={exc}")
         return 1
     for key, value in result.items():
         print(f"{key}={value}")
