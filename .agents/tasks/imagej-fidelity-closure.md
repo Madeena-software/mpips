@@ -1,7 +1,7 @@
 ---
 title: MPIPS ImageJ/Fiji Fidelity Closure
 document_id: AGENT-TASK-IMAGEJ-FIDELITY-CLOSURE-001
-version: 1.5
+version: 1.6
 status: Validated/Published
 language: en-US
 last_updated: 2026-08-26
@@ -54,6 +54,14 @@ phase MUST republish this same task path at a new immutable revision before
 execution.
 
 **Current released phase:** **PHASE 5 — BOUNDED PERFORMANCE BASELINE**
+
+**Phase-5 status:** **IN PROGRESS — REFERENCE RUNTIME RECONSTRUCTION**
+
+The initial Phase-5 attempt is `REVIEW BLOCKED — RETAINED FIJI REFERENCE
+RUNTIME UNAVAILABLE`: the documented temporary runtime directory, pinned
+`ij-1.54p.jar`, and Temurin Java executable were absent, and no measurements
+were performed. This is an environment prerequisite failure, not a product
+defect, fidelity result, or reason to omit Fiji.
 
 **Accepted Phase-2 baseline:**
 `b4c032ce58605095de82c67097c61ebf458041a5`
@@ -406,7 +414,44 @@ MATRIX`; universal parity for all positive radii is not authorized.
 
 ### Phase 5 — Bounded Performance Baseline
 
-Phase 5 is performance characterization only. Measure, when executable, MPIPS
+Phase 5 is in progress, and its current gate is **REFERENCE RUNTIME
+RECONSTRUCTION**. Performance measurements remain blocked until this gate is
+accepted. Reconstruct only the exact already-pinned runtime from
+`scripts/imagej_reference/README.md`:
+
+- Eclipse Temurin 17.0.19+10 HotSpot Linux x86_64, archive
+  `OpenJDK17U-jdk_x64_linux_hotspot_17.0.19_10.tar.gz`, SHA256
+  `d8afc263758141a66e0e3aafc321e783f7016696f4eaea067d340a269037d331`;
+- ImageJ `ij-1.54p.jar`, SHA256
+  `2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20`;
+- Fiji CLAHE sources from `axtimwalde/mpicbg@0ed8a9d0592b1b679311f798b0b4dac6f44d3ef0`,
+  with every required source hash verified against the README before compile;
+- `Hybrid_2D_Median_Filter.java`, SHA256
+  `494cc92747ba8e01e9ad19f16d735ffe8faf0b65eba00f02fda691bc5529af03`;
+- tracked `ReferenceHarness.java`, SHA256
+  `4dd097ff92002f6d3d6a52ef6d2231e31aa3b32610c8af9e0c9e300559f2bcd5`.
+
+The reconstruction may download only the exact documented artifacts, verify
+each SHA256 before extraction/classpath use, compile only the documented
+sources with the reconstructed absolute `java`/`javac`, and execute only from
+a fresh temporary untracked directory under `/tmp`. It must not use sudo or
+apt, install system-wide, modify shell startup files, persistently change
+`PATH`/`JAVA_HOME`, execute downloaded scripts, or use arbitrary versions.
+Downloaded content remains untrusted until its identity check passes. No JDK,
+JAR, source, class, benchmark binary, or other reconstruction artifact may be
+tracked or committed.
+
+After hash verification and compilation, the gate must smoke-test Fiji Flat
+and Fiji FastFlat at the already accepted common context: slope 1.5, block
+radius 63, internal bins 255, using a small deterministic fixture. This is
+environment verification, not the Phase-5 benchmark. Do not rerun the full
+120-case characterization or rewrite accepted evidence. The reconstructed
+runtime must be described as **RECONSTRUCTED FROM ACCEPTED PINNED PROVENANCE**,
+not as an original retained runtime. The reconstruction gate makes no tracked
+file changes and does not automatically start benchmarking.
+
+Once the reconstruction is accepted, Phase 5 remains performance
+characterization only. Measure, when executable, MPIPS
 precise CLAHE (`fast=False`), MPIPS fast/OpenCV CLAHE (`fast=True`), pinned
 Fiji Flat, and pinned Fiji FastFlat. These four implementations are not
 semantically equivalent; do not treat this as a benchmark of interchangeable
@@ -533,10 +578,13 @@ SELECTION` for the CLAHE decision stop and MUST NOT invent the decision.
 - This revision authorizes the later Phase-5 execution only in
   `.agents/evidence/imagej-fidelity-closure.md`, subject to the Phase-5
   constraints above.
+- The Phase-5 reconstruction gate may use the exact pinned network artifacts
+  and temporary `/tmp` storage described above, with no tracked output or
+  persistent system/environment change.
 
 ### Not authorized
 
-- Any Phase-5 measurement during this publication.
+- Any Phase-5 reconstruction or measurement during this publication.
 - Any change outside the authorized future Phase-5 evidence surface, production
   behavior/configuration, source/tests/reference harness, dependencies,
   stage-order work, deployment, release, main change, or force push.
@@ -544,7 +592,7 @@ SELECTION` for the CLAHE decision stop and MUST NOT invent the decision.
 ## Expected terminal outcome
 
 This publication ends at **Review Required** with the immutable publication
-commit as the task revision. It does not execute Phase-5 measurement.
+commit as the task revision. It does not download, reconstruct, or measure.
 
 ## Review and remediation handling
 
