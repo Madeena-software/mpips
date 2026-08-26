@@ -1,7 +1,7 @@
 ---
 title: MPIPS ImageJ/Fiji Fidelity Closure
 document_id: AGENT-TASK-IMAGEJ-FIDELITY-CLOSURE-001
-version: 1.4
+version: 1.5
 status: Validated/Published
 language: en-US
 last_updated: 2026-08-26
@@ -53,7 +53,7 @@ The task revision and implementation baseline are separate. A later material
 phase MUST republish this same task path at a new immutable revision before
 execution.
 
-**Current released phase:** **PHASE 4 — CIRCULAR MEDIAN FIDELITY REMEDIATION**
+**Current released phase:** **PHASE 5 — BOUNDED PERFORMANCE BASELINE**
 
 **Accepted Phase-2 baseline:**
 `b4c032ce58605095de82c67097c61ebf458041a5`
@@ -61,8 +61,10 @@ execution.
 `fdf38094320de1dc81037e6516c17e11022d4fde` is the accepted direct
 predecessor of the Phase-2 baseline. Phase 1, Phase 2, and Phase 3 are
 accepted/closed. The Phase-4 radius-domain/reachability first gate is
-accepted/closed at `84b4a8cd271fcf7b262bd625530a974357704f9b`. Phase 5 and all
-later phases remain unauthorized.
+accepted/closed at `84b4a8cd271fcf7b262bd625530a974357704f9b`. Phase 4
+remediation is accepted/closed at
+`232f148ce24d6df5569a4b2c290e93adf0a03d5f`. Phase 6 and all later phases
+remain unauthorized.
 
 **Accepted Phase-3 baseline:**
 `8c7b479947ee2b67856fd644e95b6d9eede52739`
@@ -404,14 +406,55 @@ MATRIX`; universal parity for all positive radii is not authorized.
 
 ### Phase 5 — Bounded Performance Baseline
 
-Measure, without optimization, MPIPS precise CLAHE, MPIPS fast/OpenCV CLAHE,
-pinned Fiji Flat, and pinned Fiji FastFlat where executable. Use controlled
-fixtures and, when practical, one accepted full-resolution radiograph. Record
-shape/dtype, parameters, warm/cold distinction where material, wall time, peak
-RSS where practical, deterministic output hash, and execution environment.
-Do not draw image-quality conclusions from speed.
+Phase 5 is performance characterization only. Measure, when executable, MPIPS
+precise CLAHE (`fast=False`), MPIPS fast/OpenCV CLAHE (`fast=True`), pinned
+Fiji Flat, and pinned Fiji FastFlat. These four implementations are not
+semantically equivalent; do not treat this as a benchmark of interchangeable
+algorithms or draw fidelity, image-quality, scientific-validity, or clinical
+conclusions from speed.
 
-**Gate:** Review Required; republish before final suite work.
+For the current MPIPS production-context characterization, use blocksize 127,
+displayed histogram bins 256, and slope 0.6. Precise is the current default;
+fast/OpenCV is configurable but not default. Preserve
+`use_clahe=true`, `clahe_blocksize=127`, `clahe_histogram_bins=256`,
+`clahe_max_slope=0.6`, `clahe_fast=false`, and `clahe_composite=true`.
+`0.6` remains `INHERITED MPIPS DEFAULT — RATIONALE NOT RECOVERED`, with no
+optimality, clinical, or Fiji-compatibility claim.
+
+For a common executable reference context, use the already established tuple
+of slope 1.5, blocksize 127, block radius 63, displayed bins 256, and internal
+Fiji bins 255 only after verifying that both pinned Fiji implementations
+execute successfully. This is a runtime-comparison parameter only, not a
+production replacement, quality recommendation, or optimized parameter.
+
+Use at least one deterministic in-memory or temporary controlled fixture,
+single-channel and preferably uint16, recording exact shape, dtype, and input
+SHA256. Do not commit benchmark binaries or create a tracked dataset. An
+accepted local full-resolution radiograph may be measured when available; if
+not, record `FULL-RESOLUTION RADIOGRAPH MEASUREMENT NOT PERFORMED — RETAINED
+LOCAL INPUT UNAVAILABLE`. Do not create a cohort or perform quality ablation.
+
+For every implementation/context, record identity, semantic classification,
+input/output shape and dtype, input/output SHA256, parameters, timing scope,
+warm-up policy, repetition count, individual or transparent wall-time results,
+cold/warm distinction, peak RSS where practical, success/error status, and
+execution environment. Use a small bounded repetition count; do not run
+hundreds of repetitions. Record Python/NumPy/SciPy/OpenCV and Java/JDK
+identity where readily available.
+
+For Fiji, a new Java process per run must be labeled
+`REFERENCE HARNESS END-TO-END WALL TIME — INCLUDES JVM/PROCESS STARTUP` and
+must not be compared as warm in-process Python timing. Peak RSS may be
+`NOT MEASURED` when reliable measurement is unavailable. Repeated runs with
+the same implementation, input, and parameters must have identical output
+hashes; unexpected differences stop the phase.
+
+Phase 5 must not optimize, change algorithms/defaults/parameters/threading,
+modify the reference harness, or alter production behavior. It may update
+only `.agents/evidence/imagej-fidelity-closure.md`; use existing tooling and
+ephemeral commands/temporary files. No tracked benchmark script is expected.
+
+**Gate:** Review Required; republish before Phase 6.
 
 ### Phase 6 — Minimal Reference / Regression Sentinel Suite
 
@@ -487,22 +530,21 @@ SELECTION` for the CLAHE decision stop and MUST NOT invent the decision.
 - Create only `.agents/tasks/imagej-fidelity-closure.md`.
 - Run `git diff --check`, inspect the task-only diff, commit the task
   publication, and push normally to `origin/refactor/package-boundaries`.
-- This revision authorizes the later bounded Phase-4 remediation only in
-  `mpips/processing/imagej.py`, `tests/test_filtering_processing.py`, and
-  `.agents/evidence/imagej-fidelity-closure.md`, subject to the Phase-4
+- This revision authorizes the later Phase-5 execution only in
+  `.agents/evidence/imagej-fidelity-closure.md`, subject to the Phase-5
   constraints above.
 
 ### Not authorized
 
-- Any Phase-4 remediation execution during this publication.
-- Any change outside the three authorized future Phase-4 surfaces, production
-  defaults/config parsing/API/schema/worker behavior, stage-order work,
-  dependency/JDK installation, deployment, release, main change, or force push.
+- Any Phase-5 measurement during this publication.
+- Any change outside the authorized future Phase-5 evidence surface, production
+  behavior/configuration, source/tests/reference harness, dependencies,
+  stage-order work, deployment, release, main change, or force push.
 
 ## Expected terminal outcome
 
 This publication ends at **Review Required** with the immutable publication
-commit as the task revision. It does not execute Circular Median remediation.
+commit as the task revision. It does not execute Phase-5 measurement.
 
 ## Review and remediation handling
 
