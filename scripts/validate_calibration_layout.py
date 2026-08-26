@@ -13,6 +13,11 @@ import numpy as np
 MIN_REMAP_VALID_FRACTION = 0.85
 MIN_REMAP_WIDTH_RATIO = 0.75
 MIN_REMAP_HEIGHT_RATIO = 0.75
+MIN_EXPANDED_VALID_FRACTION = 0.80
+MIN_EXPANDED_OUTPUT_WIDTH_RATIO = 0.80
+MIN_EXPANDED_OUTPUT_HEIGHT_RATIO = 0.80
+MIN_EXPANDED_SOURCE_WIDTH_COVERAGE = 0.80
+MIN_EXPANDED_SOURCE_HEIGHT_COVERAGE = 0.80
 
 
 def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
@@ -77,7 +82,9 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
         expected_shape = tuple(image_shape)
 
     config = metadata.get("config")
-    canvas_mode = config.get("canvas_mode", "fixed") if isinstance(config, dict) else "fixed"
+    canvas_mode = (
+        config.get("canvas_mode", "fixed") if isinstance(config, dict) else "fixed"
+    )
     if canvas_mode not in {"fixed", "expanded"}:
         errors.append(f"{expected_mode}: config.canvas_mode is invalid")
         canvas_mode = "fixed"
@@ -93,14 +100,22 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
                     map_x, map_y = remap["map_x"], remap["map_y"]
                     if map_x.shape != map_y.shape:
                         errors.append(f"{expected_mode}: remap map shapes differ")
-                    if canvas_mode == "fixed" and expected_shape is not None and map_x.shape != expected_shape:
+                    if (
+                        canvas_mode == "fixed"
+                        and expected_shape is not None
+                        and map_x.shape != expected_shape
+                    ):
                         errors.append(
                             f"{expected_mode}: metadata.image_shape does not match "
                             "remap maps"
                         )
                     if map_x.ndim != 2 or not map_x.size:
-                        errors.append(f"{expected_mode}: remap maps must be non-empty 2-D arrays")
-                    elif not np.all(np.isfinite(map_x)) or not np.all(np.isfinite(map_y)):
+                        errors.append(
+                            f"{expected_mode}: remap maps must be non-empty 2-D arrays"
+                        )
+                    elif not np.all(np.isfinite(map_x)) or not np.all(
+                        np.isfinite(map_y)
+                    ):
                         errors.append(
                             f"{expected_mode}: remap maps contain non-finite values"
                         )
@@ -124,6 +139,18 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
                         height_ratio = (
                             (bbox[3] - bbox[1] + 1) / map_x.shape[0] if bbox else 0.0
                         )
+                        source_width_coverage = (
+                            (float(map_x[valid].max()) - float(map_x[valid].min()) + 1)
+                            / expected_shape[1]
+                            if xs.size
+                            else 0.0
+                        )
+                        source_height_coverage = (
+                            (float(map_y[valid].max()) - float(map_y[valid].min()) + 1)
+                            / expected_shape[0]
+                            if xs.size
+                            else 0.0
+                        )
                         if canvas_mode == "fixed" and (
                             valid_fraction < MIN_REMAP_VALID_FRACTION
                             or width_ratio < MIN_REMAP_WIDTH_RATIO
@@ -142,11 +169,17 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
                         elif canvas_mode == "expanded" and (
                             not np.any(valid)
                             or bbox is None
-                            or bbox[2] == bbox[0]
-                            or bbox[3] == bbox[1]
+                            or valid_fraction < MIN_EXPANDED_VALID_FRACTION
+                            or width_ratio < MIN_EXPANDED_OUTPUT_WIDTH_RATIO
+                            or height_ratio < MIN_EXPANDED_OUTPUT_HEIGHT_RATIO
+                            or source_width_coverage
+                            < MIN_EXPANDED_SOURCE_WIDTH_COVERAGE
+                            or source_height_coverage
+                            < MIN_EXPANDED_SOURCE_HEIGHT_COVERAGE
                         ):
                             errors.append(
-                                f"{expected_mode}: expanded remap is empty or degenerate"
+                                f"{expected_mode}: expanded remap is empty "
+                                "or degenerate"
                             )
         except (OSError, ValueError, zipfile.BadZipFile) as exc:
             errors.append(f"{expected_mode}: invalid remap.npz ({exc})")

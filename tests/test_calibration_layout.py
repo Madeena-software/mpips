@@ -8,6 +8,7 @@ from scripts.validate_calibration_layout import validate_calibration_layout
 from mpips.workflows.imager_pipeline.calibration import (
     CalibrationValidationError,
     remap_geometry_evidence,
+    validate_expanded_canvas_remap,
     validate_fixed_canvas_remap,
 )
 
@@ -40,7 +41,9 @@ def _write_artifact(
     (directory / "metadata.json").write_text(json.dumps(metadata))
     if remap == "valid":
         np.savez(
-            directory / "remap.npz", map_x=np.zeros(remap_shape), map_y=np.zeros(remap_shape)
+            directory / "remap.npz",
+            map_x=np.zeros(remap_shape),
+            map_y=np.zeros(remap_shape),
         )
     elif remap == "missing_maps":
         np.savez(directory / "remap.npz", map_x=np.zeros((2, 3)))
@@ -240,3 +243,21 @@ def test_expanded_geometry_uses_source_domain_and_output_shape():
     evidence = remap_geometry_evidence(map_x, map_y, 8, 10, output_shape=(12, 10))
     assert evidence["REMAP_VALID_FRACTION"] > 0.5
     assert evidence["MAP_X_MAX"] == 9.0
+
+
+def test_expanded_sliver_geometry_is_rejected():
+    map_x = np.zeros((100, 100), dtype=np.float32)
+    map_y = np.zeros((100, 100), dtype=np.float32)
+    map_x[:5, :5] = np.arange(5, dtype=np.float32)
+    map_y[:5, :5] = np.arange(5, dtype=np.float32)[:, None]
+    with pytest.raises(CalibrationValidationError, match="Expanded-canvas"):
+        validate_expanded_canvas_remap(map_x, map_y, 100, 100)
+
+
+def test_expanded_broad_geometry_passes():
+    map_y, map_x = np.indices((105, 95), dtype=np.float32)
+    map_x *= 98.9 / 94
+    map_y *= 98.9 / 104
+    evidence = validate_expanded_canvas_remap(map_x, map_y, 100, 100)
+    assert evidence["VALID_OUTPUT_WIDTH_RATIO"] > 0.98
+    assert evidence["SOURCE_DOMAIN_HEIGHT_COVERAGE"] > 0.99

@@ -1,4 +1,5 @@
 import argparse
+import os
 import sys
 
 from ..opencv_baseline.calibrate_and_compare import run_opencv_comparison
@@ -160,7 +161,7 @@ def cli():
         "--mask-out",
         default=default_artifact_path("output/neural_model/calibrated_valid_mask.png"),
     )
-    parser.add_argument("--canvas-mode", choices=CANVAS_MODE, default="fixed")
+    parser.add_argument("--canvas-mode", choices=CANVAS_MODE, default="expanded")
     parser.add_argument("--expanded-bounds-step", type=int, default=4)
     parser.add_argument("--expanded-margin", type=int, default=16)
     parser.add_argument("--metadata-out", default=None)

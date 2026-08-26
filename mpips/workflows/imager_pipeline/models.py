@@ -30,7 +30,7 @@ class NeuralCalibrationConfig:
     inverse_iterations: int = 10
     batch_size: int = 262144
     device: str = "auto"
-    canvas_mode: str = "fixed"
+    canvas_mode: str = "expanded"
     expanded_bounds_step: int = 4
     expanded_margin: int = 16
     min_straightness_reduction: float = 50.0
