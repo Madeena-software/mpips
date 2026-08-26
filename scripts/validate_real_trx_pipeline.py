@@ -14,7 +14,11 @@ import pydicom
 
 from mpips.engine.imager_pipeline import complete_pipeline as engine
 from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
-from mpips.workflows.imager_pipeline.npz_io import load_gain_catalog, load_radiograph
+from mpips.workflows.imager_pipeline.npz_io import (
+    load_calibration_processed_image,
+    load_gain_catalog,
+    load_radiograph,
+)
 from mpips.workflows.imager_pipeline.pipeline import process_radiography_arrays
 from scripts.promote_production_calibration import (
     _extract_carrier,
@@ -300,12 +304,39 @@ def _geometry_failure(metrics: dict[str, object]) -> bool:
     )
 
 
+def _first_collapse_stage(stages: dict[str, dict[str, object]]) -> str:
+    """Return the first stage whose occupancy gate shows catastrophic collapse."""
+    for name in (
+        "SOURCE_RAW",
+        "SOURCE_PROCESSED_REFERENCE",
+        "DENOISED_RAW",
+        "FFC",
+        "REMAP",
+        "CROP_ROTATE",
+        "PRE_THRESHOLD",
+        "THRESHOLD_SEPARATION",
+        "INVERT",
+        "CONTRAST",
+        "CLAHE",
+        "MEDIAN",
+        "REMAP_MASK",
+        "DICOM",
+    ):
+        metrics = stages.get(name)
+        if metrics and (
+            metrics["exact_zero_ratio"] > 0.5 or metrics["nonzero_ratio"] < 0.5
+        ):
+            return name
+    return "NONE"
+
+
 def _case(
     data_dir: Path, neural_dir: Path, case: int, mode: str, output: Path
 ) -> dict[str, object]:
     manifest = json.loads(MANIFEST.read_text())
     item = next(value for value in manifest["radiographs"] if value["case"] == case)
     raw_info = load_radiograph(data_dir / item["filename"])
+    reference, _ = load_calibration_processed_image(data_dir / item["filename"])
     gain = load_gain_catalog([data_dir / manifest["gain"]["filename"]]).records[
         manifest["expected"]["gain_id"]
     ]
@@ -338,7 +369,17 @@ def _case(
             cv2.INTER_LINEAR,
         )
     )
-    final = process_radiography_arrays(raw, dark, flat, "TRX", map_x=map_x, map_y=map_y)
+    stages: dict[str, dict[str, object]] = {}
+    final = process_radiography_arrays(
+        raw,
+        dark,
+        flat,
+        "TRX",
+        map_x=map_x,
+        map_y=map_y,
+        stage_observer=stages.__setitem__,
+    )
+    engine._report_stage(stages.__setitem__, "SOURCE_PROCESSED_REFERENCE", reference)
     mode_dir = output / f"case-{case}" / mode.lower().replace("_", "-")
     mode_dir.mkdir(parents=True, exist_ok=True)
     _preview(mode_dir / "final-preview.png", final)
@@ -369,7 +410,8 @@ def _case(
         ),
         **geometry,
         "unexpected_border_ratio": geometry["zero_pixel_ratio"],
-        "first_geometry_failure_stage": "DICOM_ENCODING" if failed else "NONE",
+        "stage_metrics": stages,
+        "first_geometry_failure_stage": _first_collapse_stage(stages),
         "pipeline_result": "FAIL" if failed else "PASS",
         "calibration_fingerprint": (
             HISTORICAL_FINGERPRINT

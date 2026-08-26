@@ -148,6 +148,7 @@ def process_radiography_arrays(
     *,
     map_x: np.ndarray | None = None,
     map_y: np.ndarray | None = None,
+    stage_observer=None,
 ) -> np.ndarray:
     """Run arrays through the promoted research pipeline without reimplementing it."""
     config = config or ImagerPipelineConfig()
@@ -177,6 +178,7 @@ def process_radiography_arrays(
                 detector_type=detector_mode,
                 map_x=map_x,
                 map_y=map_y,
+                stage_observer=stage_observer,
             )
         if not succeeded:
             raise RuntimeError("The canonical radiography pipeline failed")

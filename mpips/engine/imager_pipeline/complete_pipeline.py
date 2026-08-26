@@ -911,6 +911,40 @@ def _get_filter_description(filter_type):
     return descriptions.get(filter_type, "Unknown filter type")
 
 
+def _report_stage(stage_observer, name, image):
+    if stage_observer is None:
+        return
+    image = np.asarray(image)
+    nonzero = np.argwhere(image != 0)
+    bbox = None
+    if nonzero.size:
+        y0, x0 = nonzero.min(axis=0)[:2]
+        y1, x1 = nonzero.max(axis=0)[:2]
+        bbox = [int(x0), int(y0), int(x1), int(y1)]
+    stage_observer(name, {
+        "shape": list(image.shape),
+        "dtype": str(image.dtype),
+        "min": float(image.min()),
+        "max": float(image.max()),
+        "mean": float(image.mean()),
+        "p01": float(np.percentile(image, 1)),
+        "p05": float(np.percentile(image, 5)),
+        "p25": float(np.percentile(image, 25)),
+        "p50": float(np.percentile(image, 50)),
+        "p75": float(np.percentile(image, 75)),
+        "p95": float(np.percentile(image, 95)),
+        "p99": float(np.percentile(image, 99)),
+        "exact_zero_ratio": float(np.mean(image == 0)),
+        "nonzero_ratio": float(np.mean(image != 0)),
+        "nonzero_bbox": bbox,
+    })
+
+
+def threshold_method_for_detector(detector_type, configured_method):
+    """Disable destructive threshold separation for TRX; preserve BED."""
+    return "none" if str(detector_type).upper() == "TRX" else configured_method
+
+
 def process_single_image(
     raw_path,
     dark_path,
@@ -919,6 +953,7 @@ def process_single_image(
     detector_type=None,
     map_x=None,
     map_y=None,
+    stage_observer=None,
 ):
     """
     Process a single image through the complete pipeline.
@@ -963,6 +998,7 @@ def process_single_image(
         return False
 
     print(f"    Raw: {raw_image.shape}, dtype: {raw_image.dtype}")
+    _report_stage(stage_observer, "SOURCE_RAW", raw_image)
 
     # Save histogram for loaded raw image
     debug_dir = os.path.dirname(output_path)
@@ -1013,6 +1049,8 @@ def process_single_image(
         flat_denoised = flat_image
         raw_denoised = raw_image
 
+    _report_stage(stage_observer, "DENOISED_RAW", raw_denoised)
+
     save_histogram(
         raw_denoised,
         os.path.join(debug_dir, f"histogram_denoised_{image_id}.png"),
@@ -1022,6 +1060,7 @@ def process_single_image(
     # Step 2: FFC with matched dimensions
     print("  [2/10] Applying Flat-Field Correction...")
     ffc_result = flat_field_correction(raw_denoised, dark_denoised, flat_denoised)
+    _report_stage(stage_observer, "FFC", ffc_result)
     print(f"    FFC output range: {ffc_result.min()} - {ffc_result.max()}")
 
     save_histogram(
@@ -1050,6 +1089,7 @@ def process_single_image(
             borderValue=0,
         )
         print(f"    Remapped shape: {ffc_result.shape}")
+        _report_stage(stage_observer, "REMAP", ffc_result)
     else:
         print("  [3/10] Neural calibration skipped (no remap provided)")
 
@@ -1072,6 +1112,8 @@ def process_single_image(
         print(f"    Final shape: {ffc_result.shape}")
     else:
         print("  [4/10] Cropping and rotation skipped (USE_CROP_ROTATE=False)")
+
+    _report_stage(stage_observer, "CROP_ROTATE", ffc_result)
 
     save_histogram(
         ffc_result / ffc_result.max() if ffc_result.max() > 0 else ffc_result,
@@ -1102,8 +1144,12 @@ def process_single_image(
                 "    [DEBUG] Normalization step was skipped. Passing FFC result forward."
             )
 
+    _report_stage(stage_observer, "PRE_THRESHOLD", normalized_result)
+
     # Step 6: Auto Thresholding (optional)
-    threshold_method = CONFIG.get("THRESHOLD_METHOD", "auto").lower()
+    threshold_method = threshold_method_for_detector(
+        detector_type, CONFIG.get("THRESHOLD_METHOD", "auto").lower()
+    )
     if threshold_method in ["none", "off", "skip", "no"]:
         print("  [6/10] Thresholding skipped (THRESHOLD_METHOD set to 'none'/'off')")
         threshold_result = normalized_result.copy()
@@ -1139,6 +1185,8 @@ def process_single_image(
             title="Thresholded Result Histogram",
         )
 
+    _report_stage(stage_observer, "THRESHOLD_SEPARATION", threshold_result)
+
     # Step 7: Invert
     if CONFIG.get("USE_INVERT", True):
         print("  [7/10] Inverting image...")
@@ -1146,6 +1194,8 @@ def process_single_image(
     else:
         print("  [7/10] Inversion skipped (USE_INVERT=False)")
         inverted = threshold_result
+
+    _report_stage(stage_observer, "INVERT", inverted)
 
     save_histogram(
         inverted,
@@ -1191,6 +1241,7 @@ def process_single_image(
         os.path.join(debug_dir, f"histogram_enhanced_{image_id}.png"),
         title="Enhanced Result Histogram",
     )
+    _report_stage(stage_observer, "CONTRAST", enhanced_uint16)
 
     # Step 9: Apply CLAHE using ImageJ Replicator
     # Parameter guide (ImageJ CLAHE style):
@@ -1237,6 +1288,7 @@ def process_single_image(
         os.path.join(debug_dir, f"histogram_clahe_{image_id}.png"),
         title="CLAHE Result Histogram",
     )
+    _report_stage(stage_observer, "CLAHE", final_result_uint16)
 
     # Step 10: Final wavelet denoise (optional, smooths out any artifacts from previous steps)
     if CONFIG.get("USE_FINAL_DENOISE", False):
@@ -1302,12 +1354,16 @@ def process_single_image(
     else:
         print("  [11/11] Median filter skipped (USE_MEDIAN_FILTER=False)")
 
+    _report_stage(stage_observer, "MEDIAN", final_result_uint16)
+
     if valid_remap_mask is not None:
         final_result_uint16[~valid_remap_mask] = 0
+        _report_stage(stage_observer, "REMAP_MASK", final_result_uint16)
 
     # Save result
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     cv2.imwrite(output_path, final_result_uint16)
+    _report_stage(stage_observer, "DICOM", final_result_uint16)
     print(f"  ✓ Saved to: {output_path}")
 
     return True
