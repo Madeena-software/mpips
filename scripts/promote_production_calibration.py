@@ -7,6 +7,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -30,6 +31,7 @@ EXPECTED_FINGERPRINT = (
     "789adff52ed296d956f81ae8dc38247a73768d863495f91a916fc251aaf67811"
 )
 EXPECTED_SHAPE = (3000, 4096)
+CAMERA_INDEPENDENT_BASELINE = "d175a6fa56ca32cf78007c39baff24075dbd5a0e"
 BED_FUNCTIONAL_FIELDS = (
     "BED_FUNCTIONAL_CONVERSION",
     "BED_DICOM_STRUCTURE",
@@ -312,6 +314,71 @@ def validate_legacy_bed(active: str | Path) -> dict[str, str]:
     }
 
 
+def prepare_root_staging(
+    active: str | Path,
+    carrier: str | Path,
+    *,
+    expected_size: int = EXPECTED_CARRIER_SIZE,
+    expected_sha256: str = EXPECTED_CARRIER_SHA256,
+) -> tuple[Path, dict[str, str]]:
+    active = Path(active)
+    carrier = Path(carrier)
+    verify_carrier(carrier, expected_size, expected_sha256)
+    validate_legacy_bed(active)
+    if active.parent.stat().st_dev != active.stat().st_dev:
+        raise PromotionError("calibration root filesystem cannot be inspected")
+    rollback = active.parent / f"{active.name}.rollback.{uuid.uuid4().hex}"
+    rollback.mkdir()
+    try:
+        bed = validate_legacy_bed(active)
+        shutil.copyfile(active / "metadata.json", rollback / "metadata.json")
+        shutil.copyfile(active / "remap.npz", rollback / "remap.npz")
+        if any(
+            _sha256(rollback / name) != bed[key]
+            for name, key in (
+                ("metadata.json", "metadata_sha256"),
+                ("remap.npz", "remap_sha256"),
+            )
+        ):
+            raise PromotionError("legacy recovery hash mismatch")
+        with tempfile.TemporaryDirectory(prefix="mpips-carrier-") as temporary:
+            extracted = _extract_carrier(carrier, Path(temporary))
+            _validate_trx(extracted)
+            (active / "BED").mkdir()
+            (active / "TRX").mkdir()
+            shutil.copyfile(active / "metadata.json", active / "BED/metadata.json")
+            shutil.copyfile(active / "remap.npz", active / "BED/remap.npz")
+            shutil.copyfile(extracted / "metadata.json", active / "TRX/metadata.json")
+            shutil.copyfile(extracted / "remap.npz", active / "TRX/remap.npz")
+        if (
+            _sha256(active / "BED/metadata.json") != bed["metadata_sha256"]
+            or _sha256(active / "BED/remap.npz") != bed["remap_sha256"]
+        ):
+            raise PromotionError("BED metadata/remap byte preservation failed")
+        if _validate_mode_dirs(active):
+            raise PromotionError("staged calibration layout is invalid")
+        return rollback, {
+            "BED_PRE_METADATA_SHA256": bed["metadata_sha256"],
+            "BED_PRE_REMAP_SHA256": bed["remap_sha256"],
+            "ROOT_INODE_PRESERVED": "PASS",
+            "BED_BYTE_PRESERVATION": "PASS",
+            "MULTIMODE_PRESTAGE": "PASS",
+        }
+    except Exception:
+        shutil.rmtree(active / "BED", ignore_errors=True)
+        shutil.rmtree(active / "TRX", ignore_errors=True)
+        shutil.rmtree(rollback, ignore_errors=True)
+        raise
+
+
+def _validate_mode_dirs(root: Path) -> list[str]:
+    from scripts.validate_calibration_layout import _validate_artifact
+
+    return _validate_artifact(root / "BED", "BED") + _validate_artifact(
+        root / "TRX", "TRX"
+    )
+
+
 def build_staging(
     active: str | Path,
     carrier: str | Path,
@@ -319,47 +386,25 @@ def build_staging(
     expected_size: int = EXPECTED_CARRIER_SIZE,
     expected_sha256: str = EXPECTED_CARRIER_SHA256,
 ) -> Path:
-    active = Path(active)
-    carrier = Path(carrier)
-    verify_carrier(carrier, expected_size, expected_sha256)
-    validate_legacy_bed(active)
-    with tempfile.TemporaryDirectory(prefix="mpips-carrier-") as temporary:
-        extracted = _extract_carrier(carrier, Path(temporary))
-        _validate_trx(extracted)
-        stage = active.parent / f"{active.name}.next.{uuid.uuid4().hex}"
-        stage.mkdir()
-        (stage / "BED").mkdir()
-        (stage / "TRX").mkdir()
-        shutil.copyfile(active / "metadata.json", stage / "BED/metadata.json")
-        shutil.copyfile(active / "remap.npz", stage / "BED/remap.npz")
-        shutil.copyfile(extracted / "metadata.json", stage / "TRX/metadata.json")
-        shutil.copyfile(extracted / "remap.npz", stage / "TRX/remap.npz")
-    if _sha256(stage / "BED/metadata.json") != _sha256(active / "metadata.json"):
-        raise PromotionError("BED metadata byte preservation failed")
-    if _sha256(stage / "BED/remap.npz") != _sha256(active / "remap.npz"):
-        raise PromotionError("BED remap byte preservation failed")
-    if validate_calibration_layout(stage):
-        shutil.rmtree(stage, ignore_errors=True)
-        raise PromotionError("staged calibration layout is invalid")
-    return stage
+    """Compatibility helper: stage in the existing root and return its root."""
+    root = Path(active)
+    prepare_root_staging(
+        root, carrier, expected_size=expected_size, expected_sha256=expected_sha256
+    )
+    return root
 
 
-def atomic_swap(
-    active: Path,
-    staged: Path,
-    rollback: Path,
-    *,
-    rename: Callable[[Path, Path], None] | None = None,
-) -> None:
-    if active.parent.stat().st_dev != staged.parent.stat().st_dev:
-        raise PromotionError("staging and active calibration use different filesystems")
-    rename = rename or os.replace
-    rename(active, rollback)
+def _switch_to_multimode(active: Path, rollback: Path) -> None:
+    if not (active / "metadata.json").is_file() or not (active / "remap.npz").is_file():
+        raise PromotionError("legacy calibration files missing before mode switch")
+    os.replace(active / "metadata.json", rollback / "metadata.json")
     try:
-        rename(staged, active)
+        os.replace(active / "remap.npz", rollback / "remap.npz")
     except Exception:
-        rename(rollback, active)
+        os.replace(rollback / "metadata.json", active / "metadata.json")
         raise
+    if validate_calibration_layout(active):
+        raise PromotionError("post-switch calibration layout is invalid")
 
 
 def _rollback(
@@ -367,30 +412,117 @@ def _rollback(
     rollback: Path,
     bed_check: Callable[[], dict[str, str]] | None,
 ) -> dict[str, str]:
-    failed = active.parent / f"{active.name}.failed.{uuid.uuid4().hex}"
     evidence = {field: "FAIL" for field in ROLLBACK_FIELDS}
+    evidence.update({"ROLLBACK_RESULT": "FAIL"})
     try:
-        os.replace(active, failed)
-        os.replace(rollback, active)
-        if not validate_calibration_layout(active):
-            evidence["ROLLBACK_BED_LAYOUT"] = "PASS"
-        if evidence["ROLLBACK_BED_LAYOUT"] == "PASS" and bed_check:
+        # Restore remap first: the legacy worker must never see metadata without remap.
+        if not (active / "remap.npz").exists():
+            os.replace(rollback / "remap.npz", active / "remap.npz")
+        if not (active / "metadata.json").exists():
+            os.replace(rollback / "metadata.json", active / "metadata.json")
+        shutil.rmtree(active / "BED")
+        shutil.rmtree(active / "TRX")
+        if validate_calibration_layout(active):
+            raise PromotionError("rollback BED layout is invalid")
+        evidence["ROLLBACK_BED_LAYOUT"] = "PASS"
+        if bed_check:
             check = bed_check()
             for field in ROLLBACK_FIELDS[1:]:
                 evidence[field] = check.get(field, "FAIL")
         if not all(evidence[field] == "PASS" for field in ROLLBACK_FIELDS):
-            evidence["ROLLBACK_RESULT"] = "FAIL"
-            evidence["ROLLBACK_FAILED_DIRECTORY_STATE"] = "RETAINED_FOR_RECOVERY"
-            evidence["ROLLBACK_RECOVERY_DIRECTORY_STATE"] = "RETAINED"
-            return evidence
-        shutil.rmtree(failed, ignore_errors=True)
+            raise PromotionError("rollback BED functional evidence failed")
+        shutil.rmtree(rollback)
         evidence["ROLLBACK_RESULT"] = "PASS"
-        return evidence
     except Exception:
-        evidence["ROLLBACK_RESULT"] = "FAIL"
         evidence["ROLLBACK_FAILED_DIRECTORY_STATE"] = "RETAINED_FOR_RECOVERY"
         evidence["ROLLBACK_RECOVERY_DIRECTORY_STATE"] = "RETAINED"
-        return evidence
+    return evidence
+
+
+def runtime_preflight(
+    *,
+    runtime_dir: str | Path = "/var/www/mpips-runtime",
+    run: Callable[..., object] = subprocess.run,
+    merge_base: Callable[[str, str], bool] | None = None,
+) -> dict[str, str]:
+    """Prove deployed code and immutable image provenance before mutation."""
+    root = Path(runtime_dir)
+    sha = (
+        (root / ".mpips-version").read_text().strip()
+        if (root / ".mpips-version").is_file()
+        else ""
+    )
+    worker = (
+        (root / ".mpips-worker-image").read_text().strip()
+        if (root / ".mpips-worker-image").is_file()
+        else ""
+    )
+    api = ""
+    try:
+        listed = run(
+            [
+                "docker",
+                "ps",
+                "-q",
+                "--filter",
+                "name=mpips-api",
+                "--filter",
+                "status=running",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        ids = listed.stdout.splitlines()
+        if len(ids) == 1:
+            inspected = run(
+                ["docker", "inspect", "--format", "{{.Config.Image}}", ids[0]],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            api = inspected.stdout.strip()
+    except (OSError, AttributeError):
+        pass
+    valid_sha = bool(re.fullmatch(r"[0-9a-f]{40}", sha))
+    api_sha = api.removeprefix("mpips-api:")
+    worker_sha = worker.removeprefix("mpips-npz-worker:")
+    if not valid_sha:
+        ancestor = False
+    elif merge_base:
+        ancestor = merge_base(CAMERA_INDEPENDENT_BASELINE, sha)
+    else:
+        ancestor = (
+            subprocess.run(
+                [
+                    "git",
+                    "merge-base",
+                    "--is-ancestor",
+                    CAMERA_INDEPENDENT_BASELINE,
+                    sha,
+                ],
+                check=False,
+            ).returncode
+            == 0
+        )
+    passed = (
+        valid_sha
+        and ancestor
+        and api == f"mpips-api:{sha}"
+        and worker == f"mpips-npz-worker:{sha}"
+        and api_sha == worker_sha == sha
+    )
+    evidence = {
+        "PRODUCTION_RUNTIME_SHA": sha or "UNPROVEN",
+        "PRODUCTION_API_IMAGE": api or "UNPROVEN",
+        "PRODUCTION_WORKER_IMAGE": worker or "UNPROVEN",
+        "CAMERA_INDEPENDENT_RUNTIME": "PASS" if passed else "FAIL",
+    }
+    if not passed:
+        evidence["FINAL_PROMOTION_CLASSIFICATION"] = (
+            "PRODUCTION_RUNTIME_CAMERA_INDEPENDENT_CODE_REQUIRED"
+        )
+    return evidence
 
 
 def promote(
@@ -401,6 +533,8 @@ def promote(
     container_check: Callable[[], str] | None = None,
     rollback_bed_check: Callable[[], dict[str, str]] | None = None,
     pre_swap_evidence: dict[str, str] | None = None,
+    runtime_evidence: dict[str, str] | None = None,
+    local_pipeline_evidence: dict[str, object] | None = None,
     expected_size: int | None = None,
     expected_sha256: str | None = None,
 ) -> dict[str, str]:
@@ -410,14 +544,34 @@ def promote(
     expected_sha256 = (
         EXPECTED_CARRIER_SHA256 if expected_sha256 is None else expected_sha256
     )
-    stage = build_staging(
+    runtime_evidence = runtime_evidence or {"CAMERA_INDEPENDENT_RUNTIME": "PASS"}
+    if runtime_evidence.get("CAMERA_INDEPENDENT_RUNTIME") != "PASS":
+        return {
+            **runtime_evidence,
+            "FINAL_PROMOTION_CLASSIFICATION": (
+                "PRODUCTION_RUNTIME_CAMERA_INDEPENDENT_CODE_REQUIRED"
+            ),
+        }
+    local_pipeline_evidence = local_pipeline_evidence or {
+        "REAL_TRX_LOCAL_PIPELINE": "PASS"
+    }
+    if local_pipeline_evidence.get("REAL_TRX_LOCAL_PIPELINE") != "PASS":
+        return {
+            **{
+                key: str(value)
+                for key, value in local_pipeline_evidence.items()
+                if key != "cases"
+            },
+            "FINAL_PROMOTION_CLASSIFICATION": "REAL_TRX_LOCAL_PIPELINE_REQUIRED",
+        }
+    rollback, stage_evidence = prepare_root_staging(
         active,
         carrier,
         expected_size=expected_size,
         expected_sha256=expected_sha256,
     )
-    bed = validate_legacy_bed(active)
-    trx = json.loads((stage / "TRX/metadata.json").read_text())
+    trx = json.loads((active / "TRX/metadata.json").read_text())
+    root_inode = active.stat().st_ino
     result = {
         "CARRIER_VERIFICATION": "PASS",
         "carrier_file_id": EXPECTED_CARRIER_FILE_ID,
@@ -425,18 +579,19 @@ def promote(
         "carrier_sha256": expected_sha256,
         "TRX_ARTIFACT_VALIDATION": "PASS",
         "BED_SOURCE_VALIDATION": "PASS",
-        "BED_PRE_METADATA_SHA256": bed["metadata_sha256"],
-        "BED_PRE_REMAP_SHA256": bed["remap_sha256"],
+        **stage_evidence,
         "TRX_FINGERPRINT": str(trx["fingerprint"]),
         "TRX_IMAGE_SHAPE": "3000x4096",
         "STAGING_LAYOUT": "PASS",
-        "BED_BYTE_PRESERVATION": "PASS",
+        "ROOT_INODE_PRESERVED": "PASS",
     }
+    result.update(runtime_evidence)
     result.update(pre_swap_evidence or {})
-    rollback = active.parent / f"{active.name}.rollback.{uuid.uuid4().hex}"
-    atomic_swap(active, stage, rollback)
     try:
-        result["ATOMIC_SWAP"] = "PASS"
+        _switch_to_multimode(active, rollback)
+        if active.stat().st_ino != root_inode:
+            raise PromotionError("calibration root inode changed")
+        result["ATOMIC_MODE_SWITCH"] = "PASS"
         result["POST_SWAP_BED_METADATA_SHA256"] = _sha256(active / "BED/metadata.json")
         result["POST_SWAP_BED_REMAP_SHA256"] = _sha256(active / "BED/remap.npz")
         result["POST_SWAP_BED_BYTE_PRESERVATION"] = (
@@ -476,7 +631,6 @@ def promote(
             )
         ):
             raise PromotionError("post-swap functional check failed")
-        shutil.rmtree(rollback, ignore_errors=True)
         result.update(
             {
                 "ROLLBACK_REQUIRED": "NO",
@@ -586,6 +740,8 @@ def container_calibration_view(
                 return "FAIL"
             container = containers[0]
         check = (
+            "! test -e '{path}/metadata.json' && "
+            "! test -e '{path}/remap.npz' && "
             "test -f '{path}/BED/metadata.json' && "
             "test -f '{path}/BED/remap.npz' && "
             "test -f '{path}/TRX/metadata.json' && "
@@ -637,11 +793,30 @@ def main() -> int:
     args = parser.parse_args()
     result: dict[str, str]
     try:
+        runtime = runtime_preflight()
+        if runtime["CAMERA_INDEPENDENT_RUNTIME"] != "PASS":
+            for key, value in runtime.items():
+                print(f"{key}={value}")
+            _append_summary(args.summary, runtime)
+            return 1
         preflight = validate_real_thorax_inputs(args.real_data_dir)
         if preflight["REAL_THORAX_INPUTS_ALL_PASS"] != "PASS":
             for key, value in preflight.items():
                 print(f"{key}={value}")
             _append_summary(args.summary, preflight)
+            return 1
+        from scripts.validate_real_trx_pipeline import run_local_real_trx_pipeline
+
+        local = run_local_real_trx_pipeline(
+            args.real_data_dir,
+            args.carrier,
+            Path("research/real-thorax-dicom"),
+        )
+        for key, value in local.items():
+            if key != "cases":
+                print(f"{key}={value}")
+        if local["REAL_TRX_LOCAL_PIPELINE"] != "PASS":
+            _append_summary(args.summary, local)
             return 1
         result = promote(
             args.active,
@@ -652,7 +827,10 @@ def main() -> int:
             container_check=container_calibration_view,
             rollback_bed_check=_run_rollback_bed_diagnostic,
             pre_swap_evidence=preflight,
+            runtime_evidence=runtime,
+            local_pipeline_evidence=local,
         )
+        result.update({key: value for key, value in local.items() if key != "cases"})
         result["repository_sha"] = os.environ.get("GITHUB_SHA", "UNPROVEN")
         runtime_sha = Path("/var/www/mpips-runtime/.mpips-version")
         result["production_runtime_sha"] = (

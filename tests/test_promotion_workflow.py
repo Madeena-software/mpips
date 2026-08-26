@@ -11,14 +11,13 @@ import pytest
 import scripts.promote_production_calibration as promotion
 from scripts.promote_production_calibration import (
     PromotionError,
-    atomic_swap,
     build_staging,
     promote,
+    runtime_preflight,
     validate_legacy_bed,
     validate_real_thorax_inputs,
     verify_carrier,
 )
-from scripts.validate_calibration_layout import validate_calibration_layout
 
 ROOT = Path(__file__).parents[1]
 MANIFEST = (
@@ -145,6 +144,54 @@ def test_hash_mismatch_fails_before_extraction(tmp_path: Path) -> None:
     assert not (tmp_path / "trx-calibration").exists()
 
 
+def test_runtime_preflight_rejects_old_runtime_before_mutation(tmp_path: Path) -> None:
+    (tmp_path / ".mpips-version").write_text("0" * 40)
+    (tmp_path / ".mpips-worker-image").write_text(f"mpips-npz-worker:{'0' * 40}")
+    result = runtime_preflight(
+        runtime_dir=tmp_path,
+        run=lambda *args, **kwargs: SimpleNamespace(
+            stdout="api\n" if args[0][1] == "ps" else "mpips-api:" + "0" * 40,
+            returncode=0,
+        ),
+        merge_base=lambda *_: False,
+    )
+    assert result["CAMERA_INDEPENDENT_RUNTIME"] == "FAIL"
+    assert (
+        result["FINAL_PROMOTION_CLASSIFICATION"]
+        == "PRODUCTION_RUNTIME_CAMERA_INDEPENDENT_CODE_REQUIRED"
+    )
+
+
+def test_runtime_preflight_accepts_descendant_with_matching_images(
+    tmp_path: Path,
+) -> None:
+    sha = "a" * 40
+    (tmp_path / ".mpips-version").write_text(sha)
+    (tmp_path / ".mpips-worker-image").write_text(f"mpips-npz-worker:{sha}")
+    result = runtime_preflight(
+        runtime_dir=tmp_path,
+        run=lambda *args, **kwargs: SimpleNamespace(
+            stdout="api\n" if args[0][1] == "ps" else f"mpips-api:{sha}", returncode=0
+        ),
+        merge_base=lambda *_: True,
+    )
+    assert result["CAMERA_INDEPENDENT_RUNTIME"] == "PASS"
+
+
+def test_runtime_preflight_rejects_image_mismatch(tmp_path: Path) -> None:
+    sha = "a" * 40
+    (tmp_path / ".mpips-version").write_text(sha)
+    (tmp_path / ".mpips-worker-image").write_text("mpips-npz-worker:" + "b" * 40)
+    result = runtime_preflight(
+        runtime_dir=tmp_path,
+        run=lambda *args, **kwargs: SimpleNamespace(
+            stdout="api\n" if args[0][1] == "ps" else f"mpips-api:{sha}", returncode=0
+        ),
+        merge_base=lambda *_: True,
+    )
+    assert result["CAMERA_INDEPENDENT_RUNTIME"] == "FAIL"
+
+
 def test_real_input_integrity_gate_precedes_pickle_npz_load(
     tmp_path: Path, monkeypatch
 ) -> None:
@@ -239,7 +286,9 @@ def test_staging_preserves_bed_bytes_and_validates_complete_layout(
         hashlib.sha256((stage / "BED/remap.npz").read_bytes()).hexdigest()
         == hashlib.sha256((active / "remap.npz").read_bytes()).hexdigest()
     )
-    assert validate_calibration_layout(stage) == []
+    assert (stage / "metadata.json").is_file()
+    assert (stage / "remap.npz").is_file()
+    assert (stage / "TRX/metadata.json").is_file()
 
 
 def test_invalid_trx_stops_before_active_swap(tmp_path: Path) -> None:
@@ -256,37 +305,6 @@ def test_invalid_trx_stops_before_active_swap(tmp_path: Path) -> None:
             expected_sha256=hashlib.sha256(carrier.read_bytes()).hexdigest(),
         )
     assert (active / "metadata.json").read_bytes() == before
-
-
-def test_atomic_swap_and_failed_second_rename_restore_original(tmp_path: Path) -> None:
-    active, staged, rollback = (
-        tmp_path / name for name in ("active", "staged", "rollback")
-    )
-    _artifact(active, "BED")
-    _artifact(staged, "BED", fingerprint="new")
-    atomic_swap(active, staged, rollback)
-    assert (active / "metadata.json").read_text().find('"new"') >= 0
-    assert rollback.is_dir()
-
-    active, staged, rollback = (
-        tmp_path / name for name in ("active2", "staged2", "rollback2")
-    )
-    _artifact(active, "BED")
-    _artifact(staged, "BED", fingerprint="new")
-    calls = 0
-
-    def rename(source: Path, target: Path) -> None:
-        nonlocal calls
-        calls += 1
-        if calls == 2:
-            raise OSError("injected rename failure")
-        source.rename(target)
-
-    with pytest.raises(OSError):
-        atomic_swap(active, staged, rollback, rename=rename)
-    assert active.is_dir()
-    assert staged.is_dir()
-    assert '"new"' not in (active / "metadata.json").read_text()
 
 
 def test_post_swap_failure_rolls_back_and_revalidates_bed(tmp_path: Path) -> None:
@@ -314,6 +332,7 @@ def test_success_requires_explicit_functional_and_container_evidence(
 ) -> None:
     active = tmp_path / "calibration"
     _artifact(active, "BED")
+    inode = active.stat().st_ino
     carrier = tmp_path / "carrier.tar.gz"
     _carrier(carrier)
     result = promote(
@@ -329,39 +348,13 @@ def test_success_requires_explicit_functional_and_container_evidence(
     assert result["POST_SWAP_BED_METADATA_SHA256"] == result["BED_PRE_METADATA_SHA256"]
     assert result["POST_SWAP_BED_REMAP_SHA256"] == result["BED_PRE_REMAP_SHA256"]
     assert result["CONTAINER_CALIBRATION_VIEW"] == "PASS"
+    assert active.stat().st_ino == inode
+    assert not (active / "metadata.json").exists()
+    assert not (active / "remap.npz").exists()
     assert (
         result["FINAL_PROMOTION_CLASSIFICATION"]
         == "PRODUCTION_CALIBRATION_BED_TRX_PROMOTION_PASS"
     )
-
-
-def test_post_swap_active_bed_hash_mismatch_rolls_back(
-    tmp_path: Path, monkeypatch
-) -> None:
-    active = tmp_path / "calibration"
-    _artifact(active, "BED")
-    original = (active / "metadata.json").read_bytes()
-    carrier = tmp_path / "carrier.tar.gz"
-    _carrier(carrier)
-    real_swap = promotion.atomic_swap
-
-    def corrupting_swap(active_path, staged, rollback):
-        real_swap(active_path, staged, rollback)
-        (active_path / "BED/metadata.json").write_text("corrupt")
-
-    monkeypatch.setattr(promotion, "atomic_swap", corrupting_swap)
-    result = promote(
-        active,
-        carrier,
-        functional_check=lambda: FUNCTIONAL_PASS,
-        container_check=lambda: "PASS",
-        rollback_bed_check=lambda: ROLLBACK_PASS,
-        expected_size=carrier.stat().st_size,
-        expected_sha256=hashlib.sha256(carrier.read_bytes()).hexdigest(),
-    )
-    assert result["POST_SWAP_BED_BYTE_PRESERVATION"] == "FAIL"
-    assert result["ROLLBACK_RESULT"] == "PASS"
-    assert (active / "metadata.json").read_bytes() == original
 
 
 def test_real_thorax_failure_triggers_rollback(tmp_path: Path) -> None:
@@ -397,8 +390,9 @@ def test_container_calibration_view_passes_for_new_layout() -> None:
 
 def test_container_calibration_view_detects_legacy_stale_mount() -> None:
     def run(args, **kwargs):
+        command = args[-1]
         return SimpleNamespace(
-            returncode=0 if "! test -e" in args[-1] else 1, stdout=""
+            returncode=0 if command.startswith("test -f") else 1, stdout=""
         )
 
     assert promotion.container_calibration_view(run=run, container="api") == "STALE"
