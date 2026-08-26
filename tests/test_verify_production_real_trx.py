@@ -52,8 +52,11 @@ def test_workflow_is_manual_production_only_and_has_no_mutation_paths() -> None:
     assert "workflow_dispatch:" in workflow
     assert "runs-on: [self-hosted, production]" in workflow
     assert "uses: actions/checkout@v4" in workflow
+    assert "fetch-depth: 0" in workflow
     assert "ref: main" not in workflow
-    assert "actions/checkout@v4\n        with:" not in workflow
+    assert (
+        "uses: actions/checkout@v4\n        with:\n          fetch-depth: 0" in workflow
+    )
     assert '--summary "$GITHUB_STEP_SUMMARY"' in workflow
     assert "deploy" not in workflow.lower()
     assert "promote" not in workflow.lower()
