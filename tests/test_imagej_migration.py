@@ -150,3 +150,19 @@ def test_imagej_wrappers_preserve_baseline_outputs() -> None:
             dtype=np.uint16,
         ),
     )
+
+
+def test_imagej_uint16_stretch_and_equalization_match_accepted_references() -> None:
+    image = (np.arange(25, dtype=np.uint16) * 257).reshape(5, 5)
+
+    assert hashlib.sha256(
+        processing.imagej_stretch(image, 0.35).tobytes()
+    ).hexdigest() == (
+        "776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd"
+    )
+    assert hashlib.sha256(processing.imagej_equalize(image).tobytes()).hexdigest() == (
+        "a280d4311f7a210352f54b41db7356224d6a5334d5555632a319fd248b6964dd"
+    )
+    assert hashlib.sha256(
+        processing.imagej_equalize(image, classic=True).tobytes()
+    ).hexdigest() == "a280d4311f7a210352f54b41db7356224d6a5334d5555632a319fd248b6964dd"

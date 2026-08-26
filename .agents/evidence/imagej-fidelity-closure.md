@@ -1,18 +1,19 @@
-# MPIPS ImageJ/Fiji Fidelity Closure — Phase 1 Inventory
+# MPIPS ImageJ/Fiji Fidelity Closure — Phase 2 Accepted Parity + N/A Closure
 
-Status: **Review Required**. This artifact is the Phase 1 inventory and
-production-reachability closure for the published umbrella task. It records
-observed implementation reality; it does not select a CLAHE semantic contract
-or change production behavior.
+Status: **Review Required**. This artifact preserves the Phase 1 inventory and
+records the Phase 2 accepted-parity and N/A closure. It records observed
+implementation reality; it does not select a CLAHE semantic contract or change
+production behavior.
 
 ## Governing identity and preflight
 
 | Item | Observed value |
 |---|---|
 | Governing task | `.agents/tasks/imagej-fidelity-closure.md` |
-| Exact governing task revision | `a75353a6880227b2eda4aeea83437a968748c2c0` |
+| Exact governing task revision | `923594e1638c34f83d34d58e55589b99de27fdcd` |
 | Accepted implementation baseline | `8396fbc768285cc68ed3bbe572561cd664b70e8b` |
-| Execution revision / pre-evidence HEAD | `a75353a6880227b2eda4aeea83437a968748c2c0` |
+| Accepted Phase-1 evidence revision | `1be8ba791bc187be0c8b107cf165ac24f88ee412` |
+| Execution revision / pre-evidence HEAD | `923594e1638c34f83d34d58e55589b99de27fdcd` |
 | Branch | `refactor/package-boundaries` |
 | Origin branch before evidence | same revision as local HEAD |
 | Baseline ancestry | verified: accepted baseline is an ancestor of HEAD |
@@ -45,20 +46,50 @@ The worker call supplies no alternate processing configuration, so the
 pipeline is also directly importable through the imager workflow and file
 runner.
 
+## Phase 2 execution result
+
+The existing `tests/test_hybrid_median_fidelity.py` already covered accepted
+uint8/uint16 parity for kernels 3x3, 5x5, and 7x7, repeated passes, edges,
+corners, interiors, PLUS/X/center selection, and the radius-2 wrapper. It was
+not modified.
+
+The only sentinel gap was uint16 reference-backed coverage for Contrast
+Stretch and weighted/classic Equalization. The existing
+`tests/test_imagej_migration.py` was minimally extended with one deterministic
+`ramp * 257` fixture and exact accepted-reference output hashes:
+
+| Operation | Dtype | Fixture/parameters | Reference-backed output SHA256 |
+|---|---|---|---|
+| Contrast Stretch | uint16 | ramp, `saturated_pixels=0.35` | `776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd` |
+| Weighted Equalization | uint16 | ramp | `a280d4311f7a210352f54b41db7356224d6a5334d5555632a319fd248b6964dd` |
+| Classic Equalization | uint16 | ramp | `a280d4311f7a210352f54b41db7356224d6a5334d5555632a319fd248b6964dd` |
+
+Observed local verification:
+
+```text
+.venv/bin/python -m pytest -q tests/test_imagej_migration.py       6 passed
+.venv/bin/python -m pytest -q tests/test_hybrid_median_fidelity.py 12 passed
+```
+
+These are LOCAL TESTS, not CI. The Temporal Median reachability refresh found
+only `ImageJReplicator.fast_temporal_median` and its documentation/example;
+there is still no production API, workflow, configuration, schema, or caller.
+It is therefore closed as `NOT PRODUCTION REACHABLE — N/A — CLOSED`.
+
 ## Authoritative closure matrix
 
 | Operation | REFERENCE | MPIPS IMPLEMENTATION | PRODUCTION REACHABILITY | DEFAULT REACHABILITY | DTYPE | PRIOR ACCEPTED STATUS | CURRENT VERIFIED STATUS | UNRESOLVED GAP | NEXT REQUIRED PHASE |
 |---|---|---|---|---|---|---|---|---|---|
-| Contrast Stretch | ImageJ `ContrastEnhancer` normalized stretch | `ImageJReplicator.enhance_contrast(equalize=False, normalize=True)`; wrappers in `mpips/processing/radiography.py` | PRODUCTION-REACHABLE — CONFIGURABLE; `contrast_mode="stretch"` | NOT DEFAULT; default mode is `equalize` | uint8, uint16; pipeline converts to uint16 | PARITY CONFIRMED | PARITY CONFIRMED on accepted uint8/uint16 characterization; no contradictory current evidence | Regression sentinel remains to be added/retained in later closure | Phase 2 — accepted parity sentinel |
-| Equalization — weighted ImageJ variant | ImageJ `ContrastEnhancer` weighted/sqrt histogram equalization | `ImageJReplicator._equalize_imagej_variant(classic_equalization=False)` via `enhance_contrast` | PRODUCTION-REACHABLE — DEFAULT | PRODUCTION-REACHABLE — DEFAULT; `contrast_mode="equalize"`, `classic=false` | uint8, uint16; pipeline working output uint16 | PARITY CONFIRMED | PARITY CONFIRMED on accepted uint8/uint16 characterization | Regression sentinel remains to be added/retained in later closure | Phase 2 — accepted parity sentinel |
-| Equalization — classic | ImageJ `ContrastEnhancer` classic histogram equalization | `ImageJReplicator._equalize_imagej_variant(classic_equalization=True)`; config `contrast_classic_equalization` | PRODUCTION-REACHABLE — CONFIGURABLE | NOT DEFAULT; weighted variant is default | uint8, uint16; pipeline working output uint16 | PARITY CONFIRMED | PARITY CONFIRMED on accepted uint8/uint16 characterization | Regression sentinel remains to be added/retained in later closure | Phase 2 — accepted parity sentinel |
-| Hybrid Median | Pinned `Hybrid_2D_Median_Filter.java` | `ImageJReplicator.hybrid_median_filter_2d`; `filtering.apply_median_filter("hybrid_imagej")` maps radius 2 to 5x5 | PRODUCTION-REACHABLE — DEFAULT; pipeline calls median dispatch | PRODUCTION-REACHABLE — DEFAULT; `use_median_filter=true`, type `hybrid_imagej`, radius 2 | uint16 in radiography; implementation also preserves uint8/uint16 | REMEDIATED AND PARITY CONFIRMED | REMEDIATED AND PARITY CONFIRMED; accepted direct uint8/uint16 3x3, 5x5, 7x7 and repeated 5x5 evidence remains consistent | No Phase 1 gap; regression protection is still a later task concern | Phase 2 — accepted parity sentinel |
+| Contrast Stretch | ImageJ `ContrastEnhancer` normalized stretch | `ImageJReplicator.enhance_contrast(equalize=False, normalize=True)`; wrappers in `mpips/processing/radiography.py` | PRODUCTION-REACHABLE — CONFIGURABLE; `contrast_mode="stretch"` | NOT DEFAULT; default mode is `equalize` | uint8, uint16; pipeline converts to uint16 | PARITY CONFIRMED | PARITY CONFIRMED — REGRESSION PROTECTED; uint16 sentinel added and focused test passes | None for Phase 2 | Phase 3 — not required for this settled item |
+| Equalization — weighted ImageJ variant | ImageJ `ContrastEnhancer` weighted/sqrt histogram equalization | `ImageJReplicator._equalize_imagej_variant(classic_equalization=False)` via `enhance_contrast` | PRODUCTION-REACHABLE — DEFAULT | PRODUCTION-REACHABLE — DEFAULT; `contrast_mode="equalize"`, `classic=false` | uint8, uint16; pipeline working output uint16 | PARITY CONFIRMED | PARITY CONFIRMED — REGRESSION PROTECTED; uint16 sentinel added and focused test passes | None for Phase 2 | Phase 3 — not required for this settled item |
+| Equalization — classic | ImageJ `ContrastEnhancer` classic histogram equalization | `ImageJReplicator._equalize_imagej_variant(classic_equalization=True)`; config `contrast_classic_equalization` | PRODUCTION-REACHABLE — CONFIGURABLE | NOT DEFAULT; weighted variant is default | uint8, uint16; pipeline working output uint16 | PARITY CONFIRMED | PARITY CONFIRMED — REGRESSION PROTECTED; uint16 sentinel added and focused test passes | None for Phase 2 | Phase 3 — not required for this settled item |
+| Hybrid Median | Pinned `Hybrid_2D_Median_Filter.java` | `ImageJReplicator.hybrid_median_filter_2d`; `filtering.apply_median_filter("hybrid_imagej")` maps radius 2 to 5x5 | PRODUCTION-REACHABLE — DEFAULT; pipeline calls median dispatch | PRODUCTION-REACHABLE — DEFAULT; `use_median_filter=true`, type `hybrid_imagej`, radius 2 | uint16 in radiography; implementation also preserves uint8/uint16 | REMEDIATED AND PARITY CONFIRMED | REMEDIATED AND PARITY CONFIRMED — REGRESSION PROTECTED; existing focused coverage passes unchanged | None for Phase 2 | Phase 3 — not required for this settled item |
 | CLAHE — MPIPS precise | Fiji `Flat` semantics used as reference identity; MPIPS contract is separate | `ImageJReplicator.apply_clahe(..., fast=False)` -> `_clahe_precise`; displayed bins 256 maps to internal bins 255; blocksize 127 maps to radius 63 | PRODUCTION-REACHABLE — DEFAULT when ImageJ processing is available | PRODUCTION-REACHABLE — DEFAULT; `use_clahe=true`, `fast=false`, slope 0.6, bins 256, blocksize 127, composite true | uint16 on radiography; implementation supports uint8/uint16 | FIDELITY FAILURE; not Fiji Flat parity | FIDELITY FAILURE remains verified; MPIPS returns numeric output at slope 0.6 while pinned Fiji runtime errors on the retained runtime geometry | Semantic contract and production fidelity divergence are unresolved; slope 0.6 is inherited with rationale not recovered | Phase 3 — CLAHE semantic closure; Phase 5 runtime measurement if later authorized |
 | CLAHE — MPIPS fast/OpenCV | Fiji `FastFlat` semantics used as reference identity; MPIPS contract is separate | `ImageJReplicator.apply_clahe(..., fast=True)` -> OpenCV `createCLAHE` path | PRODUCTION-REACHABLE — CONFIGURABLE | NOT DEFAULT; `clahe_fast=false` | uint16 on radiography; implementation supports uint8/uint16 | FIDELITY FAILURE; not Fiji FastFlat parity | FIDELITY FAILURE remains verified; current code is an OpenCV-based alternate semantics | Semantic contract and parity divergence remain unresolved | Phase 3 — CLAHE semantic closure; Phase 5 runtime measurement if later authorized |
 | Fiji CLAHE Flat reference | Pinned `axtimwalde/mpicbg` `Flat.java` and supporting `Apply`/`ShortApply` code | No Java/Fiji runtime in MPIPS production path; retained reference tooling only | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Reference execution is byte working domain with ShortProcessor remapping; uint8/uint16 cases characterized | REFERENCE ONLY / FIDELITY FAILURE against MPIPS | REFERENCE ONLY; pinned identity and execution boundaries are established, not a production implementation | Product/technical semantic choice is not made here | Phase 3 — semantic closure |
 | Fiji CLAHE FastFlat reference | Pinned `axtimwalde/mpicbg` `FastFlat.java` and supporting fast apply code | No Java/Fiji runtime in MPIPS production path; retained reference tooling only | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Reference uses byte working domain and dtype-specific ShortProcessor remapping | REFERENCE ONLY / FIDELITY FAILURE against MPIPS | REFERENCE ONLY; distinct fixed-block/interpolation algorithm is established | Product/technical semantic choice is not made here | Phase 3 — semantic closure |
 | Circular Median | ImageJ core `RankFilters.MEDIAN` circular-kernel semantics | `ImageJReplicator.median_filter_imagej`; `filtering.apply_median_filter("circular_imagej")` | PRODUCTION-REACHABLE — CONFIGURABLE; config enum/schema and median dispatch can activate it | NOT DEFAULT; default type is `hybrid_imagej` | uint16 on radiography; implementation supports uint8/uint16 | FIDELITY FAILURE for accepted special-radius cases; exposed alternative, not active default | Reachability confirmed. Current implementation remains parity-sensitive: accepted characterization found failures at radii 1.5 and 2.5, with other tested radii exact | Fidelity status for all supported/configurable radii is unresolved; no remediation performed | Phase 4 — Circular Median resolution |
-| Temporal Median | ImageJ `Fast_Temporal_Median.java` plugin identity | `ImageJReplicator.fast_temporal_median(stack, ...)` only; no wrapper/config/pipeline caller found | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Library method accepts 3D uint8/uint16 stacks | NOT PRODUCTION-REACHABLE — N/A | NOT PRODUCTION-REACHABLE — N/A; current caller search found no production API, workflow, config, or schema path | No production fidelity obligation established; standalone method remains outside current production surface | Phase 2 — close as N/A if review accepts current reachability |
+| Temporal Median | ImageJ `Fast_Temporal_Median.java` plugin identity | `ImageJReplicator.fast_temporal_median(stack, ...)` only; no wrapper/config/pipeline caller found | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Library method accepts 3D uint8/uint16 stacks | NOT PRODUCTION-REACHABLE — N/A | NOT PRODUCTION REACHABLE — N/A — CLOSED; refreshed caller/config/API/schema search remains empty | No production fidelity obligation established; standalone method remains outside current production surface | Phase 3 — no further Phase-2 work |
 
 ## Direct reachability observations
 
@@ -79,7 +110,7 @@ runner.
   is accepted by the config enum/schema and dispatches to the implementation.
   It is configurable reachability, not default reachability.
 - Temporal Median occurs only as a static method and module documentation;
-  no current caller or configuration/API/schema exposure was found.
+  refreshed search found no current caller or configuration/API/schema exposure.
 - No additional current production operation was found that is both
   ImageJ/Fiji-derived or inspired and outside the matrix above.
 
@@ -95,22 +126,19 @@ against accepted evidence was found.
 
 ## Unresolved gaps and later routing
 
-1. Contrast Stretch, weighted Equalization, classic Equalization, and accepted
-   Hybrid Median need the Phase 2 sentinel/closure treatment; no new fidelity
-   repair is indicated.
-2. MPIPS precise and fast CLAHE require the Phase 3 semantic decision. This
+1. MPIPS precise and fast CLAHE require the Phase 3 semantic decision. This
    inventory does not choose Legacy MPIPS, Fiji Flat, or Fiji FastFlat.
-3. Circular Median requires Phase 4 reachability-aware fidelity resolution.
-4. Runtime questions belong to Phase 5; no performance work was done here.
-5. Regression protection and final umbrella closure belong to Phases 6 and 7.
+2. Circular Median requires Phase 4 reachability-aware fidelity resolution.
+3. Runtime questions belong to Phase 5; no performance work was done here.
+4. Final umbrella closure belongs to Phases 6 and 7.
 
 ## Phase boundary and terminal state
 
-Phase 1 performed inventory and characterization only. No remediation, source,
-configuration, schema, test, reference-tooling, threshold, stage-order,
-performance, deployment, release, or semantic CLAHE selection occurred.
-The Phase 1 limitations are the accepted evidence limits: reachability was
-verified statically, no clinical safety claim is made, and this artifact does
-not establish a quality recommendation or final production semantic contract.
+Phase 2 performed only the authorized sentinel and reachability closure. No
+production remediation, configuration/schema change, reference-tooling change,
+threshold/stage-order work, benchmark, deployment, release, or semantic CLAHE
+selection occurred. The Phase 2 limitations are that tests are local rather
+than CI, no clinical safety claim is made, and this artifact does not establish
+a quality recommendation or final production semantic contract.
 
 **Terminal state: Review Required.**
