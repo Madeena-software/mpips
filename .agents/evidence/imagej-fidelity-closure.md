@@ -321,20 +321,32 @@ API-reachable merely because they are configurable.
 ### Accepted I-4A characterization
 
 The retained pinned ImageJ 1.54p `RankFilters` comparisons report the same
-classification for uint8 and uint16:
+classification for uint8 and uint16. The metrics below are transcribed from
+the accepted I-4A JSON; `mismatch count` and `interior mismatches` are distinct
+fields.
 
-| Radius | uint8 | uint16 |
-|---:|---|---|
-| 0.5 | PARITY CONFIRMED | PARITY CONFIRMED |
-| 1.0 | PARITY CONFIRMED | PARITY CONFIRMED |
-| 1.5 | FIDELITY FAILURE (3 mismatches, max diff 0.44) | FIDELITY FAILURE (771 mismatches, max diff 0.44) |
-| 1.74 | PARITY CONFIRMED | PARITY CONFIRMED |
-| 1.75 | PARITY CONFIRMED | PARITY CONFIRMED |
-| 2.0 | PARITY CONFIRMED | PARITY CONFIRMED |
-| 2.5 | FIDELITY FAILURE (2 mismatches, max diff 0.32) | FIDELITY FAILURE (514 mismatches, max diff 0.32) |
-| 2.84 | PARITY CONFIRMED | PARITY CONFIRMED |
-| 2.85 | PARITY CONFIRMED | PARITY CONFIRMED |
-| 3.0 | PARITY CONFIRMED | PARITY CONFIRMED |
+| Radius | Dtype | Mismatch count | Mismatch fraction | Interior mismatches | Max absolute difference | Classification |
+|---:|---|---:|---:|---:|---:|---|
+| 0.5 | uint8 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 1.0 | uint8 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 1.5 | uint8 | 11 | 0.44 | 3 | 3 | FIDELITY FAILURE |
+| 1.74 | uint8 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 1.75 | uint8 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 2.0 | uint8 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 2.5 | uint8 | 8 | 0.32 | 5 | 2 | FIDELITY FAILURE |
+| 2.84 | uint8 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 2.85 | uint8 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 3.0 | uint8 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 0.5 | uint16 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 1.0 | uint16 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 1.5 | uint16 | 11 | 0.44 | 3 | 771 | FIDELITY FAILURE |
+| 1.74 | uint16 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 1.75 | uint16 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 2.0 | uint16 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 2.5 | uint16 | 8 | 0.32 | 5 | 514 | FIDELITY FAILURE |
+| 2.84 | uint16 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 2.85 | uint16 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
+| 3.0 | uint16 | 0 | 0.0 | 0 | 0 | PARITY CONFIRMED |
 
 These are accepted sampled cases only and are not extrapolated to all
 positive radii.
