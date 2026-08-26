@@ -2,6 +2,7 @@ import argparse
 import csv
 import math
 import os
+import statistics
 
 import cv2
 import numpy as np
@@ -95,19 +96,62 @@ def extract_grid(
     for i, r in enumerate(rows):
         print(f"Row {i+1}: {len(r)} columns")
 
-    # Tiny components at the detector edge are clipped border fragments, not
-    # recoverable phantom dots.  The area bound is below legitimate clipped
-    # dots in the source image and is paired with border proximity.
+    # A tiny two-component row between two regular row gaps is detector noise,
+    # not a physical row.  Keep this spatial test independent of row width.
+    row_centers = [statistics.mean(dot["y"] for dot in row) for row in rows]
+    row_gaps = [b - a for a, b in zip(row_centers, row_centers[1:])]
+    row_spacing = statistics.median(row_gaps) if row_gaps else 0
+    column_gaps = [
+        right["x"] - left["x"]
+        for row in rows
+        for left, right in zip(sorted(row, key=lambda d: d["x"]), row[1:])
+    ]
+    column_spacing = statistics.median(column_gaps) if column_gaps else 0
+    spurious_row_ids = {
+        i
+        for i, row in enumerate(rows)
+        if len(row) <= 2
+        and 0 < i < len(rows) - 1
+        and abs(row_centers[i + 1] - row_centers[i - 1] - row_spacing)
+        <= max(row_spacing * 0.15, 1)
+    }
+    if spurious_row_ids:
+        rows = [row for i, row in enumerate(rows) if i not in spurious_row_ids]
+        print(f"Excluded {len(spurious_row_ids)} spurious detector-border rows.")
+
+    # Tiny border fragments are excluded only when they duplicate a nearby
+    # candidate at the same edge.  A lone border candidate remains available
+    # for partial-column classification rather than being discarded by area.
     row_data = [
         (row, any(dot["border_distance"] < _BORDER_DISTANCE for dot in row))
         for row in rows
     ]
     excluded_border_components = [
         dot
-        for row, _ in row_data
+        for row_index, (row, _) in enumerate(row_data)
         for dot in row
         if dot["border_distance"] < _BORDER_DISTANCE
         and dot["area"] < _BORDER_ARTIFACT_AREA
+        and (
+            any(
+                other is not dot
+                and other["border_distance"] < _BORDER_DISTANCE
+                and abs(other["x"] - dot["x"]) < 50
+                and abs(other["y"] - dot["y"]) < 50
+                for other in row
+            )
+            or (
+                column_spacing
+                and min(abs(other["x"] - dot["x"]) for other in row if other is not dot)
+                < column_spacing * 0.5
+            )
+            or not any(
+                abs(other["x"] - dot["x"]) < 15
+                for other_row_index, (other_row, _) in enumerate(row_data)
+                if other_row_index != row_index
+                for other in other_row
+            )
+        )
     ]
     if excluded_border_components:
         excluded_ids = {id(dot) for dot in excluded_border_components}
@@ -121,22 +165,30 @@ def extract_grid(
             f"{len(excluded_border_components)} tiny detector-border components."
         )
 
-    from collections import Counter
-
     widths = [len(row) for row, _ in row_data]
     if len(row_data) < 2 or not widths:
         raise ValueError(
             "Detected dot grid has insufficient rows after border filtering"
         )
-    expected_width = Counter(widths).most_common(1)[0][0]
+    expected_width = max(widths)
+    complete_rows = [row for row, _ in row_data if len(row) == expected_width]
+    if len(complete_rows) < 2:
+        raise ValueError("Detected dot grid has too few complete rows")
     partial_rows = [
         row
         for row, touched_border in row_data
-        if len(row) != expected_width
-        and (
-            touched_border
-            or min(dot["y"] for dot in row) < row_tolerance
-            or max(dot["y"] for dot in row) >= img.shape[0] - row_tolerance
+        if (
+            len(row) != expected_width
+            and (
+                touched_border
+                or min(dot["y"] for dot in row) < row_tolerance
+                or max(dot["y"] for dot in row) >= img.shape[0] - row_tolerance
+            )
+        )
+        or (
+            sum(dot["bbox"][1] == 0 for dot in row) >= len(row) / 2
+            or sum(dot["bbox"][1] + dot["bbox"][3] >= img.shape[0] for dot in row)
+            >= len(row) / 2
         )
     ]
     if partial_rows:
@@ -155,6 +207,27 @@ def extract_grid(
             "rows; "
             f"row widths: {widths}"
         )
+
+    # Columns that reach either detector edge are partial physical columns;
+    # remove them symmetrically from the complete rows only.
+    complete_rows = [row for row in rows if len(row) == expected_width]
+    partial_column_indices = {
+        column
+        for column in range(expected_width)
+        if min(row[column]["x"] for row in complete_rows) < _BORDER_DISTANCE
+        or max(row[column]["x"] for row in complete_rows)
+        >= img.shape[1] - _BORDER_DISTANCE
+    }
+    if partial_column_indices:
+        print(f"Excluded {len(partial_column_indices)} partial edge columns.")
+        rows = [
+            [
+                dot
+                for column, dot in enumerate(row)
+                if column not in partial_column_indices
+            ]
+            for row in complete_rows
+        ]
 
     # Prepare data for the 3 CSVs
     grid_coords = []

@@ -334,8 +334,8 @@ def test_extract_dot_grid_recovers_lattice_from_border_fragments() -> None:
     for row in range(4):
         for column in range(5):
             cv2.circle(image, (30 + column * 40, 30 + row * 40), 7, 255, -1)
-    cv2.circle(image, (218, 110), 2, 255, -1)
-    cv2.circle(image, (218, 114), 2, 255, -1)
+    cv2.circle(image, (208, 110), 2, 255, -1)
+    cv2.circle(image, (208, 114), 2, 255, -1)
 
     coords, diameters, circularity = extract_dot_grid(
         image, NeuralCalibrationConfig(row_tolerance=20)
@@ -358,6 +358,28 @@ def test_extract_dot_grid_excludes_only_clipped_outer_rows() -> None:
     assert coords.shape == (4, 5, 2)
 
 
+def test_extract_dot_grid_excludes_genuinely_clipped_outer_circles() -> None:
+    image = np.zeros((240, 220), dtype=np.uint8)
+    for row_y in (4, 50, 90, 130, 170, 210, 236):
+        for column_x in (30, 70, 110, 150, 190):
+            cv2.circle(image, (column_x, row_y), 10, 255, -1)
+
+    coords, _, _ = extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
+
+    assert coords.shape == (5, 5, 2)
+
+
+def test_extract_dot_grid_excludes_genuinely_clipped_outer_columns() -> None:
+    image = np.zeros((180, 220), dtype=np.uint8)
+    for row_y in (30, 70, 110, 150):
+        for column_x in (4, 50, 90, 130, 170, 216):
+            cv2.circle(image, (column_x, row_y), 10, 255, -1)
+
+    coords, _, _ = extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
+
+    assert coords.shape == (4, 4, 2)
+
+
 def test_extract_dot_grid_rejects_interior_extra_dot() -> None:
     image = np.zeros((180, 220), dtype=np.uint8)
     for row in range(4):
@@ -365,7 +387,9 @@ def test_extract_dot_grid_rejects_interior_extra_dot() -> None:
             cv2.circle(image, (30 + column * 40, 30 + row * 40), 7, 255, -1)
     cv2.circle(image, (50, 110), 7, 255, -1)
 
-    with pytest.raises(CalibrationValidationError, match="row widths"):
+    with pytest.raises(
+        CalibrationValidationError, match="too few complete rows|row widths"
+    ):
         extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
 
 
