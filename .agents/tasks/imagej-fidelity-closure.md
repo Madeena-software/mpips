@@ -1,13 +1,13 @@
 ---
 title: MPIPS ImageJ/Fiji Fidelity Closure
 document_id: AGENT-TASK-IMAGEJ-FIDELITY-CLOSURE-001
-version: 1.8
+version: 1.9
 status: Validated/Published
 language: en-US
 last_updated: 2026-08-26
 scope:
   - ImageJ/Fiji-derived and ImageJ/Fiji-inspired processing fidelity closure
-  - bounded characterization, remediation, regression, and runtime measurement
+  - bounded characterization, remediation, regression, runtime measurement, and final closure
 authority_note: This is one stable umbrella task. Publication authorizes only the bounded phase currently released by Planner; later material phases require review and republishing of this same path with a new immutable task revision.
 ---
 
@@ -53,7 +53,25 @@ The task revision and implementation baseline are separate. A later material
 phase MUST republish this same task path at a new immutable revision before
 execution.
 
-**Current released phase:** **PHASE 6 — MINIMAL REFERENCE / REGRESSION SENTINEL SUITE**
+**Phase 1 status:** **ACCEPTED / CLOSED**
+
+**Phase 2 status:** **ACCEPTED / CLOSED**
+
+**Phase 3 status:** **ACCEPTED / CLOSED**
+
+**Phase 4 status:** **ACCEPTED / CLOSED**
+
+**Phase 5 status:** **ACCEPTED / CLOSED** at
+`a625deac10153a2c7c69a3523dd77751518b298e`.
+
+**Phase 6 status:** **ACCEPTED / CLOSED** at
+`7a95a66641e146378df9a75b977aa2aa90fb55d9`.
+
+**Current released phase:** **PHASE 7 — FINAL IMAGEJ/FIJI FIDELITY CLOSURE**
+
+There is no later ImageJ Fidelity Closure phase. Phase-7 acceptance does not
+authorize production release, main promotion, deployment, Radiography Pipeline
+Optimization, stage-order work, or production default changes.
 
 **Phase-5 status:** **ACCEPTED / CLOSED** at
 `a625deac10153a2c7c69a3523dd77751518b298e`.
@@ -92,8 +110,8 @@ predecessor of the Phase-2 baseline. Phase 1, Phase 2, and Phase 3 are
 accepted/closed. The Phase-4 radius-domain/reachability first gate is
 accepted/closed at `84b4a8cd271fcf7b262bd625530a974357704f9b`. Phase 4
 remediation is accepted/closed at
-`232f148ce24d6df5569a4b2c290e93adf0a03d5f`. Phase 6 is released by this
-publication; Phase 7 remains unauthorized.
+`232f148ce24d6df5569a4b2c290e93adf0a03d5f`. Phase 6 is accepted/closed at
+the baseline above. Phase 7 is released by this publication.
 
 **Accepted Phase-3 baseline:**
 `8c7b479947ee2b67856fd644e95b6d9eede52739`
@@ -585,13 +603,101 @@ confirmation, protected converter SHA, remaining gaps, and terminal
 
 **Gate:** Review Required; republish before final closure.
 
-### Phase 7 — Final ImageJ Fidelity Closure
+### Phase 7 — Final ImageJ/Fiji Fidelity Closure (Released)
 
-Produce final evidence for every operation covering reference, production
-reachability, contract, parity, intentional divergence, regression coverage,
-performance note, and final closure state. Final acceptance requires no
-unresolved production-reachable fidelity failure. Acceptance does not authorize
-production release.
+Phase 7 is the final closure phase. It must consolidate Phases 1–6 into one
+authoritative final state and produce one final matrix covering at least:
+
+1. Contrast Stretch;
+2. Weighted Equalization;
+3. Classic Equalization;
+4. Hybrid Median;
+5. CLAHE — MPIPS precise;
+6. CLAHE — MPIPS fast/OpenCV;
+7. Fiji Flat;
+8. Fiji FastFlat;
+9. Circular Median; and
+10. Temporal Median.
+
+Every row MUST include semantic/reference authority, production reachability,
+production status, fidelity classification, deterministic regression
+protection, bounded performance note where applicable, and final closure state.
+
+Unless current evidence contradicts the accepted baselines, the expected
+classifications are:
+
+| Operation | Expected final classification | Reachability / closure |
+|---|---|---|
+| Contrast Stretch | `PARITY CONFIRMED — REGRESSION PROTECTED` | Configurable, not default; `CLOSED` |
+| Weighted Equalization | `PARITY CONFIRMED — REGRESSION PROTECTED` | Production-reachable default contrast mode; `CLOSED` |
+| Classic Equalization | `PARITY CONFIRMED — REGRESSION PROTECTED` | Configurable, not default; `CLOSED` |
+| Hybrid Median | `REMEDIATED AND PARITY CONFIRMED — REGRESSION PROTECTED` | Production-reachable default median filter; accepted 3x3/5x5/7x7 boundary; `CLOSED` |
+| CLAHE — MPIPS precise | `INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED; NOT FIJI FLAT PARITY; REGRESSION PROTECTED` | Production-reachable default CLAHE path; `CLOSED AS GOVERNED INTENTIONAL DIVERGENCE` |
+| CLAHE — MPIPS fast/OpenCV | `INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED; NOT FIJI FASTFLAT PARITY; REGRESSION PROTECTED` | Configurable, not default; `CLOSED AS GOVERNED INTENTIONAL DIVERGENCE` |
+| Fiji Flat | `REFERENCE SEMANTICS ESTABLISHED; N/A FOR PRODUCTION PARITY REQUIREMENT` | Reference-only, not production-reachable; `CLOSED — REFERENCE ONLY` |
+| Fiji FastFlat | `REFERENCE SEMANTICS ESTABLISHED; N/A FOR PRODUCTION PARITY REQUIREMENT` | Reference-only, not production-reachable; `CLOSED — REFERENCE ONLY` |
+| Circular Median | `REMEDIATED AND PARITY CONFIRMED ACROSS ACCEPTED I-4A CHARACTERIZATION MATRIX; REGRESSION PROTECTED` | Configurable, not default; claim bounded to 10 radii x 2 dtypes; `CLOSED WITH ACCEPTED MATRIX BOUNDARY` |
+| Temporal Median | `N/A — CLOSED` | Not production-reachable; `CLOSED — N/A` |
+
+The final CLAHE authority is the Legacy MPIPS Contract for precise
+(`fast=false`) and the MPIPS/OpenCV Alternate Contract for fast (`fast=true`).
+The defaults remain `use_clahe=true`, `clahe_blocksize=127`,
+`clahe_histogram_bins=256`, `clahe_max_slope=0.6`, `clahe_fast=false`, and
+`clahe_composite=true`. Slope 0.6 is `INHERITED MPIPS DEFAULT — RATIONALE NOT
+RECOVERED`; no optimality, Fiji-compatibility, image-quality superiority, or
+clinical superiority claim is authorized.
+
+Phase 7 may make only documentation/comment corrections in
+`mpips/processing/imagej.py` and update
+`.agents/evidence/imagej-fidelity-closure.md`. Source changes are limited to
+module, class, function docstrings, comments, and descriptive text. There must
+be zero executable-code delta, no test changes, and no production behavior,
+configuration, API, schema, reference harness, dependency, converter, stage
+order, threshold, or default change. If executable code or another tracked
+file is required, stop: `PLANNING REQUIRED — PHASE-7 SCOPE CHANGE`.
+
+The source documentation correction must state that the module contains
+ImageJ-derived/related compatibility helpers; accepted parity is operation-
+specific; CLAHE does not claim Fiji Flat/FastFlat parity; `fast=false` is the
+governed Legacy MPIPS precise contract; `fast=true` is the governed
+MPIPS/OpenCV alternate contract; and Fiji Flat/FastFlat are reference-only.
+
+The final evidence section MUST be titled `## Phase 7 — Final ImageJ/Fiji
+Fidelity Closure`, explicitly authoritative over earlier historical sections,
+and include the governing publication, accepted Phase-6/5/4 baselines, final
+10-operation matrix, reachability summary, CLAHE authority, Circular Median
+claim boundary, Temporal Median N/A status, regression summary, bounded
+Phase-5 performance note, documentation correction, protected converter SHA,
+local verification labeled `LOCAL TESTS, NOT CI`, residual limitations,
+unresolved-failure assessment, release boundary, and terminal `Review Required`.
+
+If inspection remains consistent with accepted evidence, record exactly:
+
+`NO UNRESOLVED PRODUCTION-REACHABLE IMAGEJ/FIJI FIDELITY FAILURE`
+
+This requires explaining that the three contrast/equalization items are parity
+confirmed and protected; Hybrid and Circular Median are remediated and
+protected within their accepted boundaries; MPIPS CLAHE divergence is
+intentional, selected, documented, and protected; Fiji references are not
+production reachable; and Temporal Median is not production reachable. If any
+premise is contradicted, stop: `REVIEW BLOCKED` and do not force closure.
+
+Residual limitations MUST retain: no Fiji parity claim for MPIPS CLAHE; slope
+0.6 rationale not recovered and no optimality claim; Circular Median bounded
+to the accepted I-4A matrix; Phase-5 timings bounded to one environment,
+fixture, and distinct timing scopes; no image-quality or clinical superiority
+claim; and final closure is not production qualification or authorization for
+main, deployment, or release.
+
+The protected converter MUST remain byte-identical with SHA256
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+Verification MUST include the bounded reachability recheck, both local test
+commands from the Phase-6 evidence, exact documentation diff inspection, and
+`git diff --check`. Tests are verification-only and are local tests, not CI.
+
+**Gate:** Review Required. This is the final ImageJ/Fiji closure phase; no
+later ImageJ Fidelity Closure phase exists. Acceptance remains separate from
+production release authorization.
 
 ## Acceptance criteria
 
@@ -608,6 +714,8 @@ production release.
 - [ ] Minimal regression protection matches each final contract/status.
 - [ ] No unresolved production-reachable fidelity failure remains at final
   acceptance, and the protected converter hash remains unchanged.
+- [ ] Phase-7 evidence is authoritative, retains the bounded limitations, and
+  ends at `Review Required` without authorizing main, deployment, or release.
 
 ## Verification requirements
 
@@ -650,23 +758,24 @@ SELECTION` for the CLAHE decision stop and MUST NOT invent the decision.
 - Create only `.agents/tasks/imagej-fidelity-closure.md`.
 - Run `git diff --check`, inspect the task-only diff, commit the task
   publication, and push normally to `origin/refactor/package-boundaries`.
-- This revision authorizes the later Phase-6 test/evidence work only in
-  `tests/test_imagej_migration.py` and
-  `.agents/evidence/imagej-fidelity-closure.md`, subject to the Phase-6
+- This revision authorizes later Phase-7 work only in
+  `mpips/processing/imagej.py` and
+  `.agents/evidence/imagej-fidelity-closure.md`, subject to the Phase-7
   constraints above.
 
 ### Not authorized
 
-- Any Phase-6 execution during this publication.
-- Any change outside the authorized future Phase-6 test/evidence surfaces,
+- Any Phase-7 execution during this publication.
+- Any change outside the authorized future Phase-7 documentation/evidence
+  surfaces,
   production behavior/configuration, source/reference harness, dependencies,
   stage-order work, deployment, release, main change, or force push.
 
 ## Expected terminal outcome
 
 This publication ends at **Review Required** with the immutable publication
-commit as the task revision. It does not execute Phase 6, benchmark, modify
-tests, or modify evidence.
+commit as the task revision. It does not execute Phase 7, modify source, tests,
+or evidence, benchmark, deploy, release, or promote main.
 
 ## Review and remediation handling
 
