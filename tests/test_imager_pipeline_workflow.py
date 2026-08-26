@@ -515,7 +515,7 @@ def test_complete_promoted_recipe_matches_golden_tiff_pixels() -> None:
     output = process_radiography_arrays(raw, dark, flat, "BED", ImagerPipelineConfig())
     assert output.dtype == np.uint16
     assert hashlib.sha256(output.tobytes()).hexdigest() == (
-        "777a868cb95ccf0a7fdf915c8cb7b82cfe760f27a4138f1c109e335f7d108361"
+        "a5dc3a5c98b8f9bb5acfcd3b61974c70b0a3b637e7e792343c97f904d73f92e4"
     )
 
 

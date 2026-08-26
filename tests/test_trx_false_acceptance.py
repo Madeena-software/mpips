@@ -80,5 +80,53 @@ def test_first_collapse_stage_is_not_dicom_when_invert_collapses():
 
 def test_trx_bypasses_destructive_threshold_separation():
     assert pipeline.threshold_method_for_detector("TRX", "auto") == "none"
-    assert pipeline.threshold_method_for_detector("BED", "auto") == "auto"
+    assert pipeline.threshold_method_for_detector("BED", "auto") == "none"
     assert pipeline.threshold_method_for_detector("TRX", "auto", "auto") == "auto"
+    assert pipeline.threshold_method_for_detector("BED", "auto", "auto") == "auto"
+    assert pipeline.threshold_method_for_detector("future", "auto") == "auto"
+    assert pipeline.threshold_method_for_detector("future", "auto", "none") == "none"
+
+
+def test_threshold_algorithm_remains_callable():
+    image = np.array([[0.1, 0.9], [0.2, 0.8]], dtype=np.float32)
+    threshold = pipeline.apply_threshold_separation(image, 0.5)
+    np.testing.assert_array_equal(threshold, [[0.0, 1.0], [1.0, 1.0]])
+
+
+def _run_threshold_call_probe(tmp_path, monkeypatch, detector_type, override=None):
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    calls = []
+    monkeypatch.setitem(pipeline.CONFIG, "USE_DENOISE", False)
+    monkeypatch.setitem(pipeline.CONFIG, "USE_CROP_ROTATE", False)
+    monkeypatch.setitem(pipeline.CONFIG, "USE_CONTRAST_ENHANCEMENT", False)
+    monkeypatch.setitem(pipeline.CONFIG, "USE_CLAHE", False)
+    monkeypatch.setitem(pipeline.CONFIG, "USE_MEDIAN_FILTER", False)
+    monkeypatch.setattr(
+        pipeline, "auto_threshold_detection", lambda *args, **kwargs: 0.5
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "apply_threshold_separation",
+        lambda *args, **kwargs: calls.append(True) or args[0],
+    )
+    image = np.full((8, 8), 1000, dtype=np.uint16)
+    for name in ("raw", "dark", "flat"):
+        cv2.imwrite(str(tmp_path / f"{name}.tiff"), image)
+    pipeline.process_single_image(
+        str(tmp_path / "raw.tiff"),
+        str(tmp_path / "dark.tiff"),
+        str(tmp_path / "flat.tiff"),
+        str(tmp_path / "output.tiff"),
+        detector_type=detector_type,
+        threshold_method_override=override,
+    )
+    return calls
+
+
+def test_bed_and_trx_defaults_do_not_apply_threshold_separation(tmp_path, monkeypatch):
+    assert not _run_threshold_call_probe(tmp_path / "bed", monkeypatch, "BED")
+    assert not _run_threshold_call_probe(tmp_path / "trx", monkeypatch, "TRX")
+
+
+def test_explicit_diagnostic_auto_applies_threshold_separation(tmp_path, monkeypatch):
+    assert _run_threshold_call_probe(tmp_path, monkeypatch, "BED", "auto")

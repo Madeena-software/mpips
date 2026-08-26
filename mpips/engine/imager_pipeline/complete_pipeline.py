@@ -943,10 +943,14 @@ def _report_stage(stage_observer, name, image):
 def threshold_method_for_detector(
     detector_type, configured_method, diagnostic_override=None
 ):
-    """Disable destructive threshold separation for TRX; preserve BED."""
+    """Bypass destructive threshold separation for supported radiography modes."""
     if diagnostic_override is not None:
         return diagnostic_override
-    return "none" if str(detector_type).upper() == "TRX" else configured_method
+    return (
+        "none"
+        if str(detector_type).upper() in {"BED", "TRX"}
+        else configured_method
+    )
 
 
 def process_single_image(

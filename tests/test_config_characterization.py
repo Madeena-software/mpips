@@ -73,7 +73,7 @@ def test_characterize_bed_golden_output_hash() -> None:
     assert out.shape == (24, 24)
     out_hash = hashlib.sha256(out.tobytes()).hexdigest()
     assert (
-        out_hash == "777a868cb95ccf0a7fdf915c8cb7b82cfe760f27a4138f1c109e335f7d108361"
+        out_hash == "a5dc3a5c98b8f9bb5acfcd3b61974c70b0a3b637e7e792343c97f904d73f92e4"
     )
 
 
