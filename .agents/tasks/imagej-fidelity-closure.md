@@ -1,7 +1,7 @@
 ---
 title: MPIPS ImageJ/Fiji Fidelity Closure
 document_id: AGENT-TASK-IMAGEJ-FIDELITY-CLOSURE-001
-version: 1.7
+version: 1.8
 status: Validated/Published
 language: en-US
 last_updated: 2026-08-26
@@ -53,9 +53,19 @@ The task revision and implementation baseline are separate. A later material
 phase MUST republish this same task path at a new immutable revision before
 execution.
 
-**Current released phase:** **PHASE 5 — BOUNDED PERFORMANCE BASELINE**
+**Current released phase:** **PHASE 6 — MINIMAL REFERENCE / REGRESSION SENTINEL SUITE**
 
-**Phase-5 status:** **IN PROGRESS — BOUNDED PERFORMANCE MEASUREMENT**
+**Phase-5 status:** **ACCEPTED / CLOSED** at
+`a625deac10153a2c7c69a3523dd77751518b298e`.
+
+Accepted Phase-5 controlled fixture: 1024x1024, uint16, SHA256
+`70f5d243cbd130bdf30009f50711179d7e9d9f725dabef9c808be37a7c614858`.
+All six measured tuples were deterministic. MPIPS precise/OpenCV at slopes
+0.6 and 1.5 had accepted median warm in-process CLAHE times of
+1.583727094 s, 0.005403822 s, 1.550276505 s, and 0.005421374 s,
+respectively. Fiji Flat and FastFlat at slope 1.5 had accepted reference
+harness end-to-end wall times of 2.095351675 s and 1.864892977 s. These timing
+scopes remain distinct and are not a production decision.
 
 **Accepted sub-gate:** **REFERENCE RUNTIME RECONSTRUCTION — ACCEPTED / CLOSED**
 
@@ -82,8 +92,8 @@ predecessor of the Phase-2 baseline. Phase 1, Phase 2, and Phase 3 are
 accepted/closed. The Phase-4 radius-domain/reachability first gate is
 accepted/closed at `84b4a8cd271fcf7b262bd625530a974357704f9b`. Phase 4
 remediation is accepted/closed at
-`232f148ce24d6df5569a4b2c290e93adf0a03d5f`. Phase 6 and all later phases
-remain unauthorized.
+`232f148ce24d6df5569a4b2c290e93adf0a03d5f`. Phase 6 is released by this
+publication; Phase 7 remains unauthorized.
 
 **Accepted Phase-3 baseline:**
 `8c7b479947ee2b67856fd644e95b6d9eede52739`
@@ -255,8 +265,8 @@ rechecked rather than assumed.
 
 ## Gated phases
 
-The prior publications released Phase 1, Phase 2, and Phase 3. This revision
-releases Phase 4 only. Each phase ends at `Review Required`; material
+The prior publications released Phases 1 through 5. This revision releases
+Phase 6 only. Each phase ends at `Review Required`; material
 next-phase work requires Planner/Reviewer review and a new immutable revision
 of this same task path.
 
@@ -425,8 +435,9 @@ MATRIX`; universal parity for all positive radii is not authorized.
 
 ### Phase 5 — Bounded Performance Baseline
 
-Phase 5 is in progress, its reconstruction sub-gate is accepted/closed, and
-its current released gate is **BOUNDED PERFORMANCE MEASUREMENT**. Use only the
+Phase 5 is accepted/closed at `a625deac10153a2c7c69a3523dd77751518b298e`.
+Its reconstruction sub-gate was accepted/closed, and its released gate was
+**BOUNDED PERFORMANCE MEASUREMENT**. Use only the
 accepted reconstructed runtime described below. Before any benchmark, verify
 that its temporary root still exists and contains the accepted runtime; do
 not assume `/tmp` persistence. At minimum, verify the absolute Java path,
@@ -521,12 +532,56 @@ ephemeral commands/temporary files. No tracked benchmark script is expected.
 
 **Gate:** Review Required; republish before Phase 6.
 
-### Phase 6 — Minimal Reference / Regression Sentinel Suite
+### Phase 6 — Minimal Reference / Regression Sentinel Suite (Released)
 
-Create or consolidate cheap deterministic coverage for accepted operations,
-retained Circular Median variants, CLAHE contract characterization, and
-explicit expected divergence where applicable. Do not build another large
-real-radiograph experiment.
+Create or consolidate the smallest cheap deterministic regression protection
+needed for every accepted ImageJ/Fiji contract/status. Audit first; do not
+duplicate sufficient Phase-2/Phase-4 coverage or build another characterization
+matrix, real-radiograph experiment, or performance benchmark.
+
+The audit MUST classify Contrast Stretch, Weighted Equalization, Classic
+Equalization, Hybrid Median, MPIPS precise CLAHE, MPIPS fast/OpenCV CLAHE,
+Fiji Flat, Fiji FastFlat, Circular Median, and Temporal Median by accepted
+contract/status, current deterministic coverage, and whether a new sentinel is
+necessary. Reuse existing accepted protection for Contrast Stretch, both
+Equalization variants, Hybrid Median, and the complete Circular Median I-4A
+matrix. Temporal Median remains `NOT PRODUCTION REACHABLE — N/A` and requires
+no artificial output sentinel; if a production caller is found, stop and
+return to review.
+
+The primary gap is executable protection for the governed CLAHE divergence.
+Using the accepted 128x128 uint16 fixture
+`((x*257 + y*509 + ((x*y)%251)*131) % 65536)` with input SHA256
+`01941aeb2b4070d224e0271e9ef3f8bd6075001638d4cd75f9bfd06e4b0355c1`, slope
+1.5, blocksize 127, block radius 63, displayed bins 256, internal Fiji bins
+255, and composite true for MPIPS, add only the smallest existing-test-file
+sentinel. It MUST assert shape, uint16 dtype, deterministic frozen Legacy MPIPS
+hashes, and inequality to the accepted Fiji Flat hash
+`b12db91a188b0dccdf2703dc3caa948bab24613e61256ef0002023d147daa34b` and
+Fiji FastFlat hash
+`b4a4958976bd092c0bc12d4d02b52e80d693549a72ee9ec9a7916cbf319b8fda` as
+applicable. This encodes intentional semantic divergence, not quality or
+approximate parity, and must not invoke Fiji at ordinary pytest runtime.
+
+Before freezing Legacy MPIPS hashes, verify the exact accepted implementation
+baseline and repeat precise and fast/OpenCV execution at least twice. If either
+is nondeterministic, stop: `REVIEW BLOCKED`.
+
+Audit accepted uint8 coverage for both MPIPS CLAHE contracts. Add only a
+smallest uint8 sentinel in `tests/test_imagej_migration.py` if a genuine gap
+exists; any newly frozen output is a `LEGACY MPIPS CONTRACT REGRESSION
+BASELINE`, never a Fiji reference. Do not modify
+`tests/test_filtering_processing.py` unless direct evidence shows a missing
+accepted sentinel.
+
+Phase 6 may modify only `tests/test_imagej_migration.py` and
+`.agents/evidence/imagej-fidelity-closure.md`; no new test file, production
+source, harness, dependency, or Java/Fiji runtime requirement is authorized.
+Evidence MUST retain historical sections and add the Phase-6 audit,
+fixture/constants, frozen hashes, sentinel behavior, uint8 result, exact
+changes, local commands/results labeled `LOCAL TESTS, NOT CI`, no-Java/network
+confirmation, protected converter SHA, remaining gaps, and terminal
+`Review Required`.
 
 **Gate:** Review Required; republish before final closure.
 
@@ -595,24 +650,23 @@ SELECTION` for the CLAHE decision stop and MUST NOT invent the decision.
 - Create only `.agents/tasks/imagej-fidelity-closure.md`.
 - Run `git diff --check`, inspect the task-only diff, commit the task
   publication, and push normally to `origin/refactor/package-boundaries`.
-- This revision authorizes the later Phase-5 bounded measurement only in
-  `.agents/evidence/imagej-fidelity-closure.md`, subject to the Phase-5
+- This revision authorizes the later Phase-6 test/evidence work only in
+  `tests/test_imagej_migration.py` and
+  `.agents/evidence/imagej-fidelity-closure.md`, subject to the Phase-6
   constraints above.
-- The accepted reconstructed runtime is an execution precondition; future
-  measurement may not reconstruct it again under this revision.
 
 ### Not authorized
 
-- Any Phase-5 reconstruction or measurement during this publication.
-- Any change outside the authorized future Phase-5 evidence surface, production
-  behavior/configuration, source/tests/reference harness, dependencies,
+- Any Phase-6 execution during this publication.
+- Any change outside the authorized future Phase-6 test/evidence surfaces,
+  production behavior/configuration, source/reference harness, dependencies,
   stage-order work, deployment, release, main change, or force push.
 
 ## Expected terminal outcome
 
 This publication ends at **Review Required** with the immutable publication
-commit as the task revision. It does not benchmark; the accepted runtime
-smoke was performed before this publication.
+commit as the task revision. It does not execute Phase 6, benchmark, modify
+tests, or modify evidence.
 
 ## Review and remediation handling
 
