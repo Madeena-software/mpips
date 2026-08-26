@@ -1,7 +1,7 @@
 ---
 title: MPIPS ImageJ/Fiji Fidelity Closure
 document_id: AGENT-TASK-IMAGEJ-FIDELITY-CLOSURE-001
-version: 1.0
+version: 1.1
 status: Validated/Published
 language: en-US
 last_updated: 2026-08-26
@@ -53,7 +53,13 @@ The task revision and implementation baseline are separate. A later material
 phase MUST republish this same task path at a new immutable revision before
 execution.
 
-**Current released phase:** **PHASE 1 — INVENTORY / REACHABILITY CLOSURE**
+**Current released phase:** **PHASE 2 — ACCEPTED PARITY + N/A CLOSURE**
+
+**Accepted Phase-1 evidence revision:**
+`1be8ba791bc187be0c8b107cf165ac24f88ee412`
+
+Phase 1 is accepted at that revision. Its conclusions are not reopened unless
+direct contradictory repository evidence is found.
 
 This publication explicitly authorizes Phase 1 execution to:
 
@@ -248,10 +254,41 @@ verification and permitted by the retained environment.
 
 ### Phase 2 — Accepted Parity + N/A Closure
 
-Close Contrast Stretch, weighted Equalization, classic Equalization, accepted
-Hybrid Median, and Temporal Median if still unreachable. Add only minimal
-regression sentinels needed to prevent semantic drift. Do not reopen accepted
-work without contradictory current evidence.
+Phase 2 is explicitly released by this task revision for exactly the following
+settled items:
+
+- Contrast Stretch, uint8 and uint16;
+- weighted ImageJ Equalization, uint8 and uint16;
+- classic Equalization, uint8 and uint16;
+- accepted Hybrid Median remediation, kernels 3x3, 5x5, and 7x7, preserving
+  the accepted Java/plugin boundary semantics; and
+- Temporal Median reachability refresh and evidence closure as
+  `NOT PRODUCTION REACHABLE — N/A` if no production API, workflow, config,
+  schema, or caller exists.
+
+The Phase-2 Executor may inspect accepted evidence and current reachability,
+run targeted local tests, minimally extend existing deterministic ImageJ
+fidelity tests, update `.agents/evidence/imagej-fidelity-closure.md`, verify
+the protected converter hash, and commit/push the bounded evidence/test
+changes. It may modify only that stable evidence path and the smallest
+existing test file(s) needed for regression sentinels. No new test framework,
+large characterization matrix, or new expected outputs is authorized when
+accepted outputs already exist.
+
+Phase 2 MUST NOT modify production source, defaults, configuration, schema,
+reference tooling, dependencies, or JDKs; perform benchmarking, optimization,
+large radiograph experiments, deployment, release, or main changes. Do not
+reopen accepted work without contradictory current evidence.
+
+CLAHE remains unchanged and unauthorized for Phase 2: do not select a semantic
+option, change slope `0.6`, fast/default behavior, blocksize, bins, composite
+behavior, or either MPIPS CLAHE implementation. Circular Median remains
+unchanged and unauthorized for Phase 2: do not fix it, change radius handling,
+remove/deprecate its exposure, or establish new parity claims.
+
+Phase 3 and all later phases remain unauthorized until Planner/Reviewer review,
+acceptance or remediation, and republication of this same stable task path at
+a new immutable revision.
 
 **Gate:** Review Required; republish before Phase 3.
 
