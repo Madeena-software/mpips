@@ -19,6 +19,7 @@ from pathlib import Path
 import numpy as np
 import pydicom
 import requests
+from pydicom.uid import ExplicitVRLittleEndian, UID
 
 from mpips.workflows.imager_pipeline.npz_io import (
     sha256_file,
@@ -39,7 +40,21 @@ SUMMARY_FIELDS = (
     "BED_DIRECT_CONVERSION",
     "BED_DICOM_STRUCTURE",
     "BED_CALIBRATION_SELECTION",
+    "BED_CALIBRATION_PRESENT",
+    "BED_CALIBRATION_VALIDATED",
+    "BED_CALIBRATION_FINGERPRINT",
+    "BED_CALIBRATION_SHAPE",
+    "BED_CALIBRATION_DETECTOR_MODE",
+    "BED_CALIBRATION_CAMERA",
+    "BED_CALIBRATION_REMAP",
     "TRX_CALIBRATION",
+    "TRX_CALIBRATION_PRESENT",
+    "TRX_CALIBRATION_VALIDATED",
+    "TRX_CALIBRATION_FINGERPRINT",
+    "TRX_CALIBRATION_SHAPE",
+    "TRX_CALIBRATION_DETECTOR_MODE",
+    "TRX_CALIBRATION_CAMERA",
+    "TRX_CALIBRATION_REMAP",
     "SYNTHETIC_THORAX_PIXEL_IDENTITY",
     "SYNTHETIC_THORAX_DIRECT_CONVERSION",
     "SYNTHETIC_THORAX_DICOM_STRUCTURE",
@@ -126,8 +141,12 @@ def discover_worker(candidates: list[str]) -> dict:
 
 
 def classify_mhcs_response(info: dict) -> str:
+    if info.get("config") is False:
+        return "CONFIG_FAILED"
+    if info.get("dns") is False:
+        return "DNS_FAILED"
     if info.get("http_status") != 200 or info.get("health_status") != 200:
-        return "FAIL"
+        return "HEALTH_FAILED" if info.get("health_status") != 200 else "FAIL"
     if info.get("content_type", "").split(";", 1)[
         0
     ] != "application/dicom" or not info.get("response_bytes"):
@@ -140,6 +159,44 @@ def safe_cleanup_path(root: Path, name: str) -> Path:
     if path.parent != root.resolve() or path == root.resolve():
         raise ValueError("cleanup path escapes diagnostic directory")
     return path
+
+
+def final_classification(results: dict) -> str:
+    ordered = (
+        ("CLEANUP", "DIAGNOSTIC_INTERNAL_FAILURE"),
+        ("BED_INPUT_COMPATIBILITY", "BED_INPUT_PAIR_INCOMPATIBLE"),
+        ("BED_CALIBRATION", "BED_CALIBRATION_NOT_AVAILABLE"),
+        ("BED_DIRECT_CONVERSION", "BED_CONVERSION_FAILED"),
+        ("BED_DICOM_STRUCTURE", "BED_DICOM_INVALID"),
+        ("TRX_CALIBRATION", "TRX_CALIBRATION_NOT_AVAILABLE"),
+        (
+            "SYNTHETIC_THORAX_PIXEL_IDENTITY",
+            "SYNTHETIC_THORAX_CALIBRATION_INCOMPATIBLE",
+        ),
+        ("SYNTHETIC_THORAX_DIRECT_CONVERSION", "SYNTHETIC_THORAX_CONVERSION_FAILED"),
+        ("SYNTHETIC_THORAX_DICOM_STRUCTURE", "SYNTHETIC_THORAX_DICOM_INVALID"),
+        ("MHCS_IMAGE_WORKER", "MHCS_IMAGE_WORKER_NOT_FOUND"),
+        ("MHCS_PRIVATE_NETWORK", "MHCS_PRIVATE_NETWORK_FAILED"),
+        ("MHCS_MPIPS_CONFIG", "MHCS_MPIPS_CONFIG_FAILED"),
+        ("MHCS_MPIPS_DNS", "MHCS_MPIPS_DNS_FAILED"),
+        ("MHCS_MPIPS_HEALTH", "MHCS_MPIPS_HEALTH_FAILED"),
+        ("MHCS_BED_MPIPSCLIENT", "MHCS_BED_MPIPSCLIENT_FAILED"),
+        ("MHCS_BED_DICOM_STRUCTURE", "MHCS_BED_DICOM_INVALID"),
+        ("MHCS_THORAX_MPIPSCLIENT", "MHCS_THORAX_MPIPSCLIENT_FAILED"),
+        ("MHCS_THORAX_DICOM_STRUCTURE", "MHCS_THORAX_DICOM_INVALID"),
+    )
+    for key, classification in ordered:
+        value = results.get(key)
+        if value in {"FAIL", "DICOM_INVALID"} or value in {
+            "MHCS_IMAGE_WORKER_NOT_FOUND",
+            "MHCS_IMAGE_WORKER_AMBIGUOUS",
+        }:
+            return value if key == "MHCS_IMAGE_WORKER" else classification
+    if results.get("runtime_provenance") == "DIFFERS_FROM_WORKFLOW_SHA":
+        return "PRODUCTION_RUNTIME_NOT_WORKFLOW_SHA"
+    if results.get("runtime_provenance") == "UNPROVEN":
+        return "PRODUCTION_RUNTIME_SHA_UNPROVEN"
+    return "PRODUCTION_MPIPS_BED_AND_SYNTHETIC_THORAX_MHCS_E2E_PASS"
 
 
 def _download(file_id: str, target: Path) -> None:
@@ -222,7 +279,15 @@ def find_calibration(
 ) -> dict:
     calibration = _calibrations(root).get(mode)
     if not calibration:
-        return {"present": False, "validated": False, "compatible": False}
+        return {
+            "present": False,
+            "validated": False,
+            "compatible": False,
+            "remap": False,
+            "fingerprint": False,
+            "camera_compatibility": "UNKNOWN",
+            "shape": (),
+        }
     source_camera = calibration["source"].get("camera_params", {})
     camera_ids = {
         str(value.get(key, ""))
@@ -231,8 +296,23 @@ def find_calibration(
         if value.get(key)
     }
     metadata = calibration["meta"]
+    remap_ok = False
+    try:
+        with np.load(calibration["dir"] / "remap.npz") as remap:
+            remap_ok = (
+                "map_x" in remap
+                and "map_y" in remap
+                and remap["map_x"].shape == remap["map_y"].shape
+            )
+    except (OSError, ValueError):
+        pass
+    camera_compatibility = (
+        "PASS" if camera_ids else "UNKNOWN" if not camera_ids else "FAIL"
+    )
     compatible = (
-        tuple(metadata.get("image_shape", ())) == tuple(shape) and len(camera_ids) <= 1
+        tuple(metadata.get("image_shape", ())) == tuple(shape)
+        and remap_ok
+        and camera_compatibility == "PASS"
     )
     return {
         "present": True,
@@ -241,8 +321,30 @@ def find_calibration(
         "mode": mode,
         "shape": tuple(metadata.get("image_shape", ())),
         "camera_compatible": len(camera_ids) <= 1,
+        "camera_compatibility": camera_compatibility,
         "fingerprint": bool(metadata.get("fingerprint")),
+        "remap": remap_ok,
     }
+
+
+def record_calibration(results: dict, mode: str, evidence: dict) -> None:
+    results[f"{mode}_CALIBRATION_PRESENT"] = (
+        "PASS" if evidence.get("present") else "FAIL"
+    )
+    results[f"{mode}_CALIBRATION_VALIDATED"] = (
+        "PASS" if evidence.get("validated") else "FAIL"
+    )
+    results[f"{mode}_CALIBRATION_FINGERPRINT"] = (
+        "PASS" if evidence.get("fingerprint") else "FAIL"
+    )
+    results[f"{mode}_CALIBRATION_SHAPE"] = (
+        "x".join(map(str, evidence.get("shape", ()))) or "UNKNOWN"
+    )
+    results[f"{mode}_CALIBRATION_DETECTOR_MODE"] = evidence.get("mode", "UNKNOWN")
+    results[f"{mode}_CALIBRATION_CAMERA"] = evidence.get(
+        "camera_compatibility", "UNKNOWN"
+    )
+    results[f"{mode}_CALIBRATION_REMAP"] = "PASS" if evidence.get("remap") else "FAIL"
 
 
 def validate_dicom_structure(path: Path) -> dict:
@@ -251,6 +353,8 @@ def validate_dicom_structure(path: Path) -> dict:
         ds.file_meta, "TransferSyntaxUID", None
     ):
         raise ValueError("missing DICOM file meta or transfer syntax")
+    if UID(str(ds.file_meta.TransferSyntaxUID)) != UID(str(ExplicitVRLittleEndian)):
+        raise ValueError("unsupported DICOM transfer syntax")
     if int(getattr(ds, "Rows", 0)) <= 0 or int(getattr(ds, "Columns", 0)) <= 0:
         raise ValueError("invalid DICOM dimensions")
     if "PixelData" not in ds or int(getattr(ds, "BitsAllocated", 0)) != 16:
@@ -263,7 +367,8 @@ def validate_dicom_structure(path: Path) -> dict:
         "SOPInstanceUID",
         "SOPClassUID",
     ):
-        if not getattr(ds, key, None):
+        value = getattr(ds, key, None)
+        if not value or not UID(str(value)).is_valid:
             raise ValueError(f"missing {key}")
     if any(elem.tag.is_private for elem in ds):
         raise ValueError("unexpected private DICOM tag")
@@ -483,6 +588,14 @@ echo json_encode([
         except Exception:
             pass
         return info
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
+        return {
+            "config": False,
+            "http_status": None,
+            "health_status": None,
+            "response_bytes": 0,
+            "dicom_structure": False,
+        }
     finally:
         _docker("exec", container, "rm", "-rf", remote, check=False)
         cleanup = subprocess.run(
@@ -534,9 +647,14 @@ def main() -> int:
                 rm["raw"].shape,
                 rm["camera"],
             )
+            record_calibration(results, "BED", bed_cal)
             results["BED_CALIBRATION"] = (
                 "PASS"
-                if bed_cal["present"] and bed_cal["validated"] and bed_cal["compatible"]
+                if bed_cal["present"]
+                and bed_cal["validated"]
+                and bed_cal["fingerprint"]
+                and bed_cal["remap"]
+                and bed_cal["compatible"]
                 else "FAIL"
             )
             if results["BED_CALIBRATION"] != "PASS":
@@ -559,8 +677,6 @@ def main() -> int:
                 if results["runtime_provenance"] == "MATCHES_WORKFLOW_SHA"
                 else "UNPROVEN"
             )
-            if results["BED_CALIBRATION_SELECTION"] == "UNPROVEN":
-                raise DiagnosticFailure("PRODUCTION_RUNTIME_SHA_UNPROVEN")
             trx_rad, trx_gain = root / "trx-rad.npz", root / "trx-gain.npz"
             rewrite_detector_mode(rad, trx_rad)
             rewrite_detector_mode(gain, trx_gain)
@@ -579,9 +695,14 @@ def main() -> int:
                 tm["raw"].shape,
                 tm["camera"],
             )
+            record_calibration(results, "TRX", trx_cal)
             results["TRX_CALIBRATION"] = (
                 "PASS"
-                if trx_cal["present"] and trx_cal["validated"] and trx_cal["compatible"]
+                if trx_cal["present"]
+                and trx_cal["validated"]
+                and trx_cal["fingerprint"]
+                and trx_cal["remap"]
+                and trx_cal["compatible"]
                 else "FAIL"
             )
             if not identity:
@@ -671,32 +792,7 @@ def main() -> int:
                 results["MHCS_BED_DICOM_STRUCTURE"] = results[
                     "MHCS_THORAX_DICOM_STRUCTURE"
                 ] = "NOT_RUN"
-            required = (
-                "BED_INPUT_COMPATIBILITY",
-                "BED_CALIBRATION",
-                "BED_DIRECT_CONVERSION",
-                "BED_DICOM_STRUCTURE",
-                "TRX_CALIBRATION",
-                "SYNTHETIC_THORAX_PIXEL_IDENTITY",
-                "SYNTHETIC_THORAX_DIRECT_CONVERSION",
-                "SYNTHETIC_THORAX_DICOM_STRUCTURE",
-                "MHCS_IMAGE_WORKER",
-                "MHCS_PRIVATE_NETWORK",
-                "MHCS_MPIPS_CONFIG",
-                "MHCS_MPIPS_DNS",
-                "MHCS_MPIPS_HEALTH",
-                "MHCS_BED_MPIPSCLIENT",
-                "MHCS_BED_DICOM_STRUCTURE",
-                "MHCS_THORAX_MPIPSCLIENT",
-                "MHCS_THORAX_DICOM_STRUCTURE",
-            )
-            results["FINAL_DIAGNOSTIC_CLASSIFICATION"] = (
-                "PRODUCTION_MPIPS_BED_AND_SYNTHETIC_THORAX_MHCS_E2E_PASS"
-                if all(results.get(key) == "PASS" for key in required)
-                and results.get("BED_CALIBRATION_SELECTION", "").endswith("PASS")
-                and results.get("THORAX_CALIBRATION_SELECTION", "").endswith("PASS")
-                else "MHCS_THORAX_MPIPSCLIENT_FAILED"
-            )
+            results["FINAL_DIAGNOSTIC_CLASSIFICATION"] = final_classification(results)
         except DiagnosticFailure as exc:
             results["FINAL_DIAGNOSTIC_CLASSIFICATION"] = exc.classification
         except Exception as exc:

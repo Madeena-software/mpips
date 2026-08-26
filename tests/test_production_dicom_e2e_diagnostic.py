@@ -9,6 +9,7 @@ from scripts.diagnose_production_dicom_e2e import (
     classify_mhcs_response,
     classify_runtime,
     discover_worker,
+    final_classification,
     find_calibration,
     map_failure,
     rewrite_detector_mode,
@@ -190,7 +191,9 @@ def test_calibration_layout_and_compatibility(tmp_path):
     for mode in ("BED", "TRX"):
         directory = tmp_path / mode
         directory.mkdir()
-        (directory / "remap.npz").write_bytes(b"x")
+        np.savez(
+            directory / "remap.npz", map_x=np.zeros((2, 2)), map_y=np.zeros((2, 2))
+        )
         (directory / "metadata.json").write_text(
             __import__("json").dumps(
                 {
@@ -221,3 +224,85 @@ def test_failure_mapping_and_cleanup_safety(tmp_path):
     assert owned.parent == tmp_path
     with pytest.raises(ValueError):
         safe_cleanup_path(tmp_path, "../outside")
+
+
+def test_runtime_mismatch_is_not_a_functional_stop():
+    assert (
+        final_classification(
+            {
+                "runtime_provenance": "DIFFERS_FROM_WORKFLOW_SHA",
+                "BED_DIRECT_CONVERSION": "PASS",
+                "SYNTHETIC_THORAX_DIRECT_CONVERSION": "PASS",
+            }
+        )
+        == "PRODUCTION_RUNTIME_NOT_WORKFLOW_SHA"
+    )
+    assert (
+        final_classification(
+            {"runtime_provenance": "UNPROVEN", "BED_DIRECT_CONVERSION": "PASS"}
+        )
+        == "PRODUCTION_RUNTIME_SHA_UNPROVEN"
+    )
+
+
+def test_final_classification_preserves_earliest_diagnostic_failure():
+    assert (
+        final_classification({"MHCS_IMAGE_WORKER": "MHCS_IMAGE_WORKER_NOT_FOUND"})
+        == "MHCS_IMAGE_WORKER_NOT_FOUND"
+    )
+    assert (
+        final_classification({"MHCS_PRIVATE_NETWORK": "FAIL"})
+        == "MHCS_PRIVATE_NETWORK_FAILED"
+    )
+    assert (
+        final_classification({"MHCS_MPIPS_CONFIG": "FAIL"})
+        == "MHCS_MPIPS_CONFIG_FAILED"
+    )
+    assert final_classification({"MHCS_MPIPS_DNS": "FAIL"}) == "MHCS_MPIPS_DNS_FAILED"
+    assert (
+        final_classification({"MHCS_MPIPS_HEALTH": "FAIL"})
+        == "MHCS_MPIPS_HEALTH_FAILED"
+    )
+    assert (
+        final_classification({"MHCS_BED_MPIPSCLIENT": "FAIL"})
+        == "MHCS_BED_MPIPSCLIENT_FAILED"
+    )
+    assert (
+        final_classification({"MHCS_BED_DICOM_STRUCTURE": "FAIL"})
+        == "MHCS_BED_DICOM_INVALID"
+    )
+    assert (
+        final_classification({"MHCS_THORAX_MPIPSCLIENT": "FAIL"})
+        == "MHCS_THORAX_MPIPSCLIENT_FAILED"
+    )
+    assert (
+        final_classification({"MHCS_THORAX_DICOM_STRUCTURE": "FAIL"})
+        == "MHCS_THORAX_DICOM_INVALID"
+    )
+
+
+def test_calibration_requires_fingerprint_and_reports_unknown_camera(tmp_path):
+    directory = tmp_path / "BED"
+    directory.mkdir()
+    np.savez(directory / "remap.npz", map_x=np.zeros((2, 2)), map_y=np.zeros((2, 2)))
+    (directory / "metadata.json").write_text(
+        '{"validated": true, "image_shape": [2, 2], '
+        '"source_metadata": {"detector_mode": "BED"}}'
+    )
+    evidence = find_calibration(tmp_path, "BED", (2, 2), {})
+    assert evidence["fingerprint"] is False
+    assert evidence["camera_compatibility"] == "UNKNOWN"
+
+
+def test_mhcs_response_classifies_explicit_failures():
+    base = {
+        "http_status": 200,
+        "health_status": 200,
+        "content_type": "application/dicom",
+        "response_bytes": 10,
+        "dicom_structure": True,
+    }
+    assert classify_mhcs_response({**base, "config": False}) == "CONFIG_FAILED"
+    assert classify_mhcs_response({**base, "dns": False}) == "DNS_FAILED"
+    assert classify_mhcs_response({**base, "health_status": 500}) == "HEALTH_FAILED"
+    assert classify_mhcs_response({**base, "http_status": 500}) == "FAIL"
