@@ -53,6 +53,27 @@ The task revision and implementation baseline are separate. A later material
 phase MUST republish this same task path at a new immutable revision before
 execution.
 
+**Current released phase:** **PHASE 1 — INVENTORY / REACHABILITY CLOSURE**
+
+This publication explicitly authorizes Phase 1 execution to:
+
+- inspect repository source, configuration, and call paths;
+- inspect accepted ImageJ/Fiji evidence;
+- run read-only/local characterization commands needed to establish
+  reachability;
+- verify the protected converter hash; and
+- create or update exactly `.agents/evidence/imagej-fidelity-closure.md`.
+
+`.agents/evidence/imagej-fidelity-closure.md` is the stable evidence path for
+this umbrella delivery line. Later phases MUST update it rather than
+proliferate phase-specific evidence filenames unless Planner explicitly
+authorizes otherwise.
+
+Phase 1 evidence MAY record the operation name, ImageJ/Fiji reference
+identity, MPIPS implementation symbol/path, production/config/API reachability,
+default reachability, dtype behavior, accepted prior fidelity status, current
+verified status, unresolved issue, and required later phase.
+
 ## Objective
 
 Complete implementation-fidelity closure so every applicable operation has:
@@ -205,7 +226,23 @@ this same task path.
 Verify every ImageJ-derived/inspired operation, reference source, MPIPS
 implementation, caller/API/config surfaces, production default reachability,
 dtype behavior, accepted status, and unresolved issue. Produce one closure
-matrix. No algorithm change.
+matrix in `.agents/evidence/imagej-fidelity-closure.md`. The matrix MUST cover
+at minimum Contrast Stretch, Equalization weighted, Equalization classic,
+Hybrid Median, CLAHE precise MPIPS, CLAHE fast/OpenCV, Fiji Flat reference,
+Fiji FastFlat reference, Circular Median, Temporal Median, and any additional
+ImageJ/Fiji-derived or inspired production operation discovered. Each item
+MUST record: REFERENCE, MPIPS IMPLEMENTATION, PRODUCTION REACHABILITY,
+DEFAULT REACHABILITY, DTYPE, PRIOR ACCEPTED STATUS, CURRENT VERIFIED STATUS,
+UNRESOLVED GAP, and NEXT REQUIRED PHASE. No fidelity remediation is performed
+in Phase 1.
+
+Phase 1 is characterization/inventory only. It MUST NOT modify MPIPS
+production code, configuration/defaults/schema, tests, ImageJ reference
+harness/tooling, CLAHE semantic selection A/B/C, CLAHE slope, Circular Median
+behavior, performance, stage order, thresholds, deployment, release, or main.
+No new dependency or JDK installation is authorized. Read-only execution of
+existing reference tooling is allowed only when needed for reachability
+verification and permitted by the retained environment.
 
 **Gate:** Review Required; publish the next revision before Phase 2.
 
