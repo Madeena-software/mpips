@@ -24,7 +24,7 @@ from scripts.validate_calibration_layout import validate_calibration_layout
 from mpips.workflows.imager_pipeline.calibration import validate_fixed_canvas_remap
 
 EXPECTED_CARRIER_SIZE = 72013356
-EXPECTED_CARRIER_FILE_ID = "NOT_PUBLISHED"
+EXPECTED_CARRIER_FILE_ID = "1Qj5ADmJLhp2gPFBa9NaBiu7h29Ql3TJD"
 EXPECTED_CARRIER_SHA256 = (
     "2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556"
 )
@@ -74,6 +74,14 @@ ALLOWED_MEMBERS = {
 
 class PromotionError(RuntimeError):
     pass
+
+
+def validate_carrier_identity(carrier_id: str | None) -> str:
+    if not carrier_id:
+        raise PromotionError("TRX_CARRIER_NOT_PUBLISHED")
+    if carrier_id != EXPECTED_CARRIER_FILE_ID:
+        raise PromotionError("TRX_CARRIER_ID_MISMATCH")
+    return carrier_id
 
 
 def _real_manifest() -> dict:

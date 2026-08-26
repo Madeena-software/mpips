@@ -18,6 +18,7 @@ from scripts.promote_production_calibration import (
     promote,
     runtime_preflight,
     validate_legacy_bed,
+    validate_carrier_identity,
     validate_real_thorax_inputs,
     verify_carrier,
 )
@@ -129,7 +130,17 @@ def _valid_dicom(path: Path) -> None:
 
 def test_manifest_pins_exact_carrier() -> None:
     manifest = json.loads(MANIFEST.read_text())
-    assert manifest["carrier"] == "NOT_PUBLISHED"
+    assert manifest["carrier"] == {
+        "provider": "google-drive",
+        "file_id": "1Qj5ADmJLhp2gPFBa9NaBiu7h29Ql3TJD",
+        "filename": (
+            "trx-calibration-606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299"
+            "861547d"
+            ".tar.gz"
+        ),
+        "size": 72013356,
+        "sha256": "2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556",
+    }
     assert manifest["archive_size"] == 72013356
     assert (
         manifest["archive_sha256"]
@@ -159,6 +170,19 @@ def test_workflow_is_guarded_manual_production_workflow() -> None:
         "docker compose restart",
     ):
         assert forbidden not in text
+    assert "TRX_CARRIER_ID_MISMATCH" in text
+    assert "approved_carrier_id=" in text
+
+
+def test_carrier_identity_gate_fails_closed() -> None:
+    with pytest.raises(PromotionError, match="TRX_CARRIER_NOT_PUBLISHED"):
+        validate_carrier_identity(None)
+    with pytest.raises(PromotionError, match="TRX_CARRIER_ID_MISMATCH"):
+        validate_carrier_identity("1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr")
+    assert (
+        validate_carrier_identity("1Qj5ADmJLhp2gPFBa9NaBiu7h29Ql3TJD")
+        == "1Qj5ADmJLhp2gPFBa9NaBiu7h29Ql3TJD"
+    )
 
 
 def test_hash_mismatch_fails_before_extraction(tmp_path: Path) -> None:
