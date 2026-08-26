@@ -1,7 +1,7 @@
 ---
 title: MPIPS I-5B Real-Radiograph Threshold × CLAHE Interaction Ablation
 document_id: AGENT-TASK-MPIPS-I5B-THRESHOLD-CLAHE-INTERACTION
-version: 1.0
+version: 1.1
 status: Validated/Published
 language: en-US
 scope:
@@ -181,7 +181,7 @@ Record the actual methods selected for ALT1 and ALT2 in every relevant row.
 
 ### I-5A reuse
 
-The accepted I-5A rows for `T_AUTO_C0`, `T_AUTO_M06`, and `T_AUTO_M15` may be reused for all six identities only after proving exact raw/reference identity, calibration fingerprint, upstream processing, AUTO behavior, downstream processing, CLAHE definition, output hashes, and pipeline freeze. Tie each reused row unambiguously to accepted evidence. Maximum reuse is 18 rows; if all are valid, maximum newly computed Phase-B rows are 54. Recompute any row whose equivalence cannot be established.
+The accepted I-5A rows for `T_AUTO_C0`, `T_AUTO_M06`, and `T_AUTO_M15` may be reused for all six identities only after proving exact raw/reference identity, calibration fingerprint, upstream processing, AUTO behavior, downstream processing, CLAHE definition, output hashes, and pipeline freeze. Tie each reused row unambiguously to accepted evidence. The Phase-B matrix always has 72 logical rows. Define `reused_rows = R`, where `0 <= R <= 18`, and `newly_computed_rows = 72 - reused_rows`. For every reused row no new computation is required; every row whose reuse cannot be proven must be recomputed. Thus the best case/minimum new computation is 54 rows when all 18 reuse proofs succeed, and the worst case/maximum new computation is 72 rows when none can be reused. Do not weaken any reuse proof to reduce compute; computational efficiency is subordinate to evidence integrity.
 
 ### Reference and metrics
 
@@ -232,7 +232,7 @@ The JSON must include governing task revision, implementation baseline, I-5A acc
 - [ ] ALT1/ALT2 selection is deterministic and free of reference-IQA/candidate-score leakage.
 - [ ] Exactly four threshold states and exactly three CLAHE states are established.
 - [ ] The Phase-B logical matrix is exactly 72 combinations.
-- [ ] Valid I-5A rows are reused only after identity/fingerprint proof; maximum reuse is 18 and maximum new rows is 54.
+- [ ] Valid I-5A rows are reused only after exact identity/fingerprint/pipeline/output-equivalence proof; at most 18 rows may be reused. The Phase-B matrix always contains 72 logical rows, and `newly_computed_rows = 72 - reused_rows`, ranging from 54 when all 18 reuse proofs succeed to 72 when none can be reused.
 - [ ] All non-Threshold/non-CLAHE stages, geometry, output contract, and IQA definitions are frozen.
 - [ ] All six structural metrics, Pearson sanity, overlap, and intensity/clipping metrics are present.
 - [ ] Results are reported by both anatomy groups and all six cases.
