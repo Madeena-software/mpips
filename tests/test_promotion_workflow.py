@@ -3,6 +3,7 @@ import io
 import json
 import os
 import subprocess
+import sys
 import tarfile
 from types import SimpleNamespace
 from pathlib import Path
@@ -223,13 +224,99 @@ def test_workflow_fail_fast_order_and_module_entrypoint() -> None:
     preflight = text.index("Preflight production calibration promotion")
     gdown = text.index("gdown")
     carrier_verify = text.index("--verify-carrier-only")
-    real_download = text.index("1kI99se2CjzCgo4qInMEGUuJ-ZJZE3iQY")
-    local_pipeline = text.index("--real-data-dir")
     assert "python scripts/promote_production_calibration.py" not in text
     assert "python -m scripts.promote_production_calibration" in text
-    assert preflight < gdown < carrier_verify < real_download < local_pipeline
+    promotion = text.index("--promotion-only")
+    assert preflight < gdown < carrier_verify < promotion
+    assert text.count('gdown "$MPIPS_TRX_CARRIER_FILE_ID"') == 1
     assert "--preflight-only" in text
-    assert "--verify-real-input-only" in text
+    assert "--real-data-dir" not in text
+    assert "--verify-real-input-only" not in text
+    for forbidden_id in (
+        "1kI99se2CjzCgo4qInMEGUuJ-ZJZE3iQY",
+        "1ocIGsYS6RHIurhRuOwJCzSHTv-6STc_m",
+        "1G9HTPyJzYFHwbAfZ3SU0sL84k9A6i5BD",
+        "1Ft3OALtx_d3ua-z0DSS34jJmywaXjLu2",
+    ):
+        assert forbidden_id not in text
+
+
+def test_promotion_only_cli_smoke(tmp_path: Path, monkeypatch, capsys) -> None:
+    active = tmp_path / "calibration"
+    _artifact(active, "BED")
+    carrier = tmp_path / "carrier.tar.gz"
+    _carrier(carrier)
+    summary = tmp_path / "summary"
+    monkeypatch.setenv("MPIPS_API_KEY", "configured")
+    monkeypatch.setenv("MPIPS_TRX_CARRIER_FILE_ID", promotion.EXPECTED_CARRIER_FILE_ID)
+    monkeypatch.setattr(
+        promotion,
+        "runtime_preflight",
+        lambda: {
+            "PRODUCTION_RUNTIME_SHA": "sha",
+            "PRODUCTION_API_IMAGE": "api",
+            "PRODUCTION_WORKER_IMAGE": "worker",
+            "CAMERA_INDEPENDENT_RUNTIME": "PASS",
+            "TRX_PIPELINE_RUNTIME": "PASS",
+        },
+    )
+    monkeypatch.setattr(promotion, "container_calibration_view", lambda: "PASS")
+    monkeypatch.setattr(
+        promotion,
+        "_pre_download_preflight",
+        lambda *_: {
+            "CAMERA_INDEPENDENT_RUNTIME": "PASS",
+            "TRX_PIPELINE_RUNTIME": "PASS",
+        },
+    )
+    monkeypatch.setattr(
+        promotion,
+        "promote",
+        lambda *_args, **_kwargs: {
+            "FINAL_PROMOTION_CLASSIFICATION": (
+                "PRODUCTION_CALIBRATION_BED_TRX_PROMOTION_PASS"
+            ),
+            "ROLLBACK_REQUIRED": "NO",
+            "REAL_TRX_LOCAL_PIPELINE": "DEFERRED_TO_STAGE_C",
+            "REAL_THORAX_ACCEPTANCE": "DEFERRED_TO_STAGE_C",
+            "REAL_THORAX_ALL_PASS": "DEFERRED_TO_STAGE_C",
+        },
+    )
+    monkeypatch.setattr(
+        promotion,
+        "validate_real_thorax_inputs",
+        lambda *_: pytest.fail("real THORAX validation must be deferred"),
+    )
+    monkeypatch.setattr(
+        promotion,
+        "_run_local_trx_validation",
+        lambda *_: pytest.fail("local TRX validation must be deferred"),
+    )
+    monkeypatch.setattr(
+        promotion,
+        "run_real_thorax_checks",
+        lambda *_: pytest.fail("real THORAX checks must be deferred"),
+    )
+    monkeypatch.setattr(
+        sys,
+        "argv",
+        [
+            "promote_production_calibration",
+            "--promotion-only",
+            "--carrier",
+            str(carrier),
+            "--active",
+            str(active),
+            "--summary",
+            str(summary),
+        ],
+    )
+    assert promotion.main() == 0
+    output = capsys.readouterr().out
+    assert "PRODUCTION_TRX_CALIBRATION_AVAILABLE=PASS" in output
+    assert "REAL_TRX_LOCAL_PIPELINE=DEFERRED_TO_STAGE_C" in output
+    assert "REAL_THORAX_ACCEPTANCE=DEFERRED_TO_STAGE_C" in output
+    assert "REAL_THORAX_ALL_PASS=DEFERRED_TO_STAGE_C" in output
 
 
 def test_preflight_only_is_read_only_and_needs_no_input_files(

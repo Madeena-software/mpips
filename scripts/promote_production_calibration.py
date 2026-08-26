@@ -720,6 +720,7 @@ def promote(
     pre_swap_evidence: dict[str, str] | None = None,
     runtime_evidence: dict[str, str] | None = None,
     local_pipeline_evidence: dict[str, object] | None = None,
+    promotion_only: bool = False,
     expected_size: int | None = None,
     expected_sha256: str | None = None,
 ) -> dict[str, str]:
@@ -748,7 +749,10 @@ def promote(
     local_pipeline_evidence = local_pipeline_evidence or {
         "REAL_TRX_LOCAL_PIPELINE": "PASS"
     }
-    if local_pipeline_evidence.get("REAL_TRX_LOCAL_PIPELINE") != "PASS":
+    if (
+        not promotion_only
+        and local_pipeline_evidence.get("REAL_TRX_LOCAL_PIPELINE") != "PASS"
+    ):
         return {
             **{
                 key: str(value)
@@ -810,9 +814,17 @@ def promote(
             )
             raise PromotionError("container calibration view is not current")
         functional = functional_check() if functional_check else {}
+        if promotion_only:
+            functional = {
+                "REAL_TRX_LOCAL_PIPELINE": "DEFERRED_TO_STAGE_C",
+                "REAL_THORAX_ACCEPTANCE": "DEFERRED_TO_STAGE_C",
+                "REAL_THORAX_ALL_PASS": "DEFERRED_TO_STAGE_C",
+                **{field: "DEFERRED_TO_STAGE_C" for field in REAL_REQUIRED_FIELDS},
+            }
+            result.update(functional)
         for field in ("REAL_THORAX_ALL_PASS", *REAL_REQUIRED_FIELDS):
             result[field] = functional.get(field, "FAIL")
-        if not all(
+        if not promotion_only and not all(
             result[field] == "PASS"
             for field in ("REAL_THORAX_ALL_PASS", *REAL_REQUIRED_FIELDS)
         ):
@@ -948,6 +960,7 @@ def main() -> int:
     parser.add_argument("--preflight-only", action="store_true")
     parser.add_argument("--verify-carrier-only", action="store_true")
     parser.add_argument("--verify-real-input-only", action="store_true")
+    parser.add_argument("--promotion-only", action="store_true")
     parser.add_argument("--summary", type=Path, required=True)
     args = parser.parse_args()
     modes = sum(
@@ -955,6 +968,7 @@ def main() -> int:
             args.preflight_only,
             args.verify_carrier_only,
             args.verify_real_input_only,
+            args.promotion_only,
         )
     )
     if modes > 1:
@@ -968,6 +982,9 @@ def main() -> int:
     elif args.verify_real_input_only:
         if args.input is None:
             parser.error("--verify-real-input-only requires --input")
+    elif args.promotion_only:
+        if args.carrier is None or args.active is None:
+            parser.error("--promotion-only requires --carrier and --active")
     else:
         if args.carrier is None or args.active is None or args.real_data_dir is None:
             parser.error("promotion requires --carrier, --active, and --real-data-dir")
@@ -989,6 +1006,32 @@ def main() -> int:
             result = _verify_real_input(args.input)
             for key, value in result.items():
                 print(f"{key}={value}")
+            return 0
+        if args.promotion_only:
+            runtime = _pre_download_preflight(args.active)
+            result = promote(
+                args.active,
+                args.carrier,
+                promotion_only=True,
+                pre_swap_evidence=runtime,
+                runtime_evidence=runtime,
+                container_check=container_calibration_view,
+            )
+            result["PRODUCTION_TRX_CALIBRATION_AVAILABLE"] = (
+                "PASS"
+                if result.get("FINAL_PROMOTION_CLASSIFICATION")
+                == "PRODUCTION_CALIBRATION_BED_TRX_PROMOTION_PASS"
+                else "FAIL"
+            )
+            result["repository_sha"] = os.environ.get("GITHUB_SHA", "UNPROVEN")
+            if result.get("ROLLBACK_REQUIRED") == "YES":
+                for key, value in result.items():
+                    print(f"{key}={value}")
+                _append_summary(args.summary, result)
+                return 1
+            for key, value in result.items():
+                print(f"{key}={value}")
+            _append_summary(args.summary, result)
             return 0
         runtime = runtime_preflight()
         if runtime["CAMERA_INDEPENDENT_RUNTIME"] != "PASS":
