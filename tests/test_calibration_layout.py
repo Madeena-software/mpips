@@ -21,6 +21,8 @@ def _write_artifact(
     remap: str = "valid",
     detector_mode: str | None = None,
     image_shape: object = None,
+    canvas_mode: str | None = None,
+    remap_shape: tuple[int, int] = (2, 3),
 ) -> Path:
     directory = root if mode is None else root / mode
     directory.mkdir(parents=True, exist_ok=True)
@@ -33,10 +35,12 @@ def _write_artifact(
             "camera_params": {"cameraSerial": "camera"},
         },
     }
+    if canvas_mode is not None:
+        metadata["config"] = {"canvas_mode": canvas_mode}
     (directory / "metadata.json").write_text(json.dumps(metadata))
     if remap == "valid":
         np.savez(
-            directory / "remap.npz", map_x=np.zeros((2, 3)), map_y=np.zeros((2, 3))
+            directory / "remap.npz", map_x=np.zeros(remap_shape), map_y=np.zeros(remap_shape)
         )
     elif remap == "missing_maps":
         np.savez(directory / "remap.npz", map_x=np.zeros((2, 3)))
@@ -88,6 +92,28 @@ def test_metadata_shape_matches_remap_shape(tmp_path: Path):
 
 def test_metadata_shape_mismatch_fails(tmp_path: Path):
     _write_artifact(tmp_path, image_shape=[3000, 4096])
+    assert validate_calibration_layout(tmp_path)
+
+
+def test_expanded_canvas_accepts_output_shape_different_from_source(tmp_path: Path):
+    directory = _write_artifact(
+        tmp_path,
+        image_shape=[3000, 4096],
+        canvas_mode="expanded",
+        remap_shape=(3053, 4059),
+    )
+    y_values, x_values = np.indices((3053, 4059), dtype=np.float32)
+    np.savez(directory / "remap.npz", map_x=x_values, map_y=y_values)
+    assert validate_calibration_layout(tmp_path) == []
+
+
+def test_fixed_canvas_rejects_output_shape_different_from_source(tmp_path: Path):
+    _write_artifact(
+        tmp_path,
+        image_shape=[3000, 4096],
+        canvas_mode="fixed",
+        remap_shape=(3053, 4059),
+    )
     assert validate_calibration_layout(tmp_path)
 
 
@@ -207,3 +233,10 @@ def test_catastrophic_remap_is_rejected_even_with_correct_mask_dimensions():
     assert 0.27 < evidence["REMAP_VALID_FRACTION"] < 0.29
     with pytest.raises(CalibrationValidationError, match="coverage is unsafe"):
         validate_fixed_canvas_remap(map_x, map_y, width, height)
+
+
+def test_expanded_geometry_uses_source_domain_and_output_shape():
+    map_y, map_x = np.indices((12, 10), dtype=np.float32)
+    evidence = remap_geometry_evidence(map_x, map_y, 8, 10, output_shape=(12, 10))
+    assert evidence["REMAP_VALID_FRACTION"] > 0.5
+    assert evidence["MAP_X_MAX"] == 9.0

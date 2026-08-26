@@ -43,11 +43,19 @@ MIN_REMAP_HEIGHT_RATIO = 0.75
 
 
 def remap_geometry_evidence(
-    map_x: np.ndarray, map_y: np.ndarray, width: int, height: int
+    map_x: np.ndarray,
+    map_y: np.ndarray,
+    width: int,
+    height: int,
+    *,
+    output_shape: tuple[int, int] | None = None,
 ) -> dict[str, Any]:
-    """Return full-frame coverage evidence for a fixed-canvas remap."""
-    if map_x.shape != map_y.shape or map_x.shape != (height, width):
-        raise CalibrationValidationError("remap maps do not match the fixed canvas")
+    """Return remap coverage evidence against the source detector domain."""
+    if map_x.shape != map_y.shape or map_x.ndim != 2 or not map_x.size:
+        raise CalibrationValidationError("remap maps must be non-empty 2-D arrays")
+    output_shape = output_shape or (height, width)
+    if map_x.shape != output_shape:
+        raise CalibrationValidationError("remap maps do not match the output canvas")
     if not np.isfinite(map_x).all() or not np.isfinite(map_y).all():
         raise CalibrationValidationError("remap maps contain non-finite coordinates")
     valid = (map_x >= 0) & (map_x <= width - 1) & (map_y >= 0) & (map_y <= height - 1)
@@ -57,8 +65,8 @@ def remap_geometry_evidence(
         width_ratio = height_ratio = 0.0
     else:
         bbox = [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())]
-        width_ratio = (bbox[2] - bbox[0] + 1) / width
-        height_ratio = (bbox[3] - bbox[1] + 1) / height
+        width_ratio = (bbox[2] - bbox[0] + 1) / output_shape[1]
+        height_ratio = (bbox[3] - bbox[1] + 1) / output_shape[0]
     valid_fraction = float(np.mean(valid))
     return {
         "REMAP_VALID_FRACTION": valid_fraction,
@@ -433,7 +441,9 @@ def build_or_load_calibration(
     if config.canvas_mode == "fixed":
         remap_stats.update(validate_fixed_canvas_remap(map_x, map_y, width, height))
     else:
-        remap_stats.update(remap_geometry_evidence(map_x, map_y, width, height))
+        remap_stats.update(
+            remap_geometry_evidence(map_x, map_y, width, height, output_shape=map_x.shape)
+        )
     np.savez_compressed(remap_path, map_x=map_x, map_y=map_y)
     valid_mask = (
         (map_x >= 0) & (map_x <= width - 1) & (map_y >= 0) & (map_y <= height - 1)
@@ -492,6 +502,9 @@ def build_or_load_calibration(
         "source": str(source),
         "source_metadata": source_metadata,
         "grid_shape": list(extracted[0].shape[:2]),
+        "SOURCE_IMAGE_SHAPE": list(image.shape),
+        "REMAP_OUTPUT_SHAPE": list(map_x.shape),
+        "CANVAS_MODE": config.canvas_mode,
     }
     metadata_path.write_text(json.dumps(metadata, indent=2) + "\n")
     durable_directory.parent.mkdir(parents=True, exist_ok=True)

@@ -76,6 +76,12 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
     else:
         expected_shape = tuple(image_shape)
 
+    config = metadata.get("config")
+    canvas_mode = config.get("canvas_mode", "fixed") if isinstance(config, dict) else "fixed"
+    if canvas_mode not in {"fixed", "expanded"}:
+        errors.append(f"{expected_mode}: config.canvas_mode is invalid")
+        canvas_mode = "fixed"
+
     if remap_is_regular:
         try:
             with np.load(remap_path, allow_pickle=False) as remap:
@@ -87,24 +93,23 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
                     map_x, map_y = remap["map_x"], remap["map_y"]
                     if map_x.shape != map_y.shape:
                         errors.append(f"{expected_mode}: remap map shapes differ")
-                    if expected_shape is not None and map_x.shape != expected_shape:
+                    if canvas_mode == "fixed" and expected_shape is not None and map_x.shape != expected_shape:
                         errors.append(
                             f"{expected_mode}: metadata.image_shape does not match "
                             "remap maps"
                         )
-                    if not np.all(np.isfinite(map_x)) or not np.all(np.isfinite(map_y)):
+                    if map_x.ndim != 2 or not map_x.size:
+                        errors.append(f"{expected_mode}: remap maps must be non-empty 2-D arrays")
+                    elif not np.all(np.isfinite(map_x)) or not np.all(np.isfinite(map_y)):
                         errors.append(
                             f"{expected_mode}: remap maps contain non-finite values"
                         )
-                    elif (
-                        metadata.get("config", {}).get("canvas_mode", "fixed")
-                        == "fixed"
-                    ):
+                    elif expected_shape is not None:
                         valid = (
                             (map_x >= 0)
-                            & (map_x <= map_x.shape[1] - 1)
+                            & (map_x <= expected_shape[1] - 1)
                             & (map_y >= 0)
-                            & (map_y <= map_y.shape[0] - 1)
+                            & (map_y <= expected_shape[0] - 1)
                         )
                         ys, xs = np.where(valid)
                         valid_fraction = float(np.mean(valid))
@@ -119,7 +124,7 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
                         height_ratio = (
                             (bbox[3] - bbox[1] + 1) / map_x.shape[0] if bbox else 0.0
                         )
-                        if (
+                        if canvas_mode == "fixed" and (
                             valid_fraction < MIN_REMAP_VALID_FRACTION
                             or width_ratio < MIN_REMAP_WIDTH_RATIO
                             or height_ratio < MIN_REMAP_HEIGHT_RATIO
@@ -133,6 +138,15 @@ def _validate_artifact(directory: Path, expected_mode: str) -> list[str]:
                                 f"VALID_REMAP_BBOX={bbox}, "
                                 f"VALID_REMAP_WIDTH_RATIO={width_ratio:.6f}, "
                                 f"VALID_REMAP_HEIGHT_RATIO={height_ratio:.6f})"
+                            )
+                        elif canvas_mode == "expanded" and (
+                            not np.any(valid)
+                            or bbox is None
+                            or bbox[2] == bbox[0]
+                            or bbox[3] == bbox[1]
+                        ):
+                            errors.append(
+                                f"{expected_mode}: expanded remap is empty or degenerate"
                             )
         except (OSError, ValueError, zipfile.BadZipFile) as exc:
             errors.append(f"{expected_mode}: invalid remap.npz ({exc})")
