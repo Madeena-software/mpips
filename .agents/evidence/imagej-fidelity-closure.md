@@ -1,8 +1,8 @@
-# MPIPS ImageJ/Fiji Fidelity Closure — Phase 2 Accepted Parity + N/A Closure
+# MPIPS ImageJ/Fiji Fidelity Closure — Phase 3 CLAHE Semantic Closure
 
 Status: **Review Required**. This artifact preserves the Phase 1 inventory and
-records the Phase 2 accepted-parity and N/A closure. It records observed
-implementation reality; it does not select a CLAHE semantic contract or change
+Phase 2 accepted-parity/N/A provenance and records the Phase 3 CLAHE semantic
+closure. It records observed implementation reality; it does not change
 production behavior.
 
 ## Governing identity and preflight
@@ -10,10 +10,12 @@ production behavior.
 | Item | Observed value |
 |---|---|
 | Governing task | `.agents/tasks/imagej-fidelity-closure.md` |
-| Exact governing task revision | `923594e1638c34f83d34d58e55589b99de27fdcd` |
+| Exact governing task revision | `97beff699318dce2f80ade9333f195c7f5647387` |
 | Accepted implementation baseline | `8396fbc768285cc68ed3bbe572561cd664b70e8b` |
 | Accepted Phase-1 evidence revision | `1be8ba791bc187be0c8b107cf165ac24f88ee412` |
-| Execution revision / pre-evidence HEAD | `923594e1638c34f83d34d58e55589b99de27fdcd` |
+| Accepted Phase-2 baseline | `b4c032ce58605095de82c67097c61ebf458041a5` |
+| Accepted direct predecessor | `fdf38094320de1dc81037e6516c17e11022d4fde` |
+| Execution revision / pre-evidence HEAD | `97beff699318dce2f80ade9333f195c7f5647387` |
 | Branch | `refactor/package-boundaries` |
 | Origin branch before evidence | same revision as local HEAD |
 | Baseline ancestry | verified: accepted baseline is an ancestor of HEAD |
@@ -89,12 +91,174 @@ It is therefore closed as `NOT PRODUCTION REACHABLE — N/A — CLOSED`.
 | Equalization — weighted ImageJ variant | ImageJ `ContrastEnhancer` weighted/sqrt histogram equalization | `ImageJReplicator._equalize_imagej_variant(classic_equalization=False)` via `enhance_contrast` | PRODUCTION-REACHABLE — DEFAULT | PRODUCTION-REACHABLE — DEFAULT; `contrast_mode="equalize"`, `classic=false` | uint8, uint16; pipeline working output uint16 | PARITY CONFIRMED | PARITY CONFIRMED — REGRESSION PROTECTED; uint16 sentinel added and focused test passes | None for Phase 2 | Phase 3 — not required for this settled item |
 | Equalization — classic | ImageJ `ContrastEnhancer` classic histogram equalization | `ImageJReplicator._equalize_imagej_variant(classic_equalization=True)`; config `contrast_classic_equalization` | PRODUCTION-REACHABLE — CONFIGURABLE | NOT DEFAULT; weighted variant is default | uint8, uint16; pipeline working output uint16 | PARITY CONFIRMED | PARITY CONFIRMED — REGRESSION PROTECTED; uint16 sentinel added and focused test passes | None for Phase 2 | Phase 3 — not required for this settled item |
 | Hybrid Median | Pinned `Hybrid_2D_Median_Filter.java` | `ImageJReplicator.hybrid_median_filter_2d`; `filtering.apply_median_filter("hybrid_imagej")` maps radius 2 to 5x5 | PRODUCTION-REACHABLE — DEFAULT; pipeline calls median dispatch | PRODUCTION-REACHABLE — DEFAULT; `use_median_filter=true`, type `hybrid_imagej`, radius 2 | uint16 in radiography; implementation also preserves uint8/uint16 | REMEDIATED AND PARITY CONFIRMED | REMEDIATED AND PARITY CONFIRMED — REGRESSION PROTECTED; existing focused coverage passes unchanged | None for Phase 2 | Phase 3 — not required for this settled item |
-| CLAHE — MPIPS precise | Fiji `Flat` semantics used as reference identity; MPIPS contract is separate | `ImageJReplicator.apply_clahe(..., fast=False)` -> `_clahe_precise`; displayed bins 256 maps to internal bins 255; blocksize 127 maps to radius 63 | PRODUCTION-REACHABLE — DEFAULT when ImageJ processing is available | PRODUCTION-REACHABLE — DEFAULT; `use_clahe=true`, `fast=false`, slope 0.6, bins 256, blocksize 127, composite true | uint16 on radiography; implementation supports uint8/uint16 | FIDELITY FAILURE; not Fiji Flat parity | FIDELITY FAILURE remains verified; MPIPS returns numeric output at slope 0.6 while pinned Fiji runtime errors on the retained runtime geometry | Semantic contract and production fidelity divergence are unresolved; slope 0.6 is inherited with rationale not recovered | Phase 3 — CLAHE semantic closure; Phase 5 runtime measurement if later authorized |
-| CLAHE — MPIPS fast/OpenCV | Fiji `FastFlat` semantics used as reference identity; MPIPS contract is separate | `ImageJReplicator.apply_clahe(..., fast=True)` -> OpenCV `createCLAHE` path | PRODUCTION-REACHABLE — CONFIGURABLE | NOT DEFAULT; `clahe_fast=false` | uint16 on radiography; implementation supports uint8/uint16 | FIDELITY FAILURE; not Fiji FastFlat parity | FIDELITY FAILURE remains verified; current code is an OpenCV-based alternate semantics | Semantic contract and parity divergence remain unresolved | Phase 3 — CLAHE semantic closure; Phase 5 runtime measurement if later authorized |
-| Fiji CLAHE Flat reference | Pinned `axtimwalde/mpicbg` `Flat.java` and supporting `Apply`/`ShortApply` code | No Java/Fiji runtime in MPIPS production path; retained reference tooling only | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Reference execution is byte working domain with ShortProcessor remapping; uint8/uint16 cases characterized | REFERENCE ONLY / FIDELITY FAILURE against MPIPS | REFERENCE ONLY; pinned identity and execution boundaries are established, not a production implementation | Product/technical semantic choice is not made here | Phase 3 — semantic closure |
-| Fiji CLAHE FastFlat reference | Pinned `axtimwalde/mpicbg` `FastFlat.java` and supporting fast apply code | No Java/Fiji runtime in MPIPS production path; retained reference tooling only | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Reference uses byte working domain and dtype-specific ShortProcessor remapping | REFERENCE ONLY / FIDELITY FAILURE against MPIPS | REFERENCE ONLY; distinct fixed-block/interpolation algorithm is established | Product/technical semantic choice is not made here | Phase 3 — semantic closure |
+| CLAHE — MPIPS precise | Pinned Fiji `Flat.java` retained as comparison reference; governed contract is separate | `ImageJReplicator.apply_clahe(..., fast=False)` -> `_clahe_precise`; displayed bins 256 maps to internal bins 255; blocksize 127 maps to radius 63 | PRODUCTION-REACHABLE — DEFAULT when ImageJ processing is available | PRODUCTION-REACHABLE — DEFAULT; `use_clahe=true`, `fast=false`, slope 0.6, bins 256, blocksize 127, composite true | uint8 and direct uint16 semantics; radiography output is uint16 | FIDELITY FAILURE relative to Fiji Flat (historical) | LEGACY MPIPS CONTRACT; INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED; NOT FIJI FLAT PARITY | No fidelity-semantic gap under Option A; slope quality/optimization remains separate | Phase 5 runtime measurement; Phase 6/7 later if authorized |
+| CLAHE — MPIPS fast/OpenCV | Pinned Fiji `FastFlat.java` retained as comparison reference; governed contract is separate | `ImageJReplicator.apply_clahe(..., fast=True)` -> OpenCV `createCLAHE` path | PRODUCTION-REACHABLE — CONFIGURABLE | NOT DEFAULT; `clahe_fast=false` | uint8 and uint16; OpenCV preserves the single-channel dtype | MPIPS/OpenCV is not Fiji FastFlat parity (historical mismatch) | MPIPS/OPENCV ALTERNATE CONTRACT; INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED; NOT FIJI FASTFLAT PARITY | No semantic identity gap under Option A; performance and broader regression remain separate | Phase 5 runtime measurement; Phase 6/7 later if authorized |
+| Fiji CLAHE Flat reference | Pinned `axtimwalde/mpicbg` `Flat.java` and supporting `Apply`/`ShortApply` code | No Java/Fiji runtime in MPIPS production path; retained reference tooling only | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Byte working domain; uint16 uses ShortProcessor 8-bit working representation and ShortApply mapping | REFERENCE ONLY / historical cross-reference mismatch | REFERENCE ONLY; NOT PRODUCTION REACHABLE | No production contract obligation; retained provenance and execution limits remain | Phase 5 reference measurement if authorized |
+| Fiji CLAHE FastFlat reference | Pinned `axtimwalde/mpicbg` `FastFlat.java` and supporting fast apply code | No Java/Fiji runtime in MPIPS production path; retained reference tooling only | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Distinct byte working representation and dtype-specific uint16 mapping | REFERENCE ONLY / historical cross-reference mismatch | REFERENCE ONLY; NOT PRODUCTION REACHABLE | No production contract obligation; retained provenance and execution limits remain | Phase 5 reference measurement if authorized |
 | Circular Median | ImageJ core `RankFilters.MEDIAN` circular-kernel semantics | `ImageJReplicator.median_filter_imagej`; `filtering.apply_median_filter("circular_imagej")` | PRODUCTION-REACHABLE — CONFIGURABLE; config enum/schema and median dispatch can activate it | NOT DEFAULT; default type is `hybrid_imagej` | uint16 on radiography; implementation supports uint8/uint16 | FIDELITY FAILURE for accepted special-radius cases; exposed alternative, not active default | Reachability confirmed. Current implementation remains parity-sensitive: accepted characterization found failures at radii 1.5 and 2.5, with other tested radii exact | Fidelity status for all supported/configurable radii is unresolved; no remediation performed | Phase 4 — Circular Median resolution |
 | Temporal Median | ImageJ `Fast_Temporal_Median.java` plugin identity | `ImageJReplicator.fast_temporal_median(stack, ...)` only; no wrapper/config/pipeline caller found | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Library method accepts 3D uint8/uint16 stacks | NOT PRODUCTION-REACHABLE — N/A | NOT PRODUCTION REACHABLE — N/A — CLOSED; refreshed caller/config/API/schema search remains empty | No production fidelity obligation established; standalone method remains outside current production surface | Phase 3 — no further Phase-2 work |
+
+## Phase 3 — CLAHE semantic closure
+
+### Governing decision and execution identity
+
+- Governing task revision: `97beff699318dce2f80ade9333f195c7f5647387`.
+- Accepted Phase-2 baseline: `b4c032ce58605095de82c67097c61ebf458041a5`.
+- Accepted direct predecessor: `fdf38094320de1dc81037e6516c17e11022d4fde`.
+- Pre-change HEAD: `97beff699318dce2f80ade9333f195c7f5647387`.
+- Planner decision: **Option A — Legacy MPIPS Contract**, selected and
+  governing. No implementation, configuration, or test change occurred.
+
+Option A preserves the current MPIPS production semantics and stops treating
+Fiji Flat/FastFlat as the required production algorithms. It makes the
+historical cross-reference mismatches intentional governed divergences, not
+current unresolved production fidelity failures. This is not a clinical,
+visual, mathematical, or quality-superiority claim.
+
+### Current production defaults and precise contract
+
+The verified production defaults are:
+
+```text
+use_clahe=true
+clahe_blocksize=127
+clahe_histogram_bins=256
+clahe_max_slope=0.6
+clahe_fast=false
+clahe_composite=true
+```
+
+The default path is `RadiographyPipeline.process` ->
+`ImageJReplicator.apply_clahe(..., fast=False)` -> `_clahe_precise`.
+`histogram_bins=256` maps to `bins=255`; `blocksize=127` maps to
+`block_radius=63`.
+
+The **Legacy MPIPS Contract** is defined by the current implementation:
+
+- uint8 values are quantized over 0..255 into 256 internal levels; uint16
+  values are quantized directly over 0..65535 into the same 255-index
+  internal range, with no uint16-to-uint8 working conversion for the precise
+  grayscale path;
+- each local histogram is the clipped image window centered on a computed
+  block center, restricted to positive mask pixels when a mask is supplied;
+- the clip limit is `int(slope * n_pixels / (bins + 1))`, with a minimum-one
+  clamp; excess is redistributed as floating-point mass across all bins, with
+  the implementation's residual stepping behavior;
+- each histogram becomes a normalized cumulative-distribution LUT; LUTs are
+  placed on a block-center grid derived from the image dimensions and the
+  127-pixel block size, with one center at the image midpoint for a single
+  grid cell;
+- each pixel selects the four surrounding LUTs and receives bilinear
+  interpolation; the result is restored to the original dtype and clipped to
+  its full range; masked-out pixels retain their input value.
+
+This is not Fiji Flat replication. The precise path is
+`PRODUCTION-REACHABLE — DEFAULT`, classified
+`INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED` and `NOT FIJI FLAT PARITY`.
+
+### Precise MPIPS versus pinned Fiji Flat
+
+| Semantic surface | MPIPS precise | Fiji Flat reference |
+|---|---|---|
+| Local support | Custom block-center windows | True per-pixel sliding local window |
+| LUT placement | Block-center LUT grid | Sliding-window transfer at each pixel |
+| Clip calculation | Floating formula with minimum-one clamp | Integer `clipHistogram` semantics |
+| Redistribution | Floating redistribution plus residual stepping | Integer redistribution/remainder behavior |
+| uint16 | Direct quantization across uint16 range | ShortProcessor 8-bit working representation and ShortApply mapping back to short |
+| slope 0.6 | Produces a deterministic numeric output | Pinned retained geometry hits the established execution-domain failure |
+
+These are semantic differences, not a superiority claim for either
+implementation.
+
+### Fast/OpenCV alternate contract
+
+`ImageJReplicator.apply_clahe(..., fast=True)` routes to `_clahe_fast` and
+`cv2.createCLAHE`. For a single channel it uses `clipLimit=slope` and derives
+`tileGridSize=(max(1, width // block_size), max(1, height // block_size))`,
+where `block_size=2 * block_radius + 1` (127 for the production settings).
+OpenCV handles uint8 and uint16 natively on the single-channel path. A mask,
+when supplied, preserves the original working value outside positive mask
+pixels. Composite color processing applies the path channel-wise when
+`composite=true`; the non-composite path works through an 8-bit LAB image and
+restores uint16 by the existing 256 scaling.
+
+This path is `PRODUCTION-REACHABLE — CONFIGURABLE`, `NOT DEFAULT`, and is the
+**MPIPS/OPENCV ALTERNATE CONTRACT**. It is classified
+`INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED` and `NOT FIJI FASTFLAT PARITY`.
+
+### Fiji Flat and FastFlat reference contracts
+
+Fiji Flat remains **REFERENCE ONLY — NOT PRODUCTION REACHABLE**. Its pinned
+contract is a true sliding local window with integer histogram clipping and
+redistribution, established displayed/internal bin behavior, retained
+execution-domain limits, and ShortProcessor 8-bit working representation plus
+ShortApply mapping for uint16.
+
+Fiji FastFlat remains **REFERENCE ONLY — NOT PRODUCTION REACHABLE**. It is a
+distinct fixed-block algorithm with its own histogram/LUT construction,
+interpolation, clipping behavior, execution limits, and uint16 working
+representation. `fast=True` is not evidence of FastFlat equivalence, and
+OpenCV CLAHE is not Fiji FastFlat.
+
+| Semantic surface | MPIPS fast/OpenCV | Fiji FastFlat reference |
+|---|---|---|
+| Block model | OpenCV tile grid derived from image size and block size | Fixed FastFlat block structure |
+| Histogram/LUT | OpenCV `createCLAHE` implementation | Fiji FastFlat LUT construction |
+| Interpolation | OpenCV tile interpolation | FastFlat interpolation |
+| Clipping | OpenCV clip-limit semantics | Fiji integer clipping/redistribution semantics |
+| uint16 | Native OpenCV uint16 single-channel processing | Fiji working-representation semantics |
+
+### Dtype, slope, and execution-domain boundaries
+
+The precise and fast paths both preserve uint8 and uint16 single-channel
+dtype contracts, but their internal quantization/working behavior differs as
+documented above. The slope remains
+`INHERITED MPIPS DEFAULT — RATIONALE NOT RECOVERED`. Option A preserves 0.6
+because it preserves current production semantics; it does not establish
+optimality, Fiji compatibility, clinical preference, quality superiority, or
+an I-5A/I-5B M06 production selection. Parameter ablation and optimization
+remain outside Phase 3.
+
+Accepted execution-domain observations for the characterized geometry are
+approximately `1.02722168` for Fiji Flat and `1.00394` for Fiji FastFlat.
+These are execution-domain boundaries only, not recommendations or
+replacements for MPIPS slope 0.6.
+
+### Regression and documentation assessment
+
+Existing `tests/test_imagej_migration.py` sentinels are sufficient for this
+minimal semantic closure: precise uint16 CLAHE hash
+`5d94b2940b94f2dfbcfe41f130edef7bebfa59fa5a050e7cdbb9bbfbe140dcf6` and
+fast/OpenCV uint16 CLAHE hash
+`1c4bb383c6e5af18532aff7f0c68e094fdb81c8dc545493758d11e2de8b49ea2`, with
+shape and uint16 dtype checks. No tests were modified. Local verification:
+
+```text
+.venv/bin/python -m pytest -q tests/test_imagej_migration.py
+10 passed
+```
+
+The current source docstring says it “replicates” the ImageJ/Fiji CLAHE
+plugin, which is misleading under the selected Option A contract. Because
+source changes are excluded, this remains bounded documentation debt:
+`SOURCE DOCUMENTATION MISNOMER — NO BEHAVIORAL EFFECT`. Correction requires a
+later explicitly authorized documentation/source phase.
+
+### Phase 3 unresolved items and limitations
+
+- No CLAHE fidelity-semantic gap remains for the governed MPIPS contracts;
+  performance remains Phase 5 and broader sentinel consolidation remains
+  Phase 6.
+- Circular Median remains unchanged and routed to Phase 4.
+- Final umbrella closure remains Phases 6/7; no clinical safety or quality
+  recommendation is established.
+- Fiji reference execution was not rerun because accepted pinned evidence was
+  consistent and no contradiction required regeneration.
+
+No production algorithm, defaults, configuration, tests, reference tooling,
+converter, main, deployment, or release action changed in Phase 3.
+
+**Terminal state: Review Required.**
 
 ## Direct reachability observations
 
