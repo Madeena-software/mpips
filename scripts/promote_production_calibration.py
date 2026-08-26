@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Callable
 
 import numpy as np
+import pydicom
 
 from scripts.validate_calibration_layout import validate_calibration_layout
 
@@ -29,6 +30,35 @@ EXPECTED_FINGERPRINT = (
     "789adff52ed296d956f81ae8dc38247a73768d863495f91a916fc251aaf67811"
 )
 EXPECTED_SHAPE = (3000, 4096)
+BED_FUNCTIONAL_FIELDS = (
+    "BED_FUNCTIONAL_CONVERSION",
+    "BED_DICOM_STRUCTURE",
+)
+SYNTHETIC_FIELDS = (
+    "SYNTHETIC_THORAX_PIXEL_IDENTITY",
+    "SYNTHETIC_THORAX_CONVERSION",
+    "SYNTHETIC_THORAX_DICOM_STRUCTURE",
+)
+ROLLBACK_FIELDS = (
+    "ROLLBACK_BED_LAYOUT",
+    "ROLLBACK_BED_FUNCTIONAL_CONVERSION",
+    "ROLLBACK_BED_DICOM_STRUCTURE",
+)
+REAL_MANIFEST = (
+    Path(__file__).parents[1] / "artifacts/test-data/real-thorax-trx-da5277082.json"
+)
+REAL_REQUIRED_FIELDS = tuple(
+    field
+    for case in (1, 2, 3)
+    for field in (
+        f"REAL_THORAX_{case}_INPUT_COMPATIBILITY",
+        f"REAL_THORAX_{case}_CONVERSION",
+        f"REAL_THORAX_{case}_DICOM_STRUCTURE",
+    )
+)
+REAL_INPUT_FIELDS = tuple(
+    f"REAL_THORAX_{case}_INPUT_COMPATIBILITY" for case in (1, 2, 3)
+)
 ALLOWED_MEMBERS = {
     "trx-calibration/",
     "trx-calibration/metadata.json",
@@ -38,6 +68,136 @@ ALLOWED_MEMBERS = {
 
 class PromotionError(RuntimeError):
     pass
+
+
+def _real_manifest() -> dict:
+    try:
+        data = json.loads(REAL_MANIFEST.read_text(encoding="utf-8"))
+        if len(data["radiographs"]) != 3:
+            raise ValueError("real THORAX manifest must contain three radiographs")
+        expected = data["expected"]
+        if (
+            expected["detector_mode"] != "TRX"
+            or expected["external_detector_type"] != "THORAX"
+            or expected["image_shape"] != [3000, 4096]
+            or expected["gain_id"] != "1787726609597"
+        ):
+            raise ValueError("real THORAX manifest semantics mismatch")
+        return data
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise PromotionError("invalid real THORAX test-data manifest") from exc
+
+
+def _verify_npz_archive(path: Path, expected_size: int, expected_sha256: str) -> None:
+    if path.stat().st_size != expected_size or _sha256(path) != expected_sha256:
+        raise PromotionError(f"integrity mismatch: {path.name}")
+    with zipfile.ZipFile(path) as archive:
+        if archive.testzip() is not None:
+            raise PromotionError(f"invalid NPZ archive: {path.name}")
+
+
+def validate_real_thorax_inputs(data_dir: str | Path) -> dict[str, str]:
+    """Verify all real inputs before allowing any pickle-bearing NPZ load."""
+    data_dir = Path(data_dir)
+    manifest = _real_manifest()
+    evidence: dict[str, str] = {}
+    gain = manifest["gain"]
+    gain_path = data_dir / gain["filename"]
+    try:
+        _verify_npz_archive(gain_path, gain["size"], gain["sha256"])
+        evidence["REAL_THORAX_GAIN_DOWNLOAD"] = "PASS"
+        with np.load(gain_path, allow_pickle=True) as data:
+            gain_xray = data["xrayparams"].item()
+            gain_id = str(data["id"].item())
+            gain_shapes = (data["rawimage"].shape, data["darkimage"].shape)
+        if (
+            gain_id != manifest["expected"]["gain_id"]
+            or gain_xray.get("detectorMode") != "TRX"
+            or gain_shapes != ((3000, 4096), (3000, 4096))
+        ):
+            raise PromotionError("real THORAX gain semantics mismatch")
+        evidence["REAL_THORAX_GAIN_INTEGRITY"] = "PASS"
+    except (OSError, KeyError, ValueError, PromotionError, zipfile.BadZipFile):
+        evidence["REAL_THORAX_GAIN_DOWNLOAD"] = "FAIL"
+        evidence["REAL_THORAX_GAIN_INTEGRITY"] = "FAIL"
+    for item in manifest["radiographs"]:
+        case = item["case"]
+        prefix = f"REAL_THORAX_{case}"
+        try:
+            path = data_dir / item["filename"]
+            _verify_npz_archive(path, item["size"], item["sha256"])
+            evidence[f"{prefix}_DOWNLOAD"] = "PASS"
+            with np.load(path, allow_pickle=True) as data:
+                xray = data["xrayparams"].item()
+                gain_id = str(data["gainid"].item())
+                raw_shape = data["rawimage"].shape
+            if (
+                xray.get("detectorMode") != "TRX"
+                or gain_id != manifest["expected"]["gain_id"]
+                or raw_shape != (3000, 4096)
+            ):
+                raise PromotionError(f"real THORAX {case} semantics mismatch")
+            evidence[f"{prefix}_INPUT_COMPATIBILITY"] = "PASS"
+        except (OSError, KeyError, ValueError, PromotionError, zipfile.BadZipFile):
+            evidence[f"{prefix}_DOWNLOAD"] = "FAIL"
+            evidence[f"{prefix}_INPUT_COMPATIBILITY"] = "FAIL"
+        evidence.setdefault(f"{prefix}_CONVERSION", "NOT_RUN")
+        evidence.setdefault(f"{prefix}_DICOM_STRUCTURE", "NOT_RUN")
+    evidence["REAL_THORAX_INPUTS_ALL_PASS"] = (
+        "PASS"
+        if evidence.get("REAL_THORAX_GAIN_INTEGRITY") == "PASS"
+        and all(evidence.get(field) == "PASS" for field in REAL_INPUT_FIELDS)
+        else "FAIL"
+    )
+    evidence["REAL_THORAX_ALL_PASS"] = "NOT_RUN"
+    return evidence
+
+
+def _real_dicom_structure(path: Path) -> bool:
+    try:
+        from scripts.diagnose_production_dicom_e2e import validate_dicom_structure
+
+        structure = validate_dicom_structure(path)
+        dataset = pydicom.dcmread(path, stop_before_pixels=False)
+        return (
+            structure["rows"] == 3000
+            and structure["columns"] == 4096
+            and int(dataset.BitsAllocated) == 16
+            and int(dataset.PixelRepresentation) == 0
+            and bool(dataset.PixelData)
+        )
+    except (OSError, AttributeError, KeyError, ValueError):
+        return False
+
+
+def run_real_thorax_checks(data_dir: str | Path) -> dict[str, str]:
+    from scripts.diagnose_production_dicom_e2e import _direct
+
+    evidence = validate_real_thorax_inputs(data_dir)
+    if evidence["REAL_THORAX_INPUTS_ALL_PASS"] != "PASS":
+        return evidence
+    manifest = _real_manifest()
+    gain = Path(data_dir) / manifest["gain"]["filename"]
+    with tempfile.TemporaryDirectory(prefix="mpips-real-thorax-") as directory:
+        for item in manifest["radiographs"]:
+            case = item["case"]
+            output = Path(directory) / f"real-thorax-{case}.dcm"
+            ok, _ = _direct(
+                Path(data_dir) / item["filename"],
+                gain,
+                "THORAX",
+                output,
+            )
+            evidence[f"REAL_THORAX_{case}_CONVERSION"] = "PASS" if ok else "FAIL"
+            evidence[f"REAL_THORAX_{case}_DICOM_STRUCTURE"] = (
+                "PASS" if ok and _real_dicom_structure(output) else "FAIL"
+            )
+    evidence["REAL_THORAX_ALL_PASS"] = (
+        "PASS"
+        if all(evidence.get(field) == "PASS" for field in REAL_REQUIRED_FIELDS)
+        else "FAIL"
+    )
+    return evidence
 
 
 def _sha256(path: Path) -> str:
@@ -202,27 +362,45 @@ def atomic_swap(
         raise
 
 
-def _rollback(active: Path, rollback: Path) -> str:
+def _rollback(
+    active: Path,
+    rollback: Path,
+    bed_check: Callable[[], dict[str, str]] | None,
+) -> dict[str, str]:
     failed = active.parent / f"{active.name}.failed.{uuid.uuid4().hex}"
+    evidence = {field: "FAIL" for field in ROLLBACK_FIELDS}
     try:
         os.replace(active, failed)
         os.replace(rollback, active)
-        if (
-            validate_calibration_layout(active)
-            or validate_legacy_bed(active)["detector_mode"] != "BED"
-        ):
-            return "FAIL"
+        if not validate_calibration_layout(active):
+            evidence["ROLLBACK_BED_LAYOUT"] = "PASS"
+        if evidence["ROLLBACK_BED_LAYOUT"] == "PASS" and bed_check:
+            check = bed_check()
+            for field in ROLLBACK_FIELDS[1:]:
+                evidence[field] = check.get(field, "FAIL")
+        if not all(evidence[field] == "PASS" for field in ROLLBACK_FIELDS):
+            evidence["ROLLBACK_RESULT"] = "FAIL"
+            evidence["ROLLBACK_FAILED_DIRECTORY_STATE"] = "RETAINED_FOR_RECOVERY"
+            evidence["ROLLBACK_RECOVERY_DIRECTORY_STATE"] = "RETAINED"
+            return evidence
         shutil.rmtree(failed, ignore_errors=True)
-        return "PASS"
+        evidence["ROLLBACK_RESULT"] = "PASS"
+        return evidence
     except Exception:
-        return "FAIL"
+        evidence["ROLLBACK_RESULT"] = "FAIL"
+        evidence["ROLLBACK_FAILED_DIRECTORY_STATE"] = "RETAINED_FOR_RECOVERY"
+        evidence["ROLLBACK_RECOVERY_DIRECTORY_STATE"] = "RETAINED"
+        return evidence
 
 
 def promote(
     active: str | Path,
     carrier: str | Path,
     *,
-    post_swap_checks: list[Callable[[], bool]] | None = None,
+    functional_check: Callable[[], dict[str, str]] | None = None,
+    container_check: Callable[[], str] | None = None,
+    rollback_bed_check: Callable[[], dict[str, str]] | None = None,
+    pre_swap_evidence: dict[str, str] | None = None,
     expected_size: int | None = None,
     expected_sha256: str | None = None,
 ) -> dict[str, str]:
@@ -254,63 +432,198 @@ def promote(
         "STAGING_LAYOUT": "PASS",
         "BED_BYTE_PRESERVATION": "PASS",
     }
+    result.update(pre_swap_evidence or {})
     rollback = active.parent / f"{active.name}.rollback.{uuid.uuid4().hex}"
     atomic_swap(active, stage, rollback)
     try:
+        result["ATOMIC_SWAP"] = "PASS"
+        result["POST_SWAP_BED_METADATA_SHA256"] = _sha256(active / "BED/metadata.json")
+        result["POST_SWAP_BED_REMAP_SHA256"] = _sha256(active / "BED/remap.npz")
+        result["POST_SWAP_BED_BYTE_PRESERVATION"] = (
+            "PASS"
+            if result["POST_SWAP_BED_METADATA_SHA256"]
+            == result["BED_PRE_METADATA_SHA256"]
+            and result["POST_SWAP_BED_REMAP_SHA256"] == result["BED_PRE_REMAP_SHA256"]
+            else "FAIL"
+        )
+        if result["POST_SWAP_BED_BYTE_PRESERVATION"] != "PASS":
+            raise PromotionError("post-swap BED byte preservation failed")
         if validate_calibration_layout(active):
             raise PromotionError("post-swap calibration layout is invalid")
-        result.update({"ATOMIC_SWAP": "PASS", "POST_SWAP_LAYOUT": "PASS"})
-        for check in post_swap_checks or []:
-            if not check():
-                raise PromotionError("post-swap functional check failed")
+        result["POST_SWAP_LAYOUT"] = "PASS"
+        result["CONTAINER_CALIBRATION_VIEW"] = (
+            container_check() if container_check else "FAIL"
+        )
+        if result["CONTAINER_CALIBRATION_VIEW"] != "PASS":
+            result["FINAL_PROMOTION_CLASSIFICATION"] = (
+                "CALIBRATION_BIND_MOUNT_REFRESH_REQUIRED"
+            )
+            raise PromotionError("container calibration view is not current")
+        functional = functional_check() if functional_check else {}
+        for field in (
+            *BED_FUNCTIONAL_FIELDS,
+            *SYNTHETIC_FIELDS,
+            "REAL_THORAX_ALL_PASS",
+            *REAL_REQUIRED_FIELDS,
+        ):
+            result[field] = functional.get(field, "FAIL")
+        if not all(
+            result[field] == "PASS"
+            for field in (
+                *BED_FUNCTIONAL_FIELDS,
+                "REAL_THORAX_ALL_PASS",
+                *REAL_REQUIRED_FIELDS,
+            )
+        ):
+            raise PromotionError("post-swap functional check failed")
+        shutil.rmtree(rollback, ignore_errors=True)
         result.update(
             {
-                "BED_FUNCTIONAL_CONVERSION": "PASS",
-                "BED_DICOM_STRUCTURE": "PASS",
-                "SYNTHETIC_THORAX_PIXEL_IDENTITY": "PASS",
-                "SYNTHETIC_THORAX_CONVERSION": "PASS",
-                "SYNTHETIC_THORAX_DICOM_STRUCTURE": "PASS",
+                "ROLLBACK_REQUIRED": "NO",
+                "ROLLBACK_RESULT": "NOT_RUN",
+                "FINAL_PROMOTION_CLASSIFICATION": (
+                    "PRODUCTION_CALIBRATION_BED_TRX_PROMOTION_PASS"
+                ),
             }
         )
-        shutil.rmtree(rollback, ignore_errors=True)
-        result.update({"ROLLBACK_REQUIRED": "NO", "ROLLBACK_RESULT": "NOT_RUN"})
         return result
-    except Exception as exc:
-        rollback_result = _rollback(active, rollback)
-        if rollback_result != "PASS":
-            raise PromotionError("rollback failed") from exc
+    except Exception:
+        result.update(_rollback(active, rollback, rollback_bed_check))
+        if result["ROLLBACK_RESULT"] != "PASS":
+            result["FINAL_PROMOTION_CLASSIFICATION"] = (
+                "PRODUCTION_CALIBRATION_ROLLBACK_FAILED"
+            )
+            result["ROLLBACK_REQUIRED"] = "YES"
+            return result
         result.update(
             {
                 "ROLLBACK_REQUIRED": "YES",
-                "ROLLBACK_RESULT": rollback_result,
-                "FINAL_PROMOTION_CLASSIFICATION": "PROMOTION_ROLLED_BACK",
+                "FINAL_PROMOTION_CLASSIFICATION": result.get(
+                    "FINAL_PROMOTION_CLASSIFICATION", "PROMOTION_ROLLED_BACK"
+                ),
             }
         )
         return result
 
 
-def _run_diagnostic(summary: Path) -> bool:
+def _parse_diagnostic(summary: Path) -> dict[str, str]:
+    if not summary.is_file():
+        return {}
+    return {
+        line.split("=", 1)[0]: line.split("=", 1)[1]
+        for line in summary.read_text().splitlines()
+        if "=" in line
+    }
+
+
+def _run_diagnostic(summary: Path) -> dict[str, str]:
     command = [
         sys.executable,
         "scripts/diagnose_production_dicom_e2e.py",
         "--summary",
         str(summary),
     ]
-    if subprocess.run(command, check=False).returncode != 0 or not summary.is_file():
-        return False
-    required = {
-        "BED_DIRECT_CONVERSION",
-        "BED_DICOM_STRUCTURE",
-        "SYNTHETIC_THORAX_PIXEL_IDENTITY",
-        "SYNTHETIC_THORAX_DIRECT_CONVERSION",
-        "SYNTHETIC_THORAX_DICOM_STRUCTURE",
+    subprocess.run(command, check=False)
+    values = _parse_diagnostic(summary)
+    return {
+        "BED_FUNCTIONAL_CONVERSION": values.get("BED_DIRECT_CONVERSION", "FAIL"),
+        "BED_DICOM_STRUCTURE": values.get("BED_DICOM_STRUCTURE", "FAIL"),
+        "SYNTHETIC_THORAX_PIXEL_IDENTITY": values.get(
+            "SYNTHETIC_THORAX_PIXEL_IDENTITY", "FAIL"
+        ),
+        "SYNTHETIC_THORAX_CONVERSION": values.get(
+            "SYNTHETIC_THORAX_DIRECT_CONVERSION", "FAIL"
+        ),
+        "SYNTHETIC_THORAX_DICOM_STRUCTURE": values.get(
+            "SYNTHETIC_THORAX_DICOM_STRUCTURE", "FAIL"
+        ),
     }
-    values = {
-        line.split("=", 1)[0]: line.split("=", 1)[1]
-        for line in summary.read_text().splitlines()
-        if "=" in line
+
+
+def _run_rollback_bed_diagnostic() -> dict[str, str]:
+    with tempfile.TemporaryDirectory(prefix="mpips-rollback-diagnostic-") as directory:
+        evidence = _run_diagnostic(Path(directory) / "summary.txt")
+    return {
+        "ROLLBACK_BED_FUNCTIONAL_CONVERSION": evidence.get(
+            "BED_FUNCTIONAL_CONVERSION", "FAIL"
+        ),
+        "ROLLBACK_BED_DICOM_STRUCTURE": evidence.get("BED_DICOM_STRUCTURE", "FAIL"),
     }
-    return all(values.get(key) == "PASS" for key in required)
+
+
+def _run_priority_functional_checks(data_dir: Path, summary: Path) -> dict[str, str]:
+    real = run_real_thorax_checks(data_dir)
+    if real["REAL_THORAX_ALL_PASS"] != "PASS":
+        return real
+    return {**real, **_run_diagnostic(summary)}
+
+
+def container_calibration_view(
+    *,
+    run: Callable[..., object] = subprocess.run,
+    container: str | None = None,
+    calibration_path: str = "/opt/mpips/calibration",
+) -> str:
+    """Read-only probe of the calibration path inside the running API container."""
+    try:
+        if container is None:
+            listed = run(
+                [
+                    "docker",
+                    "ps",
+                    "-q",
+                    "--filter",
+                    "name=mpips-api",
+                    "--filter",
+                    "status=running",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            containers = listed.stdout.splitlines()
+            if len(containers) != 1:
+                return "FAIL"
+            container = containers[0]
+        check = (
+            "test -f '{path}/BED/metadata.json' && "
+            "test -f '{path}/BED/remap.npz' && "
+            "test -f '{path}/TRX/metadata.json' && "
+            "test -f '{path}/TRX/remap.npz' && "
+            "grep -Fq '{fingerprint}' '{path}/TRX/metadata.json'"
+        ).format(path=calibration_path, fingerprint=EXPECTED_FINGERPRINT)
+        current = run(
+            ["docker", "exec", container, "sh", "-c", check],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if current.returncode == 0:
+            return "PASS"
+        legacy = (
+            f"test -f '{calibration_path}/metadata.json' && "
+            f"test -f '{calibration_path}/remap.npz' && "
+            f"! test -e '{calibration_path}/TRX/metadata.json'"
+        )
+        stale = run(
+            ["docker", "exec", container, "sh", "-c", legacy],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        return "STALE" if stale.returncode == 0 else "FAIL"
+    except (OSError, AttributeError):
+        return "FAIL"
+
+
+def _append_summary(path: Path, result: dict[str, str]) -> None:
+    try:
+        with path.open("a", encoding="utf-8") as report:
+            report.write("\n# Calibration promotion\n\n")
+            for key, value in result.items():
+                report.write(f"{key}={value}\n")
+    except OSError:
+        pass
 
 
 def main() -> int:
@@ -319,14 +632,26 @@ def main() -> int:
     parser.add_argument(
         "--active", type=Path, default=Path("/var/www/mpips-runtime/calibration")
     )
+    parser.add_argument("--real-data-dir", type=Path, required=True)
     parser.add_argument("--summary", type=Path, required=True)
     args = parser.parse_args()
     result: dict[str, str]
     try:
+        preflight = validate_real_thorax_inputs(args.real_data_dir)
+        if preflight["REAL_THORAX_INPUTS_ALL_PASS"] != "PASS":
+            for key, value in preflight.items():
+                print(f"{key}={value}")
+            _append_summary(args.summary, preflight)
+            return 1
         result = promote(
             args.active,
             args.carrier,
-            post_swap_checks=[lambda: _run_diagnostic(args.summary)],
+            functional_check=lambda: _run_priority_functional_checks(
+                args.real_data_dir, args.summary
+            ),
+            container_check=container_calibration_view,
+            rollback_bed_check=_run_rollback_bed_diagnostic,
+            pre_swap_evidence=preflight,
         )
         result["repository_sha"] = os.environ.get("GITHUB_SHA", "UNPROVEN")
         runtime_sha = Path("/var/www/mpips-runtime/.mpips-version")
@@ -336,10 +661,7 @@ def main() -> int:
         if result["ROLLBACK_REQUIRED"] == "YES":
             for key, value in result.items():
                 print(f"{key}={value}")
-            with args.summary.open("a", encoding="utf-8") as report:
-                report.write("\n# Calibration promotion\n\n")
-                for key, value in result.items():
-                    report.write(f"{key}={value}\n")
+            _append_summary(args.summary, result)
             return 1
         result["FINAL_PROMOTION_CLASSIFICATION"] = (
             "PRODUCTION_CALIBRATION_BED_TRX_PROMOTION_PASS"
@@ -349,10 +671,7 @@ def main() -> int:
         return 1
     for key, value in result.items():
         print(f"{key}={value}")
-    with args.summary.open("a", encoding="utf-8") as report:
-        report.write("\n# Calibration promotion\n\n")
-        for key, value in result.items():
-            report.write(f"{key}={value}\n")
+    _append_summary(args.summary, result)
     return 0
 
 

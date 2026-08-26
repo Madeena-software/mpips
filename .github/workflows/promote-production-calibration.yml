@@ -28,9 +28,20 @@ jobs:
           work_dir="$(mktemp -d /tmp/mpips-calibration-promotion.XXXXXX)"
           trap 'rm -rf "$work_dir"' EXIT
           carrier="$work_dir/trx-calibration.tar.gz"
-          uv run --with "gdown==6.1.0" gdown --id 1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr -O "$carrier.part"
+          real_dir="$work_dir/real-thorax"
+          mkdir -p "$real_dir"
+          uv run --with "gdown==6.1.0" gdown 1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr -O "$carrier.part"
           mv "$carrier.part" "$carrier"
+          uv run --with "gdown==6.1.0" gdown 1kI99se2CjzCgo4qInMEGUuJ-ZJZE3iQY -O "$real_dir/TRX_1787726609597.npz.part"
+          mv "$real_dir/TRX_1787726609597.npz.part" "$real_dir/TRX_1787726609597.npz"
+          uv run --with "gdown==6.1.0" gdown 1ocIGsYS6RHIurhRuOwJCzSHTv-6STc_m -O "$real_dir/TRX_1787727857802.npz.part"
+          mv "$real_dir/TRX_1787727857802.npz.part" "$real_dir/TRX_1787727857802.npz"
+          uv run --with "gdown==6.1.0" gdown 1G9HTPyJzYFHwbAfZ3SU0sL84k9A6i5BD -O "$real_dir/TRX_1787727066011.npz.part"
+          mv "$real_dir/TRX_1787727066011.npz.part" "$real_dir/TRX_1787727066011.npz"
+          uv run --with "gdown==6.1.0" gdown 1Ft3OALtx_d3ua-z0DSS34jJmywaXjLu2 -O "$real_dir/TRX_1787726886830.npz.part"
+          mv "$real_dir/TRX_1787726886830.npz.part" "$real_dir/TRX_1787726886830.npz"
           uv run python scripts/promote_production_calibration.py \
             --carrier "$carrier" \
             --active /var/www/mpips-runtime/calibration \
+            --real-data-dir "$real_dir" \
             --summary "$GITHUB_STEP_SUMMARY"

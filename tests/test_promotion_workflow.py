@@ -2,17 +2,20 @@ import hashlib
 import io
 import json
 import tarfile
+from types import SimpleNamespace
 from pathlib import Path
 
 import numpy as np
 import pytest
 
+import scripts.promote_production_calibration as promotion
 from scripts.promote_production_calibration import (
     PromotionError,
     atomic_swap,
     build_staging,
     promote,
     validate_legacy_bed,
+    validate_real_thorax_inputs,
     verify_carrier,
 )
 from scripts.validate_calibration_layout import validate_calibration_layout
@@ -25,6 +28,34 @@ MANIFEST = (
     "fc251aaf67811.json"
 )
 FINGERPRINT = "789adff52ed296d956f81ae8dc38247a73768d863495f91a916fc251aaf67811"
+FUNCTIONAL_PASS = {
+    field: "PASS"
+    for field in (
+        "BED_FUNCTIONAL_CONVERSION",
+        "BED_DICOM_STRUCTURE",
+        "SYNTHETIC_THORAX_PIXEL_IDENTITY",
+        "SYNTHETIC_THORAX_CONVERSION",
+        "SYNTHETIC_THORAX_DICOM_STRUCTURE",
+    )
+}
+FUNCTIONAL_PASS.update(
+    {
+        "REAL_THORAX_ALL_PASS": "PASS",
+        **{
+            field: "PASS"
+            for case in (1, 2, 3)
+            for field in (
+                f"REAL_THORAX_{case}_INPUT_COMPATIBILITY",
+                f"REAL_THORAX_{case}_CONVERSION",
+                f"REAL_THORAX_{case}_DICOM_STRUCTURE",
+            )
+        },
+    }
+)
+ROLLBACK_PASS = {
+    "ROLLBACK_BED_FUNCTIONAL_CONVERSION": "PASS",
+    "ROLLBACK_BED_DICOM_STRUCTURE": "PASS",
+}
 
 
 def _artifact(directory: Path, mode: str, *, fingerprint: str = "fp") -> None:
@@ -112,6 +143,27 @@ def test_hash_mismatch_fails_before_extraction(tmp_path: Path) -> None:
     with pytest.raises(PromotionError, match="carrier SHA-256"):
         verify_carrier(carrier, 5, "0" * 64)
     assert not (tmp_path / "trx-calibration").exists()
+
+
+def test_real_input_integrity_gate_precedes_pickle_npz_load(
+    tmp_path: Path, monkeypatch
+) -> None:
+    for filename in (
+        "TRX_1787726609597.npz",
+        "TRX_1787727857802.npz",
+        "TRX_1787727066011.npz",
+        "TRX_1787726886830.npz",
+    ):
+        (tmp_path / filename).write_bytes(b"not-a-reviewed-npz")
+
+    def forbidden_load(*args, **kwargs):
+        raise AssertionError("pickle-bearing NPZ load happened before integrity gate")
+
+    monkeypatch.setattr(promotion.np, "load", forbidden_load)
+    evidence = validate_real_thorax_inputs(tmp_path)
+    assert evidence["REAL_THORAX_GAIN_DOWNLOAD"] == "FAIL"
+    assert evidence["REAL_THORAX_INPUTS_ALL_PASS"] == "FAIL"
+    assert evidence["REAL_THORAX_ALL_PASS"] == "NOT_RUN"
 
 
 @pytest.mark.parametrize(
@@ -246,13 +298,253 @@ def test_post_swap_failure_rolls_back_and_revalidates_bed(tmp_path: Path) -> Non
     result = promote(
         active,
         carrier,
-        post_swap_checks=[lambda: False],
+        functional_check=lambda: {**FUNCTIONAL_PASS, "BED_DICOM_STRUCTURE": "FAIL"},
+        container_check=lambda: "PASS",
+        rollback_bed_check=lambda: ROLLBACK_PASS,
         expected_size=carrier.stat().st_size,
         expected_sha256=hashlib.sha256(carrier.read_bytes()).hexdigest(),
     )
     assert result["ROLLBACK_REQUIRED"] == "YES"
     assert result["ROLLBACK_RESULT"] == "PASS"
     assert (active / "metadata.json").read_bytes() == original
+
+
+def test_success_requires_explicit_functional_and_container_evidence(
+    tmp_path: Path,
+) -> None:
+    active = tmp_path / "calibration"
+    _artifact(active, "BED")
+    carrier = tmp_path / "carrier.tar.gz"
+    _carrier(carrier)
+    result = promote(
+        active,
+        carrier,
+        functional_check=lambda: FUNCTIONAL_PASS,
+        container_check=lambda: "PASS",
+        rollback_bed_check=lambda: ROLLBACK_PASS,
+        expected_size=carrier.stat().st_size,
+        expected_sha256=hashlib.sha256(carrier.read_bytes()).hexdigest(),
+    )
+    assert result["POST_SWAP_BED_BYTE_PRESERVATION"] == "PASS"
+    assert result["POST_SWAP_BED_METADATA_SHA256"] == result["BED_PRE_METADATA_SHA256"]
+    assert result["POST_SWAP_BED_REMAP_SHA256"] == result["BED_PRE_REMAP_SHA256"]
+    assert result["CONTAINER_CALIBRATION_VIEW"] == "PASS"
+    assert (
+        result["FINAL_PROMOTION_CLASSIFICATION"]
+        == "PRODUCTION_CALIBRATION_BED_TRX_PROMOTION_PASS"
+    )
+
+
+def test_post_swap_active_bed_hash_mismatch_rolls_back(
+    tmp_path: Path, monkeypatch
+) -> None:
+    active = tmp_path / "calibration"
+    _artifact(active, "BED")
+    original = (active / "metadata.json").read_bytes()
+    carrier = tmp_path / "carrier.tar.gz"
+    _carrier(carrier)
+    real_swap = promotion.atomic_swap
+
+    def corrupting_swap(active_path, staged, rollback):
+        real_swap(active_path, staged, rollback)
+        (active_path / "BED/metadata.json").write_text("corrupt")
+
+    monkeypatch.setattr(promotion, "atomic_swap", corrupting_swap)
+    result = promote(
+        active,
+        carrier,
+        functional_check=lambda: FUNCTIONAL_PASS,
+        container_check=lambda: "PASS",
+        rollback_bed_check=lambda: ROLLBACK_PASS,
+        expected_size=carrier.stat().st_size,
+        expected_sha256=hashlib.sha256(carrier.read_bytes()).hexdigest(),
+    )
+    assert result["POST_SWAP_BED_BYTE_PRESERVATION"] == "FAIL"
+    assert result["ROLLBACK_RESULT"] == "PASS"
+    assert (active / "metadata.json").read_bytes() == original
+
+
+def test_real_thorax_failure_triggers_rollback(tmp_path: Path) -> None:
+    active = tmp_path / "calibration"
+    _artifact(active, "BED")
+    carrier = tmp_path / "carrier.tar.gz"
+    _carrier(carrier)
+    failed_real = {
+        **FUNCTIONAL_PASS,
+        "REAL_THORAX_1_CONVERSION": "FAIL",
+        "REAL_THORAX_ALL_PASS": "FAIL",
+    }
+    result = promote(
+        active,
+        carrier,
+        functional_check=lambda: failed_real,
+        container_check=lambda: "PASS",
+        rollback_bed_check=lambda: ROLLBACK_PASS,
+        expected_size=carrier.stat().st_size,
+        expected_sha256=hashlib.sha256(carrier.read_bytes()).hexdigest(),
+    )
+    assert result["REAL_THORAX_1_CONVERSION"] == "FAIL"
+    assert result["ROLLBACK_REQUIRED"] == "YES"
+    assert result["ROLLBACK_RESULT"] == "PASS"
+
+
+def test_container_calibration_view_passes_for_new_layout() -> None:
+    def run(args, **kwargs):
+        return SimpleNamespace(returncode=0, stdout="")
+
+    assert promotion.container_calibration_view(run=run, container="api") == "PASS"
+
+
+def test_container_calibration_view_detects_legacy_stale_mount() -> None:
+    def run(args, **kwargs):
+        return SimpleNamespace(
+            returncode=0 if "! test -e" in args[-1] else 1, stdout=""
+        )
+
+    assert promotion.container_calibration_view(run=run, container="api") == "STALE"
+
+
+def test_real_thorax_runs_before_bed_regression(tmp_path: Path, monkeypatch) -> None:
+    order = []
+
+    def real_checks(data_dir):
+        order.append("real")
+        return {**FUNCTIONAL_PASS}
+
+    def bed_check(summary):
+        order.append("bed")
+        return {
+            field: "PASS" for field in FUNCTIONAL_PASS if not field.startswith("REAL_")
+        }
+
+    monkeypatch.setattr(promotion, "run_real_thorax_checks", real_checks)
+    monkeypatch.setattr(promotion, "_run_diagnostic", bed_check)
+    evidence = promotion._run_priority_functional_checks(tmp_path, tmp_path / "summary")
+    assert order == ["real", "bed"]
+    assert evidence["REAL_THORAX_ALL_PASS"] == "PASS"
+
+
+def test_real_thorax_failure_skips_bed_regression(tmp_path: Path, monkeypatch) -> None:
+    order = []
+    failed = {**FUNCTIONAL_PASS, "REAL_THORAX_ALL_PASS": "FAIL"}
+    monkeypatch.setattr(
+        promotion,
+        "run_real_thorax_checks",
+        lambda data_dir: order.append("real") or failed,
+    )
+    monkeypatch.setattr(
+        promotion,
+        "_run_diagnostic",
+        lambda summary: order.append("bed") or FUNCTIONAL_PASS,
+    )
+    evidence = promotion._run_priority_functional_checks(tmp_path, tmp_path / "summary")
+    assert order == ["real"]
+    assert evidence["REAL_THORAX_ALL_PASS"] == "FAIL"
+
+
+def test_stale_bind_mount_rolls_back_with_specific_classification(
+    tmp_path: Path,
+) -> None:
+    active = tmp_path / "calibration"
+    _artifact(active, "BED")
+    carrier = tmp_path / "carrier.tar.gz"
+    _carrier(carrier)
+    rollback_called = []
+    result = promote(
+        active,
+        carrier,
+        functional_check=lambda: FUNCTIONAL_PASS,
+        container_check=lambda: "STALE",
+        rollback_bed_check=lambda: rollback_called.append(True) or ROLLBACK_PASS,
+        expected_size=carrier.stat().st_size,
+        expected_sha256=hashlib.sha256(carrier.read_bytes()).hexdigest(),
+    )
+    assert result["CONTAINER_CALIBRATION_VIEW"] == "STALE"
+    assert (
+        result["FINAL_PROMOTION_CLASSIFICATION"]
+        == "CALIBRATION_BIND_MOUNT_REFRESH_REQUIRED"
+    )
+    assert result["ROLLBACK_RESULT"] == "PASS"
+    assert rollback_called == [True]
+
+
+@pytest.mark.parametrize(
+    "failed_field",
+    [
+        "ROLLBACK_BED_FUNCTIONAL_CONVERSION",
+        "ROLLBACK_BED_DICOM_STRUCTURE",
+    ],
+)
+def test_rollback_requires_real_bed_functional_evidence(
+    tmp_path: Path, failed_field: str
+) -> None:
+    active = tmp_path / "calibration"
+    _artifact(active, "BED")
+    carrier = tmp_path / "carrier.tar.gz"
+    _carrier(carrier)
+    rollback = {**ROLLBACK_PASS, failed_field: "FAIL"}
+    result = promote(
+        active,
+        carrier,
+        functional_check=lambda: FUNCTIONAL_PASS,
+        container_check=lambda: "STALE",
+        rollback_bed_check=lambda: rollback,
+        expected_size=carrier.stat().st_size,
+        expected_sha256=hashlib.sha256(carrier.read_bytes()).hexdigest(),
+    )
+    assert result["ROLLBACK_RESULT"] == "FAIL"
+    assert (
+        result["FINAL_PROMOTION_CLASSIFICATION"]
+        == "PRODUCTION_CALIBRATION_ROLLBACK_FAILED"
+    )
+
+
+def test_rollback_failure_evidence_is_explicit(tmp_path: Path, monkeypatch) -> None:
+    active = tmp_path / "calibration"
+    _artifact(active, "BED")
+    carrier = tmp_path / "carrier.tar.gz"
+    _carrier(carrier)
+    monkeypatch.setattr(
+        promotion,
+        "_rollback",
+        lambda active, rollback, bed_check: {
+            "ROLLBACK_BED_LAYOUT": "FAIL",
+            "ROLLBACK_BED_FUNCTIONAL_CONVERSION": "FAIL",
+            "ROLLBACK_BED_DICOM_STRUCTURE": "FAIL",
+            "ROLLBACK_RESULT": "FAIL",
+        },
+    )
+    result = promote(
+        active,
+        carrier,
+        functional_check=lambda: FUNCTIONAL_PASS,
+        container_check=lambda: "STALE",
+        rollback_bed_check=lambda: ROLLBACK_PASS,
+        expected_size=carrier.stat().st_size,
+        expected_sha256=hashlib.sha256(carrier.read_bytes()).hexdigest(),
+    )
+    assert result["ROLLBACK_REQUIRED"] == "YES"
+    assert result["ROLLBACK_RESULT"] == "FAIL"
+    assert (
+        result["FINAL_PROMOTION_CLASSIFICATION"]
+        == "PRODUCTION_CALIBRATION_ROLLBACK_FAILED"
+    )
+
+
+def test_rollback_failure_evidence_is_written_to_summary(tmp_path: Path) -> None:
+    summary = tmp_path / "summary.txt"
+    result = {
+        "ROLLBACK_REQUIRED": "YES",
+        "ROLLBACK_RESULT": "FAIL",
+        "FINAL_PROMOTION_CLASSIFICATION": "PRODUCTION_CALIBRATION_ROLLBACK_FAILED",
+    }
+    promotion._append_summary(summary, result)
+    text = summary.read_text()
+    assert "ROLLBACK_REQUIRED=YES" in text
+    assert "ROLLBACK_RESULT=FAIL" in text
+    assert (
+        "FINAL_PROMOTION_CLASSIFICATION=PRODUCTION_CALIBRATION_ROLLBACK_FAILED" in text
+    )
 
 
 def test_no_production_mutation_commands_are_present() -> None:

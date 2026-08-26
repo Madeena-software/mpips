@@ -1,10 +1,27 @@
 {
-  "radiograph": {
-    "file_id": "1ocIGsYS6RHIurhRuOwJCzSHTv-6STc_m",
-    "filename": "TRX_1787727857802.npz",
-    "size": 71253472,
-    "sha256": "954fee2669755fce140b600d4b7d6a67f5a8a141f5a639a0a82317d973963cf2"
-  },
+  "radiographs": [
+    {
+      "case": 1,
+      "file_id": "1ocIGsYS6RHIurhRuOwJCzSHTv-6STc_m",
+      "filename": "TRX_1787727857802.npz",
+      "size": 71253472,
+      "sha256": "954fee2669755fce140b600d4b7d6a67f5a8a141f5a639a0a82317d973963cf2"
+    },
+    {
+      "case": 2,
+      "file_id": "1G9HTPyJzYFHwbAfZ3SU0sL84k9A6i5BD",
+      "filename": "TRX_1787727066011.npz",
+      "size": 72498999,
+      "sha256": "7f346c1609bea45c0f7f9027bff1eec39c8f0cd20945e2f22cb3fc0a088e420f"
+    },
+    {
+      "case": 3,
+      "file_id": "1Ft3OALtx_d3ua-z0DSS34jJmywaXjLu2",
+      "filename": "TRX_1787726886830.npz",
+      "size": 73089445,
+      "sha256": "605540c9102867eda3a5b54f4f88566d067ba8705fcc20bf870e4a60f80262b9"
+    }
+  ],
   "gain": {
     "file_id": "1kI99se2CjzCgo4qInMEGUuJ-ZJZE3iQY",
     "filename": "TRX_1787726609597.npz",
@@ -18,7 +35,6 @@
       3000,
       4096
     ],
-    "camera_serial": "DA5277082",
     "gain_id": "1787726609597"
   }
 }
