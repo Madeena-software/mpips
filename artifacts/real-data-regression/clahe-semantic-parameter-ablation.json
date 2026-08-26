@@ -1,5 +1,30 @@
 {
+  "original_task_revision": "a1585bbf1b1710d955595703f7821526b3073b23",
+  "addendum_revision": "7e5d28c0a1cad2c70fec57d634bbdc72fd62a07e",
   "accepted_baseline": "15305dd000538aaf3459e4124975ac17892c4d31",
+  "primary_cohort_size": 6,
+  "primary_anatomy_counts": {
+    "Kepala": 3,
+    "Tulang Belakang": 3
+  },
+  "primary_expected_combinations": 60,
+  "full_corpus_required": false,
+  "full_corpus_status": "optional_confirmatory",
+  "selected_identities": {
+    "Kepala": [
+      "I-1-1",
+      "I-1-2",
+      "I-1-4"
+    ],
+    "Tulang Belakang": [
+      "I-1-1",
+      "I-1-2",
+      "I-1-3"
+    ]
+  },
+  "analysis_scope": "EXPLORATORY / DECISION-SUPPORT",
+  "primary_matrix_scope": "PRIMARY BOUNDED COHORT ONLY; no supplemental candidate rows retained",
+  "remaining_corpus_processed_after_primary_completion": false,
   "addendum": {
     "full_corpus_required": false,
     "full_corpus_status": "optional_confirmatory",

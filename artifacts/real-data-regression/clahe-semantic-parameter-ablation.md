@@ -1,9 +1,12 @@
 # MPIPS real-radiograph CLAHE semantic/parameter ablation
 
 Governing task: `.agents/tasks/real-radiograph-clahe-semantic-parameter-ablation.md @ a1585bbf1b1710d955595703f7821526b3073b23`  
+Bounded-cohort addendum: `7e5d28c0a1cad2c70fec57d634bbdc72fd62a07e`
 Accepted baseline: `15305dd000538aaf3459e4124975ac17892c4d31`  
 
-The bounded primary matrix contains `10` candidates and `6` selected image identities (`60` candidate × case combinations). The eligible inventory contains `38` mapped images; exclusions are recorded in the JSON inventory. The deterministic primary cohort is 3 `Kepala` (`I-1-1`, `I-1-2`, `I-1-4`) and 3 `Tulang Belakang` (`I-1-1`, `I-1-2`, `I-1-3`).
+Scope: **EXPLORATORY / DECISION-SUPPORT**; full-corpus processing is optional confirmatory work, not required. The bounded primary matrix contains `10` candidates and `6` selected image identities (`60` candidate × case combinations). The eligible inventory contains `38` mapped images; exclusions are recorded in the JSON inventory. The deterministic primary cohort is 3 `Kepala` (`I-1-1`, `I-1-2`, `I-1-4`) and 3 `Tulang Belakang` (`I-1-1`, `I-1-2`, `I-1-3`).
+
+Checkpoint reuse: `26` identities and `260` rows existed before bounded extraction; all six selected identities already had complete ten-candidate blocks, so `0` new combinations were computed. `20` outside-cohort identities (`200` candidate rows) were intentionally excluded as `SUPPLEMENTAL / OUTSIDE PRIMARY BOUNDED COHORT`; no supplemental candidate rows enter the primary matrix, and the remaining corpus was not processed.
 
 ## Candidate matrix
 
