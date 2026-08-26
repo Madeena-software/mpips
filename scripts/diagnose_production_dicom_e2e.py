@@ -4,14 +4,12 @@
 from __future__ import annotations
 
 import argparse
-import io
 import json
 import os
 import re
 import subprocess
 import tempfile
 import time
-import urllib.parse
 import uuid
 import zipfile
 from pathlib import Path
@@ -29,12 +27,29 @@ RADIOGRAPH_ID = "1EwG5WPLcR30vSTHaOAybTVg6S9P4GSMB"
 GAIN_ID = "1R6o53hMVBy3B__cAqJBUhwcoTn14VGWF"
 ALLOWED_DRIVE_IDS = (RADIOGRAPH_ID, GAIN_ID)
 FILES = {RADIOGRAPH_ID: "BED_1785646321389.npz", GAIN_ID: "BED_1785642964117.npz"}
+EXPECTED_DOWNLOADS = {
+    RADIOGRAPH_ID: {
+        "filename": "BED_1785646321389.npz",
+        "size": 89908075,
+        "sha256": "eb489cc28c61816d2527718df2ed41c9c5fcf53f76d928e927d26d2865ab4319",
+    },
+    GAIN_ID: {
+        "filename": "BED_1785642964117.npz",
+        "size": 17713052,
+        "sha256": "44673a19ebeba1b66546e1a85dede4de9b2a730a97128c6460fb3b5239070821",
+    },
+}
 API = "http://127.0.0.1:8014/v1/radiographs/dicom"
 SUMMARY_FIELDS = (
     "repository_workflow_sha",
     "production_runtime_sha",
     "running_mpips_api_image",
     "runtime_provenance",
+    "test_radiograph",
+    "test_gain",
+    "RADIOGRAPH_DOWNLOAD",
+    "GAIN_DOWNLOAD",
+    "TEST_DATA_DOWNLOAD_REASON",
     "BED_INPUT_COMPATIBILITY",
     "BED_CALIBRATION",
     "BED_DIRECT_CONVERSION",
@@ -226,29 +241,38 @@ def final_classification(results: dict) -> str:
     return "PRODUCTION_MPIPS_BED_AND_SYNTHETIC_THORAX_MHCS_E2E_PASS"
 
 
-def _download(file_id: str, target: Path) -> None:
-    url = "https://drive.google.com/uc?" + urllib.parse.urlencode(
-        {"export": "download", "id": file_id}
-    )
-    session = requests.Session()
-    response = session.get(
-        url, headers={"User-Agent": "mpips-production-diagnostic/1"}, timeout=60
-    )
-    data = response.content
-    if not zipfile.is_zipfile(io.BytesIO(data)):
-        token = re.search(rb"confirm=([0-9A-Za-z_-]+)", data)
-        if token:
-            response = session.get(
-                url + "&confirm=" + token.group(1).decode(), timeout=120
+def _download(file_id: str, target: Path) -> str:
+    if file_id not in EXPECTED_DOWNLOADS:
+        raise ValueError("file ID is not allowlisted")
+    partial = target.with_name(target.name + ".part")
+    try:
+        try:
+            import gdown
+
+            result = gdown.download(
+                id=file_id,
+                output=str(partial),
+                quiet=True,
+                use_cookies=False,
+                verify=True,
             )
-            data = response.content
-    if (
-        data.startswith(b"<!DOCTYPE")
-        or data.startswith(b"<html")
-        or not zipfile.is_zipfile(io.BytesIO(data))
-    ):
-        raise RuntimeError("Google Drive returned a non-NPZ response")
-    target.write_bytes(data)
+        except Exception:
+            return "DOWNLOADER_FAILED"
+        if result is None:
+            return "DOWNLOADER_FAILED"
+        if not partial.is_file() or partial.is_symlink():
+            return "FILE_MISSING"
+        expected = EXPECTED_DOWNLOADS[file_id]
+        if partial.stat().st_size != expected["size"]:
+            return "SIZE_MISMATCH"
+        if sha256_file(partial) != expected["sha256"]:
+            return "SHA256_MISMATCH"
+        if not zipfile.is_zipfile(partial):
+            return "NOT_NPZ"
+        partial.replace(target)
+        return "PASS"
+    finally:
+        partial.unlink(missing_ok=True)
 
 
 def _metadata(path: Path) -> dict:
@@ -657,11 +681,15 @@ def main() -> int:
             if not os.environ.get("MPIPS_API_KEY", "").strip():
                 raise DiagnosticFailure("DIAGNOSTIC_INTERNAL_FAILURE")
             rad, gain = root / FILES[RADIOGRAPH_ID], root / FILES[GAIN_ID]
-            try:
-                _download(RADIOGRAPH_ID, rad)
-                _download(GAIN_ID, gain)
-            except Exception:
+            results["RADIOGRAPH_DOWNLOAD"] = _download(RADIOGRAPH_ID, rad)
+            if results["RADIOGRAPH_DOWNLOAD"] != "PASS":
+                results["TEST_DATA_DOWNLOAD_REASON"] = results["RADIOGRAPH_DOWNLOAD"]
                 raise DiagnosticFailure(map_failure("download"))
+            results["GAIN_DOWNLOAD"] = _download(GAIN_ID, gain)
+            if results["GAIN_DOWNLOAD"] != "PASS":
+                results["TEST_DATA_DOWNLOAD_REASON"] = results["GAIN_DOWNLOAD"]
+                raise DiagnosticFailure(map_failure("download"))
+            results["TEST_DATA_DOWNLOAD_REASON"] = "PASS"
             rm, gm = _metadata(rad), _metadata(gain)
             compatible = (
                 rm["gainid"] == gm["id"]

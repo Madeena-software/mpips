@@ -23,4 +23,4 @@ jobs:
       - name: Run production diagnostic
         env:
           MPIPS_API_KEY: ${{ secrets.MPIPS_API_KEY }}
-        run: uv run python scripts/diagnose_production_dicom_e2e.py --summary "$GITHUB_STEP_SUMMARY"
+        run: uv run --with "gdown==6.1.0" python scripts/diagnose_production_dicom_e2e.py --summary "$GITHUB_STEP_SUMMARY"

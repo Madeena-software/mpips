@@ -1,4 +1,8 @@
 from pathlib import Path
+import io
+import sys
+import types
+
 import numpy as np
 import pydicom
 import pytest
@@ -7,6 +11,11 @@ from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 from scripts.diagnose_production_dicom_e2e import (
     ALLOWED_DRIVE_IDS,
+    EXPECTED_DOWNLOADS,
+    GAIN_ID,
+    RADIOGRAPH_ID,
+    SUMMARY_FIELDS,
+    _download,
     classify_mhcs_response,
     classify_mhcs_probe,
     camera_compatibility,
@@ -75,7 +84,138 @@ def test_only_approved_drive_objects_are_used():
         "1R6o53hMVBy3B__cAqJBUhwcoTn14VGWF",
     }
     assert "folders/" not in text
-    assert text.count("drive.google.com/uc") == 1
+    assert "drive.google.com/uc" not in text
+
+
+def _npz_bytes():
+    output = io.BytesIO()
+    np.savez_compressed(output, id="test")
+    return output.getvalue()
+
+
+def _mock_gdown(monkeypatch, payload=None, result="downloaded"):
+    calls = []
+
+    def download(**kwargs):
+        calls.append(kwargs)
+        if payload is not None:
+            Path(kwargs["output"]).write_bytes(payload)
+        return result
+
+    monkeypatch.setitem(sys.modules, "gdown", types.SimpleNamespace(download=download))
+    return calls
+
+
+def _set_expected(monkeypatch, file_id, payload):
+    monkeypatch.setitem(
+        EXPECTED_DOWNLOADS,
+        file_id,
+        {
+            "filename": "test.npz",
+            "size": len(payload),
+            "sha256": __import__("hashlib").sha256(payload).hexdigest(),
+        },
+    )
+
+
+def test_download_accepts_only_allowlisted_ids(monkeypatch, tmp_path):
+    payload = _npz_bytes()
+    _mock_gdown(monkeypatch, payload)
+    _set_expected(monkeypatch, RADIOGRAPH_ID, payload)
+    assert _download(RADIOGRAPH_ID, tmp_path / "radiograph.npz") == "PASS"
+    with pytest.raises(ValueError, match="allowlisted"):
+        _download("arbitrary-third-file", tmp_path / "other.npz")
+
+
+@pytest.mark.parametrize("file_id", [RADIOGRAPH_ID, GAIN_ID])
+def test_download_uses_bounded_gdown_api(monkeypatch, tmp_path, file_id):
+    payload = _npz_bytes()
+    calls = _mock_gdown(monkeypatch, payload)
+    _set_expected(monkeypatch, file_id, payload)
+    target = tmp_path / f"{file_id}.npz"
+    assert _download(file_id, target) == "PASS"
+    assert calls == [
+        {
+            "id": file_id,
+            "output": str(target.with_name(target.name + ".part")),
+            "quiet": True,
+            "use_cookies": False,
+            "verify": True,
+        }
+    ]
+    assert target.is_file()
+
+
+@pytest.mark.parametrize(
+    ("result", "payload", "expected"),
+    [
+        (None, None, "DOWNLOADER_FAILED"),
+        ("downloaded", None, "FILE_MISSING"),
+        ("downloaded", b"not-npz", "NOT_NPZ"),
+    ],
+)
+def test_download_failures_are_controlled_and_clean_partial(
+    monkeypatch, tmp_path, result, payload, expected
+):
+    expected_payload = _npz_bytes()
+    _set_expected(monkeypatch, RADIOGRAPH_ID, payload or expected_payload)
+    target = tmp_path / "radiograph.npz"
+    _mock_gdown(monkeypatch, payload, result)
+    assert _download(RADIOGRAPH_ID, target) == expected
+    assert not target.exists()
+    assert not target.with_name(target.name + ".part").exists()
+
+
+@pytest.mark.parametrize("field", ["size", "sha256"])
+def test_download_rejects_mutated_file_metadata(monkeypatch, tmp_path, field):
+    payload = _npz_bytes()
+    expected = {
+        "filename": "test.npz",
+        "size": len(payload),
+        "sha256": __import__("hashlib").sha256(payload).hexdigest(),
+    }
+    expected[field] = 1 if field == "size" else "0" * 64
+    monkeypatch.setitem(EXPECTED_DOWNLOADS, RADIOGRAPH_ID, expected)
+    _mock_gdown(monkeypatch, payload)
+    assert (
+        _download(RADIOGRAPH_ID, tmp_path / "radiograph.npz")
+        == {
+            "size": "SIZE_MISMATCH",
+            "sha256": "SHA256_MISMATCH",
+        }[field]
+    )
+
+
+def test_download_constants_and_summary_fields_are_pinned():
+    assert EXPECTED_DOWNLOADS == {
+        RADIOGRAPH_ID: {
+            "filename": "BED_1785646321389.npz",
+            "size": 89908075,
+            "sha256": (
+                "eb489cc28c61816d2527718df2ed41c9c5fcf53f76d928e927d26d2865ab4319"
+            ),
+        },
+        GAIN_ID: {
+            "filename": "BED_1785642964117.npz",
+            "size": 17713052,
+            "sha256": (
+                "44673a19ebeba1b66546e1a85dede4de9b2a730a97128c6460fb3b5239070821"
+            ),
+        },
+    }
+    assert {"RADIOGRAPH_DOWNLOAD", "GAIN_DOWNLOAD", "TEST_DATA_DOWNLOAD_REASON"} <= set(
+        SUMMARY_FIELDS
+    )
+    assert {"test_radiograph", "test_gain"} <= set(SUMMARY_FIELDS)
+
+
+def test_workflow_pins_gdown_and_remains_diagnostic_only():
+    text = WORKFLOW.read_text()
+    assert 'uv run --with "gdown==6.1.0"' in text
+    assert "workflow_dispatch:" in text
+    assert "runs-on: [self-hosted, production]" in text
+    assert "docker service update" not in text
+    assert "docker network connect" not in text
 
 
 def test_synthetic_rewrite_changes_only_detector_mode(tmp_path):
