@@ -27,10 +27,10 @@ ROOT = Path(__file__).parents[1]
 MANIFEST = (
     ROOT
     / "artifacts/promotion"
-    / "trx-calibration-606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
+    / "trx-calibration-1979a66b7d83bc0f14c4ebdf7c8ad2e37b6f16d7ead3e1c089381af3e7dd1492"
     ".json"
 )
-FINGERPRINT = "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
+FINGERPRINT = "1979a66b7d83bc0f14c4ebdf7c8ad2e37b6f16d7ead3e1c089381af3e7dd1492"
 FUNCTIONAL_PASS = {
     field: "PASS"
     for field in (
@@ -83,13 +83,19 @@ def _carrier(
     *,
     member_name: str = "trx-calibration/metadata.json",
     fingerprint: str = FINGERPRINT,
+    canvas_mode: str = "expanded",
+    remap_shape: list[int] | None = None,
 ) -> None:
+    remap_shape = remap_shape or [3045, 4114]
     payload = {
         "validated": True,
         "fingerprint": fingerprint,
         "image_shape": [3000, 4096],
         "grid_shape": [18, 25],
-        "transform_kind": "geometric_calibration",
+        "config": {"canvas_mode": canvas_mode},
+        "CANVAS_MODE": canvas_mode,
+        "expanded_origin_xy": [42, -73],
+        "REMAP_OUTPUT_SHAPE": remap_shape,
         "source_metadata": {
             "detector_mode": "TRX",
             "camera_params": {"serialNumber": "old"},
@@ -105,7 +111,13 @@ def _carrier(
         archive.addfile(info, io.BytesIO(data))
         if member_name.endswith("metadata.json"):
             remap = io.BytesIO()
-            np.savez(remap, map_x=np.zeros((3000, 4096)), map_y=np.zeros((3000, 4096)))
+            x = np.broadcast_to(
+                np.linspace(0, 4095, 4114, dtype=np.float32), (3045, 4114)
+            )
+            y = np.broadcast_to(
+                np.linspace(0, 2999, 3045, dtype=np.float32)[:, None], (3045, 4114)
+            )
+            np.savez(remap, map_x=x, map_y=y)
             info = tarfile.TarInfo("trx-calibration/remap.npz")
             info.size = remap.tell()
             remap.seek(0)
@@ -132,27 +144,66 @@ def test_manifest_pins_exact_carrier() -> None:
     manifest = json.loads(MANIFEST.read_text())
     assert manifest["carrier"] == {
         "provider": "google-drive",
-        "file_id": "1Qj5ADmJLhp2gPFBa9NaBiu7h29Ql3TJD",
+        "file_id": "1TpiHJfM0EHEKvZ1rZ2VqSV0-k0ycrzCG",
         "filename": (
-            "trx-calibration-606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299"
-            "861547d"
+            "trx-calibration-1979a66b7d83bc0f14c4ebdf7c8ad2e37b6f16d7ead3e1c"
+            "089381af3e7dd1492"
             ".tar.gz"
         ),
-        "size": 72013356,
-        "sha256": "2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556",
+        "size": 73915583,
+        "sha256": "b0d645233eb598c549a1b04fc24a1364f68b79cc0d0e0db51ac1936d7e11f90f",
     }
-    assert manifest["archive_size"] == 72013356
+    assert manifest["archive_size"] == 73915583
     assert (
         manifest["archive_sha256"]
-        == "2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556"
+        == "b0d645233eb598c549a1b04fc24a1364f68b79cc0d0e0db51ac1936d7e11f90f"
     )
     assert manifest["fingerprint"] == FINGERPRINT
+    assert manifest["canvas_mode"] == "expanded"
+    assert manifest["expanded_origin"] == [42, -73]
+    assert manifest["remap_shape"] == [3045, 4114]
+    assert manifest["expected_final_dicom_shape"] == [4114, 3045]
     assert manifest["grid_shape"] == [18, 25]
-    assert manifest["transform_kind"] == "geometric_calibration"
     assert manifest["geometry_validated"] is True
     assert manifest["real_trx_pipeline_validated"] is True
     assert manifest["validated"] is True
-    assert manifest["validation_status"] == "REAL_TRX_VALIDATED"
+    assert manifest["validation_status"] == "REAL_TRX_EXPANDED_VALIDATED"
+
+
+def test_historical_manifest_remains_unchanged() -> None:
+    historical = json.loads(
+        (
+            ROOT
+            / (
+                "artifacts/promotion/trx-calibration-606db560c391764b24fa6257a01a8afb"
+                "38380b83bf83ea7bd6a30b299861547d.json"
+            )
+        ).read_text()
+    )
+    assert historical["fingerprint"].startswith("606db560")
+
+
+def test_real_thorax_manifest_pins_all_three_cases() -> None:
+    manifest = json.loads(
+        (ROOT / "artifacts/test-data/real-thorax-trx-da5277082.json").read_text()
+    )
+    assert manifest["gain"] == {
+        "file_id": "1kI99se2CjzCgo4qInMEGUuJ-ZJZE3iQY",
+        "filename": "TRX_1787726609597.npz",
+        "size": 17190412,
+        "sha256": "38918e436e5329e28b08c844e8df3766a1ab83a1fc3135c83df56370c480b2a9",
+    }
+    assert [item["file_id"] for item in manifest["radiographs"]] == [
+        "1ocIGsYS6RHIurhRuOwJCzSHTv-6STc_m",
+        "1G9HTPyJzYFHwbAfZ3SU0sL84k9A6i5BD",
+        "1Ft3OALtx_d3ua-z0DSS34jJmywaXjLu2",
+    ]
+    assert manifest["expected"] == {
+        "detector_mode": "TRX",
+        "external_detector_type": "THORAX",
+        "image_shape": [3000, 4096],
+        "gain_id": "1787726609597",
+    }
 
 
 def test_workflow_is_guarded_manual_production_workflow() -> None:
@@ -180,8 +231,8 @@ def test_carrier_identity_gate_fails_closed() -> None:
     with pytest.raises(PromotionError, match="TRX_CARRIER_ID_MISMATCH"):
         validate_carrier_identity("1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr")
     assert (
-        validate_carrier_identity("1Qj5ADmJLhp2gPFBa9NaBiu7h29Ql3TJD")
-        == "1Qj5ADmJLhp2gPFBa9NaBiu7h29Ql3TJD"
+        validate_carrier_identity("1TpiHJfM0EHEKvZ1rZ2VqSV0-k0ycrzCG")
+        == "1TpiHJfM0EHEKvZ1rZ2VqSV0-k0ycrzCG"
     )
 
 
@@ -197,10 +248,35 @@ def test_historical_trx_fingerprint_is_rejected(tmp_path: Path) -> None:
     carrier = tmp_path / "carrier.tar.gz"
     _carrier(
         carrier,
-        fingerprint="789adff52ed296d956f81ae8dc38247a73768d863495f91a916fc251aaf67811",
+        fingerprint="606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d",
     )
     with pytest.raises(PromotionError, match="TRX fingerprint mismatch"):
         promotion._validate_trx(promotion._extract_carrier(carrier, tmp_path / "stage"))
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("CANVAS_MODE", "fixed", "canvas mode"),
+        ("REMAP_OUTPUT_SHAPE", [3000, 4096], "remap shape"),
+    ],
+)
+def test_expanded_trx_semantics_are_required(
+    tmp_path: Path, field: str, value: object, message: str
+) -> None:
+    carrier = tmp_path / "carrier.tar.gz"
+    _carrier(carrier, **{"canvas_mode": value} if field == "CANVAS_MODE" else {})
+    if field != "CANVAS_MODE":
+        extracted = promotion._extract_carrier(carrier, tmp_path / "stage")
+        metadata = json.loads((extracted / "metadata.json").read_text())
+        metadata[field] = value
+        (extracted / "metadata.json").write_text(json.dumps(metadata))
+        with pytest.raises(PromotionError, match=message):
+            promotion._validate_trx(extracted)
+        return
+    extracted = promotion._extract_carrier(carrier, tmp_path / "stage")
+    with pytest.raises(PromotionError, match=message):
+        promotion._validate_trx(extracted)
 
 
 def test_runtime_preflight_rejects_old_runtime_before_mutation(tmp_path: Path) -> None:
@@ -283,8 +359,8 @@ def test_real_dicom_structure_requires_canonical_trx_dimensions(tmp_path: Path) 
     path = tmp_path / "trx.dcm"
     _valid_dicom(path)
     ds = pydicom.dcmread(path)
-    ds.Rows, ds.Columns = 4096, 3000
-    ds.PixelData = np.ones((4096, 3000), dtype=np.uint16).tobytes()
+    ds.Rows, ds.Columns = 4114, 3045
+    ds.PixelData = np.ones((4114, 3045), dtype=np.uint16).tobytes()
     ds.save_as(path)
     assert promotion._real_dicom_structure(path)
 
@@ -308,8 +384,22 @@ def test_real_dicom_image_acceptance_rejects_catastrophic_black_cases(
     path = tmp_path / f"case-{case}.dcm"
     _valid_dicom(path)
     ds = pydicom.dcmread(path)
-    ds.Rows, ds.Columns = 4096, 3000
-    ds.PixelData = np.zeros((4096, 3000), dtype=np.uint16).tobytes()
+    ds.Rows, ds.Columns = 4114, 3045
+    ds.PixelData = np.zeros((4114, 3045), dtype=np.uint16).tobytes()
+    ds.save_as(path)
+    assert not promotion._real_dicom_image_acceptance(path)
+
+
+def test_real_dicom_image_acceptance_rejects_zero_ratio_at_fifty_percent(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "half-black.dcm"
+    _valid_dicom(path)
+    ds = pydicom.dcmread(path)
+    ds.Rows, ds.Columns = 4114, 3045
+    pixels = np.zeros((4114, 3045), dtype=np.uint16)
+    pixels[:2057, :] = 1
+    ds.PixelData = pixels.tobytes()
     ds.save_as(path)
     assert not promotion._real_dicom_image_acceptance(path)
 

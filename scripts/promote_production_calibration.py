@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guarded, rollback-safe promotion of the reviewed BED+TRX calibration layout."""
+"""Guarded, rollback-safe promotion of the reviewed BED+expanded-TRX layout."""
 
 from __future__ import annotations
 
@@ -21,18 +21,25 @@ import numpy as np
 import pydicom
 
 from scripts.validate_calibration_layout import validate_calibration_layout
-from mpips.workflows.imager_pipeline.calibration import validate_fixed_canvas_remap
+from mpips.workflows.imager_pipeline.calibration import validate_expanded_canvas_remap
 
-EXPECTED_CARRIER_SIZE = 72013356
-EXPECTED_CARRIER_FILE_ID = "1Qj5ADmJLhp2gPFBa9NaBiu7h29Ql3TJD"
+PROMOTION_MANIFEST = Path(__file__).parents[1] / (
+    "artifacts/promotion/trx-calibration-1979a66b7d83bc0f14c4ebdf7c8ad2e37b6f16d7ead3e1"
+    "c089381af3e7dd1492.json"
+)
+EXPECTED_CARRIER_SIZE = 73915583
+EXPECTED_CARRIER_FILE_ID = "1TpiHJfM0EHEKvZ1rZ2VqSV0-k0ycrzCG"
 EXPECTED_CARRIER_SHA256 = (
-    "2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556"
+    "b0d645233eb598c549a1b04fc24a1364f68b79cc0d0e0db51ac1936d7e11f90f"
 )
 EXPECTED_FINGERPRINT = (
-    "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
+    "1979a66b7d83bc0f14c4ebdf7c8ad2e37b6f16d7ead3e1c089381af3e7dd1492"
 )
 EXPECTED_SHAPE = (3000, 4096)
-EXPECTED_FINAL_DICOM_SHAPE = (4096, 3000)
+EXPECTED_REMAP_SHAPE = (3045, 4114)
+EXPECTED_FINAL_DICOM_SHAPE = (4114, 3045)
+EXPECTED_CANVAS_MODE = "expanded"
+EXPECTED_EXPANDED_ORIGIN = (42, -73)
 CAMERA_INDEPENDENT_BASELINE = "d175a6fa56ca32cf78007c39baff24075dbd5a0e"
 REQUIRED_TRX_PIPELINE_BASELINE = "b3ed78d5077d8e4634c913939e5c28f8620679e9"
 BED_FUNCTIONAL_FIELDS = (
@@ -76,7 +83,39 @@ class PromotionError(RuntimeError):
     pass
 
 
+def _promotion_manifest() -> dict:
+    try:
+        manifest = json.loads(PROMOTION_MANIFEST.read_text(encoding="utf-8"))
+        carrier = manifest["carrier"]
+        if (
+            manifest["fingerprint"] != EXPECTED_FINGERPRINT
+            or manifest["detector_mode"] != "TRX"
+            or manifest["image_shape"] != list(EXPECTED_SHAPE)
+            or manifest["canvas_mode"] != EXPECTED_CANVAS_MODE
+            or tuple(manifest["expanded_origin"]) != EXPECTED_EXPANDED_ORIGIN
+            or manifest["remap_shape"] != list(EXPECTED_REMAP_SHAPE)
+            or manifest["expected_final_dicom_shape"]
+            != list(EXPECTED_FINAL_DICOM_SHAPE)
+            or manifest["archive_size"] != EXPECTED_CARRIER_SIZE
+            or manifest["archive_sha256"] != EXPECTED_CARRIER_SHA256
+            or manifest["required_files"] != ["metadata.json", "remap.npz"]
+            or manifest["geometry_validated"] is not True
+            or manifest["real_trx_pipeline_validated"] is not True
+            or manifest["validated"] is not True
+            or manifest["validation_status"] != "REAL_TRX_EXPANDED_VALIDATED"
+            or carrier["provider"] != "google-drive"
+            or carrier["file_id"] != EXPECTED_CARRIER_FILE_ID
+            or carrier["size"] != EXPECTED_CARRIER_SIZE
+            or carrier["sha256"] != EXPECTED_CARRIER_SHA256
+        ):
+            raise ValueError("reviewed TRX promotion manifest semantics mismatch")
+        return manifest
+    except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise PromotionError("invalid reviewed TRX promotion manifest") from exc
+
+
 def validate_carrier_identity(carrier_id: str | None) -> str:
+    _promotion_manifest()
     if not carrier_id:
         raise PromotionError("TRX_CARRIER_NOT_PUBLISHED")
     if carrier_id != EXPECTED_CARRIER_FILE_ID:
@@ -200,7 +239,7 @@ def _real_dicom_image_acceptance(path: Path) -> bool:
             return False
         # This is a catastrophic-collapse floor for the pinned regression data,
         # not a clinical image-quality threshold.
-        if float(np.count_nonzero(~nonzero)) / pixels.size > 0.5:
+        if float(np.count_nonzero(~nonzero)) / pixels.size >= 0.5:
             return False
         rows, columns = np.where(nonzero)
         return bool(
@@ -309,6 +348,7 @@ def _extract_carrier(path: Path, destination: Path) -> Path:
 
 
 def _validate_trx(directory: Path) -> None:
+    _promotion_manifest()
     try:
         metadata = json.loads((directory / "metadata.json").read_text())
     except (OSError, ValueError) as exc:
@@ -319,20 +359,22 @@ def _validate_trx(directory: Path) -> None:
         raise PromotionError("TRX fingerprint mismatch")
     if metadata.get("image_shape") != list(EXPECTED_SHAPE):
         raise PromotionError("TRX image shape mismatch")
-    if metadata.get("grid_shape") != [18, 25]:
-        raise PromotionError("TRX grid shape mismatch")
-    if metadata.get("transform_kind") != "geometric_calibration":
-        raise PromotionError("TRX transform kind mismatch")
     source = metadata.get("source_metadata", {})
     if not isinstance(source, dict) or source.get("detector_mode") != "TRX":
         raise PromotionError("TRX detector mode mismatch")
+    if metadata.get("CANVAS_MODE") != EXPECTED_CANVAS_MODE:
+        raise PromotionError("TRX canvas mode mismatch")
+    if tuple(metadata.get("expanded_origin_xy", ())) != EXPECTED_EXPANDED_ORIGIN:
+        raise PromotionError("TRX expanded origin mismatch")
+    if metadata.get("REMAP_OUTPUT_SHAPE") != list(EXPECTED_REMAP_SHAPE):
+        raise PromotionError("TRX remap shape metadata mismatch")
     try:
         with np.load(directory / "remap.npz", allow_pickle=False) as remap:
             if "map_x" not in remap or "map_y" not in remap:
                 raise PromotionError("TRX remap maps are missing")
             if (
-                remap["map_x"].shape != EXPECTED_SHAPE
-                or remap["map_y"].shape != EXPECTED_SHAPE
+                remap["map_x"].shape != EXPECTED_REMAP_SHAPE
+                or remap["map_y"].shape != EXPECTED_REMAP_SHAPE
             ):
                 raise PromotionError("TRX remap shape mismatch")
             if not np.all(np.isfinite(remap["map_x"])) or not np.all(
@@ -340,7 +382,7 @@ def _validate_trx(directory: Path) -> None:
             ):
                 raise PromotionError("TRX remap contains non-finite values")
             try:
-                validate_fixed_canvas_remap(
+                validate_expanded_canvas_remap(
                     remap["map_x"], remap["map_y"], *EXPECTED_SHAPE[::-1]
                 )
             except (TypeError, ValueError, RuntimeError) as exc:
@@ -660,7 +702,9 @@ def promote(
         "BED_SOURCE_VALIDATION": "PASS",
         **stage_evidence,
         "TRX_FINGERPRINT": str(trx["fingerprint"]),
-        "TRX_IMAGE_SHAPE": "4096x3000",
+        "TRX_IMAGE_SHAPE": (
+            f"{EXPECTED_FINAL_DICOM_SHAPE[0]}x{EXPECTED_FINAL_DICOM_SHAPE[1]}"
+        ),
         "STAGING_LAYOUT": "PASS",
         "ROOT_INODE_PRESERVED": "PASS",
     }

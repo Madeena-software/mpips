@@ -31,7 +31,8 @@ jobs:
           carrier="$work_dir/trx-calibration.tar.gz"
           real_dir="$work_dir/real-thorax"
           mkdir -p "$real_dir"
-          approved_carrier_id="$(python -c 'import json; print(json.load(open("artifacts/promotion/trx-calibration-606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d.json"))["carrier"]["file_id"])')"
+          promotion_manifest="artifacts/promotion/trx-calibration-1979a66b7d83bc0f14c4ebdf7c8ad2e37b6f16d7ead3e1c089381af3e7dd1492.json"
+          approved_carrier_id="$(python -c 'import json,sys; print(json.load(open(sys.argv[1]))["carrier"]["file_id"])' "$promotion_manifest")"
           carrier_id="${MPIPS_TRX_CARRIER_FILE_ID:-}"
           if [ -z "$carrier_id" ]; then
             echo "FINAL_PROMOTION_CLASSIFICATION=TRX_CARRIER_NOT_PUBLISHED"
