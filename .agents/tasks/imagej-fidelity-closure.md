@@ -1,7 +1,7 @@
 ---
 title: MPIPS ImageJ/Fiji Fidelity Closure
 document_id: AGENT-TASK-IMAGEJ-FIDELITY-CLOSURE-001
-version: 1.3
+version: 1.4
 status: Validated/Published
 language: en-US
 last_updated: 2026-08-26
@@ -53,14 +53,16 @@ The task revision and implementation baseline are separate. A later material
 phase MUST republish this same task path at a new immutable revision before
 execution.
 
-**Current released phase:** **PHASE 4 — CIRCULAR MEDIAN RESOLUTION**
+**Current released phase:** **PHASE 4 — CIRCULAR MEDIAN FIDELITY REMEDIATION**
 
 **Accepted Phase-2 baseline:**
 `b4c032ce58605095de82c67097c61ebf458041a5`
 
 `fdf38094320de1dc81037e6516c17e11022d4fde` is the accepted direct
 predecessor of the Phase-2 baseline. Phase 1, Phase 2, and Phase 3 are
-accepted/closed. Phase 5 and all later phases remain unauthorized.
+accepted/closed. The Phase-4 radius-domain/reachability first gate is
+accepted/closed at `84b4a8cd271fcf7b262bd625530a974357704f9b`. Phase 5 and all
+later phases remain unauthorized.
 
 **Accepted Phase-3 baseline:**
 `8c7b479947ee2b67856fd644e95b6d9eede52739`
@@ -355,51 +357,50 @@ FastFlat) are not production recommendations or replacements for slope `0.6`.
 
 **Gate:** Review Required; Phase 3 accepted; republish before Phase 4.
 
-### Phase 4 — Circular Median Resolution
+### Phase 4 — Circular Median Fidelity Remediation
 
-Phase 4 begins with the evidence-only gate **CIRCULAR MEDIAN RADIUS-DOMAIN /
-REACHABILITY RESOLUTION**. Do not modify the Circular Median algorithm at this
-gate. Determine the truthful governed radius contract across the DICOM default
-path, canonical configurable pipeline, structured `from_dict` path,
-environment/config loader, API/schema exposure, workflow/worker callers, and
-the direct Python library method. Distinguish fixed/default,
-integer-configurable, numeric/fractional-configurable, and unreachable paths.
+The evidence-only first gate **CIRCULAR MEDIAN RADIUS-DOMAIN / REACHABILITY
+RESOLUTION** was accepted/closed at
+`84b4a8cd271fcf7b262bd625530a974357704f9b` with the conclusion
+`PLANNING REQUIRED — CIRCULAR MEDIAN REMEDIATION`. This current gate
+authorizes the bounded **IMAGEJ RANKFILTERS SEMANTIC REMEDIATION** below.
+Integer-only contract tightening is not selected.
 
-The production default remains `use_median_filter=true`,
+The only authorized production change is in
+`mpips/processing/imagej.py`, method
+`ImageJReplicator._make_circular_kernel_imagej()`: before the existing
+`r2 = int(radius * radius) + 1` calculation, apply the pinned ImageJ
+`RankFilters.makeLineRadii(double radius)` mappings:
+
+- `1.5 <= radius < 1.75` -> effective radius `1.75`;
+- `2.5 <= radius < 2.85` -> effective radius `2.85`.
+
+Continue through the existing footprint construction. Do not replace SciPy
+`median_filter`, change `mode="nearest"`, median selection, dtype behavior,
+or the public `median_filter_imagej()` signature. Do not otherwise redesign
+Circular Median.
+
+The current default remains `use_median_filter=true`,
 `median_filter_type="hybrid_imagej"`, `median_filter_radius=2`; Circular
-Median is configurable but not default. The config and wrapper annotate the
-radius as `int`, while `from_dict` currently forwards the structured value
-without explicit runtime integer coercion and the direct
-`ImageJReplicator.median_filter_imagej` method accepts `float`. Type
-annotations alone do not establish an integer-only production domain.
+Median remains configurable but not default. Do not change config parsing,
+validation, API/schema, worker, or DICOM behavior, and do not introduce
+integer-only validation. Existing integer-oriented annotations may remain as
+`TYPING / CONTRACT-DOCUMENTATION DEBT — NO RUNTIME EFFECT`.
 
-The accepted characterization records parity at radii 0.5, 1.0, 1.74, 1.75,
-2.0, 2.84, 2.85, and 3.0, and fidelity failures at 1.5 and 2.5 for both
-uint8 and uint16. These observations must not be generalized without source
-and reachability evidence. Do not assume parity at sampled integer radii
-proves every positive integer radius.
+The preferred existing test surface is
+`tests/test_filtering_processing.py`; no new test file is authorized. Use
+accepted I-4A reference outputs, not outputs generated from the remediated
+implementation. For both uint8 and uint16, cover transition radii `1.5`,
+`1.74`, `1.75`, `2.5`, `2.84`, and `2.85`, preserving non-regression cases
+`0.5`, `1.0`, `2.0`, and `3.0`, using the accepted 5x5 `median_grid` fixture
+and its uint16 version scaled by 257.
 
-The first gate may update only `.agents/evidence/imagej-fidelity-closure.md`.
-It may inspect the pinned ImageJ RankFilters reference and run only small
-bounded checks if retained tooling is genuinely necessary. It must not change
-source, validation, defaults, tests, schemas, or configuration. Do not silently
-convert a float-capable runtime contract to integer-only behavior.
+The eventual remediation evidence may update only
+`.agents/evidence/imagej-fidelity-closure.md`. The maximum allowed claim is
+`REMEDIATED AND PARITY CONFIRMED ACROSS ACCEPTED I-4A CHARACTERIZATION
+MATRIX`; universal parity for all positive radii is not authorized.
 
-If the governed production/config domain is integer-only and structural/source
-evidence establishes parity for that entire supported domain, select Outcome A:
-`PRODUCTION-REACHABLE — CONFIGURABLE`, `NOT DEFAULT`, `PARITY CONFIRMED WITHIN
-GOVERNED CONFIG DOMAIN`; record any fractional direct-library mismatch as
-`DIRECT-LIBRARY FRACTIONAL-RADIUS FIDELITY DIVERGENCE — NOT PRODUCTION-REACHABLE`.
-If fractional values are production/config reachable, stop with
-`PLANNING REQUIRED — CIRCULAR MEDIAN REMEDIATION`. If the integer domain is
-broader than evidence and structural parity cannot be established, stop with
-`PLANNING REQUIRED — CIRCULAR MEDIAN DOMAIN CHARACTERIZATION`.
-
-No remediation, parity claim beyond evidence, or contract tightening is
-authorized by this gate. Circular Median algorithm changes require a later
-republished Phase-4 revision.
-
-**Gate:** Review Required; republish before remediation or closure changes.
+**Gate:** Review Required; republish before Phase 5.
 
 ### Phase 5 — Bounded Performance Baseline
 
@@ -486,17 +487,22 @@ SELECTION` for the CLAHE decision stop and MUST NOT invent the decision.
 - Create only `.agents/tasks/imagej-fidelity-closure.md`.
 - Run `git diff --check`, inspect the task-only diff, commit the task
   publication, and push normally to `origin/refactor/package-boundaries`.
+- This revision authorizes the later bounded Phase-4 remediation only in
+  `mpips/processing/imagej.py`, `tests/test_filtering_processing.py`, and
+  `.agents/evidence/imagej-fidelity-closure.md`, subject to the Phase-4
+  constraints above.
 
 ### Not authorized
 
-- Any production/source/test/reference/evidence change beyond the task file.
-- Any implementation phase, stage-order work, production configuration change,
+- Any Phase-4 remediation execution during this publication.
+- Any change outside the three authorized future Phase-4 surfaces, production
+  defaults/config parsing/API/schema/worker behavior, stage-order work,
   dependency/JDK installation, deployment, release, main change, or force push.
 
 ## Expected terminal outcome
 
 This publication ends at **Review Required** with the immutable publication
-commit as the task revision. It does not execute ImageJ/Fiji fidelity work.
+commit as the task revision. It does not execute Circular Median remediation.
 
 ## Review and remediation handling
 
