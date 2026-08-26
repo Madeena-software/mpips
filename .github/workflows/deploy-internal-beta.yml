@@ -198,8 +198,7 @@ jobs:
             sudo chown -R "$(id -u):$(id -g)" "$REMOTE_PATH"
           fi
           mkdir -p "$REMOTE_PATH/calibration" "$REMOTE_PATH/launcher" /tmp/mpips-workspaces
-          test -s "$REMOTE_PATH/calibration/metadata.json"
-          test -s "$REMOTE_PATH/calibration/remap.npz"
+          uv run python scripts/validate_calibration_layout.py "$REMOTE_PATH/calibration"
           uv run python scripts/local_dicom_burn_in.py \
             --base-dir "$REMOTE_PATH/burn-in" prepare
           if [ -f "$REMOTE_PATH/docker-compose.prod.yml" ]; then
@@ -331,4 +330,3 @@ jobs:
             --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" \
             logs --no-color --tail=200 || true
           test ! -f "$REMOTE_PATH/launcher.log" || tail -200 "$REMOTE_PATH/launcher.log"
-
