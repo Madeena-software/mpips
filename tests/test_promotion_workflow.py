@@ -118,6 +118,10 @@ def test_manifest_pins_exact_carrier() -> None:
     assert manifest["fingerprint"] == FINGERPRINT
     assert manifest["grid_shape"] == [18, 25]
     assert manifest["transform_kind"] == "geometric_calibration"
+    assert manifest["geometry_validated"] is True
+    assert manifest["real_trx_pipeline_validated"] is False
+    assert manifest["validated"] is False
+    assert manifest["validation_status"] == "REVALIDATION_REQUIRED"
 
 
 def test_workflow_is_guarded_manual_production_workflow() -> None:

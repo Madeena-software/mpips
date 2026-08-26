@@ -28,8 +28,8 @@ MANIFEST = (
 MODES = (
     "NO_REMAP",
     "IDENTITY_REMAP",
-    "CURRENT_NEURAL_REMAP",
-    "SUPPORT_BOUNDED_REMAP",
+    "HISTORICAL_789ADFF_REMAP",
+    "NEW_606DB560_REMAP",
 )
 SUPPORT_DIR = Path(
     "research/phantom-gotri-thorax/output/neural_model/"
@@ -235,14 +235,51 @@ def _preview(path: Path, image: np.ndarray) -> None:
 
 def _geometry(image: np.ndarray) -> dict[str, object]:
     image = np.asarray(image)
-    foreground = image > np.percentile(image, 5)
-    ys, xs = np.where(foreground)
+    foreground_ys, foreground_xs = np.where(image > np.percentile(image, 5))
+    nonzero_ys, nonzero_xs = np.where(image != 0)
     height, width = image.shape[:2]
     bbox = (
-        [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())] if xs.size else []
+        [
+            int(foreground_xs.min()),
+            int(foreground_ys.min()),
+            int(foreground_xs.max()),
+            int(foreground_ys.max()),
+        ]
+        if foreground_xs.size
+        else []
+    )
+    nonzero_bbox = (
+        [
+            int(nonzero_xs.min()),
+            int(nonzero_ys.min()),
+            int(nonzero_xs.max()),
+            int(nonzero_ys.max()),
+        ]
+        if nonzero_xs.size
+        else []
     )
     return {
+        "shape": list(image.shape),
+        "dtype": str(image.dtype),
+        "min": float(image.min()),
+        "max": float(image.max()),
+        "mean": float(image.mean()),
+        "p01": float(np.percentile(image, 1)),
+        "p25": float(np.percentile(image, 25)),
+        "p50": float(np.percentile(image, 50)),
+        "p75": float(np.percentile(image, 75)),
+        "p99": float(np.percentile(image, 99)),
         "non_background_bbox": bbox,
+        "final_nonzero_bbox": nonzero_bbox,
+        "final_exact_zero_ratio": round(float(np.mean(image == 0)), 6),
+        "final_dynamic_range": float(image.max() - image.min()),
+        "final_percentiles": {
+            "p01": float(np.percentile(image, 1)),
+            "p25": float(np.percentile(image, 25)),
+            "p50": float(np.percentile(image, 50)),
+            "p75": float(np.percentile(image, 75)),
+            "p99": float(np.percentile(image, 99)),
+        },
         "non_background_width_ratio": (
             round((bbox[2] - bbox[0] + 1) / width, 6) if bbox else 0.0
         ),
@@ -255,7 +292,9 @@ def _geometry(image: np.ndarray) -> dict[str, object]:
 
 def _geometry_failure(metrics: dict[str, object]) -> bool:
     return bool(
-        metrics["zero_pixel_ratio"] > 0.95
+        # This is a known-dataset catastrophic-collapse gate, not a clinical
+        # image-quality rule.
+        metrics["zero_pixel_ratio"] > 0.5
         or metrics["non_background_width_ratio"] < 0.5
         or metrics["non_background_height_ratio"] < 0.5
     )
@@ -281,10 +320,9 @@ def _case(
     else:
         with np.load(neural_dir / "remap.npz", allow_pickle=False) as remap:
             map_x, map_y = remap["map_x"], remap["map_y"]
-        if mode == "SUPPORT_BOUNDED_REMAP":
-            map_x, map_y = _support_bounded_maps(
-                map_x, map_y, raw.shape[1], raw.shape[0]
-            )
+        if mode == "HISTORICAL_789ADFF_REMAP":
+            with np.load(SUPPORT_DIR / "remap.npz", allow_pickle=False) as remap:
+                map_x, map_y = remap["map_x"], remap["map_y"]
     corrected = engine.flat_field_correction(
         raw.astype(np.float32) / 65535,
         dark.astype(np.float32) / 65535,
@@ -334,10 +372,21 @@ def _case(
         "first_geometry_failure_stage": "DICOM_ENCODING" if failed else "NONE",
         "pipeline_result": "FAIL" if failed else "PASS",
         "calibration_fingerprint": (
-            HISTORICAL_FINGERPRINT if mode == "CURRENT_NEURAL_REMAP" else None
+            HISTORICAL_FINGERPRINT
+            if mode == "HISTORICAL_789ADFF_REMAP"
+            else (
+                "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
+                if mode == "NEW_606DB560_REMAP"
+                else None
+            )
         ),
+        "FINAL_EXACT_ZERO_RATIO": geometry["final_exact_zero_ratio"],
+        "FINAL_NONZERO_RATIO": round(float(np.mean(final != 0)), 6),
+        "FINAL_NONZERO_BBOX": geometry["final_nonzero_bbox"],
+        "FINAL_DYNAMIC_RANGE": geometry["final_dynamic_range"],
+        "FINAL_PERCENTILES": geometry["final_percentiles"],
     }
-    if mode in ("CURRENT_NEURAL_REMAP", "SUPPORT_BOUNDED_REMAP"):
+    if mode in ("HISTORICAL_789ADFF_REMAP", "NEW_606DB560_REMAP"):
         valid_fraction = float(
             np.mean(
                 (map_x >= 0)
@@ -397,8 +446,7 @@ def run_local_real_trx_pipeline(
             }
             for case in (1, 2, 3)
         }
-    current = [cases[f"case-{case}"]["CURRENT_NEURAL_REMAP"] for case in (1, 2, 3)]
-    bounded = [cases[f"case-{case}"]["SUPPORT_BOUNDED_REMAP"] for case in (1, 2, 3)]
+    current = [cases[f"case-{case}"]["NEW_606DB560_REMAP"] for case in (1, 2, 3)]
     passthrough = all(
         cases[f"case-{case}"][mode]["pipeline_result"] == "PASS"
         for case in (1, 2, 3)
@@ -413,11 +461,6 @@ def run_local_real_trx_pipeline(
             "REJECTED"
             if any(item["pipeline_result"] == "FAIL" for item in current)
             else "ACCEPTED"
-        ),
-        "TRX_SUPPORT_BOUNDED_CANDIDATE": (
-            "PASS"
-            if all(item["pipeline_result"] == "PASS" for item in bounded)
-            else "FAIL"
         ),
         "REAL_TRX_LOCAL_PIPELINE": (
             "PASS"

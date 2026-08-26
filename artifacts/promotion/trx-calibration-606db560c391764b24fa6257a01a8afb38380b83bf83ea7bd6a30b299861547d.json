@@ -17,6 +17,9 @@
     "metadata.json",
     "remap.npz"
   ],
-  "validated": true,
+  "geometry_validated": true,
+  "real_trx_pipeline_validated": false,
+  "validated": false,
+  "validation_status": "REVALIDATION_REQUIRED",
   "carrier": "NOT_PUBLISHED"
 }
