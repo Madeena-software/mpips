@@ -7,6 +7,9 @@ from pathlib import Path
 
 import numpy as np
 import pytest
+import pydicom
+from pydicom.dataset import FileDataset, FileMetaDataset
+from pydicom.uid import ExplicitVRLittleEndian, generate_uid
 
 import scripts.promote_production_calibration as promotion
 from scripts.promote_production_calibration import (
@@ -46,6 +49,7 @@ FUNCTIONAL_PASS.update(
             for field in (
                 f"REAL_THORAX_{case}_INPUT_COMPATIBILITY",
                 f"REAL_THORAX_{case}_CONVERSION",
+                f"REAL_THORAX_{case}_IMAGE_ACCEPTANCE",
                 f"REAL_THORAX_{case}_DICOM_STRUCTURE",
             )
         },
@@ -107,6 +111,22 @@ def _carrier(
             archive.addfile(info, remap)
 
 
+def _valid_dicom(path: Path) -> None:
+    meta = FileMetaDataset()
+    meta.TransferSyntaxUID = ExplicitVRLittleEndian
+    meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.1.1.1"
+    meta.MediaStorageSOPInstanceUID = generate_uid()
+    ds = FileDataset(path, {}, file_meta=meta, preamble=b"\0" * 128)
+    ds.SOPClassUID = meta.MediaStorageSOPClassUID
+    ds.SOPInstanceUID = meta.MediaStorageSOPInstanceUID
+    ds.StudyInstanceUID, ds.SeriesInstanceUID = generate_uid(), generate_uid()
+    ds.Rows, ds.Columns = 2, 2
+    ds.SamplesPerPixel, ds.PhotometricInterpretation = 1, "MONOCHROME2"
+    ds.BitsAllocated, ds.BitsStored, ds.HighBit, ds.PixelRepresentation = 16, 16, 15, 0
+    ds.PixelData = np.zeros((2, 2), dtype=np.uint16).tobytes()
+    ds.save_as(path)
+
+
 def test_manifest_pins_exact_carrier() -> None:
     manifest = json.loads(MANIFEST.read_text())
     assert manifest["carrier"] == "NOT_PUBLISHED"
@@ -119,9 +139,9 @@ def test_manifest_pins_exact_carrier() -> None:
     assert manifest["grid_shape"] == [18, 25]
     assert manifest["transform_kind"] == "geometric_calibration"
     assert manifest["geometry_validated"] is True
-    assert manifest["real_trx_pipeline_validated"] is False
-    assert manifest["validated"] is False
-    assert manifest["validation_status"] == "REVALIDATION_REQUIRED"
+    assert manifest["real_trx_pipeline_validated"] is True
+    assert manifest["validated"] is True
+    assert manifest["validation_status"] == "REAL_TRX_VALIDATED"
 
 
 def test_workflow_is_guarded_manual_production_workflow() -> None:
@@ -191,6 +211,89 @@ def test_runtime_preflight_accepts_descendant_with_matching_images(
         merge_base=lambda *_: True,
     )
     assert result["CAMERA_INDEPENDENT_RUNTIME"] == "PASS"
+    assert result["TRX_PIPELINE_RUNTIME"] == "PASS"
+
+
+def test_runtime_preflight_accepts_required_trx_baseline_with_matching_images(
+    tmp_path: Path,
+) -> None:
+    sha = promotion.REQUIRED_TRX_PIPELINE_BASELINE
+    (tmp_path / ".mpips-version").write_text(sha)
+    (tmp_path / ".mpips-worker-image").write_text(f"mpips-npz-worker:{sha}")
+    result = runtime_preflight(
+        runtime_dir=tmp_path,
+        run=lambda *args, **kwargs: SimpleNamespace(
+            stdout="api\n" if args[0][1] == "ps" else f"mpips-api:{sha}",
+            returncode=0,
+        ),
+        merge_base=lambda _baseline, _sha: True,
+    )
+    assert result["CAMERA_INDEPENDENT_RUNTIME"] == "PASS"
+    assert result["TRX_PIPELINE_RUNTIME"] == "PASS"
+
+
+def test_runtime_preflight_rejects_camera_independent_runtime_before_trx_baseline(
+    tmp_path: Path,
+) -> None:
+    sha = "a" * 40
+    (tmp_path / ".mpips-version").write_text(sha)
+    (tmp_path / ".mpips-worker-image").write_text(f"mpips-npz-worker:{sha}")
+    result = runtime_preflight(
+        runtime_dir=tmp_path,
+        run=lambda *args, **kwargs: SimpleNamespace(
+            stdout="api\n" if args[0][1] == "ps" else f"mpips-api:{sha}",
+            returncode=0,
+        ),
+        merge_base=lambda baseline, _sha: baseline
+        == promotion.CAMERA_INDEPENDENT_BASELINE,
+    )
+    assert result["CAMERA_INDEPENDENT_RUNTIME"] == "PASS"
+    assert result["TRX_PIPELINE_RUNTIME"] == "FAIL"
+    assert (
+        result["FINAL_PROMOTION_CLASSIFICATION"]
+        == "PRODUCTION_RUNTIME_TRX_PIPELINE_CODE_REQUIRED"
+    )
+
+
+def test_real_dicom_structure_requires_canonical_trx_dimensions(tmp_path: Path) -> None:
+    path = tmp_path / "trx.dcm"
+    _valid_dicom(path)
+    ds = pydicom.dcmread(path)
+    ds.Rows, ds.Columns = 4096, 3000
+    ds.PixelData = np.ones((4096, 3000), dtype=np.uint16).tobytes()
+    ds.save_as(path)
+    assert promotion._real_dicom_structure(path)
+
+
+def test_real_dicom_structure_rejects_stale_transposed_dimensions(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "trx.dcm"
+    _valid_dicom(path)
+    ds = pydicom.dcmread(path)
+    ds.Rows, ds.Columns = 3000, 4096
+    ds.PixelData = np.ones((3000, 4096), dtype=np.uint16).tobytes()
+    ds.save_as(path)
+    assert not promotion._real_dicom_structure(path)
+
+
+@pytest.mark.parametrize("case", [2, 3])
+def test_real_dicom_image_acceptance_rejects_catastrophic_black_cases(
+    tmp_path: Path, case: int
+) -> None:
+    path = tmp_path / f"case-{case}.dcm"
+    _valid_dicom(path)
+    ds = pydicom.dcmread(path)
+    ds.Rows, ds.Columns = 4096, 3000
+    ds.PixelData = np.zeros((4096, 3000), dtype=np.uint16).tobytes()
+    ds.save_as(path)
+    assert not promotion._real_dicom_image_acceptance(path)
+
+
+def test_workflow_fails_closed_without_current_carrier() -> None:
+    text = (ROOT / ".github/workflows/promote-production-calibration.yml").read_text()
+    assert "1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr" not in text
+    assert "NOT_PUBLISHED" in text
 
 
 def test_runtime_preflight_rejects_image_mismatch(tmp_path: Path) -> None:

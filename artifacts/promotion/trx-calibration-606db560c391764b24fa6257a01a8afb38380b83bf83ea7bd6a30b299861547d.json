@@ -18,8 +18,8 @@
     "remap.npz"
   ],
   "geometry_validated": true,
-  "real_trx_pipeline_validated": false,
-  "validated": false,
-  "validation_status": "REVALIDATION_REQUIRED",
+  "real_trx_pipeline_validated": true,
+  "validated": true,
+  "validation_status": "REAL_TRX_VALIDATED",
   "carrier": "NOT_PUBLISHED"
 }

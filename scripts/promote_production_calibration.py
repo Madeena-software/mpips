@@ -32,7 +32,9 @@ EXPECTED_FINGERPRINT = (
     "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
 )
 EXPECTED_SHAPE = (3000, 4096)
+EXPECTED_FINAL_DICOM_SHAPE = (4096, 3000)
 CAMERA_INDEPENDENT_BASELINE = "d175a6fa56ca32cf78007c39baff24075dbd5a0e"
+REQUIRED_TRX_PIPELINE_BASELINE = "b3ed78d5077d8e4634c913939e5c28f8620679e9"
 BED_FUNCTIONAL_FIELDS = (
     "BED_FUNCTIONAL_CONVERSION",
     "BED_DICOM_STRUCTURE",
@@ -56,6 +58,7 @@ REAL_REQUIRED_FIELDS = tuple(
     for field in (
         f"REAL_THORAX_{case}_INPUT_COMPATIBILITY",
         f"REAL_THORAX_{case}_CONVERSION",
+        f"REAL_THORAX_{case}_IMAGE_ACCEPTANCE",
         f"REAL_THORAX_{case}_DICOM_STRUCTURE",
     )
 )
@@ -163,13 +166,39 @@ def _real_dicom_structure(path: Path) -> bool:
         structure = validate_dicom_structure(path)
         dataset = pydicom.dcmread(path, stop_before_pixels=False)
         return (
-            structure["rows"] == 3000
-            and structure["columns"] == 4096
+            structure["rows"] == EXPECTED_FINAL_DICOM_SHAPE[0]
+            and structure["columns"] == EXPECTED_FINAL_DICOM_SHAPE[1]
             and int(dataset.BitsAllocated) == 16
             and int(dataset.PixelRepresentation) == 0
             and bool(dataset.PixelData)
         )
     except (OSError, AttributeError, KeyError, ValueError):
+        return False
+
+
+def _real_dicom_image_acceptance(path: Path) -> bool:
+    """Reject catastrophic collapse for the pinned real-THORAX regression set."""
+    try:
+        dataset = pydicom.dcmread(path, stop_before_pixels=False)
+        pixels = np.asarray(dataset.pixel_array)
+        if (
+            pixels.shape != EXPECTED_FINAL_DICOM_SHAPE
+            or pixels.dtype != np.uint16
+            or not np.all(np.isfinite(pixels))
+        ):
+            return False
+        nonzero = pixels != 0
+        if not np.any(nonzero):
+            return False
+        # This is a catastrophic-collapse floor for the pinned regression data,
+        # not a clinical image-quality threshold.
+        if float(np.count_nonzero(~nonzero)) / pixels.size > 0.5:
+            return False
+        rows, columns = np.where(nonzero)
+        return bool(
+            rows.size and columns.size and np.ptp(rows) >= 1 and np.ptp(columns) >= 1
+        )
+    except (OSError, AttributeError, KeyError, TypeError, ValueError):
         return False
 
 
@@ -194,6 +223,9 @@ def run_real_thorax_checks(data_dir: str | Path) -> dict[str, str]:
             evidence[f"REAL_THORAX_{case}_CONVERSION"] = "PASS" if ok else "FAIL"
             evidence[f"REAL_THORAX_{case}_DICOM_STRUCTURE"] = (
                 "PASS" if ok and _real_dicom_structure(output) else "FAIL"
+            )
+            evidence[f"REAL_THORAX_{case}_IMAGE_ACCEPTANCE"] = (
+                "PASS" if ok and _real_dicom_image_acceptance(output) else "FAIL"
             )
     evidence["REAL_THORAX_ALL_PASS"] = (
         "PASS"
@@ -502,6 +534,7 @@ def runtime_preflight(
         ancestor = False
     elif merge_base:
         ancestor = merge_base(CAMERA_INDEPENDENT_BASELINE, sha)
+        trx_ancestor = merge_base(REQUIRED_TRX_PIPELINE_BASELINE, sha)
     else:
         ancestor = (
             subprocess.run(
@@ -516,6 +549,19 @@ def runtime_preflight(
             ).returncode
             == 0
         )
+        trx_ancestor = (
+            subprocess.run(
+                [
+                    "git",
+                    "merge-base",
+                    "--is-ancestor",
+                    REQUIRED_TRX_PIPELINE_BASELINE,
+                    sha,
+                ],
+                check=False,
+            ).returncode
+            == 0
+        )
     passed = (
         valid_sha
         and ancestor
@@ -523,15 +569,21 @@ def runtime_preflight(
         and worker == f"mpips-npz-worker:{sha}"
         and api_sha == worker_sha == sha
     )
+    trx_passed = valid_sha and trx_ancestor
     evidence = {
         "PRODUCTION_RUNTIME_SHA": sha or "UNPROVEN",
         "PRODUCTION_API_IMAGE": api or "UNPROVEN",
         "PRODUCTION_WORKER_IMAGE": worker or "UNPROVEN",
         "CAMERA_INDEPENDENT_RUNTIME": "PASS" if passed else "FAIL",
+        "TRX_PIPELINE_RUNTIME": "PASS" if trx_passed else "FAIL",
     }
     if not passed:
         evidence["FINAL_PROMOTION_CLASSIFICATION"] = (
             "PRODUCTION_RUNTIME_CAMERA_INDEPENDENT_CODE_REQUIRED"
+        )
+    elif not trx_passed:
+        evidence["FINAL_PROMOTION_CLASSIFICATION"] = (
+            "PRODUCTION_RUNTIME_TRX_PIPELINE_CODE_REQUIRED"
         )
     return evidence
 
@@ -555,12 +607,20 @@ def promote(
     expected_sha256 = (
         EXPECTED_CARRIER_SHA256 if expected_sha256 is None else expected_sha256
     )
-    runtime_evidence = runtime_evidence or {"CAMERA_INDEPENDENT_RUNTIME": "PASS"}
-    if runtime_evidence.get("CAMERA_INDEPENDENT_RUNTIME") != "PASS":
+    runtime_evidence = runtime_evidence or {
+        "CAMERA_INDEPENDENT_RUNTIME": "PASS",
+        "TRX_PIPELINE_RUNTIME": "PASS",
+    }
+    if (
+        runtime_evidence.get("CAMERA_INDEPENDENT_RUNTIME") != "PASS"
+        or runtime_evidence.get("TRX_PIPELINE_RUNTIME") != "PASS"
+    ):
         return {
             **runtime_evidence,
             "FINAL_PROMOTION_CLASSIFICATION": (
-                "PRODUCTION_RUNTIME_CAMERA_INDEPENDENT_CODE_REQUIRED"
+                "PRODUCTION_RUNTIME_TRX_PIPELINE_CODE_REQUIRED"
+                if runtime_evidence.get("TRX_PIPELINE_RUNTIME") != "PASS"
+                else "PRODUCTION_RUNTIME_CAMERA_INDEPENDENT_CODE_REQUIRED"
             ),
         }
     local_pipeline_evidence = local_pipeline_evidence or {
@@ -592,7 +652,7 @@ def promote(
         "BED_SOURCE_VALIDATION": "PASS",
         **stage_evidence,
         "TRX_FINGERPRINT": str(trx["fingerprint"]),
-        "TRX_IMAGE_SHAPE": "3000x4096",
+        "TRX_IMAGE_SHAPE": "4096x3000",
         "STAGING_LAYOUT": "PASS",
         "ROOT_INODE_PRESERVED": "PASS",
     }

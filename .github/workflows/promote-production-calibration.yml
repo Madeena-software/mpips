@@ -23,6 +23,7 @@ jobs:
       - name: Download and promote reviewed calibration
         env:
           MPIPS_API_KEY: ${{ secrets.MPIPS_API_KEY }}
+          MPIPS_TRX_CARRIER_FILE_ID: ${{ secrets.MPIPS_TRX_CARRIER_FILE_ID }}
         run: |
           set -euo pipefail
           work_dir="$(mktemp -d /tmp/mpips-calibration-promotion.XXXXXX)"
@@ -30,7 +31,12 @@ jobs:
           carrier="$work_dir/trx-calibration.tar.gz"
           real_dir="$work_dir/real-thorax"
           mkdir -p "$real_dir"
-          uv run --with "gdown==6.1.0" gdown 1ou8lFZlSlO7V-3mLQtzKFz6vyDVX3WQr -O "$carrier.part"
+          carrier_id="${MPIPS_TRX_CARRIER_FILE_ID:-NOT_PUBLISHED}"
+          if [ "$carrier_id" = "NOT_PUBLISHED" ]; then
+            echo "FINAL_PROMOTION_CLASSIFICATION=TRX_CARRIER_NOT_PUBLISHED"
+            exit 1
+          fi
+          uv run --with "gdown==6.1.0" gdown "$carrier_id" -O "$carrier.part"
           mv "$carrier.part" "$carrier"
           uv run --with "gdown==6.1.0" gdown 1kI99se2CjzCgo4qInMEGUuJ-ZJZE3iQY -O "$real_dir/TRX_1787726609597.npz.part"
           mv "$real_dir/TRX_1787726609597.npz.part" "$real_dir/TRX_1787726609597.npz"
