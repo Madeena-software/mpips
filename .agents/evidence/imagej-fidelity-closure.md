@@ -95,7 +95,7 @@ It is therefore closed as `NOT PRODUCTION REACHABLE — N/A — CLOSED`.
 | CLAHE — MPIPS fast/OpenCV | Pinned Fiji `FastFlat.java` retained as comparison reference; governed contract is separate | `ImageJReplicator.apply_clahe(..., fast=True)` -> OpenCV `createCLAHE` path | PRODUCTION-REACHABLE — CONFIGURABLE | NOT DEFAULT; `clahe_fast=false` | uint8 and uint16; OpenCV preserves the single-channel dtype | MPIPS/OpenCV is not Fiji FastFlat parity (historical mismatch) | MPIPS/OPENCV ALTERNATE CONTRACT; INTENTIONAL SEMANTIC DIVERGENCE — GOVERNED; NOT FIJI FASTFLAT PARITY | No semantic identity gap under Option A; performance and broader regression remain separate | Phase 5 runtime measurement; Phase 6/7 later if authorized |
 | Fiji CLAHE Flat reference | Pinned `axtimwalde/mpicbg` `Flat.java` and supporting `Apply`/`ShortApply` code | No Java/Fiji runtime in MPIPS production path; retained reference tooling only | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Byte working domain; uint16 uses ShortProcessor 8-bit working representation and ShortApply mapping | REFERENCE ONLY / historical cross-reference mismatch | REFERENCE ONLY; NOT PRODUCTION REACHABLE | No production contract obligation; retained provenance and execution limits remain | Phase 5 reference measurement if authorized |
 | Fiji CLAHE FastFlat reference | Pinned `axtimwalde/mpicbg` `FastFlat.java` and supporting fast apply code | No Java/Fiji runtime in MPIPS production path; retained reference tooling only | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Distinct byte working representation and dtype-specific uint16 mapping | REFERENCE ONLY / historical cross-reference mismatch | REFERENCE ONLY; NOT PRODUCTION REACHABLE | No production contract obligation; retained provenance and execution limits remain | Phase 5 reference measurement if authorized |
-| Circular Median | ImageJ core `RankFilters.MEDIAN` circular-kernel semantics | `ImageJReplicator.median_filter_imagej`; `filtering.apply_median_filter("circular_imagej")` | PRODUCTION-REACHABLE — CONFIGURABLE; config enum/schema and median dispatch can activate it | NOT DEFAULT; default type is `hybrid_imagej` | uint16 on radiography; implementation supports uint8/uint16 | FIDELITY FAILURE for accepted special-radius cases; exposed alternative, not active default | Reachability confirmed. Current implementation remains parity-sensitive: accepted characterization found failures at radii 1.5 and 2.5, with other tested radii exact | Fidelity status for all supported/configurable radii is unresolved; no remediation performed | Phase 4 — Circular Median resolution |
+| Circular Median | ImageJ core `RankFilters.MEDIAN` circular-kernel semantics | `ImageJReplicator.median_filter_imagej`; `filtering.apply_median_filter("circular_imagej")` | PRODUCTION-REACHABLE — CONFIGURABLE through canonical/config paths; DICOM endpoint itself supplies no alternate processing config | NOT DEFAULT; default type is `hybrid_imagej`, radius 2 | uint8 and uint16 | FIDELITY FAILURE for accepted special-radius cases; exposed alternative, not active default | PLANNING REQUIRED — CIRCULAR MEDIAN REMEDIATION: fractional `from_dict` config can reach the circular implementation; accepted failures at 1.5 and 2.5 remain applicable | Fractional config reachability and complete integer-domain parity are unresolved; no remediation performed | Phase 4 remediation planning |
 | Temporal Median | ImageJ `Fast_Temporal_Median.java` plugin identity | `ImageJReplicator.fast_temporal_median(stack, ...)` only; no wrapper/config/pipeline caller found | NOT PRODUCTION-REACHABLE | NOT DEFAULT | Library method accepts 3D uint8/uint16 stacks | NOT PRODUCTION-REACHABLE — N/A | NOT PRODUCTION REACHABLE — N/A — CLOSED; refreshed caller/config/API/schema search remains empty | No production fidelity obligation established; standalone method remains outside current production surface | Phase 3 — no further Phase-2 work |
 
 ## Phase 3 — CLAHE semantic closure
@@ -259,6 +259,150 @@ No production algorithm, defaults, configuration, tests, reference tooling,
 converter, main, deployment, or release action changed in Phase 3.
 
 **Terminal state: Review Required.**
+
+## Phase 4 — Circular Median Radius-Domain / Reachability Resolution
+
+### Governing identity and first-gate result
+
+- Governing task revision: `aec68e1b933ec86d54d42b7499366bd038a41a78`.
+- Accepted Phase-3 baseline: `8c7b479947ee2b67856fd644e95b6d9eede52739`.
+- Pre-evidence HEAD: `aec68e1b933ec86d54d42b7499366bd038a41a78`.
+- First gate: **CIRCULAR MEDIAN RADIUS-DOMAIN / REACHABILITY RESOLUTION**.
+- Selected outcome: **PLANNING REQUIRED — CIRCULAR MEDIAN REMEDIATION**.
+
+The outcome is required because a positive fractional radius such as `1.5`
+can be supplied through the structured canonical configuration path and reach
+`circular_imagej`. The accepted failures at radii `1.5` and `2.5` therefore
+are not limited to direct-library use. No remediation or contract tightening
+was performed.
+
+### Production trace and default boundary
+
+The current DICOM trace is:
+
+```text
+POST /v1/radiographs/dicom
+  -> run_isolated_dicom_conversion()
+  -> execute_conversion_worker()
+  -> process_radiography_arrays(config=None)
+  -> ImagerPipelineConfig()
+  -> RadiographyPipeline.process()
+  -> apply_median_filter(...)
+```
+
+The worker does not accept or construct an `ImagerPipelineConfig`; the
+canonical pipeline therefore constructs the default config. The default is
+`use_median_filter=true`, `median_filter_type="hybrid_imagej"`, and
+`median_filter_radius=2`. Circular Median is not selected on this route and
+is not the current default production behavior. The file runner and batch
+workflow accept an explicit config object, but they are distinct configurable
+workflow surfaces rather than the DICOM endpoint's request schema.
+
+### Radius-domain and reachability matrix
+
+| Surface | Reachable / Circular selectable | Declared type | Runtime validation/coercion | Actual radius domain | Classification |
+|---|---|---|---|---|---|
+| DICOM default route | Reachable; circular not selectable from request; default Hybrid only | Config defaults `int`, value 2 | `process_radiography_arrays(config=None)` constructs defaults; no custom radius input | Fixed default 2; Circular Median unreachable on this route | Production default |
+| Direct `RadiographyPipeline(config=...)` | Yes, when supplied a config with `circular_imagej` | Config field `int` annotation | Constructor `_validate()` checks only `radius > 0`; no integer check/coercion | Arbitrary positive numeric, including fractional | Configurable canonical pipeline |
+| `ImagerPipelineConfig(...)` | Yes | `median_filter_radius: int` | No runtime `isinstance` or `int()` check; only positivity check | Arbitrary positive numeric, including fractional | Configurable production-adjacent |
+| `ImagerPipelineConfig.from_dict()` structured | Yes | Structured `radius` has no runtime schema type | Value is forwarded unchanged to constructor; only positivity check applies | Fractional possible; probe accepted `1.5` | Configurable canonical config |
+| `ImagerPipelineConfig.from_dict()` flat | Yes | Flat value passed through `**data` | Same constructor behavior; no integer coercion | Fractional possible; probe accepted `1.5` | Configurable canonical config |
+| `ImagerPipelineConfig.from_env()` / CLI | Yes through CLI/file workflow | Mapping declares `int` | `int(raw_val)` is explicit; `"1.5"` raises `ValueError` | Integer text only; fractional text rejected | Configurable workflow surface |
+| API/schema DICOM request | No processing config field | Manifest schemas contain no median config | `extra="forbid"`; no radius field exposed | Unreachable from current API request | Not API-reachable |
+| Worker/DICOM construction | Reachable only through default pipeline construction | No radius/config argument in worker call | No custom config is forwarded | Fixed default Hybrid path; no Circular selection or custom radius | Production worker path |
+| File runner / batch workflow | Yes with explicit config object | Config object as above | Delegates unchanged to pipeline | Arbitrary positive numeric if config was constructed accordingly | Configurable workflow surface |
+| Direct `apply_median_filter()` | Yes with `filter_type="circular_imagej"` | `radius: int` annotation | No runtime type check; calls `float(radius)` | Positive numeric, including fractional; probe accepted `1.5` | Library adapter |
+| Direct `ImageJReplicator.median_filter_imagej()` | Yes | `radius: float` | Checks only `radius > 0` | Positive numeric, including fractional | Direct library only |
+
+The API/schema conclusion is limited to the current DICOM endpoint and its
+manifest models. Importable Python and workflow objects must not be called
+API-reachable merely because they are configurable.
+
+### Accepted I-4A characterization
+
+The retained pinned ImageJ 1.54p `RankFilters` comparisons report the same
+classification for uint8 and uint16:
+
+| Radius | uint8 | uint16 |
+|---:|---|---|
+| 0.5 | PARITY CONFIRMED | PARITY CONFIRMED |
+| 1.0 | PARITY CONFIRMED | PARITY CONFIRMED |
+| 1.5 | FIDELITY FAILURE (3 mismatches, max diff 0.44) | FIDELITY FAILURE (771 mismatches, max diff 0.44) |
+| 1.74 | PARITY CONFIRMED | PARITY CONFIRMED |
+| 1.75 | PARITY CONFIRMED | PARITY CONFIRMED |
+| 2.0 | PARITY CONFIRMED | PARITY CONFIRMED |
+| 2.5 | FIDELITY FAILURE (2 mismatches, max diff 0.32) | FIDELITY FAILURE (514 mismatches, max diff 0.32) |
+| 2.84 | PARITY CONFIRMED | PARITY CONFIRMED |
+| 2.85 | PARITY CONFIRMED | PARITY CONFIRMED |
+| 3.0 | PARITY CONFIRMED | PARITY CONFIRMED |
+
+These are accepted sampled cases only and are not extrapolated to all
+positive radii.
+
+### Runtime validation and fractional reachability
+
+The config and adapter annotations express integer intent but do not enforce
+it. `ImagerPipelineConfig._validate()` tests only `median_filter_radius <= 0`;
+it performs no `isinstance(radius, int)`, `int(radius)`, or integral-value
+check. Structured and flat `from_dict()` both preserve a float radius. The
+read-only probe constructed valid circular configs with `1.5`, and direct
+`apply_median_filter()` and `median_filter_imagej()` accepted and processed
+that radius. Conversely, `from_env()` maps `MEDIAN_FILTER_RADIUS` to `int` and
+rejects `"1.5"` before config construction.
+
+Thus fractional radius is configurable through canonical structured config
+and can reach `RadiographyPipeline`/the circular dispatch when a caller
+supplies that config. It is not reachable through the current DICOM request
+schema or worker construction, and it is not the default path.
+
+### Reference and implementation structural assessment
+
+`_make_circular_kernel_imagej()` uses the retained ImageJ-style
+`int(radius * radius) + 1` footprint construction, and
+`median_filter_imagej()` uses SciPy `median_filter(..., mode="nearest")` for
+the duplicate-edge behavior. This explains why many sampled footprints match,
+but it does not establish universal parity for every positive integer radius:
+the current configuration has no upper bound, the accepted matrix samples
+only selected radii, and the retained evidence does not prove equivalence of
+all ImageJ RankFilters special cases or all edge/median-selection behavior.
+The 1.5 and 2.5 failures are footprint/semantic divergences in the existing
+float-capable implementation; this gate does not assign a narrower causal
+claim or modify it. uint8 and uint16 show the same radius classification, with
+dtype-specific mismatch magnitudes.
+
+No additional Fiji/Java reference execution or expanded characterization was
+performed. The only new checks were the bounded local Python configuration and
+direct-call probe above.
+
+### Outcome, smallest likely remediation surface, and limits
+
+**PLANNING REQUIRED — CIRCULAR MEDIAN REMEDIATION**
+
+The exact reachable failing path is:
+
+```text
+ImagerPipelineConfig.from_dict({"median_filter": {
+  "type": "circular_imagej", "radius": 1.5
+}})
+  -> ImagerPipelineConfig._validate() [positive-only]
+  -> RadiographyPipeline(config).process()
+  -> apply_median_filter(..., "circular_imagej", 1.5)
+  -> ImageJReplicator.median_filter_imagej(..., radius=1.5)
+```
+
+The smallest likely remediation decision is whether the governed config
+contract should reject/coerce fractional radii at its boundary or whether the
+Circular Median implementation should be remediated to match ImageJ for the
+fractional domain. Either choice requires explicit later authorization,
+targeted tests/reference verification, and consistent handling across
+constructor, structured config, CLI/environment, workflow, and any future API
+surface. This gate performs none of those changes.
+
+No clinical or quality claim is made. Phase 5+ remain unauthorized, the
+accepted CLAHE classifications are unchanged, and Circular Median remains
+the only unresolved subject of this first gate.
+
+**Terminal state: Planning Required — Circular Median Remediation.**
 
 ## Direct reachability observations
 
