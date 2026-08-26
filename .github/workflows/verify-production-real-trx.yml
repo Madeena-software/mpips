@@ -13,8 +13,6 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
-        with:
-          ref: main
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -25,4 +23,4 @@ jobs:
       - name: Verify production real TRX acceptance
         env:
           MPIPS_API_KEY: ${{ secrets.MPIPS_API_KEY }}
-        run: uv run --with "gdown==6.1.0" python scripts/verify_production_real_trx.py --summary "$RUNNER_TEMP/stage-c-summary.txt"
+        run: uv run --with "gdown==6.1.0" python scripts/verify_production_real_trx.py --summary "$GITHUB_STEP_SUMMARY"
