@@ -25,4 +25,4 @@ jobs:
       - name: Verify production real TRX acceptance
         env:
           MPIPS_API_KEY: ${{ secrets.MPIPS_API_KEY }}
-        run: uv run --with "gdown==6.1.0" python scripts/verify_production_real_trx.py --summary "$GITHUB_STEP_SUMMARY"
+        run: uv run --with "gdown==6.1.0" python -m scripts.verify_production_real_trx --summary "$GITHUB_STEP_SUMMARY"

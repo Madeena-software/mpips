@@ -57,6 +57,8 @@ def test_workflow_is_manual_production_only_and_has_no_mutation_paths() -> None:
     assert (
         "uses: actions/checkout@v4\n        with:\n          fetch-depth: 0" in workflow
     )
+    assert "python -m scripts.verify_production_real_trx" in workflow
+    assert "python scripts/verify_production_real_trx.py" not in workflow
     assert '--summary "$GITHUB_STEP_SUMMARY"' in workflow
     assert "deploy" not in workflow.lower()
     assert "promote" not in workflow.lower()
