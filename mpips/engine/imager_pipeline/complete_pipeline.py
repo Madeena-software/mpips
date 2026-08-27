@@ -345,8 +345,7 @@ def crop_and_rotate_by_detector(image, detector_type):
     cropped = image[crop_top : height - crop_bottom, crop_left : width - crop_right]
 
     if detector_type == "TRX":
-        # Optionally, keep any TRX-specific rotation
-        result = cv2.rotate(cropped, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        result = cv2.rotate(cropped, cv2.ROTATE_90_CLOCKWISE)
         return result
     else:  # BED
         return cropped
@@ -1114,7 +1113,7 @@ def process_single_image(
 
         crop_info = f"top={CONFIG['CROP_TOP']}, bottom={CONFIG['CROP_BOTTOM']}, left={CONFIG['CROP_LEFT']}, right={CONFIG['CROP_RIGHT']}"
         if detector_type == "TRX":
-            print(f"    Image: cropped ({crop_info}), rotated 90° CCW")
+            print(f"    Image: cropped ({crop_info}), rotated 90° CW")
         else:
             print(f"    Image: cropped ({crop_info})")
 
@@ -1490,7 +1489,7 @@ def main():
     print("=" * 70)
     print("\nProcessing steps:")
     print("  1. Crop & Rotate by detector type:")
-    print("      - TRX: crop configurable pixels each side, rotate 90° CCW")
+    print("      - TRX: crop configurable pixels each side, rotate 90° CW")
     print("      - BED: crop configurable pixels each side")
     print("  2. Denoise (wavelet: configurable type, level, method, mode)")
     print("  3. Flat-Field Correction (FFC) with GPU acceleration")

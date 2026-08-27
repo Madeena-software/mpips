@@ -32,6 +32,7 @@ from mpips.workflows.imager_pipeline.npz_io import (
 from mpips.workflows.imager_pipeline.pipeline import (
     apply_calibration_remap,
     apply_clahe,
+    crop_and_rotate,
     apply_threshold_separation,
     flat_field_correction,
     hybrid_median_filter,
@@ -534,6 +535,40 @@ def test_full_pipeline_can_run_fixed_recipe_without_optional_steps() -> None:
     output = process_radiography_arrays(raw, dark, flat, "BED", config)
     np.testing.assert_allclose(output, raw, atol=1)
     assert output.dtype == np.uint16
+
+
+def test_trx_crop_and_rotate_is_clockwise_and_bed_is_unchanged() -> None:
+    sentinel = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.uint16)
+    config = ImagerPipelineConfig()
+
+    trx = crop_and_rotate(sentinel, "TRX", config)
+    bed = crop_and_rotate(sentinel, "BED", config)
+
+    np.testing.assert_array_equal(trx, [[4, 1], [5, 2], [6, 3]])
+    assert trx.shape == (3, 2)
+    np.testing.assert_array_equal(bed, sentinel)
+
+
+def test_pipeline_preserves_trx_orientation_and_bed_shape() -> None:
+    sentinel = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.uint16)
+    config = ImagerPipelineConfig(
+        use_denoise=False,
+        use_threshold=False,
+        use_invert=False,
+        use_contrast_enhancement=False,
+        use_clahe=False,
+        use_median_filter=False,
+        use_final_denoise=False,
+    )
+    dark = np.zeros_like(sentinel)
+    flat = np.ones_like(sentinel)
+
+    trx = process_radiography_arrays(sentinel, dark, flat, "TRX", config)
+    bed = process_radiography_arrays(sentinel, dark, flat, "BED", config)
+
+    np.testing.assert_array_equal(trx, [[4, 1], [5, 2], [6, 3]])
+    assert trx.shape == (3, 2)
+    np.testing.assert_array_equal(bed, sentinel)
 
 
 def test_batch_writes_tiff_and_manifest_and_continues_failures(tmp_path: Path) -> None:
