@@ -21,7 +21,7 @@ jobs:
       - name: Install frozen dependencies
         run: |
           python -m pip install uv
-          uv sync --frozen --extra service
+          uv sync --frozen --extra service --extra imager
       - name: Verify production real TRX acceptance
         env:
           MPIPS_API_KEY: ${{ secrets.MPIPS_API_KEY }}

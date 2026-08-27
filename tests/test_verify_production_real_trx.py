@@ -60,6 +60,8 @@ def test_workflow_is_manual_production_only_and_has_no_mutation_paths() -> None:
     assert "python -m scripts.verify_production_real_trx" in workflow
     assert "python scripts/verify_production_real_trx.py" not in workflow
     assert '--summary "$GITHUB_STEP_SUMMARY"' in workflow
+    assert "uv sync --frozen --extra service --extra imager" in workflow
+    assert "pip install matplotlib" not in workflow
     assert "deploy" not in workflow.lower()
     assert "promote" not in workflow.lower()
     assert "docker compose" not in workflow.lower()
