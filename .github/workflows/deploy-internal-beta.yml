@@ -75,7 +75,26 @@ jobs:
           else
             docker buildx create --name "$BUILDER" --driver docker-container --use
           fi
-          docker buildx inspect --bootstrap "$BUILDER"
+          bootstrap_builder() {
+            local max_attempts=3
+            local attempt
+            for attempt in $(seq 1 "$max_attempts"); do
+              echo "BuildKit bootstrap attempt $attempt/$max_attempts"
+              if docker buildx inspect --bootstrap "$BUILDER"; then
+                return 0
+              fi
+              if [ "$attempt" -eq "$max_attempts" ]; then
+                echo "BuildKit bootstrap failed after $max_attempts attempts" >&2
+                return 1
+              fi
+              case "$attempt" in
+                1) sleep 10 ;;
+                2) sleep 30 ;;
+              esac
+            done
+          }
+
+          bootstrap_builder
 
           rotate_cache() {
             local active="$1" next="$2"

@@ -45,3 +45,20 @@ def test_deployment_builds_use_persistent_separate_buildkit_caches():
         "uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager"
         in workflow
     )
+
+
+def test_buildkit_bootstrap_has_bounded_retry_without_builder_recreation():
+    workflow = (ROOT / ".github/workflows/deploy-internal-beta.yml").read_text()
+
+    assert "bootstrap_builder()" in workflow
+    start = workflow.index("bootstrap_builder()")
+    bootstrap = workflow[start : workflow.index("          build_image", start)]
+    assert "local max_attempts=3" in bootstrap
+    assert 'for attempt in $(seq 1 "$max_attempts")' in bootstrap
+    assert 'docker buildx inspect --bootstrap "$BUILDER"' in bootstrap
+    assert "sleep 10" in bootstrap
+    assert "sleep 30" in bootstrap
+    assert 'echo "BuildKit bootstrap failed after $max_attempts attempts"' in bootstrap
+    assert "return 1" in bootstrap
+    assert "docker buildx rm" not in bootstrap
+    assert "docker buildx create" not in bootstrap
