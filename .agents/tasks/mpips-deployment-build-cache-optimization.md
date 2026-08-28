@@ -1,7 +1,7 @@
 ---
 name: mpips-deployment-build-cache-optimization
 description: Persist and bound local BuildKit caches for internal-beta API and worker image builds.
-version: 1
+version: 2
 status: Validated/Published
 ---
 
@@ -20,6 +20,27 @@ while preserving deployment and runtime semantics.
 - Governing request: `MPIPS — PRODUCTION DEPLOYMENT BUILD CACHE OPTIMIZATION`
 - Preconditions observed before publication: deployment run `33127264314`
   succeeded at the baseline SHA; `origin/main` equals the baseline SHA.
+
+## Remediation required
+
+Review basis: production run `33130072220` and implementation
+`bda82397079238d417e4b9caf9fba86170a5f460`.
+
+Finding: `TRANSIENT_BUILDKIT_BOOTSTRAP_NETWORK_FAILURE`. The docker-container
+builder bootstrap performs one network-dependent attempt to obtain/start
+BuildKit. A transient connection reset during that first bootstrap aborts the
+deployment before image construction.
+
+Bounded remediation: add a finite retry around BuildKit bootstrap only, with
+exactly three maximum attempts and finite bounded backoff (10 seconds after
+attempt 1 and 30 seconds after attempt 2). Reuse the same named builder without
+deleting or recreating it between attempts. Bootstrap failure after the final
+attempt remains fatal, and image builds must not begin unless bootstrap
+succeeds.
+
+Do not add retries around tests, image builds, deployment, Compose, health
+verification, rollback, or calibration validation. Do not change either
+Dockerfile or any existing cache, image, deployment, or safety semantics.
 
 ## Scope
 
@@ -86,6 +107,8 @@ while preserving deployment and runtime semantics.
       remain unchanged.
 - [ ] Focused deterministic regression tests cover the Dockerfile and workflow
       invariants above.
+- [ ] The bootstrap retry has exactly three attempts, finite backoff, fatal
+      final failure, and no builder removal or recreation inside the retry loop.
 
 ## Verification requirements
 
@@ -95,6 +118,8 @@ while preserving deployment and runtime semantics.
 - Run `pytest tests/test_verify_production_real_trx.py -q`.
 - Run YAML validation, `python -m compileall tests`, and `git diff --check`.
 - Run Black and Flake8 on the new or materially modified Python test file only.
+- Extend `tests/test_deployment_build_cache.py` with deterministic source-level
+  assertions for the bounded bootstrap retry and unchanged workflow behavior.
 - Run a focused YAML/source inspection sufficient to verify preserved workflow
   safeguards and exact cache rotation behavior.
 - Report the exact working-tree state and observed command results.
