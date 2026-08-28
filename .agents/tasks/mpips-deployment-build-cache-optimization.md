@@ -89,7 +89,12 @@ while preserving deployment and runtime semantics.
 
 ## Verification requirements
 
-- Run `python -m uv run pytest tests/test_deployment_build_cache.py -q`.
+- Run `pytest tests/test_deployment_build_cache.py -q`.
+- Run `pytest tests/api/test_api_surface.py tests/api/test_dicom_authentication.py
+  tests/api/test_dicom_conversion.py tests/test_host_launcher.py -q`.
+- Run `pytest tests/test_verify_production_real_trx.py -q`.
+- Run YAML validation, `python -m compileall tests`, and `git diff --check`.
+- Run Black and Flake8 on the new or materially modified Python test file only.
 - Run a focused YAML/source inspection sufficient to verify preserved workflow
   safeguards and exact cache rotation behavior.
 - Report the exact working-tree state and observed command results.
@@ -102,6 +107,11 @@ unapproved cache backend, or any external/production mutation.
 
 ## Side-effect boundary
 
-Repository edits and local verification are authorized. Do not dispatch
-workflows, deploy, push, publish, mutate production, or modify external
-systems.
+Authorized: implementation repository edits, local verification, one
+implementation commit, and pushing that implementation commit to `origin/main`.
+The implementation commit message MUST be:
+`ci: add persistent Docker build cache`.
+
+Prohibited: deploy workflow dispatch, Stage C dispatch, production mutation,
+calibration mutation, Docker or network mutation outside the workflow source,
+and secrets or other external-system mutation. Do not deploy after pushing.
