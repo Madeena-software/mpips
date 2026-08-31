@@ -1,7 +1,7 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.10
+version: 1.11
 status: Validated/Published
 language: en-US
 scope:
@@ -266,12 +266,26 @@ conflicts, and bounded disposition in the stable evidence file.
 Do not port calibration runtime changes, generate or regenerate calibration,
 promote calibration carriers, substitute TRX/BED calibration, modify threshold
 policy, TRX orientation, DICOM conversion, or accepted image-processing
-behavior. Do not execute Phase 7 during this publication turn.
+behavior. During the v1.11 corrective publication turn, Phase-7 mapping must
+not be executed in the same corrective publication commit.
 
-### Phase 7 write surface
+### Historical/current publication write surface
 
 - `.agents/tasks/main-hotfix-reconciliation.md`
 - `.agents/evidence/main-hotfix-reconciliation.md`
+
+This is the only write surface for the v1.11 corrective publication turn.
+
+### Phase-7 execution write surface
+
+After Planner acceptance of v1.11, actual Phase-7 mapping may modify only:
+
+- `.agents/evidence/main-hotfix-reconciliation.md`
+
+The governing task file must remain immutable throughout Phase-7 execution.
+Phase-7 execution must not modify the task version, phase map, authority note,
+or task contract. After Planner reviews and accepts the mapping, this same task
+may be republished in a separate later turn to release the next phase.
 
 No calibration carrier, generated artifact, patient/subject binary, runtime
 source, test, configuration, deployment, or production file is in scope.
@@ -310,9 +324,9 @@ source, test, configuration, deployment, or production file is in scope.
 - Change only the Phase-7 documentation write surface; do not modify BED runtime
   thresholding, calibration, conversion, ImageJ, filtering, config, API,
   deployment, or production behavior.
-- Do not run Phase 7 during task republication. Do not generate/regenerate or
-  promote calibration, merge, rebase, cherry-pick, deploy, release, or mutate
-  external systems.
+- During the v1.11 corrective publication turn, do not execute Phase-7
+  mapping. Do not generate/regenerate or promote calibration, merge, rebase,
+  cherry-pick, deploy, release, or mutate external systems.
 
 ## Phase map
 
@@ -373,28 +387,21 @@ implementation; they are historical facts, not current execution authority:
 
 ## Verification requirements
 
-### Required checks for Phase 7 publication
+### Required checks for Phase 7 mapping
 
-- `./.venv/bin/python -m pytest -q tests/test_iqa_safety.py`
-- `./.venv/bin/python -m pytest -q tests/test_imager_pipeline_workflow.py`
-- `./.venv/bin/python -m pytest -q tests/test_radiography_pipeline.py`
-- `./.venv/bin/python -m pytest -q tests/test_converter_protection.py`
-- When the Phase-6 helper exists, run applicable quality checks:
-  `./.venv/bin/python -m black --check scripts/bed_threshold_reference_grounding.py`
-  and `./.venv/bin/python -m flake8 scripts/bed_threshold_reference_grounding.py`.
-- Run repository-authorized mypy, syntax, and import checks where applicable.
-
-### Phase-6 evidence checks
-
-- Verify Phase 6 is accepted at `3809463632685f264b78dd0dcc8d21886cfafa` and
-  remains classified **BED THRESHOLD POLICY UNRESOLVED**.
-- Verify the Phase-7 mapping is evidence-only and the exact documentation
-  write surface is respected.
-- Verify no calibration is generated, regenerated, promoted, or substituted;
-  no runtime/default/configuration source changes occur; and no binary is
+- Record the exact governing task revision.
+- Record relevant upstream calibration commits and parent/diff provenance.
+- Identify calibration, canvas, and remap semantics separately.
+- Classify validation-only versus runtime semantics.
+- Identify the current canonical owner for each material semantic.
+- Assign each relevant change exactly one allowed disposition.
+- Record applicability evidence and uncertainty.
+- Record interactions with accepted Phase 1–6 behavior.
+- Verify no calibration is generated, regenerated, promoted, or substituted.
+- Verify no runtime/default/configuration source is modified and no binary is
   committed.
-- Verify the relevant upstream commits, canonical owners, and all required
-  classifications are recorded in the stable evidence file.
+- Verify the exact Phase-7 execution write surface is respected and the task
+  file is unchanged.
 - Verify the protected converter SHA remains
   `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
 - Run `git diff --check`.
@@ -409,29 +416,44 @@ Stop with `REVIEW BLOCKED` or `PLANNING REQUIRED` if the branch/HEAD does not ma
 
 Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cross the production hold.
 
-## Historical Phase 6 side-effect authorization
+## Phase 7 side-effect authorization
 
-### Explicitly authorized side effects
+### Explicitly authorized during Phase-7 execution
 
-- Read-only access to the designated BED Drive source.
-- Local bounded Phase-6 reference-grounding execution.
-- Create or update only the exact Phase-6 write surface above.
+- Read-only inspection of relevant Git history.
+- Read-only inspection of upstream calibration commits and parents.
+- Read-only inspection of canonical calibration/canvas/remap source.
+- Read-only inspection of existing repository calibration carriers and
+  existing evidence.
+- Update only `.agents/evidence/main-hotfix-reconciliation.md`.
+- Local verification commands that do not mutate calibration or production.
 
 ### Explicitly prohibited side effects
 
-- Drive mutation; BED runtime/default/config changes; threshold algorithm
-  modification; calibration generation, mutation, or promotion; converter or
-  ImageJ/Fiji modification; deployment; production mutation; merge; rebase;
-  cherry-pick; release; or main promotion.
-- Push is not authorized by this corrective remediation.
+- Modifying `.agents/tasks/main-hotfix-reconciliation.md` during Phase-7
+  execution.
+- Runtime calibration changes; calibration generation or regeneration; carrier
+  promotion; carrier substitution; BED/TRX calibration substitution.
+- Threshold-policy changes; TRX-orientation changes; DICOM conversion changes;
+  ImageJ/Fiji changes; production/deployment mutation; optimization
+  implementation; merge; rebase; cherry-pick; release; or main promotion.
+- External-system mutation. Push is not authorized unless separately
+  authorized.
 
 ## Expected terminal outcome
 
 ### Review Required
 
-`PHASE 7 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED`
+For this corrective publication turn:
 
-The historical Phase-6 execution outcomes were `PHASE 6 EVIDENCE CANDIDATE —
-PLANNER REVIEW REQUIRED` or `PHASE 6 EVIDENCE BLOCKED — PLANNER REVIEW
-REQUIRED`; Phase 6 is now accepted/closed. Planner/Reviewer acceptance
-remains separate from release authorization.
+`PHASE 7 CONTRACT REMEDIATION CANDIDATE — PLANNER REVIEW REQUIRED`
+
+For actual Phase-7 execution after Planner acceptance of v1.11:
+
+- successful mapping: `PHASE 7 MAPPING CANDIDATE — PLANNER REVIEW REQUIRED`
+- blocked mapping: `PHASE 7 MAPPING BLOCKED — PLANNER REVIEW REQUIRED`
+
+Phase-7 mapping must not be executed in the same corrective publication
+commit. After Planner accepts v1.11, it becomes executable under the immutable
+v1.11 task revision. Planner/Reviewer acceptance remains separate from release
+authorization.

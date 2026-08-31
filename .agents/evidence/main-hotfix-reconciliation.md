@@ -871,3 +871,22 @@ The protected converter SHA remains
 
 Terminal state: **PHASE 7 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW
 REQUIRED**.
+
+## Phase 7 contract remediation — execution authority separation
+
+The v1.10 publication candidate was
+`d940e17574cd91ea94677ca7fe8889baa15da893`. Planner review found no
+substantive Phase-7 mapping-design defect, but found ambiguity in current-task
+mutability, execution terminal states, and side-effect authority.
+
+Version 1.11 separates the corrective publication write surface from the
+Phase-7 execution write surface. The publication turn may modify only this
+task and evidence file; after Planner acceptance, Phase-7 execution may modify
+only `.agents/evidence/main-hotfix-reconciliation.md`, while the governing task
+file remains immutable. The current Phase-7 side-effect authorization and
+successful/blocked mapping terminal states are explicit.
+
+No Phase-7 mapping was executed. No calibration carrier or runtime behavior was
+changed. During Planner review, remote `refactor/package-boundaries` was
+observed at `d940e17574cd91ea94677ca7fe8889baa15da893`; this is recorded only
+as observed state.
