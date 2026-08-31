@@ -1,7 +1,7 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.3
+version: 1.4
 status: Validated/Published
 language: en-US
 scope:
@@ -102,7 +102,7 @@ The frozen upstream authority remains exactly
 newer; later calibration commits, including `ae41b1d5c11d99420aa195385cefa7e9b5b0a595`
 and `80729162b50e92d99d45061c50ba0d875b2c4202`, are explicitly not absorbed.
 
-Phase 2 regression coverage must establish that Otsu returns a deterministic
+Historical Phase-2 regression coverage established that Otsu returns a deterministic
 scalar, remains within the valid uint16 domain or normalized float32 `[0,1]`
 domain, uses the OpenCV scalar rather than the thresholded array, and updates
 the representative corrected Otsu golden. It must also establish TRX bypass,
@@ -166,15 +166,17 @@ unchanged unrelated downstream stage configuration.
 3. **PHASE 3 — NEWER-MAIN RADIOGRAPHY SEMANTIC DRIFT MAPPING** — `COMPLETED / REVIEW REQUIRED`.
 4. **SUBSEQUENT RUNTIME RECONCILIATION / REVALIDATION / OPTIMIZATION PHASES** — `UNAUTHORIZED`.
 
-## Phase 3 execution contract
+## Historical Phase 3 execution contract — satisfied
 
-The Executor must:
+The following requirements were satisfied by the Phase-3 mapping and evidence
+recorded in `bc093e66c590367b663a6e95073e7e0fd86d210e`; they are historical
+provenance, not current execution authority:
 
-- update this task to version `1.2` and record Phase 2 as accepted/closed;
-- inspect and classify the newer-main semantic drift and evidence boundaries;
-- update the stable evidence file with exact provenance, findings, gaps, and deferred dataset inputs;
-- leave runtime implementation and experiments unauthorized;
-- leave the terminal state `Review Required`.
+- the task and evidence were updated with exact provenance;
+- newer-main semantic drift and evidence boundaries were inspected and classified;
+- deferred dataset inputs were recorded;
+- runtime implementation and experiments remained unauthorized;
+- the terminal state was left `Review Required`.
 
 ## Acceptance criteria
 
