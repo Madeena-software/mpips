@@ -725,7 +725,7 @@ The umbrella task is republished as version `1.8`. Phase 5 is historical
 THRESHOLD POLICY UNRESOLVED**. Its artifacts remain unchanged and are not
 rewritten during this publication.
 
-Phase 6 is the only current released phase. Its objective is to determine
+At that publication revision, Phase 6 was the only current released phase. Its objective was to determine
 whether trustworthy exact-same-acquisition processed/reference material exists
 in the authorized BED Drive source and can be losslessly associated with the
 Phase-5 acquisition radiographs for an engineering comparison baseline. The
@@ -836,3 +836,38 @@ changed metadata 0; the inventory matches. Programmatic taxonomy counts are 0
 The final classification remains **BED THRESHOLD POLICY UNRESOLVED**. Because
 the exact count is zero, Phase 6 short-circuited; AUTO/NONE were not rerun and
 no reference measurements were performed. No runtime policy change occurred.
+
+## Phase 7 task republication — calibration semantic reconciliation mapping
+
+The umbrella task is republished as version `1.10`. Phase 6 is accepted and
+closed at `3809463632685f264b78dd0dcc8d21886cfafa`. Its final classification is
+**BED THRESHOLD POLICY UNRESOLVED**. The BED bypass from newer `main` was not
+evidence-accepted and remains unported; canonical BED configured-threshold
+behavior is retained unchanged. This is a conservative no-change decision,
+not evidence that the configured threshold is superior. BED threshold
+reconciliation is closed unless materially new provenance or evidence appears.
+
+Phase 7 is the only current released phase. It is a documentation- and
+evidence-only mapping of newer-main calibration semantic drift, including
+primary commits `ae41b1d5c11d99420aa195385cefa7e9b5b0a595` and
+`80729162b50e92d99d45061c50ba0d875b2c4202`. The mapping must establish
+calibration/canvas/remap semantic changes, distinguish validation-only from
+runtime semantics, identify current canonical owners, evaluate newer-main
+expanded-canvas behavior, record interactions with accepted Phase-1–6 image
+processing, and determine whether existing carriers/evidence establish
+applicability without generating or promoting calibration.
+
+Each relevant change must receive exactly one disposition: **ALREADY
+SATISFIED**, **PORT / RECONCILE CANDIDATE**, **EVIDENCE REQUIRED**,
+**INCOMPATIBLE / REJECT**, **PRODUCTION INFRASTRUCTURE ONLY**, or **DEFER**.
+Phase 7 runtime implementation remains **UNAUTHORIZED**. This republication
+turn did not execute the mapping, inspect or mutate external calibration
+sources, generate or regenerate calibration, promote carriers, change runtime
+code, alter threshold policy, alter TRX orientation, alter DICOM conversion,
+deploy, or mutate production.
+
+The protected converter SHA remains
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+Terminal state: **PHASE 7 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW
+REQUIRED**.

@@ -1,7 +1,7 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.9
+version: 1.10
 status: Validated/Published
 language: en-US
 scope:
@@ -10,7 +10,8 @@ scope:
   - newer-main radiography semantic-drift mapping
   - bounded canonical TRX orientation port
   - BED threshold policy reference grounding
-authority_note: This task authorizes only the bounded Phase 6 BED threshold policy reference grounding described below. It does not authorize BED runtime-policy changes, calibration changes, production activity, optimization, or release activity.
+  - newer-main calibration semantic reconciliation mapping
+authority_note: This task authorizes only the bounded Phase 7 calibration semantic reconciliation mapping described below. It does not authorize calibration runtime changes, BED runtime-policy changes, production activity, optimization, or release activity.
 ---
 
 # Executable Task
@@ -49,7 +50,7 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
 
 ## Objective
 
-**Objective:** Maintain the accepted Phase 1–5 reconciliation history, then determine whether trustworthy exact-same-acquisition BED reference material can be associated with the Phase-5 cases for an engineering comparison baseline. BED runtime-policy reconciliation, calibration, revalidation, optimization, and production work remain unauthorized.
+**Objective:** Maintain the accepted Phase 1–6 reconciliation history, then map and evaluate newer-main calibration semantic drift before any canonical implementation. Calibration runtime implementation, BED runtime-policy reconciliation, revalidation, optimization, and production work remain unauthorized.
 
 ## Authoritative inputs
 
@@ -135,7 +136,7 @@ trustworthy exact-same-acquisition engineering reference. Preserve its JSON,
 CSV, and Markdown artifacts as historical evidence; do not rewrite them during
 this publication.
 
-### Phase 6 write surface
+### Historical Phase 6 write surface
 
 The future Phase-6 execution write surface is exactly:
 
@@ -153,7 +154,7 @@ production dependency, and modify no canonical runtime semantics. No external
 radiograph, NPZ, TIFF, thumbnail, generated image, NumPy array, calibration
 carrier, or other patient/subject binary may be committed.
 
-### Phase 6 execution contract
+### Historical Phase 6 execution contract
 
 Phase 6 is provenance/reference grounding first. It must determine whether
 trustworthy exact-same-acquisition reference material can be losslessly
@@ -215,7 +216,7 @@ ImageJ/Fiji closure, accepted TRX orientation/bypass, current BED configured
 threshold behavior, and `NPZ → processing → DICOM` boundaries. Historical
 threshold results affected by corrected Otsu semantics are context only.
 
-### Out of scope
+### Historical Phase 6 out of scope
 
 - Any file outside the Phase-6 evidence write surface above.
 - Calibration, diagnostic or stage-observer plumbing, collapse-gate validation rules, validation/promotion/deployment infrastructure, and production API expansion.
@@ -224,13 +225,56 @@ threshold results affected by corrected Otsu semantics are context only.
 - Broad Radiography Pipeline Optimization or a new experiment.
 - Rewriting or deleting historical I-5B evidence.
 
-### Preserved behavior
+### Historical Phase 6 preserved behavior
 
 - The accepted ImageJ/Fiji closure remains protected at baseline `a4a5c16881e589154680f0606c849e2a4514041f`.
 - `mpips/conversion/tiff_json_to_dcm.py` remains byte-identical; required SHA-256 is `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
 - Accepted Phase 2 behavior remains historical: TRX threshold separation is bypassed by default; BED retains its configured threshold method.
 - Historical I-5B evidence remains intact. Otsu-affected threshold rows may require bounded revalidation; CLAHE and unaffected rows are not automatically invalidated.
 - Historical Phase-5 characterization used the deferred detector-specific BED and TRX Drive sources only as bounded evidence inputs; no current Phase-6 cohort or optimization scope is implied.
+
+## Phase 7 — Calibration Semantic Reconciliation Mapping
+
+### Phase 7 objective
+
+Map and evaluate newer-main calibration semantic drift before any canonical
+implementation. Primary upstream calibration commits include
+`ae41b1d5c11d99420aa195385cefa7e9b5b0a595` and
+`80729162b50e92d99d45061c50ba0d875b2c4202`.
+
+Establish exactly what calibration, canvas, and remap semantics changed; which
+changes are validation-only versus runtime semantics; which canonical
+package/module owns each semantic now; whether newer-main expanded-canvas
+behavior is already satisfied, incompatible, obsolete, or a bounded canonical
+port candidate; interactions with accepted Phase-1–6 image-processing
+behavior; and whether existing calibration carriers/evidence establish
+applicability without generating or promoting new calibration artifacts.
+
+Classify each relevant upstream calibration change as exactly one of:
+`ALREADY SATISFIED`, `PORT / RECONCILE CANDIDATE`, `EVIDENCE REQUIRED`,
+`INCOMPATIBLE / REJECT`, `PRODUCTION INFRASTRUCTURE ONLY`, or `DEFER`.
+
+### Phase 7 evidence-only contract
+
+Inspect the primary upstream commits, relevant parents and diffs, canonical
+calibration/canvas/remap owners, accepted Phase-1–6 evidence, and existing
+calibration carriers without mutating or generating calibration. Record exact
+commit provenance, semantic behavior, canonical ownership,
+validation/runtime classification, applicability evidence, interactions,
+conflicts, and bounded disposition in the stable evidence file.
+
+Do not port calibration runtime changes, generate or regenerate calibration,
+promote calibration carriers, substitute TRX/BED calibration, modify threshold
+policy, TRX orientation, DICOM conversion, or accepted image-processing
+behavior. Do not execute Phase 7 during this publication turn.
+
+### Phase 7 write surface
+
+- `.agents/tasks/main-hotfix-reconciliation.md`
+- `.agents/evidence/main-hotfix-reconciliation.md`
+
+No calibration carrier, generated artifact, patient/subject binary, runtime
+source, test, configuration, deployment, or production file is in scope.
 
 ## Dependencies and assumptions
 
@@ -243,24 +287,32 @@ threshold results affected by corrected Otsu semantics are context only.
 ### Approved assumptions
 
 - The canonical owners are under `mpips/processing/`, `mpips/pipelines/`, `mpips/workflows/imager_pipeline/`, and `mpips/calibration/`; removed `mpips/engine/` modules must not be resurrected.
-- Phases 1–5 are accepted and closed. Phase 6 ends at `Review Required`.
+- Phases 1–6 are accepted and closed. Phase 6 is accepted at
+  `3809463632685f264b78dd0dcc8d21886cfafa` with final classification
+  **BED THRESHOLD POLICY UNRESOLVED**.
 
 ### Remaining approval requirements
 
-- Reviewer acceptance is recorded for Phases 2–5. Planner/Reviewer review is required after Phase 6 evidence execution.
+- Reviewer acceptance is recorded for Phases 2–6. Planner/Reviewer review is
+  required after Phase 7 evidence mapping.
 - Every material phase must end `Review Required` and republish this same task path with a new immutable SHA before the next phase is executable.
 - Acceptance does not authorize promotion, deployment, or release.
 
 ## Required capabilities
 
-- Repository read/write access limited to the exact Phase 6 evidence write surface
-- Local command execution and bounded reference-grounding verification
+- Repository read/write access limited to the exact Phase 7 documentation write
+  surface
+- Local read-only upstream history and canonical-owner inspection
 
 ## Execution constraints
 
-- Preserve accepted Phase-1–5 provenance.
-- Change only the Phase-6 write surface; do not modify BED runtime thresholding, calibration, conversion, ImageJ, filtering, config, API, deployment, or production behavior.
-- Do not run Phase 6 during task republication. Do not merge, rebase, cherry-pick, run production workflows, deploy, release, or mutate external systems.
+- Preserve accepted Phase-1–6 provenance, including the unresolved BED policy.
+- Change only the Phase-7 documentation write surface; do not modify BED runtime
+  thresholding, calibration, conversion, ImageJ, filtering, config, API,
+  deployment, or production behavior.
+- Do not run Phase 7 during task republication. Do not generate/regenerate or
+  promote calibration, merge, rebase, cherry-pick, deploy, release, or mutate
+  external systems.
 
 ## Phase map
 
@@ -269,9 +321,9 @@ threshold results affected by corrected Otsu semantics are context only.
 3. **PHASE 3 — NEWER-MAIN RADIOGRAPHY SEMANTIC DRIFT MAPPING** — `ACCEPTED / CLOSED` at `b9093b0aec5dd66cf2a5afcd5028c2876cf889bd`.
 4. **PHASE 4 — CANONICAL TRX ORIENTATION PORT** — `ACCEPTED / CLOSED` at `820948734e8b598b851135cc82c2210ead934963`.
 5. **PHASE 5 — BED THRESHOLD POLICY EVIDENCE CHARACTERIZATION** — `ACCEPTED / CLOSED` at `80d815c191766798bf0a6977f7abcbe24977cfbd`.
-6. **PHASE 6 — BED THRESHOLD POLICY REFERENCE GROUNDING** — `CURRENT RELEASED PHASE`.
-7. **BED RUNTIME-POLICY IMPLEMENTATION** — `UNAUTHORIZED`.
-8. **CALIBRATION RECONCILIATION** — `UNAUTHORIZED`.
+6. **PHASE 6 — BED THRESHOLD POLICY REFERENCE GROUNDING** — `ACCEPTED / CLOSED` at `3809463632685f264b78dd0dcc8d21886cfafa`.
+7. **PHASE 7 — CALIBRATION SEMANTIC RECONCILIATION MAPPING** — `CURRENT RELEASED PHASE`.
+8. **CALIBRATION RUNTIME IMPLEMENTATION** — `UNAUTHORIZED`.
 9. **BROADER REVALIDATION / OPTIMIZATION / PRODUCTION PHASES** — `UNAUTHORIZED`.
 
 ## Historical Phase 3 execution contract — satisfied
@@ -321,7 +373,7 @@ implementation; they are historical facts, not current execution authority:
 
 ## Verification requirements
 
-### Required checks for Phase 6
+### Required checks for Phase 7 publication
 
 - `./.venv/bin/python -m pytest -q tests/test_iqa_safety.py`
 - `./.venv/bin/python -m pytest -q tests/test_imager_pipeline_workflow.py`
@@ -334,13 +386,15 @@ implementation; they are historical facts, not current execution authority:
 
 ### Phase-6 evidence checks
 
-- Verify processed/reference material is inventoried separately from acquisition, gain, calibration, and generated-output artifacts.
-- Verify each reference classification has evidence; exact-same-acquisition requires positive provenance.
-- Verify JSON parses, CSV and JSON rows agree, and Markdown conclusions are traceable to machine-readable evidence.
-- Verify only lossless geometry reconciliation is used; otherwise classify `NON-COMPARABLE`.
-- Verify the exact Phase-6 write surface is respected.
-- Verify no NPZ, TIFF, image, NumPy, calibration, or other binary is committed.
-- Verify no runtime, default, or configuration source changes occur.
+- Verify Phase 6 is accepted at `3809463632685f264b78dd0dcc8d21886cfafa` and
+  remains classified **BED THRESHOLD POLICY UNRESOLVED**.
+- Verify the Phase-7 mapping is evidence-only and the exact documentation
+  write surface is respected.
+- Verify no calibration is generated, regenerated, promoted, or substituted;
+  no runtime/default/configuration source changes occur; and no binary is
+  committed.
+- Verify the relevant upstream commits, canonical owners, and all required
+  classifications are recorded in the stable evidence file.
 - Verify the protected converter SHA remains
   `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
 - Run `git diff --check`.
@@ -355,7 +409,7 @@ Stop with `REVIEW BLOCKED` or `PLANNING REQUIRED` if the branch/HEAD does not ma
 
 Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cross the production hold.
 
-## Side-effect authorization
+## Historical Phase 6 side-effect authorization
 
 ### Explicitly authorized side effects
 
@@ -375,9 +429,9 @@ Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cros
 
 ### Review Required
 
-`PHASE 6 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED`
+`PHASE 7 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED`
 
-Phase-6 execution outcomes are `PHASE 6 EVIDENCE CANDIDATE — PLANNER REVIEW
-REQUIRED` on successful completion or `PHASE 6 EVIDENCE BLOCKED — PLANNER
-REVIEW REQUIRED` when a stop condition prevents trustworthy completion.
-Planner/Reviewer acceptance remains separate from release authorization.
+The historical Phase-6 execution outcomes were `PHASE 6 EVIDENCE CANDIDATE —
+PLANNER REVIEW REQUIRED` or `PHASE 6 EVIDENCE BLOCKED — PLANNER REVIEW
+REQUIRED`; Phase 6 is now accepted/closed. Planner/Reviewer acceptance
+remains separate from release authorization.
