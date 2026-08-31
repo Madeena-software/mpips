@@ -69,7 +69,7 @@ def test_bed_nonzero_crop_preserves_expected_pixels() -> None:
     assert result.dtype == np.uint16
 
 
-def test_trx_zero_crop_rotates_counterclockwise() -> None:
+def test_trx_zero_crop_rotates_clockwise() -> None:
     from mpips.processing.geometry import crop_and_rotate
 
     image = np.arange(12, dtype=np.uint8).reshape(3, 4)
@@ -79,7 +79,7 @@ def test_trx_zero_crop_rotates_counterclockwise() -> None:
     np.testing.assert_array_equal(
         result,
         np.array(
-            [[3, 7, 11], [2, 6, 10], [1, 5, 9], [0, 4, 8]],
+            [[8, 4, 0], [9, 5, 1], [10, 6, 2], [11, 7, 3]],
             dtype=np.uint8,
         ),
     )
@@ -101,7 +101,7 @@ def test_trx_nonzero_crop_precedes_rotation() -> None:
         crop_right=1,
     )
 
-    np.testing.assert_array_equal(result, np.array([[8, 13], [7, 12], [6, 11]]))
+    np.testing.assert_array_equal(result, np.array([[11, 6], [12, 7], [13, 8]]))
     assert result.shape == (3, 2)
     assert result.dtype == np.uint16
 
@@ -119,7 +119,6 @@ def test_geometry_preserves_supported_integer_dtype(dtype: type[np.generic]) -> 
 
 def test_workflow_crop_and_rotate_uses_config() -> None:
     from mpips.pipelines.config import ImagerPipelineConfig
-    from mpips.processing.geometry import crop_and_rotate
     from mpips.workflows.imager_pipeline.pipeline import (
         crop_and_rotate as workflow_crop,
     )
@@ -132,13 +131,6 @@ def test_workflow_crop_and_rotate_uses_config() -> None:
         crop_right=1,
     )
     result = workflow_crop(image, "TRX", config)
-    expected = crop_and_rotate(
-        image,
-        "TRX",
-        crop_top=config.crop_top,
-        crop_bottom=config.crop_bottom,
-        crop_left=config.crop_left,
-        crop_right=config.crop_right,
-    )
-
-    np.testing.assert_array_equal(result, expected)
+    np.testing.assert_array_equal(result, np.array([[11, 6], [12, 7], [13, 8]]))
+    assert result.shape == (3, 2)
+    assert result.dtype == np.uint16

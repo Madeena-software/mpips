@@ -13,10 +13,10 @@ def crop_and_rotate(
     crop_left: int = 0,
     crop_right: int = 0,
 ) -> np.ndarray:
-    """Crop image borders and rotate TRX images counterclockwise."""
+    """Crop image borders and rotate TRX images clockwise."""
     height, width = image.shape[:2]
     cropped = image[crop_top : height - crop_bottom, crop_left : width - crop_right]
 
     if detector_mode == "TRX":
-        return cv2.rotate(cropped, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        return cv2.rotate(cropped, cv2.ROTATE_90_CLOCKWISE)
     return cropped

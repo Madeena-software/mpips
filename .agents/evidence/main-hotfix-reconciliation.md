@@ -535,3 +535,65 @@ that no push occurred. The candidate was reported as locally created; the
 remote branch was later observed at that candidate, and attribution of the
 remote update is unresolved. No runtime semantic was changed during this
 corrective remediation.
+
+## Phase 4 — Canonical TRX Orientation Port Evidence
+
+### Execution identity
+
+- Governing task: `.agents/tasks/main-hotfix-reconciliation.md` version `1.5` at `5f6e03d928c0d7e062f1cb666f4ab57e0273ff3a`.
+- Execution-start `HEAD`: `5f6e03d928c0d7e062f1cb666f4ab57e0273ff3a`.
+- Branch/worktree: `refactor/package-boundaries` / `/var/www/mpips`.
+- Initial worktree: clean; observed `origin/refactor/package-boundaries` at `5f6e03d928c0d7e062f1cb666f4ab57e0273ff3a`; observed `origin/main` at `e94784db65bb134d43e87a2046037ab4d1cbfe02`.
+
+### Orientation result
+
+Canonical owner: `mpips/processing/geometry.py`, function
+`crop_and_rotate()`. The old TRX operation was
+`cv2.ROTATE_90_COUNTERCLOCKWISE`; it is now
+`cv2.ROTATE_90_CLOCKWISE`. Crop-before-rotation remains unchanged and no
+second transform was added.
+
+For the exact sentinel input:
+
+```text
+[[1, 2, 3],
+ [4, 5, 6]]
+```
+
+the observed TRX output is:
+
+```text
+[[4, 1],
+ [5, 2],
+ [6, 3]]
+```
+
+The cropped TRX sentinel output was `[[11, 6], [12, 7], [13, 8]]`, with
+shape `(3, 2)` and `uint16` dtype. The workflow wrapper produced the same
+exact pixels, shape, and dtype. BED remained crop-only and unrotated, with
+the cropped sentinel output `[[6, 7, 8], [11, 12, 13]]`, shape `(2, 3)`,
+and `uint16` dtype. Zero-crop BED and supported `uint8`/`uint16` dtype
+coverage also passed.
+
+### Verification
+
+Executor-run local results, not GitHub CI or production evidence:
+
+- `./.venv/bin/python -m pytest -q tests/test_geometry_processing.py` — **8 passed**.
+- `./.venv/bin/python -m pytest -q tests/test_imager_pipeline_workflow.py` — **27 passed, 1 skipped, 3 warnings**.
+- `./.venv/bin/python -m pytest -q tests/test_radiography_pipeline.py` — **28 passed, 11 warnings**.
+- `./.venv/bin/python -m pytest -q tests/test_converter_protection.py` — **1 passed**.
+- `sha256sum mpips/conversion/tiff_json_to_dcm.py` — **a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0**.
+- `git diff --check` — **PASS**.
+
+Exact changed-file inventory: `mpips/processing/geometry.py`,
+`tests/test_geometry_processing.py`, and
+`.agents/evidence/main-hotfix-reconciliation.md`.
+
+Explicitly unchanged: BED threshold policy (**NO change**); calibration and
+calibration canvas/remap (**NO change**); DICOM converter (**NO change**);
+ImageJ/Fiji (**NO change**); deployment (**NO**); production workflow dispatch
+and production mutation (**NO**); Drive experiments (**NO**); optimization
+(**NO**). The NPZ → processing → DICOM boundaries remain preserved.
+
+Terminal state: **Review Required**. No next reconciliation phase was started.
