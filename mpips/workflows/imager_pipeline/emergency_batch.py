@@ -6,6 +6,7 @@ import argparse
 import json
 import re
 import sys
+from datetime import date, datetime, time, timezone
 from pathlib import Path
 from typing import Any, Callable
 
@@ -98,9 +99,22 @@ def _build_case(row: Any, root: Path, index: int) -> tuple[Path, MHCSManifest, s
         captured_at=row.get("captured_at"),
         radiograph=FileManifestSchema(filename=source.name),
     )
+    performed_at = row.get("performed_at")
+    examination_time_known = None
+    if isinstance(performed_at, str) and len(performed_at) == 10:
+        try:
+            performed_at = datetime.combine(
+                date.fromisoformat(performed_at), time.min, tzinfo=timezone.utc
+            )
+        except ValueError as exc:
+            raise ManifestValidationError(
+                f"case {index} performed_at is not a valid date"
+            ) from exc
+        examination_time_known = False
     examination = ExaminationSchema(
         examination_id=row.get("examination_id"),
-        performed_at=row.get("performed_at"),
+        performed_at=performed_at,
+        examination_time_known=examination_time_known,
         study_description=row.get("study_description", "CHEST RADIOGRAPH"),
     )
     return (

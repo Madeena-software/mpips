@@ -51,12 +51,48 @@ def build_converter_metadata_json(
     )
 
     capture = getattr(manifest, "capture", None)
-    if capture and capture.captured_at:
-        time_str = capture.captured_at.strftime("%y%m%d%H%M%S")
-    else:
-        from datetime import datetime, timezone
+    examination = getattr(manifest, "examination", None)
+    resolved = hasattr(examination, "performed_at_is_authoritative")
+    study_authoritative = (
+        getattr(examination, "performed_at_is_authoritative", False)
+        if resolved
+        else getattr(examination, "performed_at", None) is not None
+        or getattr(capture, "captured_at", None) is not None
+    )
+    study_dt = (
+        getattr(examination, "performed_at", None)
+        if getattr(examination, "performed_at", None) is not None
+        else getattr(capture, "captured_at", None)
+    )
+    study_time_known = (
+        getattr(examination, "examination_time_known", True)
+        if resolved
+        else getattr(examination, "examination_time_known", None) is not False
+    )
+    content_authoritative = (
+        getattr(capture, "captured_at_is_authoritative", False)
+        if resolved
+        else getattr(capture, "captured_at", None) is not None
+    )
+    content_dt = getattr(capture, "captured_at", None)
 
-        time_str = datetime.now(timezone.utc).strftime("%y%m%d%H%M%S")
+    study_date = study_dt.strftime("%Y%m%d") if study_authoritative and study_dt else ""
+    study_time = (
+        study_dt.strftime("%H%M%S")
+        if study_authoritative and study_dt and study_time_known
+        else ""
+    )
+    content_date = (
+        content_dt.strftime("%Y%m%d") if content_authoritative and content_dt else ""
+    )
+    content_time = (
+        content_dt.strftime("%H%M%S") if content_authoritative and content_dt else ""
+    )
+    time_str = (
+        study_dt.strftime("%y%m%d%H%M%S")
+        if study_authoritative and study_dt and study_time_known
+        else ""
+    )
 
     image_spacing = getattr(capture, "image_spacing", None)
     if image_spacing is not None:
@@ -66,7 +102,6 @@ def build_converter_metadata_json(
         scale_x = 140.0
         scale_y = 140.0
 
-    examination = getattr(manifest, "examination", None)
     dicom = getattr(manifest, "dicom", None)
     study_desc = (
         getattr(examination, "study_description", None) if examination else None
@@ -83,6 +118,10 @@ def build_converter_metadata_json(
         "Scale X": scale_x,
         "Scale Y": scale_y,
         "Time": time_str,
+        "StudyDate": study_date,
+        "StudyTime": study_time,
+        "ContentDate": content_date,
+        "ContentTime": content_time,
         "StudyDescription": study_desc,
         "SeriesDescription": series_desc,
     }

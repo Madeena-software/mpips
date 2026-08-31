@@ -5,7 +5,7 @@ import pydicom
 from pydicom.uid import UID, generate_uid
 
 from mpips.api.schemas.dicom import MHCSManifest, ResolvedMHCSManifest
-from mpips.conversion.metadata import format_person_name
+from mpips.conversion.metadata import build_converter_metadata_json, format_person_name
 
 
 def enrich_dicom_file(
@@ -34,6 +34,12 @@ def enrich_dicom_file(
     examination = getattr(manifest, "examination", None)
     site = getattr(manifest, "site", None)
     capture = getattr(manifest, "capture", None)
+
+    temporal = build_converter_metadata_json(manifest)
+    ds.StudyDate = temporal["StudyDate"]
+    ds.StudyTime = temporal["StudyTime"]
+    ds.ContentDate = temporal["ContentDate"]
+    ds.ContentTime = temporal["ContentTime"]
 
     # Examination & Study
     accession_number = (

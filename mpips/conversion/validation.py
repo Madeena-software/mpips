@@ -76,6 +76,53 @@ def validate_dicom_dataset(
     ):
         raise DICOMValidationError("SeriesInstanceUID mismatch")
 
+    resolved = hasattr(examination, "performed_at_is_authoritative")
+    study_authoritative = (
+        getattr(examination, "performed_at_is_authoritative", False)
+        if resolved
+        else getattr(examination, "performed_at", None) is not None
+        or getattr(capture, "captured_at", None) is not None
+    )
+    study_dt = (
+        getattr(examination, "performed_at", None)
+        if getattr(examination, "performed_at", None) is not None
+        else getattr(capture, "captured_at", None)
+    )
+    study_time_known = (
+        getattr(examination, "examination_time_known", True)
+        if resolved
+        else getattr(examination, "examination_time_known", None) is not False
+    )
+    content_authoritative = (
+        getattr(capture, "captured_at_is_authoritative", False)
+        if resolved
+        else getattr(capture, "captured_at", None) is not None
+    )
+    content_dt = getattr(capture, "captured_at", None)
+    expected_temporal = {
+        "StudyDate": (
+            study_dt.strftime("%Y%m%d") if study_authoritative and study_dt else ""
+        ),
+        "StudyTime": (
+            study_dt.strftime("%H%M%S")
+            if study_authoritative and study_dt and study_time_known
+            else ""
+        ),
+        "ContentDate": (
+            content_dt.strftime("%Y%m%d")
+            if content_authoritative and content_dt
+            else ""
+        ),
+        "ContentTime": (
+            content_dt.strftime("%H%M%S")
+            if content_authoritative and content_dt
+            else ""
+        ),
+    }
+    for keyword, expected in expected_temporal.items():
+        if str(getattr(ds, keyword, "")) != expected:
+            raise DICOMValidationError(f"{keyword} does not match authoritative source")
+
     accession_number = (
         getattr(examination, "accession_number", None) if examination else None
     )

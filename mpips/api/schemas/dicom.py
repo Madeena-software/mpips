@@ -32,6 +32,7 @@ class ExaminationSchema(BaseModel):
     accession_number: Optional[str] = Field(None, max_length=16)
     study_id: Optional[str] = Field(None, max_length=16)
     performed_at: Optional[datetime] = None
+    examination_time_known: Optional[bool] = None
     study_description: str = Field("CHEST RADIOGRAPH", min_length=1, max_length=64)
     protocol_name: Optional[str] = Field(None, max_length=64)
 
@@ -196,6 +197,8 @@ class ResolvedExaminationSchema(BaseModel):
     accession_number: str = Field(..., min_length=1, max_length=16)
     study_id: str = Field(..., min_length=1, max_length=16)
     performed_at: datetime
+    performed_at_is_authoritative: bool
+    examination_time_known: bool
     study_description: str = Field(..., min_length=1, max_length=64)
     protocol_name: Optional[str] = Field(None, max_length=64)
 
@@ -238,6 +241,7 @@ class ResolvedCaptureSchema(BaseModel):
     laterality: Literal["R", "L", "U", "B"]
     projection: str = Field(..., min_length=1, max_length=16)
     captured_at: datetime
+    captured_at_is_authoritative: bool
     radiograph: ResolvedFileManifestSchema
     gain: ResolvedFileManifestSchema
     image_spacing: Optional[ImageSpacingSchema] = None
@@ -364,13 +368,20 @@ def resolve_mhcs_manifest(
     accession_number = (
         exam_in.accession_number or f"ACC-{conversion_job_id.hex[:10].upper()}"
     )
-    if capture_in.captured_at is not None:
+    capture_is_authoritative = capture_in.captured_at is not None
+    examination_is_authoritative = exam_in.performed_at is not None
+    if capture_is_authoritative:
         captured_at = capture_in.captured_at
     else:
         # Deterministic fallback timestamp derived from conversion_job_id
         ts_offset = conversion_job_id.int % (365 * 86400)
         captured_at = datetime.fromtimestamp(1770000000 + ts_offset, tz=timezone.utc)
     performed_at = exam_in.performed_at or captured_at
+    examination_time_known = (
+        exam_in.examination_time_known
+        if exam_in.examination_time_known is not None
+        else examination_is_authoritative or capture_is_authoritative
+    )
 
     # 7. Construct Resolved Sub-models
     resolved_exam = ResolvedExaminationSchema(
@@ -382,6 +393,10 @@ def resolve_mhcs_manifest(
         accession_number=accession_number,
         study_id=exam_in.study_id or "STUDY01",
         performed_at=performed_at,
+        performed_at_is_authoritative=(
+            examination_is_authoritative or capture_is_authoritative
+        ),
+        examination_time_known=examination_time_known,
         study_description=exam_in.study_description or "CHEST RADIOGRAPH",
         protocol_name=exam_in.protocol_name,
     )
@@ -425,6 +440,7 @@ def resolve_mhcs_manifest(
         laterality=capture_in.laterality or "U",
         projection=capture_in.projection or "PA",
         captured_at=captured_at,
+        captured_at_is_authoritative=capture_is_authoritative,
         radiograph=resolved_rad,
         gain=resolved_gain,
         image_spacing=capture_in.image_spacing,
