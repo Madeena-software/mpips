@@ -1,7 +1,7 @@
 ---
 title: MPIPS emergency local TRX batch DICOM capability
 document_id: TASK-MPIPS-EMERGENCY-LOCAL-TRX-BATCH
-version: 1.1
+version: 1.2
 status: Validated/Published
 language: en-US
 scope:
@@ -109,6 +109,44 @@ This is a separately gated operational phase. It MUST NOT occur until
 Planner/Reviewer accepts the implementation and the one corrected local DICOM.
 The complete 45-study population remains unauthorized by this task.
 
+### Automated single-DICOM directory upload
+
+For this bounded one-DICOM YiZhun validation only, a `multiple` and/or
+`webkitdirectory` file input is not itself a stop condition. Automation MAY use
+Playwright's supported directory-upload behavior only when every condition
+below is satisfied:
+
+1. Create a dedicated temporary upload directory outside the repository.
+2. The directory contains exactly one regular file: the previously accepted
+   corrected DICOM.
+3. Immediately before browser selection, that file's SHA-256 is
+   `5898cc58abf1690d4f185f69a3f4e03611ff44e78a7bbe04ac0123a44618e845`.
+4. The directory contains no symlinks, nested directories, hidden second DICOM,
+   temporary file, sidecar, manifest, or unrelated file.
+5. Supply the directory path to the existing
+   `input[type=file][webkitdirectory]` using supported
+   `set_input_files(directory)` behavior. Do not pass a list of 45 files, the
+   complete source/DICOM directory, or the parent validation directory.
+6. Do not remove or rewrite `multiple`, `webkitdirectory`, or other upload
+   attributes; do not inject a synthetic `FileList` or call undocumented YiZhun
+   upload APIs.
+7. After selection and before any submit/import action, inspect the browser
+   input/UI state and require `input.files.length == 1`; the selected filename
+   must be the sole accepted corrected DICOM and any visible queue must contain
+   exactly one file/study.
+8. If the selected or queued count is not exactly one, stop and clear the
+   selection only if that can be done without committing an upload.
+
+Use an isolated directory such as
+`/tmp/mpips-one-dicom-temporal-validation/yizhun-upload-one/`, containing only
+`corrected.dcm`. Before browser interaction, verify recursively that directories
+below the upload root = 0, regular files = 1, symlinks = 0, and the SHA-256
+matches the accepted value above.
+
+The one-upload maximum remains unchanged. This exception does not authorize a
+second DICOM, the remaining 44 studies, bulk patient processing, deletion,
+report generation, or cleanup.
+
 ### Sample selection and local acceptance
 
 Select one sample privately from the already-authorized CV Prestige population:
@@ -152,10 +190,11 @@ the result as `REPLACED_OR_UPDATED`, `REJECTED_DUPLICATE`,
 visible corrected examination date where exposed, and absence of unrelated
 impact. Stop after this upload regardless of outcome.
 
-Stop immediately if YiZhun requires bulk selection, target identity cannot be
-established safely, an unrelated study could be overwritten, more than one new
-study appears, patient identity changes, the image is not the intended image,
-or deletion/destructive remediation is required.
+Stop immediately if automation would select more than one file, YiZhun requires
+bulk patient selection, target identity cannot be established safely, an
+unrelated study could be overwritten, more than one new study appears, patient
+identity changes, the image is not the intended image, or deletion/destructive
+remediation is required.
 
 The one-DICOM result is a decision gate. Planner/Reviewer must inspect the local
 corrected-DICOM evidence and private YiZhun before/after result before deciding
