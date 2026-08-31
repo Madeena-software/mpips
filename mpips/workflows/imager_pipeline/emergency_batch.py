@@ -5,10 +5,12 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any, Callable
 
 import numpy as np
+import pydicom
 
 from mpips.api.schemas.dicom import (
     CaptureSchema,
@@ -19,6 +21,7 @@ from mpips.api.schemas.dicom import (
     PersonNameSchema,
 )
 from mpips.conversion.service import run_isolated_dicom_conversion
+from mpips.conversion.validation import validate_dicom_dataset
 from mpips.workflows.imager_pipeline.npz_io import (
     NPZValidationError,
     load_gain_catalog,
@@ -138,8 +141,14 @@ def _preflight(
         with np.load(remap_path) as remap:
             if not {"map_x", "map_y"}.issubset(remap.files):
                 raise ManifestValidationError("calibration remap lacks map_x/map_y")
-            if remap["map_x"].shape != remap["map_y"].shape:
+            remap_shape = remap["map_x"].shape
+            if remap_shape != remap["map_y"].shape:
                 raise ManifestValidationError("calibration remap shapes differ")
+            expected_shape = tuple(metadata.get("image_shape", ()))
+            if len(expected_shape) != 2 or remap_shape != expected_shape:
+                raise ManifestValidationError(
+                    "calibration remap shape does not match image_shape"
+                )
     except ManifestValidationError:
         raise
     except Exception as exc:
@@ -168,6 +177,10 @@ def _preflight(
         expected_shape = tuple(metadata.get("image_shape", ()))
         if len(expected_shape) != 2 or tuple(radiograph["raw"].shape) != expected_shape:
             error = "ManifestValidationError"
+        if gain.dark.shape != radiograph["raw"].shape:
+            error = "ManifestValidationError"
+        if gain.flat.shape != radiograph["raw"].shape:
+            error = "ManifestValidationError"
         cases.append((source, manifest, capture_id, error))
     return cases, gain_path, calibration_dir
 
@@ -194,8 +207,16 @@ def run_emergency_batch(
         if preflight_error is not None:
             result["status"] = "failed"
             result["error"] = preflight_error
-        elif output.is_file() and output.stat().st_size > 0:
-            result["status"] = "skipped"
+        elif output.exists():
+            try:
+                existing = pydicom.dcmread(output, stop_before_pixels=True)
+                shape = (int(existing.Rows), int(existing.Columns))
+                validate_dicom_dataset(output, case_manifest, shape)
+            except Exception as exc:
+                result["status"] = "failed"
+                result["error"] = type(exc).__name__
+            else:
+                result["status"] = "skipped"
         else:
             try:
                 if converter is None:
@@ -217,14 +238,15 @@ def run_emergency_batch(
                 result["error"] = type(exc).__name__
         results.append(result)
 
-    summary = {
-        "counts": {
-            "total": len(results),
-            "succeeded": sum(
-                item["status"] in {"completed", "skipped"} for item in results
-            ),
-            "failed": sum(item["status"] == "failed" for item in results),
-        },
+    counts: dict[str, int] = {
+        "total": len(results),
+        "succeeded": sum(
+            item["status"] in {"completed", "skipped"} for item in results
+        ),
+        "failed": sum(item["status"] == "failed" for item in results),
+    }
+    summary: dict[str, Any] = {
+        "counts": counts,
         "items": results,
     }
     (destination / "summary.json").write_text(
@@ -250,7 +272,16 @@ def main() -> None:
     args = parser.parse_args()
     if args.dry_run:
         document = _load_document(args.manifest.resolve())
-        _preflight(document, args.manifest.resolve().parent)
+        cases, _, _ = _preflight(document, args.manifest.resolve().parent)
+        failures = [
+            f"{capture_id}: {error}"
+            for _, _, capture_id, error in cases
+            if error is not None
+        ]
+        if failures:
+            print("preflight failed", file=sys.stderr)
+            print("\n".join(failures), file=sys.stderr)
+            raise SystemExit(1)
         print(f"preflight passed: {len(document['cases'])} cases")
         return
     summary = run_emergency_batch(args.manifest, args.output)
