@@ -643,7 +643,7 @@ converter, ImageJ/Fiji, or production behavior changed. During Planner review,
 `0481ea6e889efb63cf6c12088d35e0b7d49fd4c0`. No attribution is made regarding
 the remote update.
 
-## Phase 5 execution evidence
+## Phase 5 execution evidence (superseded by remediation below)
 
 The accepted v1.7 Phase-5 experiment was executed from
 `e230ffc6d1ae86e09cba706c46f4632979d547b1` using the authorized Drive folder
@@ -675,8 +675,44 @@ Final hashes differed in all nine pairs, and the median final AUTO-minus-NONE
 mean-intensity delta was -12633.43. The direction was consistent by session
 and subject, with no conflict favoring AUTO.
 
-Required classification: **BED BYPASS SUPPORTED**.
+This provisional classification is superseded by the remediation below and is
+not the current Phase-5 classification.
 
 This is bounded decision support only. It does not authorize or implement a
 BED runtime-policy change. No external binary was committed, Google Drive was
 not mutated, and the protected converter remained unchanged.
+
+## Phase 5 evidence remediation execution
+
+The prior nine-case Phase-5 candidate is superseded for Planner review by the
+remediated execution. The corrected helper recursively inventoried the
+authorized Drive tree: 196 acquisition BED NPZ candidates, six gain NPZ files,
+four calibration or processed NPZ files, and 96 folders. All 196 acquisition
+entries are classified in the JSON manifest; 12 are selected and 184 are
+recorded separately as valid but unselected due to the cap. No invalid,
+non-BED, duplicate, gain-unresolved, or calibration-unresolved acquisition
+entry was encountered in the inventory classification.
+
+The deterministic primary cohort contains exactly 12 valid paired BED
+radiographs, distributed across all six sessions and four subject-folder name
+variants. Selection was frozen before processing using lexicographic
+session/subject grouping, stable acquisition ordering, first/last distinct
+acquisitions where available, and round-robin selection. The JSON artifact
+contains the complete selection manifest and per-case Drive provenance,
+repository-native NPZ semantics, SHA-256 values, radiograph/gain metadata, and
+gain dark/flat statistics.
+
+Each selected case ran exactly `BED_AUTO` versus `BED_NONE` with identical raw,
+gain, and canonical pipeline semantics. Independently captured pre-threshold
+arrays matched for all 12 cases. Stage-local structural-preservation metrics
+were generated with `mpips.iqa.analyze_structural_preservation`; final-output
+intensity, clipping, zero, saturation, and hash statistics are in the JSON and
+CSV artifacts. AUTO changed every case relative to NONE, but NONE is an
+identity/bypass control rather than trustworthy exact same-acquisition ground
+truth. Reference comparability is therefore **NON-COMPARABLE**; the result
+does not prove that AUTO changes are undesirable.
+
+The corrected artifacts classify the evidence as **BED THRESHOLD POLICY
+UNRESOLVED**. This is decision support only and does not authorize or
+implement a BED runtime-policy change. No external binary was committed,
+Google Drive was not mutated, and the protected converter remained unchanged.
