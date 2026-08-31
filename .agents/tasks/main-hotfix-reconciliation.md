@@ -1,13 +1,14 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.1
+version: 1.2
 status: Validated/Published
 language: en-US
 scope:
   - semantic reconciliation of the frozen main image-processing hotfix range
   - bounded canonical port of accepted image-processing hotfix semantics
-authority_note: This task authorizes only the bounded Phase 2 canonical hotfix port described below. Acceptance is not release authorization.
+  - newer-main radiography semantic-drift mapping
+authority_note: This task authorizes only the bounded Phase 3 semantic-drift mapping and evidence work described below. It does not authorize runtime implementation, experiments, or release activity.
 ---
 
 # Executable Task
@@ -34,6 +35,10 @@ The production `main` line contains material image-processing and calibration ho
 
 **Frozen upstream main baseline:** `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd`
 
+**Accepted Phase-2 implementation:** `e0ff8a5c093f5ad265bf65326b40663cb4454943`
+
+**Phase-3 observed upstream main baseline:** `e94784db65bb134d43e87a2046037ab4d1cbfe02`
+
 **Known merge base:** `fec5695048acbc3ce95d0a658032ec3701b6e045`
 
 **Task revision:** resolved by the immutable Git publication commit containing this file; the exact full SHA is supplied in the Planner handoff.
@@ -42,7 +47,7 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
 
 ## Objective
 
-**Objective:** Execute the released Phase 2, `CANONICAL HOTFIX PORT`, by porting only the accepted Otsu scalar handling and TRX/BED threshold policy into canonical refactor ownership, with bounded regression protection. Phase 1 is accepted and closed; calibration, diagnostics, validation/promotion infrastructure, and later main changes remain excluded.
+**Objective:** Maintain the accepted Phase 1 and Phase 2 reconciliation history, then map the newer-main radiography semantic drift from the accepted refactor state to the observed `origin/main` baseline. Phase 3 is evidence/mapping only; implementation of newer-main semantics remains unauthorized until Planner review and republication.
 
 ## Authoritative inputs
 
@@ -65,7 +70,7 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
 
 ### In scope
 
-#### Phase 2 — Canonical Hotfix Port
+#### Historical Phase 2 — Canonical Hotfix Port (accepted)
 
 - Correct OpenCV Otsu return-value handling in `mpips/processing/thresholding.py`.
 - Apply detector-specific threshold policy in `mpips/pipelines/radiography.py`: TRX bypasses threshold separation by default; BED preserves configured threshold behavior.
@@ -77,8 +82,20 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
   - `tests/test_radiography_pipeline.py`
   - `.agents/evidence/main-hotfix-reconciliation.md`
 
-The accepted Phase 1 evidence is preserved as the evidence input for this
-authorization. No Phase 2 implementation occurs in this publication.
+The accepted Phase 1 and Phase 2 evidence is preserved as historical provenance.
+Phase 2 implementation is accepted at `e0ff8a5c093f5ad265bf65326b40663cb4454943`.
+
+#### Phase 3 — Newer-Main Radiography Semantic Drift Mapping
+
+- Compare accepted refactor state `e0ff8a5c093f5ad265bf65326b40663cb4454943` with observed `origin/main` `e94784db65bb134d43e87a2046037ab4d1cbfe02`.
+- Classify BED threshold defaults, TRX orientation, calibration/canvas behavior, production validation infrastructure, and other material newer-main changes.
+- Record exact commits, ownership, tests, evidence, gaps, and deferred BED/TRX dataset inputs in the stable evidence file.
+- Modify only this remediation write surface:
+  - `.agents/tasks/main-hotfix-reconciliation.md`
+  - `.agents/evidence/main-hotfix-reconciliation.md`
+
+Do not change runtime code, tests, configuration, calibration, conversion,
+deployment, production state, or experiment inputs during Phase 3.
 
 The frozen upstream authority remains exactly
 `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd`. The observed `origin/main` may be
@@ -106,7 +123,7 @@ unchanged unrelated downstream stage configuration.
 
 - The accepted ImageJ/Fiji closure remains protected at baseline `a4a5c16881e589154680f0606c849e2a4514041f`.
 - `mpips/conversion/tiff_json_to_dcm.py` remains byte-identical; required SHA-256 is `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
-- TRX threshold separation is bypassed by default; BED retains its configured threshold method.
+- Accepted Phase 2 behavior remains historical: TRX threshold separation is bypassed by default; BED retains its configured threshold method.
 - Historical I-5B evidence remains intact. Otsu-affected threshold rows may require bounded revalidation; CLAHE and unaffected rows are not automatically invalidated.
 - The later optimization primary source remains the preferred Drive folder; historical I-5B data is reused only for controlled impact comparability.
 
@@ -121,44 +138,42 @@ unchanged unrelated downstream stage configuration.
 ### Approved assumptions
 
 - The canonical owners are under `mpips/processing/`, `mpips/pipelines/`, `mpips/workflows/imager_pipeline/`, and `mpips/calibration/`; removed `mpips/engine/` modules must not be resurrected.
-- Phase 1 evidence is accepted and closed. Phase 2 ends at `Review Required`.
+- Phase 1 and Phase 2 are accepted and closed. Phase 3 ends at `Review Required`.
 
 ### Remaining approval requirements
 
-- Reviewer acceptance is required after Phase 1 before any Phase 2 implementation.
+- Reviewer acceptance is recorded for Phase 2. Planner/Reviewer republication is required before any newer-main runtime implementation.
 - Every material phase must end `Review Required` and republish this same task path with a new immutable SHA before the next phase is executable.
 - Acceptance does not authorize promotion, deployment, or release.
 
 ## Required capabilities
 
-- Repository read/write access limited to the exact Phase 2 write surface
-- Local command execution and focused test verification
+- Repository read/write access limited to the exact Phase 3 documentation/evidence write surface
+- Local command execution and repository history inspection
 
 ## Execution constraints
 
-- Use the frozen main SHA exactly; if main has advanced, do not include the new delta.
+- Preserve the frozen Phase-2 baseline as historical provenance and observe newer `origin/main` separately.
 - Map semantics to canonical ownership, not legacy path names.
-- Implement the OpenCV contract `threshold_value, thresholded_image = cv2.threshold(...)`; for float32 inputs retain uint16 conversion and normalize the returned scalar to `[0,1]`, and do not derive it from the output array.
-- Keep low-level thresholding detector-agnostic. In radiography orchestration, bypass threshold separation for TRX by default and honor configured threshold behavior for BED, preserving global disable/skip semantics without mutating config.
-- Distinguish runtime behavior from production-only diagnostics, carrier, promotion, deployment, and preflight infrastructure.
-- Do not modify calibration or absorb later `origin/main` calibration commits.
-- Do not run broad research or the later optimization experiment.
+- Distinguish implementation intent, tests, observed validation, production infrastructure, and evidence gaps.
+- Do not implement BED bypass, TRX orientation, calibration/canvas changes, or any other newer-main runtime semantic.
+- Do not merge, rebase, cherry-pick, modify calibration/conversion/deployment, run production workflows, or run broad research or optimization.
 
 ## Phase map
 
 1. **PHASE 1 — UPSTREAM HOTFIX IMPACT MAPPING** — `ACCEPTED / CLOSED`.
-2. **PHASE 2 — CANONICAL HOTFIX PORT** — `CURRENT RELEASED PHASE`.
-3. **PHASE 3 — TARGETED HOTFIX REGRESSION VERIFICATION** — `UNAUTHORIZED`.
-4. **PHASE 4 — I-5B IMPACT REVALIDATION** — `UNAUTHORIZED`.
-5. **PHASE 5 — RECONCILIATION CLOSURE** — `UNAUTHORIZED`.
+2. **PHASE 2 — CANONICAL HOTFIX PORT** — `ACCEPTED / CLOSED` at `e0ff8a5c093f5ad265bf65326b40663cb4454943`.
+3. **PHASE 3 — NEWER-MAIN RADIOGRAPHY SEMANTIC DRIFT MAPPING** — `CURRENT RELEASED PHASE`.
+4. **SUBSEQUENT RUNTIME RECONCILIATION / REVALIDATION / OPTIMIZATION PHASES** — `UNAUTHORIZED`.
 
-## Phase 2 execution contract
+## Phase 3 execution contract
 
 The Executor must:
 
-- implement the bounded Otsu and TRX/BED changes;
-- add the bounded regression coverage listed in the Phase 2 requirements;
-- update the stable evidence file with implementation and verification evidence;
+- update this task to version `1.2` and record Phase 2 as accepted/closed;
+- inspect and classify the newer-main semantic drift and evidence boundaries;
+- update the stable evidence file with exact provenance, findings, gaps, and deferred dataset inputs;
+- leave runtime implementation and experiments unauthorized;
 - leave the terminal state `Review Required`.
 
 ## Acceptance criteria
@@ -169,14 +184,14 @@ The Executor must:
 - [ ] The implementation and evidence remain within the exact Phase 2 write surface.
 - [ ] The I-5B impact and historical-cohort revalidation scope are bounded without rewriting historical evidence or starting a broad experiment.
 - [ ] ImageJ/Fiji closure and protected converter invariants are verified and not reopened.
-- [ ] The evidence records `Review Required`; Phase 3–5 remain unauthorized until republished after review.
+- [ ] The evidence records Phase 2 acceptance and Phase 3 `Review Required`; subsequent implementation remains unauthorized.
 
 ## Verification requirements
 
 ### Required checks
 
-- Verify the frozen main SHA remains `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd` and later main calibration deltas are excluded.
-- Verify the focused canonical source/test surfaces, protected converter SHA, and Phase 2 behavior.
+- Verify the frozen main SHA remains historical provenance and record observed `origin/main` separately.
+- Verify the relevant newer-main history, source ownership, tests, task/evidence, and validation gaps.
 - Run `git diff --check` and inspect the final evidence diff.
 
 ### Required evidence
@@ -193,11 +208,11 @@ Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cros
 
 ### Explicitly authorized side effects
 
-- Create or update only the exact Phase 2 write surface during Phase 2 execution.
+- Create or update only the exact Phase 3 documentation/evidence write surface during this phase.
 - No merge, rebase, cherry-pick, deployment, release, production mutation, dependency change, secret access, or external-system mutation is authorized by this task.
 
 ## Expected terminal outcome
 
 ### Review Required
 
-Phase 2 ends with reviewable implementation and evidence. Reviewer acceptance is required before the same task path may be republished with Phase 3 authority. Acceptance remains separate from release authorization.
+Phase 3 ends with reviewable mapping and evidence. Planner/Reviewer acceptance and republication are required before any newer-main runtime implementation. Acceptance remains separate from release authorization.

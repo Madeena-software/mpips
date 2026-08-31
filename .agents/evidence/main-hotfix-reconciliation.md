@@ -373,3 +373,129 @@ SHA-256: `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
 
 **Review Required**. Phase 3–5 remain unauthorized pending review and
 republished task authority. Acceptance is not release authorization.
+
+## Phase 3 — Newer-Main Radiography Semantic Drift Mapping
+
+### Governing and observed identity
+
+- Phase-2 task publication: `c652c0b47aa9560cf794a627550e65c8fe1f496b`.
+- Phase-2 accepted implementation: `e0ff8a5c093f5ad265bf65326b40663cb4454943`.
+- Historical frozen Phase-2 upstream main: `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd`.
+- Accepted ImageJ/Fiji baseline: `a4a5c16881e589154680f0606c849e2a4514041f`.
+- Phase-3 observed `origin/main` after fetch: `e94784db65bb134d43e87a2046037ab4d1cbfe02`.
+- Merge base: `fec5695048acbc3ce95d0a658032ec3701b6e045`.
+- Accepted Phase-2 branch state remained unchanged before this documentation remediation.
+
+The newer-main observation boundary is distinct from the historical frozen
+Phase-2 authority. No merge, rebase, cherry-pick, or runtime synchronization
+was performed.
+
+### Newer-main range inventory
+
+The observed range `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd..e94784db65bb134d43e87a2046037ab4d1cbfe02` contains 28 commits. The relevant inventory is:
+
+| Commits | Classification | Disposition |
+|---|---|---|
+| `ae41b1d5`, `80729162` | Calibration canvas/remap validation and expanded-canvas runtime semantics | **SEPARATE CALIBRATION SCOPE** |
+| `dd7c21ee` | BED and TRX threshold bypass in legacy radiography orchestration | **PORT / RECONCILE** for BED only after Planner review; Phase 3 does not implement it |
+| `4495f622`, `9a38b19a`, `369619b8`, `46b0e9f7` | Real BED verifier workflow, hardening, dependency staging, and observability | **EVIDENCE REQUIRED / PRODUCTION INFRASTRUCTURE ONLY** |
+| `195baf0a`, `f6b3b69f`, `3beffc3b`, `4bdac9e4`, `f34a82ce`, `392ceaec`, `86f4a66f`, `899383f4` | TRX calibration promotion modes, preflight, isolation, and promotion-only workflow | **PRODUCTION INFRASTRUCTURE ONLY** |
+| `ad116c69`, `7f6b773a`, `7006dbe2`, `320e5d0d`, `bc23d68f`, `e8122ad7` | Real TRX acceptance task, verifier, and CI/runtime-preflight hardening | **EVIDENCE REQUIRED / PRODUCTION INFRASTRUCTURE ONLY** |
+| `496b286f` | Published TRX orientation task | **ALREADY SATISFIED as task authority; implementation applicability requires reconciliation** |
+| `f2bf7b99` | Clockwise TRX orientation implementation and deterministic tests in legacy ownership | **PORT / RECONCILE**, with canonical ownership mapping required |
+| `4ccbcb1b`, `303675f2`, `bda82397`, `a05ebea2`, `e94784db` | Docker/build-cache optimization and bootstrap documentation | **DEFER TO OPTIMIZATION / PRODUCTION INFRASTRUCTURE ONLY** |
+
+The remaining commits in this range are included in the grouped inventory
+above; no additional canonical image-processing semantic was found beyond BED
+threshold policy, TRX orientation, and calibration/canvas behavior.
+
+### BED threshold default policy
+
+Commit `dd7c21eead66a2c5396522a2310f5dd9cbd85b85` changes legacy
+`mpips/engine/imager_pipeline/complete_pipeline.py` so both `BED` and `TRX`
+return threshold method `none` by default, while an explicit diagnostic
+override still applies. Its tests update the BED golden and assert that BED
+and TRX defaults skip threshold separation while explicit override applies.
+
+This is a newer semantic relative to accepted Phase 2: TRX bypass is already
+accepted, but BED configured threshold behavior was deliberately preserved
+under the frozen Phase-2 contract. Therefore current-main BED bypass is not
+retroactively justified by current behavior. It is a candidate **PORT /
+RECONCILE** decision for canonical orchestration, with **EVIDENCE REQUIRED**
+before implementation or acceptance.
+
+Commit `4495f6220ff610d80cfd119be6e6f9c62625acc0` adds a production-runner
+BED verifier; subsequent commits harden it and stage `gdown`. The repository
+contains workflow and verifier machinery, but no observed successful workflow
+result in this review. The machinery is not proof of completed production BED
+validation and remains production infrastructure/evidence input only.
+
+### TRX output orientation
+
+The published task `.agents/tasks/mpips-trx-output-orientation-hotfix.md` is
+validated/published on main at `496b286f...`, with implementation commit
+`f2bf7b9980f9af7649e1a6c45c46aaee7a55a36a`. The implementation changes legacy
+`crop_and_rotate_by_detector()` from `cv2.ROTATE_90_COUNTERCLOCKWISE` to
+`cv2.ROTATE_90_CLOCKWISE` and adds asymmetric sentinel tests mapping
+`[[1,2,3],[4,5,6]]` to `[[4,1],[5,2],[6,3]]`; BED remains unchanged.
+
+This is a justified production semantic candidate and **PORT / RECONCILE**
+for canonical ownership: the accepted refactor owns the operation in
+`mpips/processing/geometry.py`, while newer main routes through legacy engine
+ownership. The task/tests provide implementation evidence, but no separate
+observed production acceptance result was found. Do not port it during Phase 3.
+
+### Calibration and geometric corrections
+
+`ae41b1d5...` adds expanded-canvas validation and `80729162...` makes expanded
+calibration canvas behavior canonical across calibration/remap/model paths.
+The later range also contains calibration carrier, promotion, rollback,
+preflight, and TRX validation changes. Algorithm/runtime calibration semantics
+are **SEPARATE CALIBRATION SCOPE**; carriers, promotion, and preflight are
+**PRODUCTION INFRASTRUCTURE ONLY**. None were changed or absorbed here.
+
+### Production validation and CI
+
+The real BED/TRX verifier workflows, task documents, download integrity checks,
+promotion modes, and build-cache commits are evidence or operations machinery,
+not proof of successful production execution. No production workflow was
+dispatched, no production result was imported, and no deployment or promotion
+occurred. These items remain **EVIDENCE REQUIRED** or **PRODUCTION
+INFRASTRUCTURE ONLY** as classified above.
+
+### Preserved boundaries and unresolved gaps
+
+- Phase-2 Otsu, TRX bypass, BED configured-threshold behavior, ImageJ/Fiji
+  closure, and protected converter remain unchanged.
+- Protected converter SHA-256 remains
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+- No newer-main runtime semantic was implemented during this remediation.
+- BED bypass needs a separately reviewed canonical decision and evidence plan.
+- TRX orientation needs canonical geometry reconciliation and focused review.
+- Calibration/canvas and camera/conversion questions remain separate scopes.
+- I-5B revalidation and all optimization/ablation phases remain unauthorized.
+
+### Deferred BED/TRX characterization inputs
+
+These are future characterization/optimization inputs, not Phase-3 workload:
+
+- BED: `https://drive.google.com/drive/folders/1-15d10XwoZxB3fDzjoxG6Rh392aKJxd8` — heterogeneous sessions, calibration, processed artifacts, and goat/radiograph material; do not treat it as one cohort.
+- TRX source A: `https://drive.google.com/drive/folders/1Zn0JC4Rvg1-07ljSwA5hckSmO0FBidIv` — mixed real radiographs, calibration validation, and production carrier artifacts.
+- TRX source B: `https://drive.google.com/drive/folders/10wGVGU03Zut07DBsnBllzAgz44idgwM5` — 19 full TRX NPZ acquisitions and paired `NPZ tanpa processedimage` variants; verify fields, detector, calibration fingerprint, and orientation before use.
+
+Existing `processedimage` files are not automatically ground truth.
+
+### Phase-3 verification record
+
+Commands run: `git fetch origin`; branch/status/HEAD/ref/merge-base checks;
+newer-main range and path inventory; direct inspection of `dd7c21ee`,
+`4495f622`, `ae41b1d5`, `80729162`, `496b286f`, and `f2bf7b99`; orientation task
+inspection; protected converter `sha256sum`; `git diff --check`; and final
+changed-file/status checks. No production data, Drive data, deployment, or
+external mutation was accessed.
+
+### Terminal state
+
+**Review Required**. Phase 3 is mapping/evidence only. Subsequent runtime
+reconciliation, revalidation, and optimization remain unauthorized pending
+Planner/Reviewer review and republication.
