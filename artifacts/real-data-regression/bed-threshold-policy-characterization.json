@@ -1,0 +1,1373 @@
+{
+  "cases": [
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "numeric_threshold": 0.01070889551192522,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 9808.136231933593,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 3294834,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61705.0,
+        "sha256": "ecc250e67046dbab6640195fa3916cacc8cd1077734f68df14c4961ed5e98b12",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.73186572265625
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "max": 1.0,
+        "mean": 0.8752055764198303,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287921,
+        "p01": 0.28549301624298096,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "ba3cd0af654ec59ae14c8709e5fdd3e9ed3d2155c8eb794855ec618e787c0d1e",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.429036458333333e-06
+      },
+      "case": 1,
+      "detector_mode": "BED",
+      "drive_file_id": "1AUS04DQYHorVUBc1JVvyay7loDC3tDGG",
+      "final_sha256_equal": false,
+      "gain_id": "1782703552958",
+      "id": "1782704292552",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 21956.448399332683,
+        "median": 14980.0,
+        "min": 0.0,
+        "nonzero_count": 12287969,
+        "p01": 2827.0,
+        "p50": 14980.0,
+        "p99": 62938.0,
+        "sha256": "87ef6319fb397a3a22f22ae1fad8dba3f91bfd126ab8853cfc06f2741f720bf9",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.5227864583333333e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.030376479029655457,
+        "max": 0.030376479029655457,
+        "mean": 0.010668950155377388,
+        "median": 0.012452617287635803,
+        "min": 0.0,
+        "nonzero_count": 12287921,
+        "p01": 0.0030573110561817884,
+        "p50": 0.012452617287635803,
+        "p99": 0.012841329909861088,
+        "sha256": "944d176dc39f4eb7707c0a69bc99fbea1878f86e1b4e248a2a162cbbdd67aeaa",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.429036458333333e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.030376479029655457,
+        "max": 0.030376479029655457,
+        "mean": 0.010668950155377388,
+        "median": 0.012452617287635803,
+        "min": 0.0,
+        "nonzero_count": 12287921,
+        "p01": 0.0030573110561817884,
+        "p50": 0.012452617287635803,
+        "p99": 0.012841329909861088,
+        "sha256": "944d176dc39f4eb7707c0a69bc99fbea1878f86e1b4e248a2a162cbbdd67aeaa",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.429036458333333e-06
+      },
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 1",
+      "source_sha256": "b394c8a5916a753a7468d31c141982fce572bc30afa68e07819c2476a8c87c57",
+      "source_title": "Copy of BED_1782704291612.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.2613546800113673,
+          "gradient_energy_retention": 0.25063191587998523,
+          "informative_extreme_fraction": 0.3120955222469828,
+          "informative_tile_count": 1204,
+          "lost_informative_tile_fraction": 0.49667774086378735,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1204,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999803878
+        }
+      },
+      "subject": "kambing-1"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "numeric_threshold": 0.010330026037991047,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 8444.173342122396,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2789333,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61672.0,
+        "sha256": "f07614960abdae85fa4079b2b3ee63d655bd01d2d3870e356bc2ede78918c500",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.7730034993489583
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "max": 1.0,
+        "mean": 0.8862553834915161,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287920,
+        "p01": 0.24672289192676544,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "5586301958ec425ca79c6c9ccaaef5dfdc519c27293511c2555478459b98c83e",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.510416666666667e-06
+      },
+      "case": 2,
+      "detector_mode": "BED",
+      "drive_file_id": "1VO11y9c0D-6R3fzWFVSjcJzwvDqWENcw",
+      "final_sha256_equal": false,
+      "gain_id": "1782703552958",
+      "id": "1782706309431",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 23214.49909879557,
+        "median": 17460.0,
+        "min": 0.0,
+        "nonzero_count": 12287990,
+        "p01": 3895.0,
+        "p50": 17460.0,
+        "p99": 63179.0,
+        "sha256": "83b8ba3f6032c0b60f0d5aeac3fbf7cc0db8b0f37f1bed7366ccde7f784bda30",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 8.138020833333334e-07
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.027618659660220146,
+        "max": 0.027618659660220146,
+        "mean": 0.010640287771821022,
+        "median": 0.012221184559166431,
+        "min": 0.0,
+        "nonzero_count": 12287920,
+        "p01": 0.002548652235418558,
+        "p50": 0.012221184559166431,
+        "p99": 0.013010046444833279,
+        "sha256": "64462c497015fe581d43d462d55cc00e9d9658454700e37aea45585b5164ae30",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.510416666666667e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.027618659660220146,
+        "max": 0.027618659660220146,
+        "mean": 0.010640287771821022,
+        "median": 0.012221184559166431,
+        "min": 0.0,
+        "nonzero_count": 12287920,
+        "p01": 0.002548652235418558,
+        "p50": 0.012221184559166431,
+        "p99": 0.013010046444833279,
+        "sha256": "64462c497015fe581d43d462d55cc00e9d9658454700e37aea45585b5164ae30",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.510416666666667e-06
+      },
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 1",
+      "source_sha256": "ae014b8a4cf08e46075d74fd404b08b6961ce1615360390c826139b6b0572f1d",
+      "source_title": "Copy of BED_1782706308504.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.2210671894804538,
+          "gradient_energy_retention": 0.21521961044589644,
+          "informative_extreme_fraction": 0.7968655794776047,
+          "informative_tile_count": 1257,
+          "lost_informative_tile_fraction": 0.5393794749403341,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1257,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999792017
+        }
+      },
+      "subject": "kambing-2"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "numeric_threshold": 0.010082246735692024,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 8657.885204508464,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2915634,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61637.0,
+        "sha256": "513c352ce84ea441bcf321f96c66aee1b8dad14b5d509c96e68914531d1ee327",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.76272509765625
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "max": 1.0,
+        "mean": 0.8899177312850952,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287919,
+        "p01": 0.2773314416408539,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "1da2a12478dce3d862f2945fc5d22c123e955b78a5c2a4abbec47cfa9e84e1f8",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.591796875e-06
+      },
+      "case": 3,
+      "detector_mode": "BED",
+      "drive_file_id": "18ZkmCLe0fpoGIHL4Nday4dhqlTnkvgeF",
+      "final_sha256_equal": false,
+      "gain_id": "1782703552958",
+      "id": "1782708152209",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 23282.866754475912,
+        "median": 17507.0,
+        "min": 0.0,
+        "nonzero_count": 12287976,
+        "p01": 3834.0,
+        "p50": 17507.0,
+        "p99": 63072.0,
+        "sha256": "588c0355b9ce073e4b5f3d171497dd916a3ef8952850a0d4a2eb0250c3409f0f",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 1.953125e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.02524259313941002,
+        "max": 0.02524259313941002,
+        "mean": 0.010520799085497856,
+        "median": 0.012072897516191006,
+        "min": 0.0,
+        "nonzero_count": 12287919,
+        "p01": 0.00279612117446959,
+        "p50": 0.012072897516191006,
+        "p99": 0.012801518663764,
+        "sha256": "469c67fd1a649d1b9d21063cf171f001dc1ec6a0595ddb94924fce5081aa7c5d",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.591796875e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.02524259313941002,
+        "max": 0.02524259313941002,
+        "mean": 0.010520799085497856,
+        "median": 0.012072897516191006,
+        "min": 0.0,
+        "nonzero_count": 12287919,
+        "p01": 0.00279612117446959,
+        "p50": 0.012072897516191006,
+        "p99": 0.012801518663764,
+        "sha256": "469c67fd1a649d1b9d21063cf171f001dc1ec6a0595ddb94924fce5081aa7c5d",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.591796875e-06
+      },
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 1",
+      "source_sha256": "135b9934bbb71ea26fba0b3756a7ed916e1d1997400b169ecdc4217e2851fcf4",
+      "source_title": "Copy of BED_1782708151260.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.23203663961726156,
+          "gradient_energy_retention": 0.23054531874198395,
+          "informative_extreme_fraction": 0.7758910177393559,
+          "informative_tile_count": 1218,
+          "lost_informative_tile_fraction": 0.5862068965517241,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1218,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999803031
+        }
+      },
+      "subject": "kambing-3"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "numeric_threshold": 0.010730769485235214,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 9395.6531171875,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 3138042,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61725.0,
+        "sha256": "6f17f8c6e6e0fb4696e08c917777a111ce573658068193e7d1e782106e4dec4b",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.74462548828125
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "max": 1.0,
+        "mean": 0.8804041147232056,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287959,
+        "p01": 0.2825494110584259,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "cece157f8c083773663d11661cfc9d45cd3d83953379178a8f86e11df275f26f",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.336588541666667e-06
+      },
+      "case": 4,
+      "detector_mode": "BED",
+      "drive_file_id": "1sLur8whVT8Vb4OJeVIduSJFBQ3wKCOVX",
+      "final_sha256_equal": false,
+      "gain_id": "1783219207291",
+      "id": "1783222265244",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 21759.54662036133,
+        "median": 15146.0,
+        "min": 0.0,
+        "nonzero_count": 12287982,
+        "p01": 2687.0,
+        "p50": 15146.0,
+        "p99": 62997.0,
+        "sha256": "b69a1bab22afe22902d1748dff9ab41c1e29364a3cadd2cee393ef6bc360205f",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 1.46484375e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.025977088138461113,
+        "max": 0.025977088138461113,
+        "mean": 0.010695983655750751,
+        "median": 0.0123802674934268,
+        "min": 0.0,
+        "nonzero_count": 12287959,
+        "p01": 0.003031966043636203,
+        "p50": 0.0123802674934268,
+        "p99": 0.012772353366017342,
+        "sha256": "e8f8b5a452a341f0c17ee78c170107a72710ba383c4bd2714796cc2fd48e5941",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.336588541666667e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.025977088138461113,
+        "max": 0.025977088138461113,
+        "mean": 0.010695983655750751,
+        "median": 0.0123802674934268,
+        "min": 0.0,
+        "nonzero_count": 12287959,
+        "p01": 0.003031966043636203,
+        "p50": 0.0123802674934268,
+        "p99": 0.012772353366017342,
+        "sha256": "e8f8b5a452a341f0c17ee78c170107a72710ba383c4bd2714796cc2fd48e5941",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.336588541666667e-06
+      },
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 2",
+      "source_sha256": "1a1436b6aab20a2161e862617afe7f951e4483a35b869bb7df2539d16cdc64f0",
+      "source_title": "Copy of BED_1783222264263.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.25012307085024377,
+          "gradient_energy_retention": 0.2408883725469137,
+          "informative_extreme_fraction": 0.3318354046337809,
+          "informative_tile_count": 1220,
+          "lost_informative_tile_fraction": 0.5270491803278688,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1220,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999810748
+        }
+      },
+      "subject": "kambing-1"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "numeric_threshold": 0.010283078998327255,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 9056.601389485677,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 3046459,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61668.0,
+        "sha256": "d863419f691803de0cf3e08d4ee4fb80f5a688d12c0f4ae5748e13399c370759",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.7520785319010417
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "max": 1.0,
+        "mean": 0.8810927867889404,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287961,
+        "p01": 0.2505967617034912,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "377f45772126cba422ce01507407f03652f30ba2ce962d632af317b8aaad95a3",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.173828125e-06
+      },
+      "case": 5,
+      "detector_mode": "BED",
+      "drive_file_id": "1NoKEdKmB3UsuIYA7GogLfqa2AEkS2cTE",
+      "final_sha256_equal": false,
+      "gain_id": "1783219207291",
+      "id": "1783223477351",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 22102.228947102863,
+        "median": 15545.0,
+        "min": 0.0,
+        "nonzero_count": 12287986,
+        "p01": 3341.0,
+        "p50": 15545.0,
+        "p99": 63047.0,
+        "sha256": "983e9d759ce65b67a0d2ddac5c756dc970f9cdbc64ab7c345f487f8671e3fcfe",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 1.1393229166666668e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.028230221942067146,
+        "max": 0.028230221942067146,
+        "mean": 0.010565312579274178,
+        "median": 0.01227615401148796,
+        "min": 0.0,
+        "nonzero_count": 12287961,
+        "p01": 0.0025769055355340242,
+        "p50": 0.01227615401148796,
+        "p99": 0.01268048770725727,
+        "sha256": "43cc02a21c10740da26cb92df03a6c99fecbc721f3e6b592cedff6866c88f037",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.173828125e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.028230221942067146,
+        "max": 0.028230221942067146,
+        "mean": 0.010565312579274178,
+        "median": 0.01227615401148796,
+        "min": 0.0,
+        "nonzero_count": 12287961,
+        "p01": 0.0025769055355340242,
+        "p50": 0.01227615401148796,
+        "p99": 0.01268048770725727,
+        "sha256": "43cc02a21c10740da26cb92df03a6c99fecbc721f3e6b592cedff6866c88f037",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.173828125e-06
+      },
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 2",
+      "source_sha256": "e15f063dfd622fa10c9c0cea0913487e2220f9525a3104e2b9c7282551aa6c54",
+      "source_title": "Copy of BED_1783223476352.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.24188897384112032,
+          "gradient_energy_retention": 0.2174556537678897,
+          "informative_extreme_fraction": 0.368036878936283,
+          "informative_tile_count": 900,
+          "lost_informative_tile_fraction": 0.55,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 900,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999738666
+        }
+      },
+      "subject": "kambing-2"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "numeric_threshold": 0.010181974619626999,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 8444.816083577474,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2840631,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61470.0,
+        "sha256": "d47fcac567833f4551c0665e2cf3008fb63119accc3e848fa4aa183942d04492",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.768828857421875
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "max": 1.0,
+        "mean": 0.8936399817466736,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287959,
+        "p01": 0.28655046224594116,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "8fb0def6425492757b91149c07db9585fddabad648337b148e8eb576a60d46f2",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.336588541666667e-06
+      },
+      "case": 6,
+      "detector_mode": "BED",
+      "drive_file_id": "10TLqDtRzvcyOR8eqpYpGtcj3PFh5Njwn",
+      "final_sha256_equal": false,
+      "gain_id": "1783219207291",
+      "id": "1783224646432",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 22311.615849283855,
+        "median": 16448.0,
+        "min": 0.0,
+        "nonzero_count": 12287993,
+        "p01": 3372.0,
+        "p50": 16448.0,
+        "p99": 63052.0,
+        "sha256": "1de49816e32cbae3cffdd0baadccca2cd19022d3df55fd44f8cb8eaaa1044737",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 5.696614583333334e-07
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.025744054466485977,
+        "max": 0.025744054466485977,
+        "mean": 0.01062317006289959,
+        "median": 0.012138080783188343,
+        "min": 0.0,
+        "nonzero_count": 12287959,
+        "p01": 0.002917649457231164,
+        "p50": 0.012138080783188343,
+        "p99": 0.012586904689669609,
+        "sha256": "d636b9bb6013bf798e7207561aa18369f318ef700f85ec28292de513dfcdbe97",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.336588541666667e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.025744054466485977,
+        "max": 0.025744054466485977,
+        "mean": 0.01062317006289959,
+        "median": 0.012138080783188343,
+        "min": 0.0,
+        "nonzero_count": 12287959,
+        "p01": 0.002917649457231164,
+        "p50": 0.012138080783188343,
+        "p99": 0.012586904689669609,
+        "sha256": "d636b9bb6013bf798e7207561aa18369f318ef700f85ec28292de513dfcdbe97",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.336588541666667e-06
+      },
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 2",
+      "source_sha256": "0a35bcbb737c9f2073a951f3ace2e3cca5ef50a7719be600d001901af6993287",
+      "source_title": "Copy of BED_1783224645493.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.22464172023063664,
+          "gradient_energy_retention": 0.21412365765439834,
+          "informative_extreme_fraction": 0.5163119222261527,
+          "informative_tile_count": 1094,
+          "lost_informative_tile_fraction": 0.5484460694698354,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1094,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999786083
+        }
+      },
+      "subject": "kambing-3"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "numeric_threshold": 0.010535839013755322,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 9061.811517415365,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2981259,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61734.0,
+        "sha256": "30e19ed90e4f78277ac1075799fce48d95ec60dc8c781762cd81aa2b76b54009",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.757384521484375
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "max": 1.0,
+        "mean": 0.8837794661521912,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287947,
+        "p01": 0.2860007584095001,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "282de95f2ffb591dd7e25d4b15222994c80116daaf7c63722f72ad546dd9804e",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.313151041666667e-06
+      },
+      "case": 7,
+      "detector_mode": "BED",
+      "drive_file_id": "1PUF1XhPkGBMPdh8CMXjrEh9-yW6go3a3",
+      "final_sha256_equal": false,
+      "gain_id": "1783826141899",
+      "id": "1783826994712",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 21292.440884440104,
+        "median": 14664.0,
+        "min": 0.0,
+        "nonzero_count": 12287975,
+        "p01": 2818.0,
+        "p50": 14664.0,
+        "p99": 63016.0,
+        "sha256": "95908204d1ab0712612b2afa9c8d7e86636edb5ee51efdf90748252feae9ca53",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.0345052083333333e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.02731316164135933,
+        "max": 0.02731316164135933,
+        "mean": 0.010718727484345436,
+        "median": 0.012379618361592293,
+        "min": 0.0,
+        "nonzero_count": 12287947,
+        "p01": 0.003013244364410639,
+        "p50": 0.012379618361592293,
+        "p99": 0.012725947424769402,
+        "sha256": "41aa6a9d3e45cd6c43b1492d4c216492658786418a1a3367fba90ec6859c691a",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.313151041666667e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.02731316164135933,
+        "max": 0.02731316164135933,
+        "mean": 0.010718727484345436,
+        "median": 0.012379618361592293,
+        "min": 0.0,
+        "nonzero_count": 12287947,
+        "p01": 0.003013244364410639,
+        "p50": 0.012379618361592293,
+        "p99": 0.012725947424769402,
+        "sha256": "41aa6a9d3e45cd6c43b1492d4c216492658786418a1a3367fba90ec6859c691a",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.313151041666667e-06
+      },
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 3",
+      "source_sha256": "f4cb0022f0171a2ac863f71f2df299b6ddf138be10d3f804e0a54cc7b4b322fc",
+      "source_title": "BED_1783826993793.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.23629869911559,
+          "gradient_energy_retention": 0.22978244364865902,
+          "informative_extreme_fraction": 0.28303709689520595,
+          "informative_tile_count": 1243,
+          "lost_informative_tile_fraction": 0.5325824617860017,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1243,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999811136
+        }
+      },
+      "subject": "kambing 1"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "numeric_threshold": 0.010104760527610779,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 8916.375795817057,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2977147,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61742.0,
+        "sha256": "e8ac1be1bc43547eb67bd3deb7234dd81af046e00116e85cb8a3689a65f3884b",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.7577191569010416
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "max": 1.0,
+        "mean": 0.8820791244506836,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287945,
+        "p01": 0.25270774960517883,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "1dc834e29b511997135c1916c3477c331e09c978aa9f41eb0dfe48c7fb604618",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.475911458333333e-06
+      },
+      "case": 8,
+      "detector_mode": "BED",
+      "drive_file_id": "1lYm_xd-M-p5cjkBO7GthsKG-anY_ZLVX",
+      "final_sha256_equal": false,
+      "gain_id": "1783826141899",
+      "id": "1783828513106",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 21439.8256180013,
+        "median": 14901.0,
+        "min": 0.0,
+        "nonzero_count": 12287976,
+        "p01": 2699.0,
+        "p50": 14901.0,
+        "p99": 63115.0,
+        "sha256": "cf10a54bd8c5293d5609290a8a61258b8c0a320265c03a542e325cc7270fb200",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 1.953125e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.033270981162786484,
+        "max": 0.033270981162786484,
+        "mean": 0.010475908406078815,
+        "median": 0.012158820405602455,
+        "min": 0.0,
+        "nonzero_count": 12287945,
+        "p01": 0.002553545869886875,
+        "p50": 0.012158820405602455,
+        "p99": 0.012539751827716827,
+        "sha256": "663f01a46c5b2d4f936dee97abb85a39d67ca73d20f5c9448c4145ad8d22f954",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.475911458333333e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.033270981162786484,
+        "max": 0.033270981162786484,
+        "mean": 0.010475908406078815,
+        "median": 0.012158820405602455,
+        "min": 0.0,
+        "nonzero_count": 12287945,
+        "p01": 0.002553545869886875,
+        "p50": 0.012158820405602455,
+        "p99": 0.012539751827716827,
+        "sha256": "663f01a46c5b2d4f936dee97abb85a39d67ca73d20f5c9448c4145ad8d22f954",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.475911458333333e-06
+      },
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 3",
+      "source_sha256": "1e8f46945e7469e054620377ec6d69bbef5c911eebc7da6dcff28749132c4b1c",
+      "source_title": "BED_1783828512202.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.23556917682483922,
+          "gradient_energy_retention": 0.22321068609050648,
+          "informative_extreme_fraction": 0.34591408792881234,
+          "informative_tile_count": 1192,
+          "lost_informative_tile_fraction": 0.5570469798657718,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1192,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999801744
+        }
+      },
+      "subject": "kambing 2"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "numeric_threshold": 0.01001502014696598,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 8722.759709960937,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2910060,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61556.0,
+        "sha256": "bff9b641e1802f794a546cbc18335b6f717679e1a4da2dd3ac760e2d699f7661",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.7631787109375
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "max": 1.0,
+        "mean": 0.8901015520095825,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287948,
+        "p01": 0.289358913898468,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "243de2f434b32d959222ba83be14c55c0071acbf62cbb7f2ec1ea68b216acbe3",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.231770833333333e-06
+      },
+      "case": 9,
+      "detector_mode": "BED",
+      "drive_file_id": "1VRfv9srolhOXDYoLIKWOkBpM2yFbLe-h",
+      "final_sha256_equal": false,
+      "gain_id": "1783826141899",
+      "id": "1783829676313",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "max": 65278.0,
+        "mean": 21356.192259521486,
+        "median": 14967.0,
+        "min": 0.0,
+        "nonzero_count": 12287971,
+        "p01": 2816.0,
+        "p50": 14967.0,
+        "p99": 62965.0,
+        "sha256": "1903338fa19bc473553b2832c47dd9c3320096cf948b32530b46887779974d85",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.3600260416666668e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.02888839691877365,
+        "max": 0.02888839691877365,
+        "mean": 0.010458284057676792,
+        "median": 0.012024021707475185,
+        "min": 0.0,
+        "nonzero_count": 12287948,
+        "p01": 0.002897932194173336,
+        "p50": 0.012024021707475185,
+        "p99": 0.012389675714075565,
+        "sha256": "c09364c1c3353a0a32b0481a784cdffa82df1a871d0e42686633b77735824289",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.231770833333333e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.02888839691877365,
+        "max": 0.02888839691877365,
+        "mean": 0.010458284057676792,
+        "median": 0.012024021707475185,
+        "min": 0.0,
+        "nonzero_count": 12287948,
+        "p01": 0.002897932194173336,
+        "p50": 0.012024021707475185,
+        "p99": 0.012389675714075565,
+        "sha256": "c09364c1c3353a0a32b0481a784cdffa82df1a871d0e42686633b77735824289",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.231770833333333e-06
+      },
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 3",
+      "source_sha256": "a67644c24e4361a84c4844fa0c4633ed4743370e13935ce558012b2bbc63fe46",
+      "source_title": "BED_1783829675331.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.23088634100810884,
+          "gradient_energy_retention": 0.21996147817767356,
+          "informative_extreme_fraction": 0.350529077949484,
+          "informative_tile_count": 1137,
+          "lost_informative_tile_fraction": 0.5602462620932278,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1137,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999807317
+        }
+      },
+      "subject": "kambing 3"
+    }
+  ],
+  "classification": "BED BYPASS SUPPORTED",
+  "excluded": [],
+  "governing_task_revision": "e230ffc6d1ae86e09cba706c46f4632979d547b1",
+  "inventory": {
+    "acquisition_candidates": 200,
+    "folders_visited": 96,
+    "gain_npz": 6
+  },
+  "limitations": [
+    "Processed/reference and calibration trees were inventoried but not treated as ground truth.",
+    "No calibration was substituted or generated; paired runs used the canonical no-remap array path.",
+    "IQA is stage-local and not a clinical or diagnostic claim."
+  ],
+  "phase": "PHASE 5 \u2014 BED THRESHOLD POLICY EVIDENCE CHARACTERIZATION",
+  "selected_candidates": [
+    {
+      "drive_file_id": "1AUS04DQYHorVUBc1JVvyay7loDC3tDGG",
+      "session": "Ambil Data 1",
+      "subject": "kambing-1",
+      "title": "Copy of BED_1782704291612.npz"
+    },
+    {
+      "drive_file_id": "1VO11y9c0D-6R3fzWFVSjcJzwvDqWENcw",
+      "session": "Ambil Data 1",
+      "subject": "kambing-2",
+      "title": "Copy of BED_1782706308504.npz"
+    },
+    {
+      "drive_file_id": "18ZkmCLe0fpoGIHL4Nday4dhqlTnkvgeF",
+      "session": "Ambil Data 1",
+      "subject": "kambing-3",
+      "title": "Copy of BED_1782708151260.npz"
+    },
+    {
+      "drive_file_id": "1sLur8whVT8Vb4OJeVIduSJFBQ3wKCOVX",
+      "session": "Ambil Data 2",
+      "subject": "kambing-1",
+      "title": "Copy of BED_1783222264263.npz"
+    },
+    {
+      "drive_file_id": "1NoKEdKmB3UsuIYA7GogLfqa2AEkS2cTE",
+      "session": "Ambil Data 2",
+      "subject": "kambing-2",
+      "title": "Copy of BED_1783223476352.npz"
+    },
+    {
+      "drive_file_id": "10TLqDtRzvcyOR8eqpYpGtcj3PFh5Njwn",
+      "session": "Ambil Data 2",
+      "subject": "kambing-3",
+      "title": "Copy of BED_1783224645493.npz"
+    },
+    {
+      "drive_file_id": "1PUF1XhPkGBMPdh8CMXjrEh9-yW6go3a3",
+      "session": "Ambil Data 3",
+      "subject": "kambing 1",
+      "title": "BED_1783826993793.npz"
+    },
+    {
+      "drive_file_id": "1lYm_xd-M-p5cjkBO7GthsKG-anY_ZLVX",
+      "session": "Ambil Data 3",
+      "subject": "kambing 2",
+      "title": "BED_1783828512202.npz"
+    },
+    {
+      "drive_file_id": "1VRfv9srolhOXDYoLIKWOkBpM2yFbLe-h",
+      "session": "Ambil Data 3",
+      "subject": "kambing 3",
+      "title": "BED_1783829675331.npz"
+    }
+  ],
+  "selection_rule": "Lexicographic session/subject groups; stable numeric acquisition ordering; first/last per group; round-robin; cap 9; frozen before processing.",
+  "source_access": "read-only",
+  "source_folder": "https://drive.google.com/drive/folders/1-15d10XwoZxB3fDzjoxG6Rh392aKJxd8"
+}

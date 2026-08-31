@@ -642,3 +642,41 @@ converter, ImageJ/Fiji, or production behavior changed. During Planner review,
 `origin/refactor/package-boundaries` was observed at
 `0481ea6e889efb63cf6c12088d35e0b7d49fd4c0`. No attribution is made regarding
 the remote update.
+
+## Phase 5 execution evidence
+
+The accepted v1.7 Phase-5 experiment was executed from
+`e230ffc6d1ae86e09cba706c46f4632979d547b1` using the authorized Drive folder
+read-only. Recursive inventory visited 96 folders and identified 200
+acquisition NPZ candidates, six gain NPZ files, processed/reference material,
+and calibration material. Processed/reference material was not treated as
+ground truth; no calibration was generated, promoted, substituted, or
+mutated.
+
+The frozen primary cohort contains nine valid BED radiographs: three sessions
+(`Ambil Data 1`, `Ambil Data 2`, `Ambil Data 3`) × three subject folders. The
+selection used lexicographic session/subject grouping and stable numeric
+acquisition ordering, selecting the first acquisition from each group in
+round-robin order to the bounded nine-case cohort before either threshold
+state was processed. Every selected case resolved to a matching gain ID and
+passed repository-native NPZ validation; no cases were excluded.
+
+Each case ran exactly `BED_AUTO` (`use_threshold=True`, `threshold_method="auto"`)
+and `BED_NONE` (`threshold_method="none"`) through the canonical pipeline with
+the same raw/gain inputs and no calibration remap. Pre-threshold arrays were
+captured at the canonical threshold boundary. Stage-local IQA reused
+`mpips.iqa.analyze_structural_preservation`; final output shape, dtype, hashes,
+intensity, zero, saturation, and dynamic-range statistics are in the JSON and
+CSV artifacts.
+
+Across all nine cases, AUTO edge recall was 0.2211–0.2614 while NONE was 1.0;
+AUTO lost-informative-tile fraction was 0.4967–0.5862 while NONE was 0.0.
+Final hashes differed in all nine pairs, and the median final AUTO-minus-NONE
+mean-intensity delta was -12633.43. The direction was consistent by session
+and subject, with no conflict favoring AUTO.
+
+Required classification: **BED BYPASS SUPPORTED**.
+
+This is bounded decision support only. It does not authorize or implement a
+BED runtime-policy change. No external binary was committed, Google Drive was
+not mutated, and the protected converter remained unchanged.
