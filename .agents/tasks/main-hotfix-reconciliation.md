@@ -1,7 +1,7 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.6
+version: 1.7
 status: Validated/Published
 language: en-US
 scope:
@@ -285,42 +285,62 @@ provenance, not current execution authority:
 
 ## Historical Phase 4 execution contract — satisfied
 
-The Executor must:
+The following requirements were satisfied by the accepted Phase-4
+implementation; they are historical facts, not current execution authority:
 
-- change TRX rotation from 90° CCW to 90° CW in canonical `crop_and_rotate()`;
-- update its documentation to say clockwise;
-- add exact asymmetric pixel assertions for TRX CW output and BED crop-only behavior;
-- preserve crop-before-rotation, dtype, swapped dimensions, and workflow-wrapper behavior;
-- update the stable evidence file with observed implementation and verification;
-- leave BED policy, calibration, conversion, ImageJ, deployment, and production behavior unchanged;
-- leave the terminal state `Review Required`.
+- TRX rotation changed from 90° CCW to 90° CW in canonical `crop_and_rotate()`.
+- Documentation was updated to say clockwise.
+- Exact asymmetric pixel assertions were added for TRX CW output and BED
+  crop-only behavior.
+- Crop-before-rotation, dtype, swapped dimensions, and workflow-wrapper
+  behavior were preserved.
+- The stable evidence file was updated with observed implementation and
+  verification.
+- BED policy, calibration, conversion, ImageJ, deployment, and production
+  behavior remained unchanged.
+- The terminal state was left `Review Required`.
 
-## Historical Phase 3 acceptance criteria
+## Historical Phase 3 acceptance criteria — satisfied
 
-- [ ] The evidence names the exact frozen baselines and inventories the full merge-base-to-main range.
-- [ ] Every relevant upstream change has a classification and canonical refactor disposition; no decision is based on filename similarity alone.
-- [ ] Otsu, TRX, BED, calibration, validation, conversion, and production-infrastructure boundaries are explicitly analyzed.
+- [x] The evidence names the exact frozen baselines and inventories the full merge-base-to-main range.
+- [x] Every relevant upstream change has a classification and canonical refactor disposition; no decision is based on filename similarity alone.
+- [x] Otsu, TRX, BED, calibration, validation, conversion, and production-infrastructure boundaries are explicitly analyzed.
 - [x] The Phase-3 task and evidence remained within the exact Phase 3 documentation/evidence write surface.
-- [ ] The I-5B impact and historical-cohort revalidation scope are bounded without rewriting historical evidence or starting a broad experiment.
-- [ ] ImageJ/Fiji closure and protected converter invariants are verified and not reopened.
+- [x] The I-5B impact and historical-cohort revalidation scope are bounded without rewriting historical evidence or starting a broad experiment.
+- [x] ImageJ/Fiji closure and protected converter invariants are verified and not reopened.
 - [x] The evidence records Phase 2 acceptance and Phase 3 `Review Required`; subsequent implementation remains unauthorized.
 
-## Phase 4 acceptance criteria
+## Historical Phase 4 acceptance criteria — satisfied
 
-- [ ] TRX uses one 90° clockwise rotation at canonical `crop_and_rotate()`.
-- [ ] Exact asymmetric pixel tests prove TRX CW output, BED preservation, supported dtype, and swapped dimensions.
-- [ ] No threshold, calibration, conversion, ImageJ, filtering, config, API, deployment, or production behavior changes.
+- [x] TRX uses one 90° clockwise rotation at canonical `crop_and_rotate()`.
+- [x] Exact asymmetric pixel tests prove TRX CW output, BED preservation, supported dtype, and swapped dimensions.
+- [x] No threshold, calibration, conversion, ImageJ, filtering, config, API, deployment, or production behavior changes.
 
 ## Verification requirements
 
 ### Required checks
 
-- `./.venv/bin/python -m pytest -q tests/test_geometry_processing.py`
+- `./.venv/bin/python -m pytest -q tests/test_iqa_safety.py`
 - `./.venv/bin/python -m pytest -q tests/test_imager_pipeline_workflow.py`
 - `./.venv/bin/python -m pytest -q tests/test_radiography_pipeline.py`
 - `./.venv/bin/python -m pytest -q tests/test_converter_protection.py`
-- Verify the protected converter SHA and unchanged unrelated boundaries.
-- Run `git diff --check` and inspect the final evidence diff.
+- When the Phase-5 experiment helper exists, run applicable quality checks:
+  `./.venv/bin/python -m black --check scripts/bed_threshold_policy_characterization.py`
+  and `./.venv/bin/python -m flake8 scripts/bed_threshold_policy_characterization.py`.
+- Run repository-authorized mypy, syntax, and import checks where applicable.
+
+### Phase-5 evidence checks
+
+- Freeze the BED cohort before inspecting AUTO/NONE outcomes.
+- Verify every primary case has valid provenance and gain linkage.
+- Verify detector mode is BED, JSON parses, and CSV and JSON rows agree.
+- Verify Markdown conclusions are traceable to machine-readable evidence.
+- Verify the exact Phase-5 write surface is respected.
+- Verify no NPZ, TIFF, image, NumPy, calibration, or other binary is committed.
+- Verify no runtime, default, or configuration source changes occur.
+- Verify the protected converter SHA remains
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+- Run `git diff --check`.
 
 ### Required evidence
 
@@ -336,12 +356,25 @@ Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cros
 
 ### Explicitly authorized side effects
 
-- Create or update only the exact Phase 4 implementation write surface during this phase.
-- No merge, rebase, cherry-pick, deployment, release, production mutation, dependency change, secret access, or external-system mutation is authorized by this task.
+- Read-only access to the designated BED Drive source.
+- Local bounded Phase-5 experiment execution.
+- Create or update only the exact Phase-5 write surface above.
+
+### Explicitly prohibited side effects
+
+- Drive mutation; BED runtime/default/config changes; threshold algorithm
+  modification; calibration generation, mutation, or promotion; converter or
+  ImageJ/Fiji modification; deployment; production mutation; merge; rebase;
+  cherry-pick; release; or main promotion.
+- Push is not authorized by this corrective remediation.
 
 ## Expected terminal outcome
 
 ### Review Required
 
-Phase 4 ends with reviewable implementation and evidence. Planner/Reviewer
-acceptance remains separate from release authorization.
+`PHASE 5 CONTRACT REMEDIATION CANDIDATE — PLANNER REVIEW REQUIRED`
+
+Phase-5 execution outcomes are `PHASE 5 EVIDENCE CANDIDATE — PLANNER REVIEW
+REQUIRED` on successful completion or `PHASE 5 EVIDENCE BLOCKED — PLANNER
+REVIEW REQUIRED` when a stop condition prevents trustworthy completion.
+Planner/Reviewer acceptance remains separate from release authorization.

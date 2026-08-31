@@ -628,3 +628,17 @@ and `NPZ → processing → DICOM` boundaries remain unchanged.
 
 No Phase-5 experiment, Drive access, data analysis, or runtime modification was
 performed during this task republication. Terminal state: **Review Required**.
+
+## Phase 5 contract remediation note
+
+Phase-5 v1.6 was published at
+`0481ea6e889efb63cf6c12088d35e0b7d49fd4c0`. Planner review found stale
+current-looking Phase-4 execution, verification, side-effect, and terminal
+language in the governing task. No defect was found in the substantive Phase-5
+experiment design. Version 1.7 corrects contract authority only.
+
+No Phase-5 experiment was run, and no runtime, configuration, calibration,
+converter, ImageJ/Fiji, or production behavior changed. During Planner review,
+`origin/refactor/package-boundaries` was observed at
+`0481ea6e889efb63cf6c12088d35e0b7d49fd4c0`. No attribution is made regarding
+the remote update.
