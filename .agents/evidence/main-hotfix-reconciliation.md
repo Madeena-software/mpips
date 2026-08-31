@@ -515,6 +515,20 @@ references. Phase 3 is now `COMPLETED / REVIEW REQUIRED`; all runtime
 reconciliation, revalidation, optimization, and production work remains
 `UNAUTHORIZED`.
 
+## Phase 4 publication note
+
+Planner accepted Phase 3 closed at `b9093b0aec5dd66cf2a5afcd5028c2876cf889bd`.
+The umbrella task is republished as version `1.5` to release the bounded
+canonical TRX orientation port. The residual Phase-2 wording was corrected to
+historical/satisfied tense; no Phase-3 mapping conclusion was changed.
+
+Phase 4 authorizes only `mpips/processing/geometry.py`,
+`tests/test_geometry_processing.py`, and this evidence file. It ports the
+accepted clockwise TRX semantic from `f2bf7b9980f9af7649e1a6c45c46aaee7a55a36a`
+at canonical ownership. No runtime implementation occurred during this task
+republication; BED policy, calibration, conversion, ImageJ/Fiji, deployment,
+production, and optimization remain outside scope.
+
 During Planner review, `origin/refactor/package-boundaries` was observed at
 `bc093e66c590367b663a6e95073e7e0fd86d210e`. The prior Executor report stated
 that no push occurred. The candidate was reported as locally created; the

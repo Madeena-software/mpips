@@ -1,14 +1,15 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.4
+version: 1.5
 status: Validated/Published
 language: en-US
 scope:
   - semantic reconciliation of the frozen main image-processing hotfix range
   - bounded canonical port of accepted image-processing hotfix semantics
   - newer-main radiography semantic-drift mapping
-authority_note: This task authorizes only the bounded Phase 3 semantic-drift mapping and evidence work described below. It does not authorize runtime implementation, experiments, or release activity.
+  - bounded canonical TRX orientation port
+authority_note: This task authorizes only the bounded Phase 4 canonical TRX orientation port described below. It does not authorize BED-policy reconciliation, calibration, experiments, production activity, or release activity.
 ---
 
 # Executable Task
@@ -47,7 +48,7 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
 
 ## Objective
 
-**Objective:** Maintain the accepted Phase 1 and Phase 2 reconciliation history, then map the newer-main radiography semantic drift from the accepted refactor state to the observed `origin/main` baseline. Phase 3 is evidence/mapping only; implementation of newer-main semantics remains unauthorized until Planner review and republication.
+**Objective:** Maintain the accepted Phase 1–3 reconciliation history, then port the accepted TRX orientation semantic into canonical refactor ownership with bounded regression coverage. Later BED-policy reconciliation, calibration, revalidation, optimization, and production work remain unauthorized.
 
 ## Authoritative inputs
 
@@ -85,7 +86,7 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
 The accepted Phase 1 and Phase 2 evidence is preserved as historical provenance.
 Phase 2 implementation is accepted at `e0ff8a5c093f5ad265bf65326b40663cb4454943`.
 
-#### Phase 3 — Newer-Main Radiography Semantic Drift Mapping
+#### Historical Phase 3 — Newer-Main Radiography Semantic Drift Mapping (accepted)
 
 - Compare accepted refactor state `e0ff8a5c093f5ad265bf65326b40663cb4454943` with observed `origin/main` `e94784db65bb134d43e87a2046037ab4d1cbfe02`.
 - Classify BED threshold defaults, TRX orientation, calibration/canvas behavior, production validation infrastructure, and other material newer-main changes.
@@ -97,6 +98,19 @@ Phase 2 implementation is accepted at `e0ff8a5c093f5ad265bf65326b40663cb4454943`
 Do not change runtime code, tests, configuration, calibration, conversion,
 deployment, production state, or experiment inputs during Phase 3.
 
+#### Phase 4 — Canonical TRX Orientation Port
+
+- Change only `mpips/processing/geometry.py` so TRX uses `cv2.ROTATE_90_CLOCKWISE` in `crop_and_rotate()`.
+- Update only `tests/test_geometry_processing.py` for exact asymmetric CW pixel regressions and `.agents/evidence/main-hotfix-reconciliation.md` for evidence.
+- Preserve crop-before-rotation, BED crop-only behavior, supported dtype, and swapped TRX dimensions.
+- Do not introduce a second transform or resurrect `mpips/engine/`.
+
+The Phase-4 implementation write surface is exactly:
+
+- `mpips/processing/geometry.py`
+- `tests/test_geometry_processing.py`
+- `.agents/evidence/main-hotfix-reconciliation.md`
+
 The frozen upstream authority remains exactly
 `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd`. The observed `origin/main` may be
 newer; later calibration commits, including `ae41b1d5c11d99420aa195385cefa7e9b5b0a595`
@@ -105,14 +119,14 @@ and `80729162b50e92d99d45061c50ba0d875b2c4202`, are explicitly not absorbed.
 Historical Phase-2 regression coverage established that Otsu returns a deterministic
 scalar, remains within the valid uint16 domain or normalized float32 `[0,1]`
 domain, uses the OpenCV scalar rather than the thresholded array, and updates
-the representative corrected Otsu golden. It must also establish TRX bypass,
-BED configured-threshold behavior, BED skip behavior, config immutability, and
-unchanged unrelated downstream stage configuration.
+the representative corrected Otsu golden. That coverage also established TRX
+bypass, BED configured-threshold behavior, BED skip behavior, config
+immutability, and unchanged unrelated downstream stage configuration.
 
 
 ### Out of scope
 
-- Any file outside the exact Phase 3 documentation/evidence write surface above.
+- Any file outside the current Phase-4 implementation write surface above.
 - Calibration, diagnostic or stage-observer plumbing, collapse-gate validation rules, validation/promotion/deployment infrastructure, and production API expansion.
 - Git merge, rebase, mechanical cherry-pick, main promotion, deployment, release, or production mutation.
 - Reopening accepted ImageJ/Fiji Contrast, Equalization, Hybrid Median, Circular Median, or CLAHE fidelity closure absent a direct contradiction; such a contradiction stops review.
@@ -138,33 +152,33 @@ unchanged unrelated downstream stage configuration.
 ### Approved assumptions
 
 - The canonical owners are under `mpips/processing/`, `mpips/pipelines/`, `mpips/workflows/imager_pipeline/`, and `mpips/calibration/`; removed `mpips/engine/` modules must not be resurrected.
-- Phase 1 and Phase 2 are accepted and closed. Phase 3 ends at `Review Required`.
+- Phase 1, Phase 2, and Phase 3 are accepted and closed. Phase 4 ends at `Review Required`.
 
 ### Remaining approval requirements
 
-- Reviewer acceptance is recorded for Phase 2. Planner/Reviewer republication is required before any newer-main runtime implementation.
+- Reviewer acceptance is recorded for Phase 2 and Phase 3. Planner/Reviewer review is required after Phase 4 implementation.
 - Every material phase must end `Review Required` and republish this same task path with a new immutable SHA before the next phase is executable.
 - Acceptance does not authorize promotion, deployment, or release.
 
 ## Required capabilities
 
-- Repository read/write access limited to the exact Phase 3 documentation/evidence write surface
-- Local command execution and repository history inspection
+- Repository read/write access limited to the exact Phase 4 implementation write surface
+- Local command execution and focused test verification
 
 ## Execution constraints
 
-- Preserve the frozen Phase-2 baseline as historical provenance and observe newer `origin/main` separately.
-- Map semantics to canonical ownership, not legacy path names.
-- Distinguish implementation intent, tests, observed validation, production infrastructure, and evidence gaps.
-- Do not implement BED bypass, TRX orientation, calibration/canvas changes, or any other newer-main runtime semantic.
-- Do not merge, rebase, cherry-pick, modify calibration/conversion/deployment, run production workflows, or run broad research or optimization.
+- Preserve accepted Phase-1–3 provenance and map the orientation semantic to canonical ownership.
+- Change only the Phase-4 write surface; do not modify BED thresholding, calibration, conversion, ImageJ, filtering, config, API, deployment, or production behavior.
+- Use one clockwise rotation at the canonical geometry boundary; do not use flips, a second rotation, metadata tricks, or legacy engine code.
+- Do not merge, rebase, cherry-pick, run production workflows, or run experiments.
 
 ## Phase map
 
 1. **PHASE 1 — UPSTREAM HOTFIX IMPACT MAPPING** — `ACCEPTED / CLOSED`.
 2. **PHASE 2 — CANONICAL HOTFIX PORT** — `ACCEPTED / CLOSED` at `e0ff8a5c093f5ad265bf65326b40663cb4454943`.
-3. **PHASE 3 — NEWER-MAIN RADIOGRAPHY SEMANTIC DRIFT MAPPING** — `COMPLETED / REVIEW REQUIRED`.
-4. **SUBSEQUENT RUNTIME RECONCILIATION / REVALIDATION / OPTIMIZATION PHASES** — `UNAUTHORIZED`.
+3. **PHASE 3 — NEWER-MAIN RADIOGRAPHY SEMANTIC DRIFT MAPPING** — `ACCEPTED / CLOSED` at `b9093b0aec5dd66cf2a5afcd5028c2876cf889bd`.
+4. **PHASE 4 — CANONICAL TRX ORIENTATION PORT** — `CURRENT RELEASED PHASE`.
+5. **BED-POLICY RECONCILIATION / CALIBRATION / REVALIDATION / OPTIMIZATION / PRODUCTION PHASES** — `UNAUTHORIZED`.
 
 ## Historical Phase 3 execution contract — satisfied
 
@@ -178,22 +192,43 @@ provenance, not current execution authority:
 - runtime implementation and experiments remained unauthorized;
 - the terminal state was left `Review Required`.
 
-## Acceptance criteria
+## Phase 4 execution contract
+
+The Executor must:
+
+- change TRX rotation from 90° CCW to 90° CW in canonical `crop_and_rotate()`;
+- update its documentation to say clockwise;
+- add exact asymmetric pixel assertions for TRX CW output and BED crop-only behavior;
+- preserve crop-before-rotation, dtype, swapped dimensions, and workflow-wrapper behavior;
+- update the stable evidence file with observed implementation and verification;
+- leave BED policy, calibration, conversion, ImageJ, deployment, and production behavior unchanged;
+- leave the terminal state `Review Required`.
+
+## Historical Phase 3 acceptance criteria
 
 - [ ] The evidence names the exact frozen baselines and inventories the full merge-base-to-main range.
 - [ ] Every relevant upstream change has a classification and canonical refactor disposition; no decision is based on filename similarity alone.
 - [ ] Otsu, TRX, BED, calibration, validation, conversion, and production-infrastructure boundaries are explicitly analyzed.
-- [ ] The Phase-3 task and evidence remain within the exact Phase 3 documentation/evidence write surface.
+- [x] The Phase-3 task and evidence remained within the exact Phase 3 documentation/evidence write surface.
 - [ ] The I-5B impact and historical-cohort revalidation scope are bounded without rewriting historical evidence or starting a broad experiment.
 - [ ] ImageJ/Fiji closure and protected converter invariants are verified and not reopened.
-- [ ] The evidence records Phase 2 acceptance and Phase 3 `Review Required`; subsequent implementation remains unauthorized.
+- [x] The evidence records Phase 2 acceptance and Phase 3 `Review Required`; subsequent implementation remains unauthorized.
+
+## Phase 4 acceptance criteria
+
+- [ ] TRX uses one 90° clockwise rotation at canonical `crop_and_rotate()`.
+- [ ] Exact asymmetric pixel tests prove TRX CW output, BED preservation, supported dtype, and swapped dimensions.
+- [ ] No threshold, calibration, conversion, ImageJ, filtering, config, API, deployment, or production behavior changes.
 
 ## Verification requirements
 
 ### Required checks
 
-- Verify the frozen main SHA remains historical provenance and record observed `origin/main` separately.
-- Verify the relevant newer-main history, source ownership, tests, task/evidence, and validation gaps.
+- `./.venv/bin/python -m pytest -q tests/test_geometry_processing.py`
+- `./.venv/bin/python -m pytest -q tests/test_imager_pipeline_workflow.py`
+- `./.venv/bin/python -m pytest -q tests/test_radiography_pipeline.py`
+- `./.venv/bin/python -m pytest -q tests/test_converter_protection.py`
+- Verify the protected converter SHA and unchanged unrelated boundaries.
 - Run `git diff --check` and inspect the final evidence diff.
 
 ### Required evidence
@@ -210,11 +245,12 @@ Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cros
 
 ### Explicitly authorized side effects
 
-- Create or update only the exact Phase 3 documentation/evidence write surface during this phase.
+- Create or update only the exact Phase 4 implementation write surface during this phase.
 - No merge, rebase, cherry-pick, deployment, release, production mutation, dependency change, secret access, or external-system mutation is authorized by this task.
 
 ## Expected terminal outcome
 
 ### Review Required
 
-Phase 3 ends with reviewable mapping and evidence. Planner/Reviewer acceptance and republication are required before any newer-main runtime implementation. Acceptance remains separate from release authorization.
+Phase 4 ends with reviewable implementation and evidence. Planner/Reviewer
+acceptance remains separate from release authorization.
