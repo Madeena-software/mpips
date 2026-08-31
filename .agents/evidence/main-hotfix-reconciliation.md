@@ -890,3 +890,159 @@ No Phase-7 mapping was executed. No calibration carrier or runtime behavior was
 changed. During Planner review, remote `refactor/package-boundaries` was
 observed at `d940e17574cd91ea94677ca7fe8889baa15da893`; this is recorded only
 as observed state.
+
+## Phase 7 execution evidence — calibration semantic reconciliation mapping
+
+### Execution identity and provenance
+
+- Governing task: `.agents/tasks/main-hotfix-reconciliation.md` version `1.11`
+  at `5d41596788a4fe2abffca72c27e3cca68b5c4e50`.
+- Execution-start `HEAD`: `5d41596788a4fe2abffca72c27e3cca68b5c4e50`.
+- Branch/worktree: `refactor/package-boundaries` / `/var/www/mpips`.
+- Initial worktree: clean. `origin/refactor/package-boundaries` resolved to
+  `5d41596788a4fe2abffca72c27e3cca68b5c4e50`; `origin/main` resolved to
+  `e94784db65bb134d43e87a2046037ab4d1cbfe02`.
+- Accepted Phase-6 evidence: `3809463632685f264b78dd0dcc8d21886cfafa`.
+- Upstream range inspected: `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd` →
+  `ae41b1d5c11d99420aa195385cefa7e9b5b0a595` →
+  `80729162b50e92d99d45061c50ba0d875b2c4202`.
+- `ae41b1d5c11d99420aa195385cefa7e9b5b0a595` has parent
+  `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd` and subject `fix expanded
+  calibration canvas validation`.
+- `80729162b50e92d99d45061c50ba0d875b2c4202` has parent
+  `ae41b1d5c11d99420aa195385cefa7e9b5b0a595` and subject `fix: make expanded
+  calibration canvas canonical`.
+
+### Semantic units and dispositions
+
+The commit messages were not used as applicability evidence. The following
+units were separated from the parent diffs and traced to source/functions.
+
+| Upstream semantic unit | Upstream owner | Canonical owner / observed state | Semantic impact | Final disposition |
+|---|---|---|---|---|
+| Generalize remap coverage evidence to distinguish source detector dimensions from expanded output shape; allow a non-source-sized output map and compute valid coverage against the source domain. | `mpips/workflows/imager_pipeline/calibration.py`: `remap_geometry_evidence()` and expanded branch of `build_or_load_calibration()` in `ae41b1d5`. | `mpips/workflows/imager_pipeline/calibration.py` delegates map generation to `mpips/calibration/dotgrid/neural_model/warp_image.py`; the canonical generator already accepts `output_width`, `output_height`, `dst_origin`, and source dimensions. Canonical workflow lacks the upstream coverage-evidence/acceptance gate. | **VALIDATION ONLY** | **PORT / RECONCILE CANDIDATE** — bounded future validation addition has clear ownership, but no runtime port is authorized here. |
+| Permit expanded remap dimensions during layout validation while retaining fixed-canvas shape checks and source-domain bounds checks. | `scripts/validate_calibration_layout.py` and `tests/test_calibration_layout.py` in `ae41b1d5`. | No current canonical equivalent validator is registered for the canonical workflow cache; canonical output validation allows expanded calibrated-image dimensions through `allow_expanded_calibrated`. | **VALIDATION ONLY** | **PORT / RECONCILE CANDIDATE** — reconcile the validator with canonical metadata and carrier contracts in a later bounded task. |
+| Add expanded-canvas safety gates for valid fraction, output bounding-box coverage, and source-domain width/height coverage; invoke the gate before writing the calibration remap and persist expanded origin/output metadata. | Legacy `mpips/workflows/imager_pipeline/calibration.py`: `validate_expanded_canvas_remap()` and `build_or_load_calibration()`; `scripts/validate_calibration_layout.py`; tests in `80729162`. | The canonical workflow already computes expanded origin/size and source-domain validity, writes the mask, and permits expanded validation, but `build_or_load_calibration()` does not invoke equivalent expanded coverage thresholds or persist origin/output fields in `metadata.json`. | **VALIDATION ONLY** (the gate rejects unsafe artifacts; it does not alter pixels for accepted artifacts) | **PORT / RECONCILE CANDIDATE** — applicability is technically bounded, but thresholds and metadata compatibility require a future task and evidence review. |
+| Make expanded canvas the default in the neural calibration model and legacy CLI/warp entry points. | Legacy `mpips/workflows/imager_pipeline/models.py`, `mpips/engine/calibration/dotgrid/neural_model/run_pipeline.py`, and `warp_image.py` in `80729162`. | Canonical `NeuralCalibrationConfig.canvas_mode` and canonical CLI defaults remain `fixed`; `expanded` remains explicit opt-in. The canonical runtime supports both modes. | **RUNTIME SEMANTIC** | **EVIDENCE REQUIRED** — no approved requirement establishes that the default should change for the refactored architecture, and existing carrier evidence is insufficient for promotion. |
+| Move/use expanded-canvas generation and inverse-map coordinate semantics through the canonical package boundary rather than legacy `mpips/engine` ownership. | Legacy `mpips/engine/calibration/dotgrid/neural_model/warp_image.py` and workflow adapters in `80729162`; relevant canonical move is present in the branch history at `b776d39`. | `mpips/calibration/dotgrid/neural_model/warp_image.py`: `estimate_expanded_canvas()` and `build_inverse_maps()`; `mpips/workflows/imager_pipeline/calibration.py`: `build_inverse_maps()`. The canonical implementation already samples source bounds, applies margin, uses output origin/size, and creates source-domain remaps. Direct legacy imports are mechanically invalid and must not be restored. | **RUNTIME SEMANTIC** | **ALREADY SATISFIED** — equivalent expanded generation and coordinate semantics are present under canonical ownership; this does not accept the legacy default switch or validation gates. |
+| Add expanded-canvas regression/default tests and layout assertions. | `tests/test_calibration_layout.py` and new `tests/test_calibration_defaults.py` in `ae41b1d5`/`80729162`. | Current tests already cover canonical module ownership, expanded workflow execution, non-source-sized remap output, valid-mask padding, and fixed/expanded behavior under explicit configuration. The upstream default tests target legacy CLI/model defaults and do not prove canonical default applicability. | **VALIDATION ONLY** | **DEFER** — retain existing canonical tests; add focused tests only with a future approved validation/default change. |
+
+### Expanded-canvas semantics
+
+The original calibration source domain in the relevant tests and inspected BED
+carrier is `height=3000`, `width=4096`. Newer-main expanded output is a separate
+destination canvas: the observed BED remap is `(3053, 4059)` with float32
+`map_x`/`map_y`, while the source remains `(3000, 4096)`. The implementation
+computes corrected-point bounds, floors the minimum after subtracting a margin
+to obtain `origin_xy`, ceils the maximum after adding the margin, and derives
+`output_size = max_pixel - origin + 1`. Inverse-map sampling then evaluates
+destination coordinates shifted by `dst_origin`, and each map coordinate is
+validated against the source detector domain. Thus expansion changes runtime
+pixel geometry and introduces padded/out-of-source output regions; it is not
+merely a validation label.
+
+Expansion occurs during calibration remap generation (`estimate_expanded_canvas`
+and `build_inverse_maps`), during calibration-output validation, and in the
+layout validator. It does not require a different mathematical map array
+format: the carrier remains paired same-shaped `map_x`/`map_y` arrays, but
+metadata must preserve source shape, output shape, canvas mode, and origin if a
+consumer needs to interpret coordinates unambiguously. Existing canonical
+`mpips.calibration.dotgrid.neural_model.warp_image` already implements the
+generation coordinate semantics. Existing canonical workflow configuration
+defaults to fixed canvas, so adopting the newer default would change runtime
+output geometry and would require explicit authority and compatibility evidence.
+
+### Remap and downstream interaction
+
+The remap is an inverse map from each expanded destination pixel to a source
+detector coordinate. Out-of-domain coordinates produce border-filled pixels;
+the corresponding valid mask is computed from source bounds. The canonical
+`mpips.processing.radiography.apply_calibration_remap()` accepts map shapes
+different from the source image, and `mpips.pipelines.radiography` applies the
+same remap mask to the output and follows it through crop/rotate. Existing
+tests demonstrate a non-source-sized output canvas and zeroed invalid border
+regions. The converter worker keeps `metadata.image_shape` as the source
+radiograph shape while consuming the map shape for the processed output; the
+protected TIFF-to-DICOM converter is not involved in the remap decision.
+
+The current canonical workflow does not persist the expanded origin/output
+fields in its generated `metadata.json`, and its cache loader validates only
+the source `image_shape`, fingerprint, and `validated` flag. This is a carrier
+interpretation gap, not evidence that existing expanded maps are unsafe.
+
+### Carrier and evidence inventory
+
+Read-only inspection covered:
+
+- `artifacts/real_kambing_calibration/bed_mode/metadata.json`: BED metadata
+  identifies source shape `[3000, 4096]`, `canvas_mode: expanded`, source
+  SHA-256 `2f8630d5ae21b4f062f371903ebb7332a2a740532fcbcbb82af5516b418c83be`,
+  source ID `1783219960996`, gain ID `1783219207291`, and fingerprint
+  `4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b`.
+  The repository path contains metadata but not the paired remap/mask/model
+  files, so it is not a complete promotable carrier at that path.
+- `research/kambing-260714/data/output/calibration-cache/4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b/`:
+  the same BED metadata plus a read-only `remap.npz`. Its map shape is
+  `(3053, 4059)`, both arrays are float32, coordinate ranges are
+  `x=[-39.2277, 4118.5034]` and `y=[-50.8455, 3072.8206]`, and source-domain
+  valid fraction is `0.9575378787`. Metadata keys do not include expanded
+  origin or output shape. The remap SHA-256 is
+  `f5ae883bd17960a56c60add99d5e8d2f393ea9427ec5ce3fd1a5d0b920c671bb`.
+- `artifacts/real_kambing_calibration/trx_mode/metadata.json`: synthetic TRX
+  metadata with source shape `[64, 64]` and no expanded-canvas declaration; no
+  paired remap was present at that path.
+- Existing Phase-1–6 evidence and `.agents/context/project.md`: these record
+  fixed/expanded semantics, the read-only real BED cache fingerprint, accepted
+  TRX/BED behavior, and the protected converter, but do not establish a
+  generation log proving that the BED cache was produced by either inspected
+  upstream commit.
+
+Carrier applicability is therefore partially demonstrated for the inspected
+BED cache's geometry, but provenance, complete carrier contents, origin
+metadata, and promotion compatibility are insufficient to authorize adoption
+of the newer default or validation policy. No carrier was modified, generated,
+regenerated, substituted, or promoted.
+
+### Interaction with accepted Phase 1–6 behavior
+
+- Corrected Otsu behavior and TRX threshold bypass remain unchanged.
+- Canonical BED configured-threshold behavior remains unchanged; the Phase-6
+  classification remains **BED THRESHOLD POLICY UNRESOLVED**, and no BED
+  bypass was ported.
+- Accepted TRX clockwise orientation remains downstream of remap and is not
+  changed by this mapping.
+- ImageJ/Fiji fidelity closure and the protected DICOM converter remain
+  untouched; converter SHA remains
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+- Expanded output geometry can affect downstream dimensions and invalid-border
+  masks, but current canonical pipeline tests already cover those mechanics;
+  no accepted Phase-1–6 image-processing conclusion is reopened.
+
+### Unresolved questions and recommendation
+
+Unresolved questions are whether expanded should become the canonical default,
+which coverage thresholds and metadata fields are approved for canonical
+carriers, whether the existing BED carrier has complete provenance and all
+required files, and whether any production consumer requires fixed dimensions.
+
+Recommendation: do not implement or promote a calibration change from this
+mapping alone. A future bounded task is justified for canonical expanded-remap
+validation/metadata reconciliation (**PORT / RECONCILE CANDIDATE**) only after
+carrier provenance and consumer requirements are supplied. The default switch
+is **EVIDENCE REQUIRED** and should remain fixed/opt-in until that evidence is
+approved. Legacy `mpips/engine` ownership, promotion machinery, and carrier
+substitution remain excluded.
+
+### Verification and terminal state
+
+- Read-only source, history, test, metadata, and carrier inspection completed;
+  no calibration generation/regeneration/promotion/substitution occurred.
+- No runtime, default, configuration, threshold, orientation, DICOM, ImageJ,
+  deployment, production, or external-system mutation occurred.
+- Only `.agents/evidence/main-hotfix-reconciliation.md` changed; the governing
+  task file remains byte-identical to `5d41596788a4fe2abffca72c27e3cca68b5c4e50`.
+- `sha256sum mpips/conversion/tiff_json_to_dcm.py` remained
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+- `git diff --check` passed before publication of this evidence commit.
+
+Terminal state: **PHASE 7 MAPPING CANDIDATE — PLANNER REVIEW REQUIRED**.
