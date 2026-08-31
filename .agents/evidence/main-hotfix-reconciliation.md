@@ -597,3 +597,34 @@ and production mutation (**NO**); Drive experiments (**NO**); optimization
 (**NO**). The NPZ → processing → DICOM boundaries remain preserved.
 
 Terminal state: **Review Required**. No next reconciliation phase was started.
+
+## Phase 5 publication — BED Threshold Policy Evidence Characterization
+
+Planner republished `.agents/tasks/main-hotfix-reconciliation.md` as version
+`1.6`. Phase 4 remains accepted and closed at
+`820948734e8b598b851135cc82c2210ead934963`.
+
+Phase 5 is required because canonical behavior preserves BED's configured
+threshold policy while later `main` defaults both BED and TRX to threshold
+bypass. Existing corrected bypass evidence supports TRX only; production-main
+behavior alone is insufficient evidence for BED. The authorized read-only BED
+source is the heterogeneous Drive folder:
+
+`https://drive.google.com/drive/folders/1-15d10XwoZxB3fDzjoxG6Rh392aKJxd8`
+
+The publication bounds recursive provenance inventory, repository-native NPZ
+validation, deterministic bounded cohort selection, paired `BED_AUTO` versus
+`BED_NONE` runs, frozen non-threshold semantics, stage-local IQA, lossless
+geometry, final-output statistics, and one of the three required bounded
+classifications. It authorizes no BED runtime-policy change, calibration
+decision, production action, optimization, or release.
+
+The future execution write surface is limited to the characterization helper,
+its report/JSON/CSV artifacts, and this evidence file as listed in the task.
+No external radiograph, NPZ, image, NumPy, calibration, or other
+patient/subject binary may be committed. The protected converter,
+ImageJ/Fiji closure, accepted TRX orientation/bypass, current BED behavior,
+and `NPZ → processing → DICOM` boundaries remain unchanged.
+
+No Phase-5 experiment, Drive access, data analysis, or runtime modification was
+performed during this task republication. Terminal state: **Review Required**.

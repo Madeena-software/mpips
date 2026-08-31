@@ -1,7 +1,7 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.5
+version: 1.6
 status: Validated/Published
 language: en-US
 scope:
@@ -9,7 +9,8 @@ scope:
   - bounded canonical port of accepted image-processing hotfix semantics
   - newer-main radiography semantic-drift mapping
   - bounded canonical TRX orientation port
-authority_note: This task authorizes only the bounded Phase 4 canonical TRX orientation port described below. It does not authorize BED-policy reconciliation, calibration, experiments, production activity, or release activity.
+  - BED threshold policy evidence characterization
+authority_note: This task authorizes only the bounded Phase 5 BED threshold policy evidence characterization described below. It does not authorize BED runtime-policy changes, calibration changes, production activity, optimization, or release activity.
 ---
 
 # Executable Task
@@ -32,7 +33,7 @@ The production `main` line contains material image-processing and calibration ho
 
 ## Baseline and task revision
 
-**Implementation baseline:** `a4a5c16881e589154680f0606c849e2a4514041f`
+**Implementation baseline:** `820948734e8b598b851135cc82c2210ead934963`
 
 **Frozen upstream main baseline:** `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd`
 
@@ -48,7 +49,7 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
 
 ## Objective
 
-**Objective:** Maintain the accepted Phase 1–3 reconciliation history, then port the accepted TRX orientation semantic into canonical refactor ownership with bounded regression coverage. Later BED-policy reconciliation, calibration, revalidation, optimization, and production work remain unauthorized.
+**Objective:** Maintain the accepted Phase 1–4 reconciliation history, then characterize BED configured thresholding versus threshold bypass using bounded, provenance-controlled evidence. BED runtime-policy reconciliation, calibration, revalidation, optimization, and production work remain unauthorized.
 
 ## Authoritative inputs
 
@@ -98,7 +99,7 @@ Phase 2 implementation is accepted at `e0ff8a5c093f5ad265bf65326b40663cb4454943`
 Do not change runtime code, tests, configuration, calibration, conversion,
 deployment, production state, or experiment inputs during Phase 3.
 
-#### Phase 4 — Canonical TRX Orientation Port
+#### Historical Phase 4 — Canonical TRX Orientation Port (accepted)
 
 - Change only `mpips/processing/geometry.py` so TRX uses `cv2.ROTATE_90_CLOCKWISE` in `crop_and_rotate()`.
 - Update only `tests/test_geometry_processing.py` for exact asymmetric CW pixel regressions and `.agents/evidence/main-hotfix-reconciliation.md` for evidence.
@@ -124,9 +125,97 @@ bypass, BED configured-threshold behavior, BED skip behavior, config
 immutability, and unchanged unrelated downstream stage configuration.
 
 
+### Phase 5 write surface
+
+The future Phase-5 execution write surface is exactly:
+
+- `scripts/bed_threshold_policy_characterization.py`
+- `artifacts/real-data-regression/bed-threshold-policy-characterization.md`
+- `artifacts/real-data-regression/bed-threshold-policy-characterization.json`
+- `artifacts/real-data-regression/bed-threshold-policy-characterization.csv`
+- `.agents/evidence/main-hotfix-reconciliation.md`
+
+The helper must orchestrate existing canonical components, duplicate no
+production algorithm, become no production dependency, and modify no
+canonical runtime semantics. No external radiograph, NPZ, TIFF, thumbnail,
+generated image, NumPy array, calibration carrier, or other patient/subject
+binary may be committed.
+
+### Phase 5 execution contract
+
+Phase 5 is evidence/experiment only. It must determine whether available BED
+acquisition evidence supports retaining canonical configured threshold
+separation or supports default threshold bypass as later implemented on
+`main`. Do not change BED runtime policy or mechanically copy
+`dd7c21eead66a2c5396522a2310f5dd9cbd85b85`; TRX bypass is accepted, BED bypass
+is not evidence-accepted.
+
+Use only the authorized read-only BED source:
+`https://drive.google.com/drive/folders/1-15d10XwoZxB3fDzjoxG6Rh392aKJxd8`.
+Recursively inventory it and separate acquisition radiographs, gain NPZ,
+processed/reference images, calibration artifacts, and generated outputs.
+Do not treat the heterogeneous folder or processed tree as one dataset or
+ground truth.
+
+Use trusted repository NPZ semantics from
+`mpips/workflows/imager_pipeline/npz_io.py`, including `allow_pickle=True`
+where required. A primary case must establish SHA-256, `id`, `gainid`,
+`rawimage`, `xrayparams`, `cameraparams`, detector mode `BED`, shape, dtype,
+and finite numeric range. Its gain must have matching identity and usable
+dark, flat/raw gain, detector metadata, and camera metadata. Exclude and
+record malformed, non-BED, duplicate, ambiguous, inconsistent, or
+unresolvable cases.
+
+Freeze a deterministic cohort before inspecting threshold or IQA outcomes:
+maximum 12 radiographs, with at least 3 sessions and 3 subject folders when
+available. Group by session/subject, sort groups lexicographically, sort
+within groups by stable acquisition ID/filename, select first and last
+distinct acquisitions where available, then round-robin to the cap. Record
+the algorithm and selected IDs. Selection must not use quality, appearance,
+threshold results, IQA, or final-output quality.
+
+Run exactly two paired states through identical accepted Phase-4 semantics:
+`BED_AUTO` (`use_threshold=True`, `threshold_method="auto"`) and `BED_NONE`
+(the canonical `threshold_method="none"` bypass). Freeze raw/gain inputs,
+detector mode, denoise, FFC, calibration if legitimately resolved, crop/BED
+geometry, normalization, inversion, contrast/equalization, CLAHE, final
+denoise/filtering, dtype, dimensions, stage order, and unrelated config.
+Calibration must not be invented, regenerated, promoted, mutated, or silently
+substituted from TRX; exclude cases requiring a new calibration decision or
+stop if systematic.
+
+Record the normalized pre-threshold image and stage-local metrics. AUTO must
+include requested/effective branch, numeric threshold when applicable,
+fallback, mask/output SHA-256, foreground/background fractions, min/max/mean/
+median, p01/p50/p99, dynamic range, and nonzero count. NONE must explicitly
+record disabled separation, no invented numeric threshold, output SHA-256,
+and equivalent statistics. Record paired final outputs with shape, dtype,
+ndarray SHA-256, intensity/clipping statistics, and AUTO-vs-NONE differences.
+
+Reuse `mpips.iqa.analyze_structural_preservation` against the same-geometry
+normalized pre-threshold reference for both threshold-stage outputs, recording
+`edge_recall`, `gradient_energy_retention`, `informative_tile_count`,
+`lost_informative_tile_fraction`, `low_percentile_tile_retention`, and
+`informative_extreme_fraction`. Require lossless geometry; comparisons needing
+resize, interpolation, warp, or resampling are `NON-COMPARABLE`. Analyze each
+case and session/subject/cohort groups where possible; report median, range,
+sign consistency, worst-case degradation, and outliers without a weighted
+aggregate or clinical/diagnostic claim.
+
+End with exactly one classification: `BED BYPASS SUPPORTED`,
+`BED CONFIGURED THRESHOLD SUPPORTED`, or `BED THRESHOLD POLICY UNRESOLVED`,
+citing case-level evidence and conflicts. This is decision support only and
+does not change production or canonical defaults.
+
+Do not modify `mpips/conversion/tiff_json_to_dcm.py`; required SHA-256 is
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`. Preserve
+ImageJ/Fiji closure, accepted TRX orientation/bypass, current BED configured
+threshold behavior, and `NPZ → processing → DICOM` boundaries. Historical
+threshold results affected by corrected Otsu semantics are context only.
+
 ### Out of scope
 
-- Any file outside the current Phase-4 implementation write surface above.
+- Any file outside the Phase-5 evidence write surface above.
 - Calibration, diagnostic or stage-observer plumbing, collapse-gate validation rules, validation/promotion/deployment infrastructure, and production API expansion.
 - Git merge, rebase, mechanical cherry-pick, main promotion, deployment, release, or production mutation.
 - Reopening accepted ImageJ/Fiji Contrast, Equalization, Hybrid Median, Circular Median, or CLAHE fidelity closure absent a direct contradiction; such a contradiction stops review.
@@ -152,33 +241,35 @@ immutability, and unchanged unrelated downstream stage configuration.
 ### Approved assumptions
 
 - The canonical owners are under `mpips/processing/`, `mpips/pipelines/`, `mpips/workflows/imager_pipeline/`, and `mpips/calibration/`; removed `mpips/engine/` modules must not be resurrected.
-- Phase 1, Phase 2, and Phase 3 are accepted and closed. Phase 4 ends at `Review Required`.
+- Phases 1–4 are accepted and closed. Phase 5 ends at `Review Required`.
 
 ### Remaining approval requirements
 
-- Reviewer acceptance is recorded for Phase 2 and Phase 3. Planner/Reviewer review is required after Phase 4 implementation.
+- Reviewer acceptance is recorded for Phases 2–4. Planner/Reviewer review is required after Phase 5 evidence execution.
 - Every material phase must end `Review Required` and republish this same task path with a new immutable SHA before the next phase is executable.
 - Acceptance does not authorize promotion, deployment, or release.
 
 ## Required capabilities
 
-- Repository read/write access limited to the exact Phase 4 implementation write surface
-- Local command execution and focused test verification
+- Repository read/write access limited to the exact Phase 5 evidence write surface
+- Local command execution and bounded experiment verification
 
 ## Execution constraints
 
-- Preserve accepted Phase-1–3 provenance and map the orientation semantic to canonical ownership.
-- Change only the Phase-4 write surface; do not modify BED thresholding, calibration, conversion, ImageJ, filtering, config, API, deployment, or production behavior.
-- Use one clockwise rotation at the canonical geometry boundary; do not use flips, a second rotation, metadata tricks, or legacy engine code.
-- Do not merge, rebase, cherry-pick, run production workflows, or run experiments.
+- Preserve accepted Phase-1–4 provenance.
+- Change only the Phase-5 write surface; do not modify BED runtime thresholding, calibration, conversion, ImageJ, filtering, config, API, deployment, or production behavior.
+- Do not merge, rebase, cherry-pick, run production workflows, deploy, release, or mutate external systems.
 
 ## Phase map
 
 1. **PHASE 1 — UPSTREAM HOTFIX IMPACT MAPPING** — `ACCEPTED / CLOSED`.
 2. **PHASE 2 — CANONICAL HOTFIX PORT** — `ACCEPTED / CLOSED` at `e0ff8a5c093f5ad265bf65326b40663cb4454943`.
 3. **PHASE 3 — NEWER-MAIN RADIOGRAPHY SEMANTIC DRIFT MAPPING** — `ACCEPTED / CLOSED` at `b9093b0aec5dd66cf2a5afcd5028c2876cf889bd`.
-4. **PHASE 4 — CANONICAL TRX ORIENTATION PORT** — `CURRENT RELEASED PHASE`.
-5. **BED-POLICY RECONCILIATION / CALIBRATION / REVALIDATION / OPTIMIZATION / PRODUCTION PHASES** — `UNAUTHORIZED`.
+4. **PHASE 4 — CANONICAL TRX ORIENTATION PORT** — `ACCEPTED / CLOSED` at `820948734e8b598b851135cc82c2210ead934963`.
+5. **PHASE 5 — BED THRESHOLD POLICY EVIDENCE CHARACTERIZATION** — `CURRENT RELEASED PHASE`.
+6. **BED RUNTIME-POLICY IMPLEMENTATION** — `UNAUTHORIZED`.
+7. **CALIBRATION RECONCILIATION** — `UNAUTHORIZED`.
+8. **BROADER REVALIDATION / OPTIMIZATION / PRODUCTION PHASES** — `UNAUTHORIZED`.
 
 ## Historical Phase 3 execution contract — satisfied
 
@@ -192,7 +283,7 @@ provenance, not current execution authority:
 - runtime implementation and experiments remained unauthorized;
 - the terminal state was left `Review Required`.
 
-## Phase 4 execution contract
+## Historical Phase 4 execution contract — satisfied
 
 The Executor must:
 
