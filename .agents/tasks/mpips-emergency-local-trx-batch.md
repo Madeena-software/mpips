@@ -1,13 +1,13 @@
 ---
 title: MPIPS emergency local TRX batch DICOM capability
 document_id: TASK-MPIPS-EMERGENCY-LOCAL-TRX-BATCH
-version: 1.0
+version: 1.1
 status: Validated/Published
 language: en-US
 scope:
   - bounded local manifest-driven TRX NPZ to DICOM batch processing
   - emergency local operational workflow only
-authority_note: This task authorizes local implementation and verification only. It does not authorize real-patient processing, external upload, deployment, or production mutation.
+authority_note: This task authorizes local implementation and verification only. After independent implementation review and local acceptance of exactly one corrected DICOM, it permits one bounded external YiZhun AI Assisted Diagnosis validation under the explicit post-review contract below. It does not authorize bulk processing, deployment, or production mutation.
 ---
 
 # Executable Task
@@ -32,11 +32,135 @@ The observed emergency source population is operational evidence only: two Drive
 
 ## Baseline and task revision
 
-**Implementation baseline:** `e94784db65bb134d43e87a2046037ab4d1cbfe02`
+**Implementation baseline:** `6f64ee5788286a0418d79c2a705d5d7851736e47`
 
 **Task revision:** resolved as the immutable Git publication revision before Executor handoff.
 
 The accepted TRX clockwise-orientation correction is present in the baseline via `f2bf7b9980f9af7649e1a6c45c46aaee7a55a36a` and must not be regressed, replaced, bypassed, duplicated, or reinterpreted.
+
+## Remediation — Authoritative DICOM Examination Date Semantics
+
+### Objective
+
+Generated emergency DICOMs must use authoritative examination/capture temporal
+data where it exists and MUST NOT expose deterministic `conversion_job_id`-
+derived pseudo-time as a clinical examination timestamp.
+
+### Required behavior
+
+1. **Study Date (0008,0020)** MUST represent the authoritative examination or
+   study start date. When the emergency manifest supplies
+   `examination.performed_at`, StudyDate must derive from that timestamp. For
+   example, `performed_at` date `2026-08-28` requires `StudyDate = 20260828`,
+   not a UUID-derived date.
+2. **Study Time (0008,0030)** MUST NOT fabricate time precision. If an
+   authoritative examination time is genuinely supplied, represent it. If the
+   source supplies only a calendar date and midnight was only a transport
+   representation, use the DICOM-compliant unknown/empty representation
+   appropriate to the IOD and existing converter architecture; do not claim
+   midnight as an observed clinical time.
+3. **Content Date (0008,0023) and Content Time (0008,0033)** remain semantically
+   distinct from StudyDate/StudyTime: they represent the start of image
+   pixel-data creation. Use an authoritative capture/image-content timestamp
+   only when actually known. Otherwise follow applicable DICOM requirements for
+   absent/unknown values and do not copy StudyDate/StudyTime without semantic
+   justification.
+4. Deterministic internal fallback timestamps MAY remain where required by MPIPS
+   architecture, but MUST NOT leak into clinical DICOM date/time tags as factual
+   examination or acquisition dates. Prefer the minimum coherent fix over a
+   redesign of the resolved-manifest model.
+
+### Preserved behavior
+
+The remediation MUST preserve patient identity, DOB/sex semantics, deterministic
+MRN derivation, Study/Series/SOP UID behavior unless strictly necessary,
+calibrated pixels, gain correction, geometric remap, accepted clockwise TRX
+orientation, 4096 × 3000 output dimensions, PixelSpacing, projection PA,
+otherwise-identical source pixel bytes, and batch duplicate/rerun behavior.
+
+### Validation hardening
+
+Extend DICOM validation so this defect cannot silently pass again. For a
+manifest with authoritative `performed_at`, validate StudyDate against it;
+validate StudyTime only when an authoritative time is known; and reject
+pseudo/inconsistent examination dates. Validate capture/content tags against
+the temporal source actually claimed by the manifest/conversion path. These
+checks MUST use synthetic manifests and MUST NOT depend on real-patient
+fixtures.
+
+### Regression tests
+
+Add synthetic tests proving:
+
+- authoritative date `2026-08-28` produces `StudyDate == 20260828`;
+- an authoritative date+time is represented correctly;
+- a date-only emergency input does not fabricate midnight as observed clinical
+  examination time;
+- changing deterministic conversion identifiers does not alter StudyDate when
+  the same authoritative examination date is supplied;
+- an explicit authoritative `captured_at`/content timestamp produces the
+  appropriate content temporal tags; and
+- existing DICOM validation, orientation, calibration, dimensions, and
+  patient-isolation tests continue to pass.
+
+## Bounded post-review one-DICOM external validation
+
+This is a separately gated operational phase. It MUST NOT occur until
+Planner/Reviewer accepts the implementation and the one corrected local DICOM.
+The complete 45-study population remains unauthorized by this task.
+
+### Sample selection and local acceptance
+
+Select one sample privately from the already-authorized CV Prestige population:
+complete and reconciled demographic identity, authoritative examination date,
+accepted source NPZ/gain/calibration, not a known blank-PDF regression case, and
+preferably no prior demographic correction. Do not commit its identity.
+
+Before any external upload, independently verify the one corrected sample has:
+
+- canonical MPIPS conversion PASS, gain correction, geometric calibration, and
+  unchanged orientation;
+- Rows = 4096, Columns = 3000, ViewPosition = PA, and patient identity/DOB/sex
+  matching the private manifest;
+- StudyDate matching the authoritative examination date, StudyTime making no
+  unsupported precision claim, and ContentDate/Time satisfying the implemented
+  semantic rule;
+- a parsable DICOM with decodable `pixel_array`; and
+- unchanged PixelData relative to the pre-remediation DICOM for the same source,
+  unless explicitly justified.
+
+Compute whole-file and PixelData SHA-256 separately. The PixelData hash should
+normally remain unchanged because this is a metadata-only remediation.
+
+### External test boundary
+
+Authorized only after the gate above: authenticate to the already-authorized
+YiZhun environment, enter AI Assisted Diagnosis, upload exactly one corrected
+DICOM, allow only processing inherent to that upload, inspect the resulting
+study/viewer state, and record private before/after evidence. Do not upload a
+second DICOM, process the remaining 44, use bulk selection or `--all`, generate
+a report, download a PDF, process unrelated patients, delete old studies, edit
+PACS data, or mutate the repository during the operational test.
+
+Before upload, record privately PatientID, StudyInstanceUID, SeriesInstanceUID,
+SOPInstanceUID, matching-study count if discoverable, visible examination date,
+and image/viewer availability. Do not return PHI in shared evidence.
+
+After upload, privately determine matching patient/study/SOP counts and classify
+the result as `REPLACED_OR_UPDATED`, `REJECTED_DUPLICATE`,
+`CREATED_DUPLICATE`, or `OTHER`. Verify image opening, laterality/orientation,
+visible corrected examination date where exposed, and absence of unrelated
+impact. Stop after this upload regardless of outcome.
+
+Stop immediately if YiZhun requires bulk selection, target identity cannot be
+established safely, an unrelated study could be overwritten, more than one new
+study appears, patient identity changes, the image is not the intended image,
+or deletion/destructive remediation is required.
+
+The one-DICOM result is a decision gate. Planner/Reviewer must inspect the local
+corrected-DICOM evidence and private YiZhun before/after result before deciding
+the safe strategy for the full population. This task alone does not authorize
+the remaining 44 studies.
 
 ## Objective
 
@@ -56,7 +180,7 @@ Implement a local, bounded, manifest-driven capability that validates TRX inputs
 - Local bounded recovery capability → emergency operational handoff.
 - Canonical MPIPS processing and DICOM semantics → `.agents/context/project.md` and observed baseline implementation in `mpips/workflows/imager_pipeline/`, `mpips/conversion/`, and `mpips/api/schemas/`.
 - Deterministic emergency MRN identity → emergency operational handoff: `TRX_<numeric-id>.npz` → `MRN-<numeric-id>`.
-- No real-patient artifacts or external-system mutation → emergency operational handoff and repository delivery contract.
+- No unapproved real-patient artifacts or external-system mutation → emergency operational handoff and repository delivery contract; the bounded one-DICOM post-review validation is the sole explicit exception.
 
 ## Scope
 
@@ -113,7 +237,7 @@ Implement a local, bounded, manifest-driven capability that validates TRX inputs
 
 - Human/operator approval is required before using any real patient manifest or processing real patient data.
 - A clear preflight must establish the authorized gain and validated calibration dependency before real-patient processing. If it cannot, real-patient conversion must stop and report the missing dependency.
-- Human review is required before implementation acceptance. No deployment, release, or external upload authorization is granted.
+- Human review is required before implementation acceptance. No deployment or release authorization is granted. External upload remains prohibited until the bounded one-DICOM post-review gate is satisfied.
 
 ## Required capabilities
 
@@ -185,7 +309,7 @@ The Executor MUST stop implementation and return to planning when:
 - create or modify local source/tests/documentation required by this task;
 - write synthetic fixtures and local temporary outputs that contain no real patient data.
 
-This task does not authorize real-patient processing, downloading or uploading patient data, Drive mutation, China AI-PACS interaction, deployment, production mutation, secrets, or push/PR creation.
+This task does not authorize bulk real-patient processing, downloading or uploading additional patient data, Drive mutation, deployment, production mutation, secrets, or push/PR creation. The sole exception is the exactly-one-DICOM YiZhun validation explicitly authorized only after the post-review local acceptance gate above.
 
 ## Expected terminal outcome
 
