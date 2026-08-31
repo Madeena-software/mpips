@@ -1,7 +1,7 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.12
+version: 1.13
 status: Validated/Published
 language: en-US
 scope:
@@ -415,11 +415,11 @@ cherry-pick, and push mutations are prohibited.
 5. **PHASE 5 — BED THRESHOLD POLICY EVIDENCE CHARACTERIZATION** — `ACCEPTED / CLOSED` at `80d815c191766798bf0a6977f7abcbe24977cfbd`.
 6. **PHASE 6 — BED THRESHOLD POLICY REFERENCE GROUNDING** — `ACCEPTED / CLOSED` at `3809463632685f264b78dd0dcc8d21886cfafa`.
 7. **PHASE 7 — CALIBRATION SEMANTIC RECONCILIATION MAPPING** — `ACCEPTED / CLOSED` at `3ab4495b3ba15886fa12465c17757e92c74a7755`.
-8. **PHASE 8 — CALIBRATION CARRIER & CONSUMER COMPATIBILITY GROUNDING** — `CURRENT RELEASED PHASE`.
-9. **CALIBRATION VALIDATION/METADATA IMPLEMENTATION** — `UNAUTHORIZED`.
-10. **CALIBRATION ACCEPTANCE-THRESHOLD POLICY** — `UNAUTHORIZED`.
-11. **FIXED→EXPANDED DEFAULT-POLICY CHANGE** — `UNAUTHORIZED`.
-12. **BROADER OPTIMIZATION / PRODUCTION / RELEASE** — `UNAUTHORIZED`.
+8. **PHASE 8 — CALIBRATION CARRIER & CONSUMER COMPATIBILITY GROUNDING** — `CURRENT RELEASED FINAL PHASE`.
+
+**Post-Phase-8 actions — NOT AUTHORIZED:** calibration validation/metadata
+implementation, acceptance-threshold policy work, fixed→expanded default-policy
+work, optimization, production, deployment, and release.
 
 ## Historical Phase 3 execution contract — satisfied
 
@@ -468,21 +468,22 @@ implementation; they are historical facts, not current execution authority:
 
 ## Verification requirements
 
-### Required checks for Phase 7 mapping
+### Required checks for Phase 8 grounding
 
 - Record the exact governing task revision.
-- Record relevant upstream calibration commits and parent/diff provenance.
-- Identify calibration, canvas, and remap semantics separately.
-- Classify validation-only versus runtime semantics.
-- Identify the current canonical owner for each material semantic.
-- Assign each relevant change exactly one allowed disposition.
-- Record applicability evidence and uncertainty.
-- Record interactions with accepted Phase 1–6 behavior.
-- Verify no calibration is generated, regenerated, promoted, or substituted.
-- Verify no runtime/default/configuration source is modified and no binary is
-  committed.
-- Verify the exact Phase-7 execution write surface is respected and the task
-  file is unchanged.
+- Record carrier provenance and completeness.
+- Identify actual canonical carrier/cache requirements.
+- Inventory metadata, remap, mask, and calibrated-dimension consumers.
+- Assign each material consumer exactly one compatibility classification.
+- Assign each proposed additive metadata field exactly one applicability
+  classification.
+- Separate structural expanded-layout validation from numeric threshold policy.
+- Verify upstream `0.80` thresholds are not used as pass/fail criteria.
+- Verify the canonical default remains `fixed`.
+- Verify no carrier is generated, regenerated, modified, promoted, or
+  substituted.
+- Verify no runtime/default/configuration/test source changes.
+- Verify only stable evidence changes and the governing task remains unchanged.
 - Verify the protected converter SHA remains
   `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
 - Run `git diff --check`.
@@ -497,27 +498,23 @@ Stop with `REVIEW BLOCKED` or `PLANNING REQUIRED` if the branch/HEAD does not ma
 
 Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cross the production hold.
 
-## Phase 7 side-effect authorization
+## Phase 8 side-effect authorization
 
-### Explicitly authorized during Phase-7 execution
+### Explicitly authorized during Phase-8 execution
 
-- Read-only inspection of relevant Git history.
-- Read-only inspection of upstream calibration commits and parents.
-- Read-only inspection of canonical calibration/canvas/remap source.
-- Read-only inspection of existing repository calibration carriers and
-  existing evidence.
+- Read-only repository, history, source, and test inspection.
+- Read-only inspection of existing calibration metadata, remaps, and carriers.
+- Local non-mutating analysis.
 - Update only `.agents/evidence/main-hotfix-reconciliation.md`.
-- Local verification commands that do not mutate calibration or production.
 
 ### Explicitly prohibited side effects
 
-- Modifying `.agents/tasks/main-hotfix-reconciliation.md` during Phase-7
+- Modifying `.agents/tasks/main-hotfix-reconciliation.md` during Phase-8
   execution.
-- Runtime calibration changes; calibration generation or regeneration; carrier
-  promotion; carrier substitution; BED/TRX calibration substitution.
-- Threshold-policy changes; TRX-orientation changes; DICOM conversion changes;
-  ImageJ/Fiji changes; production/deployment mutation; optimization
-  implementation; merge; rebase; cherry-pick; release; or main promotion.
+- Calibration generation or regeneration; carrier modification, promotion, or
+  substitution; runtime/default/configuration/test changes.
+- Acceptance-threshold adoption; fixed→expanded default change; deployment;
+  production mutation; merge; rebase; cherry-pick; release; or main promotion.
 - External-system mutation. Push is not authorized unless separately
   authorized.
 
@@ -529,12 +526,22 @@ For this publication turn:
 
 `PHASE 8 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED`
 
-For actual Phase-7 execution after Planner acceptance of v1.11:
+For actual Phase-8 execution after Planner acceptance of v1.13:
 
-- successful mapping: `PHASE 7 MAPPING CANDIDATE — PLANNER REVIEW REQUIRED`
-- blocked mapping: `PHASE 7 MAPPING BLOCKED — PLANNER REVIEW REQUIRED`
+- successful grounding: `PHASE 8 GROUNDING CANDIDATE — PLANNER REVIEW REQUIRED`
+- blocked grounding: `PHASE 8 GROUNDING BLOCKED — PLANNER REVIEW REQUIRED`
+
+After Planner review of Phase-8 evidence, explicitly answer whether any
+remaining hotfix-reconciliation issue materially requires implementation before
+this umbrella task can close. If no material implementation blocker exists,
+close it as `MAIN HOTFIX RECONCILIATION ACCEPTED / CLOSED`. An evidence gap
+that does not block current canonical/refactor behavior, including optional
+calibration policy investigation, is not by itself a reason to prolong this
+umbrella task. Any genuinely required implementation must be recorded as a
+bounded unresolved item requiring separate Planner authorization; do not create
+a Phase 9 under this umbrella task.
 
 Phase-8 grounding must not be executed in the same publication commit. After
-Planner accepts v1.12, it becomes executable under the immutable v1.12 task
+Planner accepts v1.13, it becomes executable under the immutable v1.13 task
 revision. Planner/Reviewer acceptance remains separate from release
 authorization.

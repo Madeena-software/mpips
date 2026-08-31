@@ -1093,3 +1093,26 @@ The protected converter SHA remains
 `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
 
 Terminal state: **PHASE 8 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED**.
+
+## Phase 8 final-contract remediation — publication only
+
+The umbrella task is republished as version `1.13` on top of publication
+candidate `ccf82a075183ec3d4a7ff53c317275d27d154a63`. This corrective turn
+replaces stale current Phase-7 execution authority with Phase-8 verification
+requirements and side-effect boundaries, and makes Phase 8 the final phase of
+this umbrella reconciliation.
+
+Phase 8 remains evidence/compatibility grounding only and was not executed in
+this publication. No carrier or calibration was generated, regenerated,
+modified, promoted, or substituted. No runtime, default, configuration, test,
+threshold, deployment, production, release, or external-system mutation
+occurred.
+
+The phase map now ends at Phase 8. Post-Phase-8 actions are not authorized and
+are not numbered successor phases. After Phase-8 evidence review, the Planner
+must determine whether any remaining hotfix-reconciliation issue materially
+requires implementation before closure; optional calibration-policy evidence
+gaps that do not block current canonical/refactor behavior do not prolong this
+umbrella task.
+
+Terminal state: **PHASE 8 CONTRACT REMEDIATION CANDIDATE — PLANNER REVIEW REQUIRED**.
