@@ -1287,3 +1287,35 @@ separate Planner-authorized task.
   `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
 
 Terminal state: **PHASE 8 GROUNDING CANDIDATE — PLANNER REVIEW REQUIRED**.
+
+## Umbrella closure publication — Planner acceptance
+
+The Planner accepts and closes Phase 8 at
+`4c6ed59743568d5139db8e56cd3f014d5381bfba`. All Phases 1–8 are
+`ACCEPTED / CLOSED`; the umbrella reconciliation is
+`MAIN HOTFIX RECONCILIATION ACCEPTED / CLOSED`.
+
+There is no current released phase, no successor phase, and no implementation
+authority remaining under this umbrella task. No Phase 9 is created. Any
+post-closure implementation requires a separate task and separate Planner
+authorization.
+
+The following closure boundaries are preserved:
+
+- BED threshold policy remains **UNRESOLVED**; the BED bypass remains unported.
+- Expanded generation/remap semantics are **ALREADY SATISFIED**.
+- Numeric expanded-remap thresholds are not adopted.
+- The canonical calibration default remains `fixed`; expanded mode remains
+  opt-in.
+- Geometry metrics, additive metadata, and structural validation remain
+  optional separate follow-up candidates only.
+
+This is an administrative closure publication only. It did not modify runtime,
+tests, configuration, calibration, carriers, binaries, conversion, deployment,
+or production, and did not merge, rebase, cherry-pick, deploy, release, or
+perform implementation work.
+
+The protected converter SHA-256 remains
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+Terminal state: **MAIN HOTFIX RECONCILIATION CLOSURE PUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED**.

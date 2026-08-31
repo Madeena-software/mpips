@@ -1,8 +1,8 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.13
-status: Validated/Published
+version: 1.14
+status: Accepted/Closed
 language: en-US
 scope:
   - semantic reconciliation of the frozen main image-processing hotfix range
@@ -10,8 +10,8 @@ scope:
   - newer-main radiography semantic-drift mapping
   - bounded canonical TRX orientation port
   - BED threshold policy reference grounding
-  - release phase 8 calibration carrier and consumer compatibility grounding
-authority_note: This task authorizes only the bounded Phase 8 calibration carrier and consumer compatibility grounding described below. It does not authorize calibration runtime changes, BED runtime-policy changes, production activity, optimization, or release activity.
+  - Phase 8 calibration carrier and consumer compatibility grounding
+authority_note: This umbrella task is accepted/closed. It authorizes no further implementation, calibration, policy, production, deployment, release, or successor-phase work. Post-closure work requires a separate task and separate Planner authorization.
 ---
 
 # Executable Task
@@ -22,7 +22,7 @@ authority_note: This task authorizes only the bounded Phase 8 calibration carrie
 
 **Task path:** `.agents/tasks/main-hotfix-reconciliation.md`
 
-**Task contract state:** `Validated/Published`
+**Task contract state:** `Accepted/Closed`
 
 **Delivery objective / Work Package / MVP:** Main hotfix reconciliation before Radiography Pipeline Optimization
 
@@ -50,7 +50,7 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
 
 ## Objective
 
-**Objective:** Maintain the accepted Phase 1–7 reconciliation history, then ground calibration carrier provenance, completeness, and consumer compatibility before any canonical implementation. Calibration runtime implementation, BED runtime-policy reconciliation, revalidation, optimization, and production work remain unauthorized.
+**Objective:** Preserve the accepted Phase 1–8 reconciliation history and publish the administrative closure of the umbrella task. Calibration runtime implementation, BED runtime-policy reconciliation, revalidation, optimization, production work, and successor phases remain unauthorized under this task.
 
 ## Authoritative inputs
 
@@ -415,11 +415,12 @@ cherry-pick, and push mutations are prohibited.
 5. **PHASE 5 — BED THRESHOLD POLICY EVIDENCE CHARACTERIZATION** — `ACCEPTED / CLOSED` at `80d815c191766798bf0a6977f7abcbe24977cfbd`.
 6. **PHASE 6 — BED THRESHOLD POLICY REFERENCE GROUNDING** — `ACCEPTED / CLOSED` at `3809463632685f264b78dd0dcc8d21886cfafa`.
 7. **PHASE 7 — CALIBRATION SEMANTIC RECONCILIATION MAPPING** — `ACCEPTED / CLOSED` at `3ab4495b3ba15886fa12465c17757e92c74a7755`.
-8. **PHASE 8 — CALIBRATION CARRIER & CONSUMER COMPATIBILITY GROUNDING** — `CURRENT RELEASED FINAL PHASE`.
+8. **PHASE 8 — CALIBRATION CARRIER & CONSUMER COMPATIBILITY GROUNDING** — `ACCEPTED / CLOSED` at `4c6ed59743568d5139db8e56cd3f014d5381bfba`.
 
-**Post-Phase-8 actions — NOT AUTHORIZED:** calibration validation/metadata
-implementation, acceptance-threshold policy work, fixed→expanded default-policy
-work, optimization, production, deployment, and release.
+**Umbrella closure:** Phases 1–8 are accepted/closed. There is no current
+released phase, no successor phase, and no implementation authority remaining
+under this umbrella task. Post-closure work requires a separate task and
+separate Planner authorization.
 
 ## Historical Phase 3 execution contract — satisfied
 
@@ -520,28 +521,12 @@ Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cros
 
 ## Expected terminal outcome
 
-### Review Required
+### Closed
 
 For this publication turn:
 
-`PHASE 8 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED`
+`MAIN HOTFIX RECONCILIATION CLOSURE PUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED`
 
-For actual Phase-8 execution after Planner acceptance of v1.13:
-
-- successful grounding: `PHASE 8 GROUNDING CANDIDATE — PLANNER REVIEW REQUIRED`
-- blocked grounding: `PHASE 8 GROUNDING BLOCKED — PLANNER REVIEW REQUIRED`
-
-After Planner review of Phase-8 evidence, explicitly answer whether any
-remaining hotfix-reconciliation issue materially requires implementation before
-this umbrella task can close. If no material implementation blocker exists,
-close it as `MAIN HOTFIX RECONCILIATION ACCEPTED / CLOSED`. An evidence gap
-that does not block current canonical/refactor behavior, including optional
-calibration policy investigation, is not by itself a reason to prolong this
-umbrella task. Any genuinely required implementation must be recorded as a
-bounded unresolved item requiring separate Planner authorization; do not create
-a Phase 9 under this umbrella task.
-
-Phase-8 grounding must not be executed in the same publication commit. After
-Planner accepts v1.13, it becomes executable under the immutable v1.13 task
-revision. Planner/Reviewer acceptance remains separate from release
-authorization.
+The accepted final evidence is
+`4c6ed59743568d5139db8e56cd3f014d5381bfba`. No Phase 9 exists or is created.
+Planner/Reviewer acceptance remains separate from release authorization.
