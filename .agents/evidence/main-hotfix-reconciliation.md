@@ -1054,3 +1054,42 @@ excluded.
 - `git diff --check` passed before publication of this evidence commit.
 
 Terminal state: **PHASE 7 MAPPING CANDIDATE — PLANNER REVIEW REQUIRED**.
+
+## Phase 8 task republication — calibration carrier and consumer compatibility grounding
+
+The umbrella task is republished as version `1.12`. Phase 7 is accepted and
+closed at `3ab4495b3ba15886fa12465c17757e92c74a7755`; Phase 8 is the only
+current released phase.
+
+Phase 8 is evidence and compatibility grounding only. Its objective is to
+establish carrier provenance and completeness, the canonical carrier contract,
+consumer compatibility, structural expanded-layout validation applicability,
+and the bounded implementation recommendation for the Phase-7 candidates.
+The Phase-8 execution surface is evidence-only: after Planner acceptance, only
+this stable evidence file may be changed and the v1.12 task must remain
+immutable.
+
+This publication turn did not execute Phase 8. It did not inspect or mutate
+carriers beyond the already accepted Phase-7 evidence, generate or regenerate
+calibration, promote or substitute carriers, change runtime/default/configuration
+or tests, adopt numeric acceptance thresholds, change the fixed-to-expanded
+default, alter conversion or image-processing behavior, deploy, release, or
+mutate production/external systems.
+
+The unapproved expanded-remap `0.80` threshold values remain
+**EVIDENCE REQUIRED** and unauthorized. The fixed-to-expanded default change
+remains unauthorized. No calibration implementation is implicitly authorized.
+
+Publication write surface:
+
+- `.agents/tasks/main-hotfix-reconciliation.md`
+- `.agents/evidence/main-hotfix-reconciliation.md`
+
+Future Phase-8 execution write surface:
+
+- `.agents/evidence/main-hotfix-reconciliation.md`
+
+The protected converter SHA remains
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+Terminal state: **PHASE 8 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED**.

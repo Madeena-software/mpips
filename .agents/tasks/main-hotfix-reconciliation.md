@@ -1,7 +1,7 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.11
+version: 1.12
 status: Validated/Published
 language: en-US
 scope:
@@ -10,8 +10,8 @@ scope:
   - newer-main radiography semantic-drift mapping
   - bounded canonical TRX orientation port
   - BED threshold policy reference grounding
-  - newer-main calibration semantic reconciliation mapping
-authority_note: This task authorizes only the bounded Phase 7 calibration semantic reconciliation mapping described below. It does not authorize calibration runtime changes, BED runtime-policy changes, production activity, optimization, or release activity.
+  - release phase 8 calibration carrier and consumer compatibility grounding
+authority_note: This task authorizes only the bounded Phase 8 calibration carrier and consumer compatibility grounding described below. It does not authorize calibration runtime changes, BED runtime-policy changes, production activity, optimization, or release activity.
 ---
 
 # Executable Task
@@ -50,7 +50,7 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
 
 ## Objective
 
-**Objective:** Maintain the accepted Phase 1–6 reconciliation history, then map and evaluate newer-main calibration semantic drift before any canonical implementation. Calibration runtime implementation, BED runtime-policy reconciliation, revalidation, optimization, and production work remain unauthorized.
+**Objective:** Maintain the accepted Phase 1–7 reconciliation history, then ground calibration carrier provenance, completeness, and consumer compatibility before any canonical implementation. Calibration runtime implementation, BED runtime-policy reconciliation, revalidation, optimization, and production work remain unauthorized.
 
 ## Authoritative inputs
 
@@ -307,8 +307,8 @@ source, test, configuration, deployment, or production file is in scope.
 
 ### Remaining approval requirements
 
-- Reviewer acceptance is recorded for Phases 2–6. Planner/Reviewer review is
-  required after Phase 7 evidence mapping.
+- Reviewer acceptance is recorded for Phases 2–7. Planner/Reviewer review is
+  required after Phase 8 evidence grounding.
 - Every material phase must end `Review Required` and republish this same task path with a new immutable SHA before the next phase is executable.
 - Acceptance does not authorize promotion, deployment, or release.
 
@@ -328,6 +328,84 @@ source, test, configuration, deployment, or production file is in scope.
   mapping. Do not generate/regenerate or promote calibration, merge, rebase,
   cherry-pick, deploy, release, or mutate external systems.
 
+## Phase 8 — Calibration Carrier & Consumer Compatibility Grounding
+
+### Objective
+
+Resolve the evidence limitations preventing the Phase-7 `PORT / RECONCILE CANDIDATE`
+semantics from becoming a bounded implementation contract. Establish carrier
+provenance and completeness, the canonical metadata/carrier contract, additive
+metadata compatibility, fixed-dimension consumer assumptions, structural
+expanded-layout validation applicability, and the exact bounded implementation
+surface after acceptance.
+
+This phase is evidence/compatibility grounding only. It does not authorize
+runtime implementation, calibration generation or regeneration, carrier
+promotion, numeric acceptance-threshold policy, or the fixed-to-expanded
+default change.
+
+### Evidence-only contract
+
+Inspect existing BED calibration evidence/carriers at:
+
+- `artifacts/real_kambing_calibration/bed_mode/`
+- `research/kambing-260714/data/output/calibration-cache/`
+
+Record exact carrier paths, detector mode, acquisition/gain IDs, source and
+calibration hashes, source/remap shapes, canvas mode, mask/model/metrics and
+metadata presence, generation provenance, completeness, and provenance
+sufficiency. Classify provenance as `PROVENANCE SUFFICIENT`, `PROVENANCE
+PARTIAL`, or `PROVENANCE INSUFFICIENT`; do not promote carriers or infer
+provenance from names or matching fingerprints.
+
+Inspect `mpips/workflows/imager_pipeline/calibration.py` and actual readers to
+identify mandatory cache artifacts and fields. Inventory consumers of metadata,
+shapes, remaps, masks, canvas mode, and calibrated dimensions. Classify each
+material consumer as `EXPANDED COMPATIBLE`, `FIXED-DIMENSION DEPENDENT`,
+`METADATA COMPATIBILITY ONLY`, or `UNRESOLVED`; tests alone are not production
+consumer evidence.
+
+Assess structural layout checks only: paired equal-shaped non-empty 2-D maps,
+finite values, known canvas mode, fixed source-sized remaps, expanded distinct
+output shape, source-domain coordinates, and metadata consistency. Do not use
+the unapproved `0.80` thresholds or any substitute acceptance threshold.
+
+Assess each proposed field separately: source image shape, remap output shape,
+canvas mode, expanded origin, and expanded output size. Classify each as
+`ADDITIVE / IMPLEMENTATION READY`, `ADDITIVE BUT EVIDENCE REQUIRED`,
+`MIGRATION REQUIRED`, or `UNNECESSARY`. Do not modify carrier format during
+this phase.
+
+Each Phase-7 `PORT / RECONCILE CANDIDATE` must end as exactly one of
+`IMPLEMENTATION READY`, `EVIDENCE REQUIRED`, `DEFER`, or `ALREADY SATISFIED`.
+The implementation-ready set must exclude numeric thresholds, the default
+switch, generation/regeneration, carrier promotion, and production changes.
+
+### Write surface and side effects
+
+For this v1.12 publication only, modify only:
+
+- `.agents/tasks/main-hotfix-reconciliation.md`
+- `.agents/evidence/main-hotfix-reconciliation.md`
+
+After Planner acceptance of v1.12, Phase-8 execution may modify only
+`.agents/evidence/main-hotfix-reconciliation.md`; this task becomes immutable
+for the execution. Read-only repository inspection and non-mutating local
+checks are allowed. Carrier, source, test, configuration, runtime, binary,
+generated-artifact, deployment, production, external-system, merge, rebase,
+cherry-pick, and push mutations are prohibited.
+
+### Required publication checks
+
+- Phase 7 accepted/closed at `3ab4495b3ba15886fa12465c17757e92c74a7755`.
+- Phase 8 is the only current released phase.
+- Phase-8 execution is evidence-only and the governing task is immutable.
+- Numeric `0.80` thresholds and fixed-to-expanded default remain unauthorized.
+- No calibration implementation is implicitly authorized.
+- Protected converter SHA remains
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+- `git diff --check`, `git diff --name-only`, and `git status --short` pass.
+
 ## Phase map
 
 1. **PHASE 1 — UPSTREAM HOTFIX IMPACT MAPPING** — `ACCEPTED / CLOSED`.
@@ -336,9 +414,12 @@ source, test, configuration, deployment, or production file is in scope.
 4. **PHASE 4 — CANONICAL TRX ORIENTATION PORT** — `ACCEPTED / CLOSED` at `820948734e8b598b851135cc82c2210ead934963`.
 5. **PHASE 5 — BED THRESHOLD POLICY EVIDENCE CHARACTERIZATION** — `ACCEPTED / CLOSED` at `80d815c191766798bf0a6977f7abcbe24977cfbd`.
 6. **PHASE 6 — BED THRESHOLD POLICY REFERENCE GROUNDING** — `ACCEPTED / CLOSED` at `3809463632685f264b78dd0dcc8d21886cfafa`.
-7. **PHASE 7 — CALIBRATION SEMANTIC RECONCILIATION MAPPING** — `CURRENT RELEASED PHASE`.
-8. **CALIBRATION RUNTIME IMPLEMENTATION** — `UNAUTHORIZED`.
-9. **BROADER REVALIDATION / OPTIMIZATION / PRODUCTION PHASES** — `UNAUTHORIZED`.
+7. **PHASE 7 — CALIBRATION SEMANTIC RECONCILIATION MAPPING** — `ACCEPTED / CLOSED` at `3ab4495b3ba15886fa12465c17757e92c74a7755`.
+8. **PHASE 8 — CALIBRATION CARRIER & CONSUMER COMPATIBILITY GROUNDING** — `CURRENT RELEASED PHASE`.
+9. **CALIBRATION VALIDATION/METADATA IMPLEMENTATION** — `UNAUTHORIZED`.
+10. **CALIBRATION ACCEPTANCE-THRESHOLD POLICY** — `UNAUTHORIZED`.
+11. **FIXED→EXPANDED DEFAULT-POLICY CHANGE** — `UNAUTHORIZED`.
+12. **BROADER OPTIMIZATION / PRODUCTION / RELEASE** — `UNAUTHORIZED`.
 
 ## Historical Phase 3 execution contract — satisfied
 
@@ -444,16 +525,16 @@ Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cros
 
 ### Review Required
 
-For this corrective publication turn:
+For this publication turn:
 
-`PHASE 7 CONTRACT REMEDIATION CANDIDATE — PLANNER REVIEW REQUIRED`
+`PHASE 8 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED`
 
 For actual Phase-7 execution after Planner acceptance of v1.11:
 
 - successful mapping: `PHASE 7 MAPPING CANDIDATE — PLANNER REVIEW REQUIRED`
 - blocked mapping: `PHASE 7 MAPPING BLOCKED — PLANNER REVIEW REQUIRED`
 
-Phase-7 mapping must not be executed in the same corrective publication
-commit. After Planner accepts v1.11, it becomes executable under the immutable
-v1.11 task revision. Planner/Reviewer acceptance remains separate from release
+Phase-8 grounding must not be executed in the same publication commit. After
+Planner accepts v1.12, it becomes executable under the immutable v1.12 task
+revision. Planner/Reviewer acceptance remains separate from release
 authorization.
