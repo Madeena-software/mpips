@@ -716,3 +716,35 @@ The corrected artifacts classify the evidence as **BED THRESHOLD POLICY
 UNRESOLVED**. This is decision support only and does not authorize or
 implement a BED runtime-policy change. No external binary was committed,
 Google Drive was not mutated, and the protected converter remained unchanged.
+
+## Phase 6 task republication — BED threshold policy reference grounding
+
+The umbrella task is republished as version `1.8`. Phase 5 is historical
+`ACCEPTED / CLOSED` at
+`80d815c191766798bf0a6977f7abcbe24977cfbd`, with classification **BED
+THRESHOLD POLICY UNRESOLVED**. Its artifacts remain unchanged and are not
+rewritten during this publication.
+
+Phase 6 is the only current released phase. Its objective is to determine
+whether trustworthy exact-same-acquisition processed/reference material exists
+in the authorized BED Drive source and can be losslessly associated with the
+Phase-5 acquisition radiographs for an engineering comparison baseline. The
+reference taxonomy is exactly: `EXACT_SAME_ACQUISITION_LOSSLESS`,
+`SAME_ACQUISITION_PROVENANCE_INSUFFICIENT`,
+`SAME_SUBJECT_DIFFERENT_OR_UNKNOWN_ACQUISITION`,
+`DERIVED_PROVENANCE_UNKNOWN`, and `NON-COMPARABLE`. Exact-same-acquisition
+requires positive provenance evidence.
+
+Permitted comparison geometry is limited to known orientation transform, crop,
+pad, integer translation, and valid-mask intersection. Resize, interpolation,
+resampling, warp, or non-rigid registration is not permitted. If no trustworthy
+exact-same-acquisition comparator is established, the required final decision
+remains **BED THRESHOLD POLICY UNRESOLVED**.
+
+The future Phase-6 write surface is
+`scripts/bed_threshold_reference_grounding.py`, the matching
+`bed-threshold-reference-grounding.md/.json/.csv` artifacts under
+`artifacts/real-data-regression/`, and this evidence file. BED runtime policy,
+calibration, converter, ImageJ/Fiji, production, deployment, and optimization
+remain unauthorized. No Phase-6 experiment, Drive access, runtime change, or
+external mutation occurred during this republication.

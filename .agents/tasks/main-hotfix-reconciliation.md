@@ -1,7 +1,7 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.7
+version: 1.8
 status: Validated/Published
 language: en-US
 scope:
@@ -9,8 +9,8 @@ scope:
   - bounded canonical port of accepted image-processing hotfix semantics
   - newer-main radiography semantic-drift mapping
   - bounded canonical TRX orientation port
-  - BED threshold policy evidence characterization
-authority_note: This task authorizes only the bounded Phase 5 BED threshold policy evidence characterization described below. It does not authorize BED runtime-policy changes, calibration changes, production activity, optimization, or release activity.
+  - BED threshold policy reference grounding
+authority_note: This task authorizes only the bounded Phase 6 BED threshold policy reference grounding described below. It does not authorize BED runtime-policy changes, calibration changes, production activity, optimization, or release activity.
 ---
 
 # Executable Task
@@ -49,7 +49,7 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
 
 ## Objective
 
-**Objective:** Maintain the accepted Phase 1–4 reconciliation history, then characterize BED configured thresholding versus threshold bypass using bounded, provenance-controlled evidence. BED runtime-policy reconciliation, calibration, revalidation, optimization, and production work remain unauthorized.
+**Objective:** Maintain the accepted Phase 1–5 reconciliation history, then determine whether trustworthy exact-same-acquisition BED reference material can be associated with the Phase-5 cases for an engineering comparison baseline. BED runtime-policy reconciliation, calibration, revalidation, optimization, and production work remain unauthorized.
 
 ## Authoritative inputs
 
@@ -125,46 +125,56 @@ bypass, BED configured-threshold behavior, BED skip behavior, config
 immutability, and unchanged unrelated downstream stage configuration.
 
 
-### Phase 5 write surface
+### Historical Phase 5 — BED Threshold Policy Evidence Characterization (accepted)
 
-The future Phase-5 execution write surface is exactly:
+Phase 5 is accepted and closed at `80d815c191766798bf0a6977f7abcbe24977cfbd`.
+Its classification is **BED THRESHOLD POLICY UNRESOLVED**. The 12-case
+characterization established that configured AUTO thresholding materially
+changes the pre-threshold image relative to bypass, but did not establish a
+trustworthy exact-same-acquisition engineering reference. Preserve its JSON,
+CSV, and Markdown artifacts as historical evidence; do not rewrite them during
+this publication.
 
-- `scripts/bed_threshold_policy_characterization.py`
-- `artifacts/real-data-regression/bed-threshold-policy-characterization.md`
-- `artifacts/real-data-regression/bed-threshold-policy-characterization.json`
-- `artifacts/real-data-regression/bed-threshold-policy-characterization.csv`
+### Phase 6 write surface
+
+The future Phase-6 execution write surface is exactly:
+
+- `scripts/bed_threshold_reference_grounding.py`
+- `artifacts/real-data-regression/bed-threshold-reference-grounding.md`
+- `artifacts/real-data-regression/bed-threshold-reference-grounding.json`
+- `artifacts/real-data-regression/bed-threshold-reference-grounding.csv`
 - `.agents/evidence/main-hotfix-reconciliation.md`
 
-The helper must orchestrate existing canonical components, duplicate no
-production algorithm, become no production dependency, and modify no
-canonical runtime semantics. No external radiograph, NPZ, TIFF, thumbnail,
-generated image, NumPy array, calibration carrier, or other patient/subject
-binary may be committed.
+The helper must use the same authorized BED Drive source read-only, inventory
+processed/reference artifacts separately from raw acquisition NPZ, gain NPZ,
+calibration artifacts, and generated outputs, and orchestrate existing
+canonical components. It must duplicate no production algorithm, become no
+production dependency, and modify no canonical runtime semantics. No external
+radiograph, NPZ, TIFF, thumbnail, generated image, NumPy array, calibration
+carrier, or other patient/subject binary may be committed.
 
-### Phase 5 execution contract
+### Phase 6 execution contract
 
-Phase 5 is evidence/experiment only. It must determine whether available BED
-acquisition evidence supports retaining canonical configured threshold
-separation or supports default threshold bypass as later implemented on
-`main`. Do not change BED runtime policy or mechanically copy
-`dd7c21eead66a2c5396522a2310f5dd9cbd85b85`; TRX bypass is accepted, BED bypass
-is not evidence-accepted.
+Phase 6 is provenance/reference grounding first. It must determine whether
+trustworthy exact-same-acquisition reference material can be losslessly
+associated with Phase-5 acquisition radiographs and used as an engineering
+comparison baseline. It is not a new threshold-method search. Do not change
+BED runtime policy or mechanically copy `dd7c21eead66a2c5396522a2310f5dd9cbd85b85`.
 
 Use only the authorized read-only BED source:
 `https://drive.google.com/drive/folders/1-15d10XwoZxB3fDzjoxG6Rh392aKJxd8`.
-Recursively inventory it and separate acquisition radiographs, gain NPZ,
-processed/reference images, calibration artifacts, and generated outputs.
-Do not treat the heterogeneous folder or processed tree as one dataset or
-ground truth.
+Recursively inventory it and record Drive file ID, path, filename, file type,
+SHA-256 when materialized, acquisition ID, subject, session,
+derivation/provenance, and dimensions/orientation where applicable. Do not
+infer same-acquisition identity from subject or folder proximity.
 
-Use trusted repository NPZ semantics from
-`mpips/workflows/imager_pipeline/npz_io.py`, including `allow_pickle=True`
-where required. A primary case must establish SHA-256, `id`, `gainid`,
-`rawimage`, `xrayparams`, `cameraparams`, detector mode `BED`, shape, dtype,
-and finite numeric range. Its gain must have matching identity and usable
-dark, flat/raw gain, detector metadata, and camera metadata. Exclude and
-record malformed, non-BED, duplicate, ambiguous, inconsistent, or
-unresolvable cases.
+Classify every possible reference relationship as exactly one of:
+`EXACT_SAME_ACQUISITION_LOSSLESS`, `SAME_ACQUISITION_PROVENANCE_INSUFFICIENT`,
+`SAME_SUBJECT_DIFFERENT_OR_UNKNOWN_ACQUISITION`, `DERIVED_PROVENANCE_UNKNOWN`,
+or `NON-COMPARABLE`. The first category requires positive provenance evidence.
+
+Reuse Phase-5 acquisition identities and provenance. Do not download or
+access additional Drive artifacts during this publication turn.
 
 Freeze a deterministic cohort before inspecting threshold or IQA outcomes:
 maximum 12 radiographs, with at least 3 sessions and 3 subject folders when
@@ -174,15 +184,15 @@ distinct acquisitions where available, then round-robin to the cap. Record
 the algorithm and selected IDs. Selection must not use quality, appearance,
 threshold results, IQA, or final-output quality.
 
-Run exactly two paired states through identical accepted Phase-4 semantics:
-`BED_AUTO` (`use_threshold=True`, `threshold_method="auto"`) and `BED_NONE`
-(the canonical `threshold_method="none"` bypass). Freeze raw/gain inputs,
-detector mode, denoise, FFC, calibration if legitimately resolved, crop/BED
-geometry, normalization, inversion, contrast/equalization, CLAHE, final
-denoise/filtering, dtype, dimensions, stage order, and unrelated config.
-Calibration must not be invented, regenerated, promoted, mutated, or silently
-substituted from TRX; exclude cases requiring a new calibration decision or
-stop if systematic.
+Only if one or more exact-same-acquisition references are established, compare
+reference ↔ `BED_AUTO` and reference ↔ `BED_NONE` for corresponding Phase-5
+cases using existing canonical IQA/measurement components. Use only lossless
+geometry reconciliation: known orientation transform, crop, pad, integer
+translation, and valid-mask intersection. Resize, interpolation, resampling,
+warp, or non-rigid registration makes the comparison `NON-COMPARABLE`.
+
+Do not create a new weighted quality score, make clinical or diagnostic claims,
+invent calibration, or change runtime policy.
 
 Record the normalized pre-threshold image and stage-local metrics. AUTO must
 include requested/effective branch, numeric threshold when applicable,
@@ -192,20 +202,11 @@ record disabled separation, no invented numeric threshold, output SHA-256,
 and equivalent statistics. Record paired final outputs with shape, dtype,
 ndarray SHA-256, intensity/clipping statistics, and AUTO-vs-NONE differences.
 
-Reuse `mpips.iqa.analyze_structural_preservation` against the same-geometry
-normalized pre-threshold reference for both threshold-stage outputs, recording
-`edge_recall`, `gradient_energy_retention`, `informative_tile_count`,
-`lost_informative_tile_fraction`, `low_percentile_tile_retention`, and
-`informative_extreme_fraction`. Require lossless geometry; comparisons needing
-resize, interpolation, warp, or resampling are `NON-COMPARABLE`. Analyze each
-case and session/subject/cohort groups where possible; report median, range,
-sign consistency, worst-case degradation, and outliers without a weighted
-aggregate or clinical/diagnostic claim.
-
-End with exactly one classification: `BED BYPASS SUPPORTED`,
-`BED CONFIGURED THRESHOLD SUPPORTED`, or `BED THRESHOLD POLICY UNRESOLVED`,
-citing case-level evidence and conflicts. This is decision support only and
-does not change production or canonical defaults.
+End with exactly one classification: `BED BYPASS SUPPORTED`, `BED CONFIGURED
+THRESHOLD SUPPORTED`, or `BED THRESHOLD POLICY UNRESOLVED`. If no trustworthy
+exact-same-acquisition comparator is established, retain `BED THRESHOLD POLICY
+UNRESOLVED`. This is decision support only and does not change production or
+canonical defaults.
 
 Do not modify `mpips/conversion/tiff_json_to_dcm.py`; required SHA-256 is
 `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`. Preserve
@@ -215,7 +216,7 @@ threshold results affected by corrected Otsu semantics are context only.
 
 ### Out of scope
 
-- Any file outside the Phase-5 evidence write surface above.
+- Any file outside the Phase-6 evidence write surface above.
 - Calibration, diagnostic or stage-observer plumbing, collapse-gate validation rules, validation/promotion/deployment infrastructure, and production API expansion.
 - Git merge, rebase, mechanical cherry-pick, main promotion, deployment, release, or production mutation.
 - Reopening accepted ImageJ/Fiji Contrast, Equalization, Hybrid Median, Circular Median, or CLAHE fidelity closure absent a direct contradiction; such a contradiction stops review.
@@ -241,24 +242,24 @@ threshold results affected by corrected Otsu semantics are context only.
 ### Approved assumptions
 
 - The canonical owners are under `mpips/processing/`, `mpips/pipelines/`, `mpips/workflows/imager_pipeline/`, and `mpips/calibration/`; removed `mpips/engine/` modules must not be resurrected.
-- Phases 1–4 are accepted and closed. Phase 5 ends at `Review Required`.
+- Phases 1–5 are accepted and closed. Phase 6 ends at `Review Required`.
 
 ### Remaining approval requirements
 
-- Reviewer acceptance is recorded for Phases 2–4. Planner/Reviewer review is required after Phase 5 evidence execution.
+- Reviewer acceptance is recorded for Phases 2–5. Planner/Reviewer review is required after Phase 6 evidence execution.
 - Every material phase must end `Review Required` and republish this same task path with a new immutable SHA before the next phase is executable.
 - Acceptance does not authorize promotion, deployment, or release.
 
 ## Required capabilities
 
-- Repository read/write access limited to the exact Phase 5 evidence write surface
-- Local command execution and bounded experiment verification
+- Repository read/write access limited to the exact Phase 6 evidence write surface
+- Local command execution and bounded reference-grounding verification
 
 ## Execution constraints
 
-- Preserve accepted Phase-1–4 provenance.
-- Change only the Phase-5 write surface; do not modify BED runtime thresholding, calibration, conversion, ImageJ, filtering, config, API, deployment, or production behavior.
-- Do not merge, rebase, cherry-pick, run production workflows, deploy, release, or mutate external systems.
+- Preserve accepted Phase-1–5 provenance.
+- Change only the Phase-6 write surface; do not modify BED runtime thresholding, calibration, conversion, ImageJ, filtering, config, API, deployment, or production behavior.
+- Do not run Phase 6 during task republication. Do not merge, rebase, cherry-pick, run production workflows, deploy, release, or mutate external systems.
 
 ## Phase map
 
@@ -266,10 +267,11 @@ threshold results affected by corrected Otsu semantics are context only.
 2. **PHASE 2 — CANONICAL HOTFIX PORT** — `ACCEPTED / CLOSED` at `e0ff8a5c093f5ad265bf65326b40663cb4454943`.
 3. **PHASE 3 — NEWER-MAIN RADIOGRAPHY SEMANTIC DRIFT MAPPING** — `ACCEPTED / CLOSED` at `b9093b0aec5dd66cf2a5afcd5028c2876cf889bd`.
 4. **PHASE 4 — CANONICAL TRX ORIENTATION PORT** — `ACCEPTED / CLOSED` at `820948734e8b598b851135cc82c2210ead934963`.
-5. **PHASE 5 — BED THRESHOLD POLICY EVIDENCE CHARACTERIZATION** — `CURRENT RELEASED PHASE`.
-6. **BED RUNTIME-POLICY IMPLEMENTATION** — `UNAUTHORIZED`.
-7. **CALIBRATION RECONCILIATION** — `UNAUTHORIZED`.
-8. **BROADER REVALIDATION / OPTIMIZATION / PRODUCTION PHASES** — `UNAUTHORIZED`.
+5. **PHASE 5 — BED THRESHOLD POLICY EVIDENCE CHARACTERIZATION** — `ACCEPTED / CLOSED` at `80d815c191766798bf0a6977f7abcbe24977cfbd`.
+6. **PHASE 6 — BED THRESHOLD POLICY REFERENCE GROUNDING** — `CURRENT RELEASED PHASE`.
+7. **BED RUNTIME-POLICY IMPLEMENTATION** — `UNAUTHORIZED`.
+8. **CALIBRATION RECONCILIATION** — `UNAUTHORIZED`.
+9. **BROADER REVALIDATION / OPTIMIZATION / PRODUCTION PHASES** — `UNAUTHORIZED`.
 
 ## Historical Phase 3 execution contract — satisfied
 
@@ -318,24 +320,24 @@ implementation; they are historical facts, not current execution authority:
 
 ## Verification requirements
 
-### Required checks
+### Required checks for Phase 6
 
 - `./.venv/bin/python -m pytest -q tests/test_iqa_safety.py`
 - `./.venv/bin/python -m pytest -q tests/test_imager_pipeline_workflow.py`
 - `./.venv/bin/python -m pytest -q tests/test_radiography_pipeline.py`
 - `./.venv/bin/python -m pytest -q tests/test_converter_protection.py`
-- When the Phase-5 experiment helper exists, run applicable quality checks:
-  `./.venv/bin/python -m black --check scripts/bed_threshold_policy_characterization.py`
-  and `./.venv/bin/python -m flake8 scripts/bed_threshold_policy_characterization.py`.
+- When the Phase-6 helper exists, run applicable quality checks:
+  `./.venv/bin/python -m black --check scripts/bed_threshold_reference_grounding.py`
+  and `./.venv/bin/python -m flake8 scripts/bed_threshold_reference_grounding.py`.
 - Run repository-authorized mypy, syntax, and import checks where applicable.
 
-### Phase-5 evidence checks
+### Phase-6 evidence checks
 
-- Freeze the BED cohort before inspecting AUTO/NONE outcomes.
-- Verify every primary case has valid provenance and gain linkage.
-- Verify detector mode is BED, JSON parses, and CSV and JSON rows agree.
-- Verify Markdown conclusions are traceable to machine-readable evidence.
-- Verify the exact Phase-5 write surface is respected.
+- Verify processed/reference material is inventoried separately from acquisition, gain, calibration, and generated-output artifacts.
+- Verify each reference classification has evidence; exact-same-acquisition requires positive provenance.
+- Verify JSON parses, CSV and JSON rows agree, and Markdown conclusions are traceable to machine-readable evidence.
+- Verify only lossless geometry reconciliation is used; otherwise classify `NON-COMPARABLE`.
+- Verify the exact Phase-6 write surface is respected.
 - Verify no NPZ, TIFF, image, NumPy, calibration, or other binary is committed.
 - Verify no runtime, default, or configuration source changes occur.
 - Verify the protected converter SHA remains
@@ -357,8 +359,8 @@ Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cros
 ### Explicitly authorized side effects
 
 - Read-only access to the designated BED Drive source.
-- Local bounded Phase-5 experiment execution.
-- Create or update only the exact Phase-5 write surface above.
+- Local bounded Phase-6 reference-grounding execution.
+- Create or update only the exact Phase-6 write surface above.
 
 ### Explicitly prohibited side effects
 
@@ -372,9 +374,9 @@ Do not silently broaden scope, alter the frozen baseline, port a hotfix, or cros
 
 ### Review Required
 
-`PHASE 5 CONTRACT REMEDIATION CANDIDATE — PLANNER REVIEW REQUIRED`
+`PHASE 6 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED`
 
-Phase-5 execution outcomes are `PHASE 5 EVIDENCE CANDIDATE — PLANNER REVIEW
-REQUIRED` on successful completion or `PHASE 5 EVIDENCE BLOCKED — PLANNER
+Phase-6 execution outcomes are `PHASE 6 EVIDENCE CANDIDATE — PLANNER REVIEW
+REQUIRED` on successful completion or `PHASE 6 EVIDENCE BLOCKED — PLANNER
 REVIEW REQUIRED` when a stop condition prevents trustworthy completion.
 Planner/Reviewer acceptance remains separate from release authorization.
