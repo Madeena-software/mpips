@@ -811,3 +811,28 @@ Generated artifacts:
 
 No runtime/default/configuration/calibration/converter/ImageJ/Fiji/deployment/
 production/optimization change or Drive mutation occurred.
+
+## Phase 6 evidence reproducibility remediation
+
+The provisional Phase-6 candidate was `d9f087e2aabcf12bb1fb42ad41aa440292a20993`.
+Planner review accepted its conservative semantics but found that the helper
+only validated committed artifacts and could not reproduce them. The helper was
+remediated into a deterministic evidence builder. It consumes the accepted
+Phase-5 cases from the accepted JSON and a same-run, authorized read-only Drive
+inventory export, normalizes and sorts the inventory, derives mappings and
+taxonomy counts, and writes and validates the JSON, CSV, and Markdown artifacts
+from one model.
+
+The refreshed inventory contains 196 processed/reference TIFF records with
+normalized digest
+`99691cb7d676239c51bde7a6eab3cf230144ff0f8052de9713ee024f6320a18d`.
+Compared with the provisional 196-record inventory: additions 0, removals 0,
+changed metadata 0; the inventory matches. Programmatic taxonomy counts are 0
+`EXACT_SAME_ACQUISITION_LOSSLESS`, 4
+`SAME_ACQUISITION_PROVENANCE_INSUFFICIENT`, 80
+`SAME_SUBJECT_DIFFERENT_OR_UNKNOWN_ACQUISITION`, 0
+`DERIVED_PROVENANCE_UNKNOWN`, and 0 `NON-COMPARABLE`.
+
+The final classification remains **BED THRESHOLD POLICY UNRESOLVED**. Because
+the exact count is zero, Phase 6 short-circuited; AUTO/NONE were not rerun and
+no reference measurements were performed. No runtime policy change occurred.
