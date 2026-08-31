@@ -748,3 +748,23 @@ The future Phase-6 write surface is
 calibration, converter, ImageJ/Fiji, production, deployment, and optimization
 remain unauthorized. No Phase-6 experiment, Drive access, runtime change, or
 external mutation occurred during this republication.
+
+## Phase 6 contract remediation — immutable Phase-5 target set
+
+The v1.8 publication candidate was `83bcfbb7c997af6c17617671cf69eb68c4a12b2c`.
+Planner review found stale Phase-5 cohort-selection and fresh
+characterization semantics in the current Phase-6 contract. The substantive
+Phase-6 reference taxonomy and lossless geometry boundary were otherwise
+accepted.
+
+Version 1.9 makes the accepted 12-case Phase-5 cohort immutable for Phase 6.
+Phase 6 does not select a new radiograph cohort. AUTO/NONE regeneration is
+permitted only for an accepted Phase-5 case when required for an established
+reference comparison, with accepted input/output hash checks and a stop on any
+discrepancy. If no trustworthy exact-same-acquisition reference exists, Phase
+6 short-circuits without rerunning characterization and retains **BED
+THRESHOLD POLICY UNRESOLVED**.
+
+No Phase-6 experiment, runtime change, or Drive mutation occurred. During
+Planner review, remote `refactor/package-boundaries` was observed at
+`83bcfbb7c997af6c17617671cf69eb68c4a12b2c`.

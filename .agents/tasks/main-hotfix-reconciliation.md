@@ -1,7 +1,7 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.8
+version: 1.9
 status: Validated/Published
 language: en-US
 scope:
@@ -173,40 +173,41 @@ Classify every possible reference relationship as exactly one of:
 `SAME_SUBJECT_DIFFERENT_OR_UNKNOWN_ACQUISITION`, `DERIVED_PROVENANCE_UNKNOWN`,
 or `NON-COMPARABLE`. The first category requires positive provenance evidence.
 
-Reuse Phase-5 acquisition identities and provenance. Do not download or
-access additional Drive artifacts during this publication turn.
+Use the exact accepted 12-case Phase-5 acquisition identities and provenance
+from `80d815c191766798bf0a6977f7abcbe24977cfbd` as the immutable Phase-6
+reference-grounding target set. Phase 6 does not select a new radiograph
+cohort. Reference inventory may contain material for other acquisitions, but
+it must not silently create a replacement experimental cohort.
 
-Freeze a deterministic cohort before inspecting threshold or IQA outcomes:
-maximum 12 radiographs, with at least 3 sessions and 3 subject folders when
-available. Group by session/subject, sort groups lexicographically, sort
-within groups by stable acquisition ID/filename, select first and last
-distinct acquisitions where available, then round-robin to the cap. Record
-the algorithm and selected IDs. Selection must not use quality, appearance,
-threshold results, IQA, or final-output quality.
+For each accepted Phase-5 case, attempt to establish an evidence-backed
+relationship to processed/reference material and record the mapping,
+acquisition identity evidence, dimensions/orientation, transform parameters,
+losslessness, reference SHA-256, corresponding Phase-5 raw acquisition, and
+corresponding AUTO/NONE identities. Only when a trustworthy exact-same-
+acquisition reference is established may Phase 6 compare reference ↔
+`BED_AUTO` and reference ↔ `BED_NONE` using existing canonical
+IQA/measurement components. Record conflicts and limitations; do not create a
+new weighted quality score or make clinical/diagnostic claims.
 
-Only if one or more exact-same-acquisition references are established, compare
-reference ↔ `BED_AUTO` and reference ↔ `BED_NONE` for corresponding Phase-5
-cases using existing canonical IQA/measurement components. Use only lossless
-geometry reconciliation: known orientation transform, crop, pad, integer
-translation, and valid-mask intersection. Resize, interpolation, resampling,
-warp, or non-rigid registration makes the comparison `NON-COMPARABLE`.
+Phase 6 may regenerate AUTO/NONE arrays only for a corresponding accepted
+Phase-5 case and only when required for an established reference comparison.
+Use the exact accepted Phase-5 acquisition and gain provenance, preserve
+canonical Phase-5 semantics, verify source/input identity against accepted
+Phase-5 hashes, and where applicable verify regenerated AUTO/NONE outputs
+against accepted Phase-5 hashes. Any discrepancy is a stop condition; do not
+silently replace Phase-5 evidence. If inventory establishes that no accepted
+Phase-5 case has a trustworthy `EXACT_SAME_ACQUISITION_LOSSLESS` reference,
+short-circuit without rerunning AUTO/NONE characterization and retain
+`BED THRESHOLD POLICY UNRESOLVED`.
 
-Do not create a new weighted quality score, make clinical or diagnostic claims,
-invent calibration, or change runtime policy.
-
-Record the normalized pre-threshold image and stage-local metrics. AUTO must
-include requested/effective branch, numeric threshold when applicable,
-fallback, mask/output SHA-256, foreground/background fractions, min/max/mean/
-median, p01/p50/p99, dynamic range, and nonzero count. NONE must explicitly
-record disabled separation, no invented numeric threshold, output SHA-256,
-and equivalent statistics. Record paired final outputs with shape, dtype,
-ndarray SHA-256, intensity/clipping statistics, and AUTO-vs-NONE differences.
+Use only lossless geometry reconciliation: known orientation transform, crop,
+pad, integer translation, and valid-mask intersection. Resize, interpolation,
+resampling, warp, or non-rigid registration makes the comparison
+`NON-COMPARABLE`.
 
 End with exactly one classification: `BED BYPASS SUPPORTED`, `BED CONFIGURED
-THRESHOLD SUPPORTED`, or `BED THRESHOLD POLICY UNRESOLVED`. If no trustworthy
-exact-same-acquisition comparator is established, retain `BED THRESHOLD POLICY
-UNRESOLVED`. This is decision support only and does not change production or
-canonical defaults.
+THRESHOLD SUPPORTED`, or `BED THRESHOLD POLICY UNRESOLVED`. This is decision
+support only and does not change production or canonical defaults.
 
 Do not modify `mpips/conversion/tiff_json_to_dcm.py`; required SHA-256 is
 `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`. Preserve
@@ -229,7 +230,7 @@ threshold results affected by corrected Otsu semantics are context only.
 - `mpips/conversion/tiff_json_to_dcm.py` remains byte-identical; required SHA-256 is `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
 - Accepted Phase 2 behavior remains historical: TRX threshold separation is bypassed by default; BED retains its configured threshold method.
 - Historical I-5B evidence remains intact. Otsu-affected threshold rows may require bounded revalidation; CLAHE and unaffected rows are not automatically invalidated.
-- The deferred detector-specific BED and TRX Drive sources are characterization/optimization inputs only; historical I-5B data is reused only for controlled impact comparability.
+- Historical Phase-5 characterization used the deferred detector-specific BED and TRX Drive sources only as bounded evidence inputs; no current Phase-6 cohort or optimization scope is implied.
 
 ## Dependencies and assumptions
 
