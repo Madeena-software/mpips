@@ -1,7 +1,7 @@
 ---
 title: Main Hotfix Reconciliation
 document_id: TASK-MAIN-HOTFIX-RECONCILIATION-001
-version: 1.2
+version: 1.3
 status: Validated/Published
 language: en-US
 scope:
@@ -75,7 +75,7 @@ Do not merge `main`, rebase this branch onto `main`, or mechanically cherry-pick
 - Correct OpenCV Otsu return-value handling in `mpips/processing/thresholding.py`.
 - Apply detector-specific threshold policy in `mpips/pipelines/radiography.py`: TRX bypasses threshold separation by default; BED preserves configured threshold behavior.
 - Add minimal deterministic regression coverage for scalar/range/determinism/Otsu semantics and TRX/BED policy behavior.
-- Update only this future Phase 2 write surface:
+- Historical Phase-2 write surface (satisfied; not current authorization):
   - `mpips/processing/thresholding.py`
   - `mpips/pipelines/radiography.py`
   - `tests/test_thresholding_processing.py`
@@ -112,7 +112,7 @@ unchanged unrelated downstream stage configuration.
 
 ### Out of scope
 
-- Any file outside the exact Phase 2 write surface above.
+- Any file outside the exact Phase 3 documentation/evidence write surface above.
 - Calibration, diagnostic or stage-observer plumbing, collapse-gate validation rules, validation/promotion/deployment infrastructure, and production API expansion.
 - Git merge, rebase, mechanical cherry-pick, main promotion, deployment, release, or production mutation.
 - Reopening accepted ImageJ/Fiji Contrast, Equalization, Hybrid Median, Circular Median, or CLAHE fidelity closure absent a direct contradiction; such a contradiction stops review.
@@ -125,7 +125,7 @@ unchanged unrelated downstream stage configuration.
 - `mpips/conversion/tiff_json_to_dcm.py` remains byte-identical; required SHA-256 is `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
 - Accepted Phase 2 behavior remains historical: TRX threshold separation is bypassed by default; BED retains its configured threshold method.
 - Historical I-5B evidence remains intact. Otsu-affected threshold rows may require bounded revalidation; CLAHE and unaffected rows are not automatically invalidated.
-- The later optimization primary source remains the preferred Drive folder; historical I-5B data is reused only for controlled impact comparability.
+- The deferred detector-specific BED and TRX Drive sources are characterization/optimization inputs only; historical I-5B data is reused only for controlled impact comparability.
 
 ## Dependencies and assumptions
 
@@ -163,7 +163,7 @@ unchanged unrelated downstream stage configuration.
 
 1. **PHASE 1 — UPSTREAM HOTFIX IMPACT MAPPING** — `ACCEPTED / CLOSED`.
 2. **PHASE 2 — CANONICAL HOTFIX PORT** — `ACCEPTED / CLOSED` at `e0ff8a5c093f5ad265bf65326b40663cb4454943`.
-3. **PHASE 3 — NEWER-MAIN RADIOGRAPHY SEMANTIC DRIFT MAPPING** — `CURRENT RELEASED PHASE`.
+3. **PHASE 3 — NEWER-MAIN RADIOGRAPHY SEMANTIC DRIFT MAPPING** — `COMPLETED / REVIEW REQUIRED`.
 4. **SUBSEQUENT RUNTIME RECONCILIATION / REVALIDATION / OPTIMIZATION PHASES** — `UNAUTHORIZED`.
 
 ## Phase 3 execution contract
@@ -181,7 +181,7 @@ The Executor must:
 - [ ] The evidence names the exact frozen baselines and inventories the full merge-base-to-main range.
 - [ ] Every relevant upstream change has a classification and canonical refactor disposition; no decision is based on filename similarity alone.
 - [ ] Otsu, TRX, BED, calibration, validation, conversion, and production-infrastructure boundaries are explicitly analyzed.
-- [ ] The implementation and evidence remain within the exact Phase 2 write surface.
+- [ ] The Phase-3 task and evidence remain within the exact Phase 3 documentation/evidence write surface.
 - [ ] The I-5B impact and historical-cohort revalidation scope are bounded without rewriting historical evidence or starting a broad experiment.
 - [ ] ImageJ/Fiji closure and protected converter invariants are verified and not reopened.
 - [ ] The evidence records Phase 2 acceptance and Phase 3 `Review Required`; subsequent implementation remains unauthorized.

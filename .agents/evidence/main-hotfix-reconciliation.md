@@ -499,3 +499,25 @@ external mutation was accessed.
 **Review Required**. Phase 3 is mapping/evidence only. Subsequent runtime
 reconciliation, revalidation, and optimization remain unauthorized pending
 Planner/Reviewer review and republication.
+
+## Phase 3 contract remediation note
+
+The candidate documentation/evidence commit `bc093e66c590367b663a6e95073e7e0fd86d210e`
+was reviewed but was not accepted as the governing Phase-3 revision because
+the task contract retained stale Phase-2 current-scope language, left Phase 3
+as `CURRENT RELEASED PHASE` after the mapping was complete, and did not fully
+record the current documentation write surface or detector-specific source
+map. The semantic mapping itself was not rejected.
+
+Version `1.3` corrects those defects while preserving immutable Phase-2
+provenance, the Phase-3 mapping conclusions, and the deferred BED/TRX source
+references. Phase 3 is now `COMPLETED / REVIEW REQUIRED`; all runtime
+reconciliation, revalidation, optimization, and production work remains
+`UNAUTHORIZED`.
+
+During Planner review, `origin/refactor/package-boundaries` was observed at
+`bc093e66c590367b663a6e95073e7e0fd86d210e`. The prior Executor report stated
+that no push occurred. The candidate was reported as locally created; the
+remote branch was later observed at that candidate, and attribution of the
+remote update is unresolved. No runtime semantic was changed during this
+corrective remediation.
