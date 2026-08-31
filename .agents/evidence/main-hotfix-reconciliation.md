@@ -1116,3 +1116,174 @@ gaps that do not block current canonical/refactor behavior do not prolong this
 umbrella task.
 
 Terminal state: **PHASE 8 CONTRACT REMEDIATION CANDIDATE — PLANNER REVIEW REQUIRED**.
+
+## Phase 8 execution evidence — final compatibility grounding
+
+### Execution identity and prechecks
+
+- Governing task: `.agents/tasks/main-hotfix-reconciliation.md` version `1.13`
+  at immutable revision `31443b8435fd828dbf60300efdb87e056f57b11d`.
+- Execution-start `HEAD`: `31443b8435fd828dbf60300efdb87e056f57b11d`.
+- Branch/worktree: `refactor/package-boundaries` / `/var/www/mpips`.
+- Execution-start worktree: clean.
+- `origin/refactor/package-boundaries` resolved to
+  `31443b8435fd828dbf60300efdb87e056f57b11d`.
+- `origin/main` resolved to
+  `e94784db65bb134d43e87a2046037ab4d1cbfe02`.
+- The governing task was not modified during execution.
+
+The inspection used `git status --short`, branch and revision checks,
+`git fetch origin`, repository source searches, metadata reads, file inventory,
+and a non-mutating NumPy inspection of the existing remap. No calibration was
+generated, regenerated, reconstructed, modified, promoted, or substituted.
+
+### A. Carrier provenance and completeness
+
+| Carrier/component | Observed contents and geometry | Provenance/completeness conclusion |
+|---|---|---|
+| `artifacts/real_kambing_calibration/bed_mode/metadata.json` | BED; source acquisition ID `1783219960996`; gain ID `1783219207291`; source SHA-256 `2f8630d5ae21b4f062f371903ebb7332a2a740532fcbcbb82af5516b418c83be`; fingerprint `4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b`; source shape `[3000, 4096]`; `canvas_mode: expanded`; metadata SHA-256 `15741968305c7b74bc1c84f5487216f7e944cdeaace0150500ede4aa32326ecd`. | `remap.npz`, mask, model, and metrics are absent. The recorded source path does not exist in the current tree. No generation log is present. **PROVENANCE INSUFFICIENT**; incomplete carrier. |
+| `research/kambing-260714/data/output/calibration-cache/4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b/metadata.json` | Same BED metadata and hashes as above; metadata is present. | The source path is absent and no generation provenance is recorded. **PROVENANCE INSUFFICIENT** for generation/promotion conclusions. |
+| `.../calibration-cache/.../remap.npz` | SHA-256 `f5ae883bd17960a56c60add99d5e8d2f393ea9427ec5ce3fd1a5d0b920c671bb`; keys exactly `map_x`, `map_y`; both float32, shape `(3053, 4059)`, finite, non-empty, equal-shaped; coordinate ranges `map_x=[-39.227680, 4118.503418]`, `map_y=[-50.845482, 3072.820557]`; source-domain valid fraction `0.9569610608`. | Expanded output geometry is materially demonstrated, but the component is not a complete canonical cache carrier: mask, model, metrics, and required sidecar files are absent. **PROVENANCE INSUFFICIENT** as a standalone promoted carrier component. |
+| `artifacts/real_kambing_calibration/trx_mode/metadata.json` | Synthetic TRX; fingerprint `synthetic-trx-calibration-v1`; source shape `[64, 64]`; metadata SHA-256 `fc961f1ae7e52dd9a5ed8a45c0f3e43f9a0cdc9135d7ded58ebd91d8c09eb6a5`; no source acquisition ID, gain ID, remap, mask, model, or metrics. | Historical compatibility fixture only. **PROVENANCE INSUFFICIENT** and incomplete; not a promotion candidate. |
+
+Matching fingerprint, filename, source ID, or directory location was not
+treated as generation provenance. No carrier was promoted.
+
+### B. Canonical carrier/cache contract
+
+`mpips/workflows/imager_pipeline/calibration.py::_cached_artifacts` requires
+`metadata.json` plus every non-empty file in `_CACHE_FILES`: model, remap,
+valid mask, metrics, coordinate/diameter/circularity CSVs, compensated CSVs,
+metrics text files, model metadata, and four plots. It then requires metadata
+`fingerprint`, `validated: true`, and a two-element `image_shape`. Cache reuse
+returns only the paths for model, remap, mask, metrics, and metadata; the other
+files are completeness gates.
+
+The conversion worker has a smaller runtime contract. It selects metadata by
+detector mode when needed, then requires `metadata.json` and `remap.npz`,
+`validated: true`, a string `fingerprint`, a two-element `image_shape`, and
+paired `map_x`/`map_y` arrays. It validates source radiograph/gain shape against
+metadata and map pairing, but does not require the map shape to equal the
+source shape. The batch workflow consumes a validated `CalibrationArtifacts`,
+loads the paired remap, and uses metadata source shape for radiograph/gain
+compatibility.
+
+Therefore:
+
+- mandatory runtime files: `metadata.json` and `remap.npz`;
+- mandatory full cache-reuse files: `metadata.json` and every `_CACHE_FILES`
+  entry above;
+- mandatory metadata fields for runtime loading: `validated`, string
+  `fingerprint`, two-element `image_shape`, and detector mode in
+  `source_metadata` where mode selection/compatibility is used;
+- optional/additive metadata: unknown JSON keys are tolerated by observed
+  readers; proposed expanded geometry keys are not currently consumed;
+- validation-only evidence: mask, metrics, model metadata, and calibration
+  evaluation outputs beyond the runtime pair;
+- research/historical artifacts: the synthetic TRX metadata and the incomplete
+  BED artifact directory.
+
+Adding expanded metadata is additive and requires no migration for current
+readers. It would clarify carrier interpretation but must not be confused with
+provenance or acceptance policy.
+
+### C. Consumer compatibility inventory
+
+| Consumer | Assumption and observed behavior | Classification |
+|---|---|---|
+| `mpips/workflows/imager_pipeline/calibration.py::_cached_artifacts` and `load_remap` | Uses source `image_shape`, validation/fingerprint, full cache-file presence, and paired map loading. Unknown metadata keys are ignored; remap output shape is derived from arrays. | **METADATA COMPATIBILITY ONLY** |
+| `mpips/workflows/imager_pipeline/batch.py::_validate_compatibility`, `process_npz_batch` | Requires raw/gain/source calibration shapes to match the source `image_shape`; loads map shape independently and passes it to the pipeline. | **EXPANDED COMPATIBLE** |
+| `mpips/conversion/worker.py::execute_conversion_worker` | Requires metadata/remap, source input shape equal to metadata, and equal map shapes; does not require map shape equal to source shape. | **EXPANDED COMPATIBLE** |
+| `mpips/pipelines/radiography.py::RadiographyPipeline.process` | Computes valid mask against source dimensions, remaps to map dimensions, then carries the mask through crop/rotation and zeros invalid output pixels. | **EXPANDED COMPATIBLE** |
+| `mpips/processing/radiography.py::apply_calibration_remap` | Requires only equal `map_x`/`map_y` shapes and passes their output geometry to `cv2.remap`. | **EXPANDED COMPATIBLE** |
+| `mpips/conversion/service.py::_validate_tiff_descriptor` | Validates final TIFF size against configured maximum rows, columns, and pixels; does not require source/output dimension equality. | **EXPANDED COMPATIBLE** |
+| `.github/workflows/setup-runtime-dirs.yml`, `.github/workflows/deploy-internal-beta.yml` | Operational setup checks/stages metadata and remap; no source-dimension equality rule was found. These are deployment consumers, not canonical processing ownership. | **METADATA COMPATIBILITY ONLY** |
+| `scripts/local_dicom_burn_in.py` and focused tests | Diagnostic/test helpers derive output shape from the remap where present; not production-consumer evidence. | **METADATA COMPATIBILITY ONLY** |
+
+No material canonical or observed production-facing consumer was found to be
+`FIXED-DIMENSION DEPENDENT`. No consumer currently reads expanded origin or
+output-size metadata. Additional JSON keys do not alter runtime behavior.
+
+### D. Structural expanded-layout validation
+
+**IMPLEMENTATION READY** as a future bounded structural validator. The current
+implementation already provides the primitives: paired map loading, equal map
+shapes, source-domain valid-mask computation, finite remap inspection, fixed
+default configuration, explicit `fixed`/`expanded` modes, and expanded output
+shape support. A validator can check presence, equality, dimensionality,
+non-empty arrays, finiteness, known canvas mode, fixed source-sized maps,
+expanded distinct output shape, source-domain interpretation, and metadata
+consistency without using any numeric acceptance threshold.
+
+The existing output validator also separates fixed image-size checking from
+expanded opt-in through `allow_expanded_calibrated`; its quality reductions are
+separate policy inputs and are not evidence for a new expanded-remap gate.
+The upstream `0.80` values were not used as pass/fail criteria.
+
+### E. Proposed additive metadata
+
+| Field | Deterministically available? | Reader/consumer result | Classification |
+|---|---|---|---|
+| source image shape | Yes; already persisted as `image_shape` and consumed for source compatibility. | No migration; no new field is needed. | **UNNECESSARY** |
+| remap output shape | Yes; equal to `map_x`/`map_y` shape at generation time and derivable by readers. | Unknown metadata is tolerated; no current consumer requires it. | **ADDITIVE / IMPLEMENTATION READY** |
+| canvas mode | Yes; already present in generation config/stats and the BED metadata config. | No current reader consumes a top-level carrier value; additive persistence is tolerated. | **ADDITIVE / IMPLEMENTATION READY** |
+| expanded origin | Yes during expanded generation via `origin_xy`/`dst_origin_xy`. | No current consumer requires it; additive persistence needs no migration. | **ADDITIVE / IMPLEMENTATION READY** |
+| expanded output size | Yes; generation stats and remap shape provide it. | No current consumer requires it; additive persistence needs no migration. | **ADDITIVE / IMPLEMENTATION READY** |
+
+These are compatibility conclusions only. No metadata field was added.
+
+### F. Policy boundaries preserved
+
+The expanded-remap values
+`MIN_EXPANDED_VALID_FRACTION`, `MIN_EXPANDED_OUTPUT_WIDTH_RATIO`,
+`MIN_EXPANDED_OUTPUT_HEIGHT_RATIO`, `MIN_EXPANDED_SOURCE_WIDTH_COVERAGE`, and
+`MIN_EXPANDED_SOURCE_HEIGHT_COVERAGE` remain `0.80` evidence-only values and
+were not used as pass/fail criteria. Numeric acceptance-threshold policy is
+**EVIDENCE REQUIRED**. `NeuralCalibrationConfig.canvas_mode` and the canonical
+CLI defaults remain `fixed`; expanded remains opt-in and the fixed-to-expanded
+default change is **EVIDENCE REQUIRED**. BED threshold policy remains
+**BED THRESHOLD POLICY UNRESOLVED** and BED bypass remains unported.
+
+### G. Final Phase-7 candidate dispositions
+
+| Phase-7 candidate | Final Phase-8 disposition | Boundary |
+|---|---|---|
+| Expanded geometry/evidence measurement computation without acceptance policy | **IMPLEMENTATION READY** | Future bounded measurement/metadata work may expose source-domain and output-geometry evidence; no threshold policy is included. |
+| Additive expanded metadata persistence | **IMPLEMENTATION READY** | Fields are deterministic and reader-compatible; source shape already exists, while output shape/mode/origin/size are additive. No migration or carrier promotion is authorized by this evidence. |
+| Expanded structural layout validation without unapproved thresholds | **IMPLEMENTATION READY** | Structural checks are separable from policy and no fixed-dimension consumer blocker was observed. |
+
+Expanded generation and inverse-map coordinate semantics remain
+**ALREADY SATISFIED**. Numeric thresholds and the default switch remain
+**EVIDENCE REQUIRED**. Tests tied to an unapproved default or acceptance policy
+remain deferred.
+
+### H. Final umbrella closure question
+
+**Is there any remaining hotfix-reconciliation issue that materially requires
+implementation before this umbrella task can close? No.**
+
+Current canonical behavior already supports the accepted expanded remap
+geometry and downstream output dimensions, while the remaining improvements
+(geometry evidence metrics, additive metadata, and structural validation) are
+bounded optional follow-up candidates. The incomplete and provenance-
+insufficient BED carrier does not block current canonical/refactor behavior and
+must not be promoted on this evidence. The unresolved optional threshold policy
+and fixed-to-expanded default question are not material blockers to closure.
+
+Recommend: **MAIN HOTFIX RECONCILIATION ACCEPTED / CLOSED**. Do not create a
+Phase 9 under this umbrella task. Any implementation-ready follow-up requires a
+separate Planner-authorized task.
+
+### Verification and terminal state
+
+- Only `.agents/evidence/main-hotfix-reconciliation.md` changed during
+  Phase-8 execution; the v1.13 task remained unchanged.
+- No calibration generation/regeneration, carrier mutation/promotion/
+  substitution, runtime/default/configuration/test change, threshold-policy
+  adoption, deployment, production mutation, or external-system mutation
+  occurred.
+- `git diff --check` passed after the evidence update.
+- The protected converter SHA-256 remained
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+Terminal state: **PHASE 8 GROUNDING CANDIDATE — PLANNER REVIEW REQUIRED**.
