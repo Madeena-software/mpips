@@ -23,7 +23,7 @@ jobs:
 
       - name: Sync dependencies with uv
         run: |
-          uv sync --frozen --extra service --extra dev --extra npz-worker
+          uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager --extra calibration
 
       - name: Verify Converter SHA-256 Immutability
         run: |
