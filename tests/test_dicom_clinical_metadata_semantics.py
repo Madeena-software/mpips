@@ -17,7 +17,7 @@ import numpy as np
 import pydicom
 import pytest
 
-from mpips.api.schemas.dicom import MHCSManifest
+from mpips.api.schemas.dicom import MHCSManifest, resolve_mhcs_manifest
 from mpips.conversion.dicom_enrichment import enrich_dicom_file
 from mpips.conversion.metadata import build_converter_metadata_json
 from mpips.conversion.validation import DICOMValidationError, validate_dicom_dataset
@@ -213,6 +213,43 @@ def test_age_only_contract_is_examination_anchored(tmp_path: Path) -> None:
     assert ds.PatientAge == "068Y"
 
 
+def test_resolved_manifest_preserves_authoritative_age() -> None:
+    manifest = MHCSManifest.model_validate(
+        {
+            "examination": {
+                "performed_at": "2026-08-28T00:00:00+00:00",
+                "patient_age_years": 68,
+            },
+            "patient": {
+                "medical_record_number": "SYNTHETIC-001",
+                "name": "SYNTHETIC",
+                "sex": "male",
+            },
+        }
+    )
+    resolved = resolve_mhcs_manifest("{}", manifest, 1, "a" * 64, 1, "b" * 64)
+    assert resolved.examination.patient_age_years == 68
+
+
+def test_conflicting_authoritative_age_fails_closed() -> None:
+    manifest = MHCSManifest.model_validate(
+        {
+            "examination": {
+                "performed_at": "2026-08-28T00:00:00+00:00",
+                "patient_age_years": 67,
+            },
+            "patient": {
+                "medical_record_number": "SYNTHETIC-001",
+                "name": "SYNTHETIC",
+                "sex": "male",
+                "birth_date": "1958-08-28",
+            },
+        }
+    )
+    with pytest.raises(ValueError, match="age"):
+        resolve_mhcs_manifest("{}", manifest, 1, "a" * 64, 1, "b" * 64)
+
+
 def test_no_authoritative_age_omits_patient_age(tmp_path: Path) -> None:
     ds = _convert(tmp_path, _manifest(birth_date=None))
     assert "PatientBirthDate" in ds and ds.PatientBirthDate == ""
@@ -340,6 +377,12 @@ def test_patient_orientation_is_not_guessed(tmp_path: Path) -> None:
             **base["capture"],
             "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
         },
+        "dicom": {
+            **base["dicom"],
+            "pixel_source": "CANONICAL_PRE_PRESENTATION",
+            "pixel_intensity_relationship": "LIN",
+            "pixel_intensity_relationship_sign": 1,
+        },
     })
     ds = _convert(tmp_path, manifest)
     assert "PatientOrientation" not in ds
@@ -347,6 +390,58 @@ def test_patient_orientation_is_not_guessed(tmp_path: Path) -> None:
     path = tmp_path / "image.dcm"
     ds.save_as(path)
     with pytest.raises(DICOMValidationError, match="orientation|ViewCodeSequence"):
+        validate_dicom_dataset(path, manifest, (4, 4))
+
+
+def test_canonical_projection_without_orientation_authority_fails(tmp_path: Path) -> None:
+    base = _manifest().model_dump(mode="json")
+    manifest = MHCSManifest.model_validate(
+        {
+            **base,
+            "capture": {
+                **base["capture"],
+                "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+                "projection": "PA",
+            },
+            "dicom": {
+                **base["dicom"],
+                "pixel_source": "CANONICAL_PRE_PRESENTATION",
+                "pixel_intensity_relationship": "LIN",
+                "pixel_intensity_relationship_sign": 1,
+            },
+        }
+    )
+    path = tmp_path / "image.dcm"
+    _convert(tmp_path, manifest).save_as(path)
+    with pytest.raises(DICOMValidationError, match="orientation|ViewCodeSequence"):
+        validate_dicom_dataset(path, manifest, (4, 4))
+
+
+@pytest.mark.parametrize("pixel_source", [None, "FINAL_IMAGE"])
+def test_noncanonical_pixel_source_fails_canonical_dx_gate(
+    tmp_path: Path, pixel_source: str | None
+) -> None:
+    base = _manifest().model_dump(mode="json")
+    manifest = MHCSManifest.model_validate(
+        {
+            **base,
+            "capture": {
+                **base["capture"],
+                "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+                "view_code_sequence": [
+                    {
+                        "code_value": "272479007",
+                        "coding_scheme_designator": "SCT",
+                        "code_meaning": "postero-anterior",
+                    }
+                ],
+            },
+            "dicom": {**base["dicom"], "pixel_source": pixel_source},
+        }
+    )
+    path = tmp_path / "image.dcm"
+    _convert(tmp_path, manifest).save_as(path)
+    with pytest.raises(DICOMValidationError, match="pixel|canonical|presentation"):
         validate_dicom_dataset(path, manifest, (4, 4))
 
 

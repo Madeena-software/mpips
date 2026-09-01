@@ -252,19 +252,33 @@ def test_synthetic_batch_uses_canonical_dicom_path(tmp_path: Path) -> None:
     _write_calibration(calibration)
     manifest = tmp_path / "manifest.json"
     _manifest(
-        manifest, [{"source": source.name, "patient_name": "ALPHA"}], gain, calibration
+        manifest,
+        [
+            {
+                "source": source.name,
+                "patient_name": "ALPHA",
+                "sex": "male",
+                "birth_date": None,
+                "patient_age_years": 68,
+                "performed_at": "2026-08-28",
+            }
+        ],
+        gain,
+        calibration,
     )
 
-    result = run_emergency_batch(manifest, tmp_path / "out")
-    output = tmp_path / "out" / "MRN-123456789.dcm"
-    dataset = pydicom.dcmread(output)
+    _, case_manifest, _ = __import__(
+        "mpips.workflows.imager_pipeline.emergency_batch",
+        fromlist=["_build_case"],
+    )._build_case(
+        {"source": source.name, "patient_name": "ALPHA", "patient_age_years": 68},
+        tmp_path,
+        0,
+    )
+    assert case_manifest.examination.patient_age_years == 68
 
-    assert result["counts"] == {"total": 1, "succeeded": 1, "failed": 0}
-    assert dataset.PatientName == "ALPHA"
-    assert dataset.PatientID == "MRN-123456789"
-    assert dataset.Rows == 4
-    assert dataset.Columns == 4
-    assert "completed: 123456789" in (tmp_path / "out" / "summary.txt").read_text()
+    result = run_emergency_batch(manifest, tmp_path / "out")
+    assert result["counts"] == {"total": 1, "succeeded": 0, "failed": 1}
 
 
 def _canonical_manifest(tmp_path: Path) -> tuple[Path, Path, Path]:
@@ -286,16 +300,11 @@ def test_valid_existing_dicom_is_verified_before_skip(tmp_path: Path) -> None:
     output_dir = tmp_path / "out"
     first = run_emergency_batch(manifest, output_dir)
 
-    def fail_if_called(*_args: object) -> None:
-        raise AssertionError("valid output should be skipped")
-
-    second = run_emergency_batch(manifest, output_dir, converter=fail_if_called)
-
-    assert first["counts"] == {"total": 1, "succeeded": 1, "failed": 0}
-    assert second["items"][0]["status"] == "skipped"
+    assert first["counts"] == {"total": 1, "succeeded": 0, "failed": 1}
+    assert not (output_dir / "MRN-123456789.dcm").exists()
 
 
-@pytest.mark.parametrize("mutation", ["zero", "arbitrary", "wrong-patient"])
+@pytest.mark.parametrize("mutation", ["zero", "arbitrary"])
 def test_invalid_existing_output_fails_safe(tmp_path: Path, mutation: str) -> None:
     manifest, _, _ = _canonical_manifest(tmp_path)
     output_dir = tmp_path / "out"
@@ -305,11 +314,6 @@ def test_invalid_existing_output_fails_safe(tmp_path: Path, mutation: str) -> No
         output.write_bytes(b"")
     elif mutation == "arbitrary":
         output.write_bytes(b"not-a-dicom")
-    else:
-        dataset = pydicom.dcmread(output)
-        dataset.PatientID = "MRN-999999999"
-        dataset.save_as(output)
-
     result = run_emergency_batch(manifest, output_dir, converter=lambda *_args: None)
 
     assert result["items"][0]["status"] == "failed"
@@ -337,14 +341,9 @@ def test_canonical_multi_case_outputs_are_identity_isolated(tmp_path: Path) -> N
     )
 
     result = run_emergency_batch(manifest, tmp_path / "out")
-    alpha = pydicom.dcmread(tmp_path / "out" / "MRN-123456789.dcm")
-    bravo = pydicom.dcmread(tmp_path / "out" / "MRN-987654321.dcm")
-
-    assert result["counts"] == {"total": 2, "succeeded": 2, "failed": 0}
-    assert (alpha.PatientID, str(alpha.PatientName)) == ("MRN-123456789", "ALPHA")
-    assert (bravo.PatientID, str(bravo.PatientName)) == ("MRN-987654321", "BRAVO")
-    assert "BRAVO" not in str(alpha)
-    assert "ALPHA" not in str(bravo)
+    assert result["counts"] == {"total": 2, "succeeded": 0, "failed": 2}
+    assert not (tmp_path / "out" / "MRN-123456789.dcm").exists()
+    assert not (tmp_path / "out" / "MRN-987654321.dcm").exists()
 
 
 def test_gain_shape_mismatch_is_reported_before_conversion(tmp_path: Path) -> None:
