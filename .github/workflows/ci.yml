@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v5
@@ -21,7 +23,7 @@ jobs:
 
       - name: Sync dependencies with uv
         run: |
-          uv sync --frozen --extra service --extra dev --extra npz-worker
+          uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager --extra calibration
 
       - name: Verify Converter SHA-256 Immutability
         run: |
@@ -32,11 +34,21 @@ jobs:
             exit 1
           fi
 
-      - name: Run Code Quality Checks
+      - name: Run Black Check
         run: |
           uv run black --check mpips tests
+
+      - name: Run Flake8 Check
+        run: |
           uv run flake8 mpips tests
-          uv run mypy mpips tests
+
+      - name: Run Mypy Regression Gate
+        env:
+          MYPY_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          uv run python scripts/check_mypy_regressions.py \
+            --base-ref "${MYPY_BASE_SHA:-HEAD^}" \
+            --candidate-ref "$GITHUB_SHA"
 
       - name: Run pytest Suite
         run: |
@@ -62,7 +74,13 @@ jobs:
             -e REDIS_URL=redis://localhost:6379/0 \
             -p 8000:8000 \
             mpips-api:latest
-          
-          sleep 3
-          curl --fail http://localhost:8000/health || (docker logs test-api && exit 1)
-          docker rm -f test-api
+          cleanup() { docker rm -f test-api >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8000/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs test-api
+          exit 1
