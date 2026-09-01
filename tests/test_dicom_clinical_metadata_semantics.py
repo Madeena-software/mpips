@@ -16,6 +16,7 @@ from pathlib import Path
 import numpy as np
 import pydicom
 import pytest
+from pydicom.sequence import Sequence
 
 from mpips.api.schemas.dicom import MHCSManifest, resolve_mhcs_manifest
 from mpips.conversion.dicom_enrichment import enrich_dicom_file
@@ -25,6 +26,42 @@ from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
 from mpips.engine.imager_pipeline.complete_pipeline import apply_advanced_median_filter
 from mpips.engine.imager_pipeline.imagej_replicator import ImageJReplicator
 from mpips.workflows.imager_pipeline.npz_io import write_tiff
+
+KNOWN_STALE_DCIODVFY_ERROR = (
+    "Error - Unrecognized enumerated value <FOR PRESENTATION> for value 1 of "
+    "attribute <Presentation Intent Type>"
+)
+
+
+def run_dciodvfy(path: Path) -> dict[str, object]:
+    binary = shutil.which("dciodvfy")
+    if binary is None:
+        return {"status": "INDEPENDENT_VALIDATOR_UNAVAILABLE"}
+    result = subprocess.run(
+        [binary, str(path)], capture_output=True, text=True, check=False
+    )
+    lines = (result.stdout + result.stderr).splitlines()
+    errors = [line for line in lines if line.startswith("Error -")]
+    stale = [line for line in errors if line == KNOWN_STALE_DCIODVFY_ERROR]
+    current = [line for line in errors if line != KNOWN_STALE_DCIODVFY_ERROR]
+    warnings = [line for line in lines if line.startswith("Warning")]
+    process_failure = result.returncode < 0
+    accepted = (
+        not process_failure
+        and not current
+        and (result.returncode == 0 or (bool(stale) and not current))
+    )
+    return {
+        "status": "PASS" if accepted else "FAIL",
+        "returncode": result.returncode,
+        "stdout": result.stdout,
+        "stderr": result.stderr,
+        "errors": errors,
+        "current_standard_errors": current,
+        "warnings": warnings,
+        "stale_diagnostic_count": len(stale),
+        "unexpected_tool_failure": process_failure,
+    }
 
 
 def _manifest(**patient: object) -> MHCSManifest:
@@ -579,8 +616,8 @@ def test_single_frame_dx_has_no_secondary_capture_pollution(tmp_path: Path) -> N
 
 
 def test_dciodvfy_fixture_helper_is_skippable(tmp_path: Path) -> None:
-    binary = shutil.which("dciodvfy")
-    if binary is None:
+    result = run_dciodvfy(tmp_path / "missing.dcm")
+    if result["status"] == "INDEPENDENT_VALIDATOR_UNAVAILABLE":
         pytest.skip("dciodvfy unavailable")
     base = _manifest().model_dump(mode="json")
     manifest = MHCSManifest.model_validate(
@@ -611,15 +648,12 @@ def test_dciodvfy_fixture_helper_is_skippable(tmp_path: Path) -> None:
     # Explicit synthetic fixture authority for dciodvfy conditional checks.
     fixture.PatientOrientation = ["P", "F"]
     fixture.ImageLaterality = "R"
+    anatomic_region = pydicom.Dataset()
+    anatomic_region.CodeValue = "51185008"
+    anatomic_region.CodingSchemeDesignator = "SCT"
+    anatomic_region.CodeMeaning = "Thorax"
+    fixture.AnatomicRegionSequence = Sequence([anatomic_region])
     fixture.save_as(path)
-    result = subprocess.run(
-        [binary, str(path)], capture_output=True, text=True, check=False
-    )
-    raw_output = result.stdout + result.stderr
-    stale = "Error - Unrecognized enumerated value <FOR PRESENTATION> for value 1 of attribute <Presentation Intent Type>"
-    current_standard_errors = [
-        line
-        for line in raw_output.splitlines()
-        if line.startswith("Error -") and line != stale
-    ]
-    assert not current_standard_errors, raw_output
+    result = run_dciodvfy(path)
+    assert result["status"] == "PASS", result
+    assert result["current_standard_errors"] == []
