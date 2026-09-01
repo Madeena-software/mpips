@@ -718,15 +718,11 @@ NODE_CATALOG = [
             "functions (bimf_1 highest frequency .. bimf_10 lowest) plus a "
             "residual, each its own output slot so every component can be "
             "wired to a different downstream node. Only the first num_imfs "
-            "slots are populated; the rest are left unconnected."
-            + PRESERVES_BIT_DEPTH
+            "slots are populated; the rest are left unconnected." + PRESERVES_BIT_DEPTH
         ),
         inputs=[InputSlot(name="input_image", type="image")],
         outputs=[
-            *[
-                OutputSlot(name=f"bimf_{i}", type="image")
-                for i in range(1, 11)
-            ],
+            *[OutputSlot(name=f"bimf_{i}", type="image") for i in range(1, 11)],
             OutputSlot(name="residual", type="image"),
         ],
         parameters=[
