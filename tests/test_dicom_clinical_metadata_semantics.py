@@ -10,7 +10,7 @@ import hashlib
 import json
 import shutil
 import subprocess
-from datetime import date
+from datetime import datetime
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +22,8 @@ from mpips.conversion.dicom_enrichment import enrich_dicom_file
 from mpips.conversion.metadata import build_converter_metadata_json
 from mpips.conversion.validation import DICOMValidationError, validate_dicom_dataset
 from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
+from mpips.engine.imager_pipeline.complete_pipeline import apply_advanced_median_filter
+from mpips.engine.imager_pipeline.imagej_replicator import ImageJReplicator
 from mpips.workflows.imager_pipeline.npz_io import write_tiff
 
 
@@ -101,7 +103,7 @@ def test_date_only_never_leaks_pseudo_temporal_values(tmp_path: Path, keyword: s
 
 @pytest.mark.parametrize(
     "keyword",
-    ["InstitutionName", "BodyPartExamined", "ViewPosition", "ImageLaterality", "AccessionNumber", "StudyID"],
+    ["InstitutionName", "BodyPartExamined", "ViewPosition", "ImageLaterality"],
 )
 def test_unsupported_defaults_are_not_fabricated(tmp_path: Path, keyword: str) -> None:
     ds = _convert(tmp_path, _manifest())
@@ -109,12 +111,19 @@ def test_unsupported_defaults_are_not_fabricated(tmp_path: Path, keyword: str) -
 
 
 @pytest.mark.parametrize(
-    "keyword", ["ReferringPhysicianName", "Manufacturer", "DetectorType", "AcquisitionContextSequence"]
+    "keyword", ["ReferringPhysicianName", "Manufacturer", "DetectorType", "AcquisitionContextSequence", "AnatomicRegionSequence", "PositionerType"]
 )
 def test_unknown_dx_type2_values_are_present_and_empty(tmp_path: Path, keyword: str) -> None:
     ds = _convert(tmp_path, _manifest())
     assert keyword in ds
     assert not ds[keyword].value
+
+
+@pytest.mark.parametrize("keyword", ["StudyTime", "ReferringPhysicianName", "StudyID", "AccessionNumber"])
+def test_unknown_general_study_type2_is_present_and_empty(tmp_path: Path, keyword: str) -> None:
+    ds = _convert(tmp_path, _manifest())
+    assert keyword in ds
+    assert ds[keyword].value == ""
 
 
 def test_canonical_dx_constants(tmp_path: Path) -> None:
@@ -135,6 +144,46 @@ def test_spacing_without_authority_fails_closed(tmp_path: Path) -> None:
     _convert(tmp_path, manifest).save_as(path)
     with pytest.raises(DICOMValidationError, match="physical spacing authority"):
         validate_dicom_dataset(path, manifest, (4, 4))
+
+
+def test_authoritative_spacing_populates_imager_spacing_only(tmp_path: Path) -> None:
+    manifest = _manifest()
+    manifest.capture = manifest.capture.model_copy(
+        update={"image_spacing": {"row_um": 150.0, "column_um": 160.0}}
+    )
+    ds = _convert(tmp_path, manifest)
+    assert ds.ImagerPixelSpacing == ["0.150000", "0.160000"]
+    assert "PixelSpacing" not in ds
+
+
+def test_age_only_contract_is_examination_anchored() -> None:
+    MHCSManifest.model_validate(
+        {
+            "examination": {"performed_at": "2026-08-28T00:00:00+00:00", "patient_age_years": 68},
+            "patient": {"medical_record_number": "SYNTHETIC-001", "name": "SYNTHETIC", "sex": "unknown"},
+        }
+    )
+
+
+def test_no_authoritative_age_omits_patient_age(tmp_path: Path) -> None:
+    ds = _convert(tmp_path, _manifest(birth_date=None))
+    assert "PatientBirthDate" in ds and ds.PatientBirthDate == ""
+    assert "PatientAge" not in ds
+
+
+@pytest.mark.parametrize(
+    ("examination_date", "expected"),
+    [("2026-08-27T00:00:00+00:00", "067Y"), ("2026-08-28T00:00:00+00:00", "068Y")],
+)
+def test_dob_age_uses_examination_date_boundary(
+    tmp_path: Path, examination_date: str, expected: str
+) -> None:
+    manifest = _manifest(birth_date="1958-08-28")
+    manifest.examination = manifest.examination.model_copy(
+        update={"performed_at": datetime.fromisoformat(examination_date)}
+    )
+    ds = _convert(tmp_path, manifest)
+    assert ds.PatientAge == expected
 
 
 def test_metadata_enrichment_preserves_uids_and_pixels(tmp_path: Path) -> None:
@@ -160,12 +209,53 @@ def test_metadata_enrichment_preserves_uids_and_pixels(tmp_path: Path) -> None:
 
 
 def test_final_presentation_pixels_fail_canonical_semantic_gate() -> None:
-    assert "FINAL_IMAGE" not in {"canonical_pixel_source"}
+    MHCSManifest.model_validate(
+        {
+            "examination": {"performed_at": "2026-08-28T00:00:00+00:00"},
+            "patient": {"medical_record_number": "SYNTHETIC-001", "name": "SYNTHETIC", "sex": "unknown"},
+            "dicom": {"pixel_source": "FINAL_IMAGE"},
+        }
+    )
 
 
 def test_patient_orientation_is_not_guessed(tmp_path: Path) -> None:
     ds = _convert(tmp_path, _manifest())
-    assert getattr(ds, "PatientOrientation", "") not in {"L\\F", "R\\F"}
+    assert "PatientOrientation" not in ds
+    assert "ViewCodeSequence" not in ds
+    path = tmp_path / "image.dcm"
+    ds.save_as(path)
+    with pytest.raises(DICOMValidationError, match="orientation|ViewCodeSequence"):
+        validate_dicom_dataset(path, _manifest(), (4, 4))
+
+
+def test_imagej_contrast_is_input_distribution_dependent() -> None:
+    first = np.arange(256, dtype=np.uint16).reshape(16, 16) * 257
+    second = np.concatenate([np.zeros((8, 16), dtype=np.uint16), first[:8]], axis=0)
+    out_first = ImageJReplicator.enhance_contrast(first, equalize=True, normalize=True)
+    out_second = ImageJReplicator.enhance_contrast(second, equalize=True, normalize=True)
+    assert out_first[4, 4] != out_second[4, 4]
+
+
+def test_clahe_is_local_and_context_dependent() -> None:
+    first = np.full((64, 64), 1000, dtype=np.uint16)
+    first[32, 32] = 2000
+    second = first.copy()
+    second[:32, :32] = 60000
+    out_first = ImageJReplicator.apply_clahe(first, blocksize=15, histogram_bins=256, max_slope=0.6, fast=False)
+    out_second = ImageJReplicator.apply_clahe(second, blocksize=15, histogram_bins=256, max_slope=0.6, fast=False)
+    assert np.any(out_first != out_second)
+
+
+def test_active_median_depends_on_neighborhood() -> None:
+    image = np.full((7, 7), 1000, dtype=np.uint16)
+    image[3, 3] = 60000
+    result = apply_advanced_median_filter(image, "standard", 1)
+    assert result[3, 3] != image[3, 3]
+
+
+def test_uint16_quantization_is_many_to_one() -> None:
+    values = (np.array([0.0, 0.000001], dtype=np.float32) * 65535).astype(np.uint16)
+    assert len(np.unique(values)) == 1
 
 
 def test_single_frame_dx_has_no_secondary_capture_pollution(tmp_path: Path) -> None:
