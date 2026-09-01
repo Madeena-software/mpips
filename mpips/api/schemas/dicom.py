@@ -32,8 +32,10 @@ class ExaminationSchema(BaseModel):
     accession_number: Optional[str] = Field(None, max_length=16)
     study_id: Optional[str] = Field(None, max_length=16)
     performed_at: Optional[datetime] = None
-    study_description: str = Field("CHEST RADIOGRAPH", min_length=1, max_length=64)
+    examination_time_known: Optional[bool] = None
+    study_description: Optional[str] = Field(None, min_length=1, max_length=64)
     protocol_name: Optional[str] = Field(None, max_length=64)
+    patient_age_years: Optional[int] = Field(None, ge=0, le=999)
 
     @field_validator("performed_at")
     @classmethod
@@ -102,6 +104,21 @@ class ImageSpacingSchema(BaseModel):
     column_um: float = Field(..., gt=0.0)
 
 
+class PixelSpacingSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    row_mm: float = Field(..., gt=0.0)
+    column_mm: float = Field(..., gt=0.0)
+
+
+class ViewCodeSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    code_value: str = Field(..., min_length=1, max_length=16)
+    coding_scheme_designator: str = Field(..., min_length=1, max_length=16)
+    code_meaning: str = Field(..., min_length=1, max_length=64)
+
+
 class FileManifestSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -118,19 +135,36 @@ class FileManifestSchema(BaseModel):
         return v
 
 
+class XRayAcquisitionSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expType: Optional[str] = None
+    detectorMode: Optional[str] = None
+    expMode: Optional[str] = None
+    expTime: Optional[float] = None
+    expTimeMs: Optional[float] = None
+    expMas: Optional[float] = None
+    expEnergy: Optional[float] = None
+    expCurrent: Optional[float] = None
+
+
 class CaptureSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     capture_id: Optional[str] = Field(None, max_length=64)
     protocol_version: Optional[str] = Field(None, max_length=64)
     detector_type: Optional[Literal["BED", "THORAX", "TRX"]] = None
-    body_part_examined: str = Field("CHEST", min_length=1, max_length=16)
-    laterality: Literal["R", "L", "U", "B"] = "U"
-    projection: str = Field("PA", min_length=1, max_length=16)
+    body_part_examined: Optional[str] = Field(None, min_length=1, max_length=16)
+    laterality: Optional[Literal["R", "L", "U", "B"]] = None
+    projection: Optional[str] = Field(None, min_length=1, max_length=16)
     captured_at: Optional[datetime] = None
     radiograph: Optional[FileManifestSchema] = Field(default_factory=FileManifestSchema)
     gain: Optional[FileManifestSchema] = Field(default_factory=FileManifestSchema)
     image_spacing: Optional[ImageSpacingSchema] = None
+    detector_spacing: Optional[PixelSpacingSchema] = None
+    patient_pixel_spacing: Optional[PixelSpacingSchema] = None
+    view_code_sequence: Optional[list[ViewCodeSchema]] = None
+    xrayparams: Optional[XRayAcquisitionSchema] = None
 
     @field_validator("captured_at")
     @classmethod
@@ -150,6 +184,9 @@ class DICOMManifestSchema(BaseModel):
     instance_number: Optional[int] = Field(None, gt=0)
     series_description: Optional[str] = Field(None, max_length=64)
     presentation_intent: Literal["FOR PRESENTATION"] = "FOR PRESENTATION"
+    pixel_source: Optional[Literal["CANONICAL_PRE_PRESENTATION", "FINAL_IMAGE"]] = None
+    pixel_intensity_relationship: Optional[Literal["LIN", "LOG"]] = None
+    pixel_intensity_relationship_sign: Optional[Literal[-1, 1]] = None
 
     @field_validator("study_instance_uid", "series_instance_uid", "sop_instance_uid")
     @classmethod
@@ -193,11 +230,14 @@ class ResolvedExaminationSchema(BaseModel):
     booking_id: Optional[str] = Field(None, max_length=64)
     service_request_id: Optional[str] = Field(None, max_length=64)
     encounter_id: Optional[str] = Field(None, max_length=64)
-    accession_number: str = Field(..., min_length=1, max_length=16)
-    study_id: str = Field(..., min_length=1, max_length=16)
+    accession_number: Optional[str] = Field(None, max_length=16)
+    study_id: Optional[str] = Field(None, max_length=16)
     performed_at: datetime
-    study_description: str = Field(..., min_length=1, max_length=64)
+    performed_at_is_authoritative: bool
+    examination_time_known: bool
+    study_description: Optional[str] = Field(None, min_length=1, max_length=64)
     protocol_name: Optional[str] = Field(None, max_length=64)
+    patient_age_years: Optional[int] = Field(None, ge=0, le=999)
 
 
 class ResolvedPatientSchema(BaseModel):
@@ -222,7 +262,7 @@ class ResolvedSiteSchema(BaseModel):
 
     organization_id: str = Field(..., min_length=1, max_length=64)
     site_id: str = Field(..., min_length=1, max_length=64)
-    institution_name: str = Field(..., min_length=1, max_length=64)
+    institution_name: Optional[str] = Field(None, max_length=64)
     department_name: Optional[str] = Field(None, max_length=64)
     station_name: Optional[str] = Field(None, max_length=16)
     timezone: str = Field(..., min_length=1, max_length=64)
@@ -234,13 +274,18 @@ class ResolvedCaptureSchema(BaseModel):
     capture_id: str = Field(..., min_length=1, max_length=64)
     protocol_version: str = Field(..., min_length=1, max_length=64)
     detector_type: Optional[Literal["BED", "THORAX", "TRX"]] = None
-    body_part_examined: str = Field(..., min_length=1, max_length=16)
-    laterality: Literal["R", "L", "U", "B"]
-    projection: str = Field(..., min_length=1, max_length=16)
+    body_part_examined: Optional[str] = Field(None, min_length=1, max_length=16)
+    laterality: Optional[Literal["R", "L", "U", "B"]]
+    projection: Optional[str] = Field(None, min_length=1, max_length=16)
     captured_at: datetime
+    captured_at_is_authoritative: bool
     radiograph: ResolvedFileManifestSchema
     gain: ResolvedFileManifestSchema
     image_spacing: Optional[ImageSpacingSchema] = None
+    detector_spacing: Optional[PixelSpacingSchema] = None
+    patient_pixel_spacing: Optional[PixelSpacingSchema] = None
+    view_code_sequence: Optional[list[ViewCodeSchema]] = None
+    xrayparams: Optional[XRayAcquisitionSchema] = None
 
 
 class ResolvedDICOMManifestSchema(BaseModel):
@@ -251,8 +296,11 @@ class ResolvedDICOMManifestSchema(BaseModel):
     sop_instance_uid: str = Field(..., min_length=1, max_length=64)
     series_number: int = Field(..., gt=0)
     instance_number: int = Field(..., gt=0)
-    series_description: str = Field(..., min_length=1, max_length=64)
+    series_description: Optional[str] = Field(None, max_length=64)
     presentation_intent: Literal["FOR PRESENTATION"]
+    pixel_source: Optional[Literal["CANONICAL_PRE_PRESENTATION", "FINAL_IMAGE"]]
+    pixel_intensity_relationship: Optional[Literal["LIN", "LOG"]]
+    pixel_intensity_relationship_sign: Optional[Literal[-1, 1]]
 
 
 class ResolvedMHCSManifest(BaseModel):
@@ -268,6 +316,16 @@ class ResolvedMHCSManifest(BaseModel):
     site: ResolvedSiteSchema
     capture: ResolvedCaptureSchema
     dicom: ResolvedDICOMManifestSchema
+
+
+def age_at(birth_date: date, examination_date: date) -> int:
+    years = examination_date.year - birth_date.year
+    if (examination_date.month, examination_date.day) < (
+        birth_date.month,
+        birth_date.day,
+    ):
+        years -= 1
+    return years
 
 
 def resolve_mhcs_manifest(
@@ -361,16 +419,29 @@ def resolve_mhcs_manifest(
 
     # 6. Accession Number & Timestamps
     exam_in = input_manifest.examination or ExaminationSchema()
-    accession_number = (
-        exam_in.accession_number or f"ACC-{conversion_job_id.hex[:10].upper()}"
-    )
-    if capture_in.captured_at is not None:
+    if (
+        input_manifest.patient.birth_date is not None
+        and exam_in.patient_age_years is not None
+        and exam_in.performed_at is not None
+        and age_at(input_manifest.patient.birth_date, exam_in.performed_at.date())
+        != exam_in.patient_age_years
+    ):
+        raise ValueError("patient age conflicts with birth date and examination date")
+    accession_number = exam_in.accession_number or ""
+    capture_is_authoritative = capture_in.captured_at is not None
+    examination_is_authoritative = exam_in.performed_at is not None
+    if capture_is_authoritative:
         captured_at = capture_in.captured_at
     else:
         # Deterministic fallback timestamp derived from conversion_job_id
         ts_offset = conversion_job_id.int % (365 * 86400)
         captured_at = datetime.fromtimestamp(1770000000 + ts_offset, tz=timezone.utc)
     performed_at = exam_in.performed_at or captured_at
+    examination_time_known = (
+        exam_in.examination_time_known
+        if exam_in.examination_time_known is not None
+        else examination_is_authoritative or capture_is_authoritative
+    )
 
     # 7. Construct Resolved Sub-models
     resolved_exam = ResolvedExaminationSchema(
@@ -380,10 +451,15 @@ def resolve_mhcs_manifest(
         service_request_id=exam_in.service_request_id,
         encounter_id=exam_in.encounter_id,
         accession_number=accession_number,
-        study_id=exam_in.study_id or "STUDY01",
+        study_id=exam_in.study_id or "",
         performed_at=performed_at,
-        study_description=exam_in.study_description or "CHEST RADIOGRAPH",
+        performed_at_is_authoritative=(
+            examination_is_authoritative or capture_is_authoritative
+        ),
+        examination_time_known=examination_time_known,
+        study_description=exam_in.study_description,
         protocol_name=exam_in.protocol_name,
+        patient_age_years=exam_in.patient_age_years,
     )
 
     pat_in = input_manifest.patient
@@ -411,7 +487,7 @@ def resolve_mhcs_manifest(
     resolved_site = ResolvedSiteSchema(
         organization_id=site_in.organization_id or "ORG-MADEENA",
         site_id=site_in.site_id or "SITE-DEFAULT",
-        institution_name=site_in.institution_name or "MADEENA MEDICAL CENTER",
+        institution_name=site_in.institution_name or "",
         department_name=site_in.department_name,
         station_name=site_in.station_name,
         timezone=site_in.timezone or "Asia/Jakarta",
@@ -421,13 +497,18 @@ def resolve_mhcs_manifest(
         capture_id=capture_id,
         protocol_version=capture_in.protocol_version or "1.0.0",
         detector_type=capture_in.detector_type,
-        body_part_examined=capture_in.body_part_examined or "CHEST",
-        laterality=capture_in.laterality or "U",
-        projection=capture_in.projection or "PA",
+        body_part_examined=capture_in.body_part_examined,
+        laterality=capture_in.laterality,
+        projection=capture_in.projection,
         captured_at=captured_at,
+        captured_at_is_authoritative=capture_is_authoritative,
         radiograph=resolved_rad,
         gain=resolved_gain,
         image_spacing=capture_in.image_spacing,
+        detector_spacing=capture_in.detector_spacing,
+        patient_pixel_spacing=capture_in.patient_pixel_spacing,
+        view_code_sequence=capture_in.view_code_sequence,
+        xrayparams=capture_in.xrayparams,
     )
 
     resolved_dicom = ResolvedDICOMManifestSchema(
@@ -438,8 +519,11 @@ def resolve_mhcs_manifest(
         instance_number=dicom_in.instance_number or 1,
         series_description=dicom_in.series_description
         or exam_in.study_description
-        or "CHEST RADIOGRAPH",
+        or "",
         presentation_intent="FOR PRESENTATION",
+        pixel_source=dicom_in.pixel_source,
+        pixel_intensity_relationship=dicom_in.pixel_intensity_relationship,
+        pixel_intensity_relationship_sign=dicom_in.pixel_intensity_relationship_sign,
     )
 
     return ResolvedMHCSManifest(

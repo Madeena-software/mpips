@@ -234,6 +234,8 @@ def run_isolated_dicom_conversion(
     gain_npz_path: Path,
     manifest: MHCSManifest | ResolvedMHCSManifest,
     output_dicom_path: Path,
+    *,
+    calibration_dir: Path | None = None,
 ) -> Dict[str, Any]:
     """Launches worker child process with isolation and descriptor verification."""
     if not isinstance(manifest, ResolvedMHCSManifest):
@@ -263,7 +265,16 @@ def run_isolated_dicom_conversion(
     except ValueError:
         max_tiff_bytes = 100 * 1024 * 1024
 
-    cal_src_dir = resolve_calibration_artifact_dir()
+    cal_src_dir = (
+        calibration_dir.resolve()
+        if calibration_dir is not None
+        else resolve_calibration_artifact_dir()
+    )
+    if not _is_valid_calibration_dir(cal_src_dir):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CALIBRATION_ARTIFACT_MISSING",
+        )
 
     root_str = os.getenv("MPIPS_WORKSPACE_ROOT", "/tmp/mpips-workspaces")
     workspace_base = Path(root_str)

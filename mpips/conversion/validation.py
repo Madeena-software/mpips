@@ -6,8 +6,8 @@ from typing import Any, Dict, Tuple
 import numpy as np
 import pydicom
 
-from mpips.api.schemas.dicom import MHCSManifest, ResolvedMHCSManifest
-from mpips.conversion.metadata import format_person_name
+from mpips.api.schemas.dicom import MHCSManifest, ResolvedMHCSManifest, age_at
+from mpips.conversion.metadata import build_converter_metadata_json, format_person_name
 
 
 class DICOMValidationError(ValueError):
@@ -76,6 +76,82 @@ def validate_dicom_dataset(
     ):
         raise DICOMValidationError("SeriesInstanceUID mismatch")
 
+    resolved = hasattr(examination, "performed_at_is_authoritative")
+    study_authoritative = (
+        getattr(examination, "performed_at_is_authoritative", False)
+        if resolved
+        else getattr(examination, "performed_at", None) is not None
+        or getattr(capture, "captured_at", None) is not None
+    )
+    study_dt = (
+        getattr(examination, "performed_at", None)
+        if getattr(examination, "performed_at", None) is not None
+        else getattr(capture, "captured_at", None)
+    )
+    study_time_known = (
+        getattr(examination, "examination_time_known", True)
+        if resolved
+        else getattr(examination, "examination_time_known", None) is not False
+    )
+    content_authoritative = (
+        getattr(capture, "captured_at_is_authoritative", False)
+        if resolved
+        else getattr(capture, "captured_at", None) is not None
+    )
+    content_dt = getattr(capture, "captured_at", None)
+    expected_temporal = {
+        "StudyDate": (
+            study_dt.strftime("%Y%m%d") if study_authoritative and study_dt else ""
+        ),
+        "StudyTime": (
+            study_dt.strftime("%H%M%S")
+            if study_authoritative and study_dt and study_time_known
+            else ""
+        ),
+        "ContentDate": (
+            content_dt.strftime("%Y%m%d")
+            if content_authoritative and content_dt
+            else ""
+        ),
+        "ContentTime": (
+            content_dt.strftime("%H%M%S")
+            if content_authoritative and content_dt
+            else ""
+        ),
+    }
+    for keyword, expected in expected_temporal.items():
+        if str(getattr(ds, keyword, "")) != expected:
+            raise DICOMValidationError(f"{keyword} does not match authoritative source")
+
+    expected_xray = {
+        keyword: value
+        for keyword in (
+            "KVP",
+            "ExposureTime",
+            "XRayTubeCurrent",
+            "Exposure",
+            "ExposureInuAs",
+        )
+        if (value := build_converter_metadata_json(manifest).get(keyword)) is not None
+    }
+    for keyword in (
+        "KVP",
+        "ExposureTime",
+        "XRayTubeCurrent",
+        "Exposure",
+        "ExposureInuAs",
+    ):
+        if keyword in expected_xray:
+            actual = float(getattr(ds, keyword, float("nan")))
+            if not np.isfinite(actual) or not np.isclose(
+                actual, expected_xray[keyword], rtol=1e-4, atol=1e-6
+            ):
+                raise DICOMValidationError(
+                    f"{keyword} does not match authoritative source"
+                )
+        elif keyword in ds and ds[keyword].value not in ("", None):
+            raise DICOMValidationError(f"{keyword} has no authoritative source")
+
     accession_number = (
         getattr(examination, "accession_number", None) if examination else None
     )
@@ -93,34 +169,138 @@ def validate_dicom_dataset(
     if str(getattr(ds, "PatientName", "")) != expected_patient_pn:
         raise DICOMValidationError("PatientName mismatch")
 
+    expected_birth_date = (
+        manifest.patient.birth_date.strftime("%Y%m%d")
+        if manifest.patient.birth_date
+        else ""
+    )
+    if "PatientBirthDate" not in ds or str(ds.PatientBirthDate) != expected_birth_date:
+        raise DICOMValidationError("PatientBirthDate mismatch")
+
+    expected_sex = {"male": "M", "female": "F", "other": "O", "unknown": ""}[
+        manifest.patient.sex
+    ]
+    if "PatientSex" not in ds or str(ds.PatientSex) != expected_sex:
+        raise DICOMValidationError("PatientSex mismatch")
+
+    expected_age = None
+    if examination and getattr(examination, "patient_age_years", None) is not None:
+        expected_age = f"{examination.patient_age_years:03d}Y"
+    elif manifest.patient.birth_date and (
+        exam_performed_at := getattr(examination, "performed_at", None)
+    ):
+        exam_date = exam_performed_at.date()
+        expected_age = f"{age_at(manifest.patient.birth_date, exam_date):03d}Y"
+    if expected_age is not None:
+        if "PatientAge" not in ds or str(ds.PatientAge) != expected_age:
+            raise DICOMValidationError("PatientAge mismatch")
+    elif "PatientAge" in ds and ds.PatientAge:
+        raise DICOMValidationError("PatientAge is unsupported without authority")
+
     if operator and getattr(operator, "name", None):
         expected_operator_pn = format_person_name(operator.name)
         if str(getattr(ds, "OperatorsName", "")) != expected_operator_pn:
             raise DICOMValidationError("OperatorsName mismatch")
 
     institution_name = getattr(site, "institution_name", None) if site else None
-    if institution_name and str(getattr(ds, "InstitutionName", "")) != institution_name:
+    if institution_name:
+        if str(getattr(ds, "InstitutionName", "")) != institution_name:
+            raise DICOMValidationError("InstitutionName mismatch")
+    elif str(getattr(ds, "InstitutionName", "")):
         raise DICOMValidationError("InstitutionName mismatch")
 
     body_part_examined = (
         getattr(capture, "body_part_examined", None) if capture else None
     )
-    if (
-        body_part_examined
-        and str(getattr(ds, "BodyPartExamined", "")) != body_part_examined
-    ):
+    if body_part_examined:
+        if str(getattr(ds, "BodyPartExamined", "")) != body_part_examined:
+            raise DICOMValidationError("BodyPartExamined mismatch")
+    elif str(getattr(ds, "BodyPartExamined", "")):
         raise DICOMValidationError("BodyPartExamined mismatch")
 
     laterality = getattr(capture, "laterality", None) if capture else None
-    if laterality and str(getattr(ds, "ImageLaterality", "")) != laterality:
+    if laterality:
+        if str(getattr(ds, "ImageLaterality", "")) != laterality:
+            raise DICOMValidationError("ImageLaterality mismatch")
+    elif str(getattr(ds, "ImageLaterality", "")):
         raise DICOMValidationError("ImageLaterality mismatch")
 
     projection = getattr(capture, "projection", None) if capture else None
-    if projection and str(getattr(ds, "ViewPosition", "")) != projection:
+    if projection:
+        if str(getattr(ds, "ViewPosition", "")) != projection:
+            raise DICOMValidationError("ViewPosition mismatch")
+    elif str(getattr(ds, "ViewPosition", "")):
         raise DICOMValidationError("ViewPosition mismatch")
+
+    pixel_source = getattr(dicom, "pixel_source", None) if dicom else None
+    relationship = (
+        getattr(dicom, "pixel_intensity_relationship", None) if dicom else None
+    )
+    relationship_sign = (
+        getattr(dicom, "pixel_intensity_relationship_sign", None) if dicom else None
+    )
+    if pixel_source != "CANONICAL_PRE_PRESENTATION":
+        raise DICOMValidationError(
+            "DX requires canonical presentation pixel source and physical spacing "
+            "authority"
+        )
+    if relationship not in ("LIN", "LOG") or relationship_sign not in (-1, 1):
+        raise DICOMValidationError("canonical pixel relationship/sign is required")
+    if str(getattr(ds, "PixelIntensityRelationship", "")) != relationship:
+        raise DICOMValidationError("PixelIntensityRelationship mismatch")
+    if int(getattr(ds, "PixelIntensityRelationshipSign", 0)) != relationship_sign:
+        raise DICOMValidationError("PixelIntensityRelationshipSign mismatch")
+    if not getattr(capture, "detector_spacing", None):
+        raise DICOMValidationError("canonical physical spacing authority is missing")
+    view_code_sequence = (
+        getattr(capture, "view_code_sequence", None) if capture else None
+    )
+    if view_code_sequence:
+        if "ViewCodeSequence" not in ds or not ds.ViewCodeSequence:
+            raise DICOMValidationError("ViewCodeSequence is missing")
+        item = ds.ViewCodeSequence[0]
+        expected = view_code_sequence[0]
+        if (
+            str(item.CodeValue),
+            str(item.CodingSchemeDesignator),
+            str(item.CodeMeaning),
+        ) != (
+            expected.code_value,
+            expected.coding_scheme_designator,
+            expected.code_meaning,
+        ):
+            raise DICOMValidationError("ViewCodeSequence mismatch")
 
     if str(getattr(ds, "PresentationIntentType", "")) != "FOR PRESENTATION":
         raise DICOMValidationError("PresentationIntentType != FOR PRESENTATION")
+
+    for keyword in (
+        "StudyID",
+        "AccessionNumber",
+        "ReferringPhysicianName",
+        "Manufacturer",
+        "DetectorType",
+        "PositionerType",
+        "AcquisitionContextSequence",
+        "AnatomicRegionSequence",
+    ):
+        if keyword not in ds:
+            raise DICOMValidationError(
+                f"required Type-2 attribute {keyword} is missing"
+            )
+
+    expected_values = {
+        "ImageType": ["DERIVED", "PRIMARY", ""],
+        "RescaleIntercept": 0,
+        "RescaleSlope": 1,
+        "RescaleType": "US",
+        "PresentationLUTShape": "IDENTITY",
+    }
+    for keyword, expected in expected_values.items():
+        if keyword not in ds or ds[keyword].value != expected:
+            raise DICOMValidationError(
+                f"{keyword} does not match canonical DX semantics"
+            )
 
     if str(getattr(ds, "BurnedInAnnotation", "")) != "NO":
         raise DICOMValidationError("BurnedInAnnotation != NO")
@@ -131,22 +311,40 @@ def validate_dicom_dataset(
     if getattr(ds, "SamplesPerPixel", 1) == 1 and hasattr(ds, "PlanarConfiguration"):
         raise DICOMValidationError("PlanarConfiguration present on monochrome image")
 
-    image_spacing = getattr(capture, "image_spacing", None) if capture else None
-    if image_spacing is not None:
-        expected_row_mm = image_spacing.row_um / 1000.0
-        expected_col_mm = image_spacing.column_um / 1000.0
-    else:
-        expected_row_mm = 0.140
-        expected_col_mm = 0.140
-    spacing = [float(x) for x in getattr(ds, "PixelSpacing", [0, 0])]
-    if (
-        len(spacing) != 2
-        or abs(spacing[0] - expected_row_mm) > 1e-4
-        or abs(spacing[1] - expected_col_mm) > 1e-4
+    detector_spacing = getattr(capture, "detector_spacing", None) if capture else None
+    patient_spacing = (
+        getattr(capture, "patient_pixel_spacing", None) if capture else None
+    )
+    if not detector_spacing:
+        raise DICOMValidationError("canonical physical spacing authority is missing")
+    if pixel_source == "CANONICAL_PRE_PRESENTATION" and detector_spacing:
+        spacing = [float(x) for x in getattr(ds, "ImagerPixelSpacing", [0, 0])]
+        expected = [detector_spacing.row_mm, detector_spacing.column_mm]
+        if len(spacing) != 2 or any(
+            abs(a - b) > 1e-4 for a, b in zip(spacing, expected)
+        ):
+            raise DICOMValidationError(
+                "ImagerPixelSpacing does not match detector authority"
+            )
+    if patient_spacing:
+        spacing = [float(x) for x in getattr(ds, "PixelSpacing", [0, 0])]
+        expected = [patient_spacing.row_mm, patient_spacing.column_mm]
+        if len(spacing) != 2 or any(
+            abs(a - b) > 1e-4 for a, b in zip(spacing, expected)
+        ):
+            raise DICOMValidationError(
+                "PixelSpacing does not match patient-plane authority"
+            )
+    elif "PixelSpacing" in ds and pixel_source == "CANONICAL_PRE_PRESENTATION":
+        raise DICOMValidationError("PixelSpacing has no patient-plane authority")
+    if "PatientOrientation" not in ds and not getattr(
+        capture, "view_code_sequence", None
     ):
         raise DICOMValidationError(
-            f"PixelSpacing {spacing} != [{expected_row_mm}, {expected_col_mm}]"
+            "canonical orientation/ViewCodeSequence authority is missing"
         )
+    if "PatientOrientation" in ds and not ds.PatientOrientation:
+        raise DICOMValidationError("canonical PatientOrientation is empty")
 
     rows = int(getattr(ds, "Rows", 0))
     cols = int(getattr(ds, "Columns", 0))
@@ -155,6 +353,8 @@ def validate_dicom_dataset(
             f"DICOM Rows/Columns ({rows}, {cols}) != expected {expected_shape}"
         )
 
+    if "PixelData" not in ds:
+        raise DICOMValidationError("PixelData is missing")
     try:
         pixel_array = ds.pixel_array
     except Exception as exc:

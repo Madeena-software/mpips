@@ -12,6 +12,22 @@
     "detector_type": "THORAX",
     "body_part_examined": "CHEST",
     "laterality": "U",
-    "projection": "PA"
+    "projection": "PA",
+    "detector_spacing": {
+      "row_mm": 0.15,
+      "column_mm": 0.16
+    },
+    "view_code_sequence": [
+      {
+        "code_value": "272479007",
+        "coding_scheme_designator": "SCT",
+        "code_meaning": "postero-anterior"
+      }
+    ]
+  },
+  "dicom": {
+    "pixel_source": "CANONICAL_PRE_PRESENTATION",
+    "pixel_intensity_relationship": "LIN",
+    "pixel_intensity_relationship_sign": 1
   }
 }
