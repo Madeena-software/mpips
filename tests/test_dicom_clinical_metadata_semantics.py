@@ -195,7 +195,7 @@ def test_old_pixel_spacing_fallback_is_not_authority(tmp_path: Path) -> None:
     manifest = _manifest()
     path = tmp_path / "image.dcm"
     ds = _convert(tmp_path, manifest)
-    assert ds.PixelSpacing == ["0.140000", "0.140000"]
+    assert "PixelSpacing" not in ds
     ds.save_as(path)
     with pytest.raises(DICOMValidationError, match="physical spacing authority"):
         validate_dicom_dataset(path, manifest, (4, 4))
@@ -264,7 +264,12 @@ def test_final_presentation_pixels_fail_canonical_semantic_gate(tmp_path: Path) 
         }
     )
     path = tmp_path / "image.dcm"
-    _convert(tmp_path, manifest).save_as(path)
+    fixture = _convert(tmp_path, manifest)
+    # dciodvfy requires these conditional/Type-1 values; they are explicit
+    # synthetic fixture authority, not production defaults.
+    fixture.PatientOrientation = ["P", "F"]
+    fixture.ImageLaterality = "R"
+    fixture.save_as(path)
     with pytest.raises(DICOMValidationError, match="canonical|pixel|presentation"):
         validate_dicom_dataset(path, manifest, (4, 4))
 
@@ -328,13 +333,21 @@ def test_canonical_pre_presentation_missing_relationship_fails_closed(tmp_path: 
 
 
 def test_patient_orientation_is_not_guessed(tmp_path: Path) -> None:
-    ds = _convert(tmp_path, _manifest())
+    base = _manifest().model_dump(mode="json")
+    manifest = MHCSManifest.model_validate({
+        **base,
+        "capture": {
+            **base["capture"],
+            "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+        },
+    })
+    ds = _convert(tmp_path, manifest)
     assert "PatientOrientation" not in ds
     assert "ViewCodeSequence" not in ds
     path = tmp_path / "image.dcm"
     ds.save_as(path)
     with pytest.raises(DICOMValidationError, match="orientation|ViewCodeSequence"):
-        validate_dicom_dataset(path, _manifest(), (4, 4))
+        validate_dicom_dataset(path, manifest, (4, 4))
 
 
 def test_verified_pa_view_code_future_contract(tmp_path: Path) -> None:
@@ -430,7 +443,11 @@ def test_dciodvfy_fixture_helper_is_skippable(tmp_path: Path) -> None:
         }
     )
     path = tmp_path / "image.dcm"
-    _convert(tmp_path, manifest).save_as(path)
+    fixture = _convert(tmp_path, manifest)
+    # Explicit synthetic fixture authority for dciodvfy conditional checks.
+    fixture.PatientOrientation = ["P", "F"]
+    fixture.ImageLaterality = "R"
+    fixture.save_as(path)
     result = subprocess.run([binary, str(path)], capture_output=True, text=True, check=False)
     raw_output = result.stdout + result.stderr
     stale = "Error - Unrecognized enumerated value <FOR PRESENTATION> for value 1 of attribute <Presentation Intent Type>"

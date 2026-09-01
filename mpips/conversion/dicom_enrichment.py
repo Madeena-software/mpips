@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 import pydicom
+from pydicom.sequence import Sequence
 from pydicom.uid import UID, generate_uid
 
 from mpips.api.schemas.dicom import MHCSManifest, ResolvedMHCSManifest
@@ -18,11 +19,13 @@ def enrich_dicom_file(
     # Patient details
     ds.PatientName = format_person_name(manifest.patient.name)
     ds.PatientID = manifest.patient.medical_record_number
-    if manifest.patient.birth_date:
-        ds.PatientBirthDate = manifest.patient.birth_date.strftime("%Y%m%d")
+    ds.PatientBirthDate = (
+        manifest.patient.birth_date.strftime("%Y%m%d")
+        if manifest.patient.birth_date else ""
+    )
 
-    sex_map = {"male": "M", "female": "F", "other": "O", "unknown": "O"}
-    ds.PatientSex = sex_map.get(manifest.patient.sex.lower(), "O")
+    sex_map = {"male": "M", "female": "F", "other": "O", "unknown": ""}
+    ds.PatientSex = sex_map[manifest.patient.sex.lower()]
 
     # Operator details
     if manifest.operator and manifest.operator.name:
@@ -45,12 +48,7 @@ def enrich_dicom_file(
     accession_number = (
         getattr(examination, "accession_number", None) if examination else None
     )
-    if accession_number:
-        ds.AccessionNumber = accession_number
-    else:
-        job_id = getattr(manifest, "conversion_job_id", None)
-        job_hex = str(getattr(job_id, "hex", job_id or ""))
-        ds.AccessionNumber = f"ACC-{job_hex[:10].upper()}"
+    ds.AccessionNumber = accession_number or ""
 
     study_id = getattr(examination, "study_id", None) if examination else None
     if study_id:
@@ -58,8 +56,8 @@ def enrich_dicom_file(
 
     study_desc = (
         getattr(examination, "study_description", None) if examination else None
-    ) or "CHEST RADIOGRAPH"
-    ds.StudyDescription = study_desc
+    )
+    ds.StudyDescription = study_desc or ""
 
     protocol_name = getattr(examination, "protocol_name", None) if examination else None
     if protocol_name:
@@ -67,7 +65,7 @@ def enrich_dicom_file(
 
     # Site details
     institution_name = getattr(site, "institution_name", None) if site else None
-    ds.InstitutionName = institution_name or "MADEENA MEDICAL CENTER"
+    ds.InstitutionName = institution_name or ""
 
     dept_name = getattr(site, "department_name", None) if site else None
     if dept_name:
@@ -82,14 +80,23 @@ def enrich_dicom_file(
     laterality = getattr(capture, "laterality", None) if capture else None
     projection = getattr(capture, "projection", None) if capture else None
 
-    ds.BodyPartExamined = body_part or "CHEST"
-    ds.ImageLaterality = laterality or "U"
-    ds.ViewPosition = projection or "PA"
+    ds.BodyPartExamined = body_part or ""
+    ds.ImageLaterality = laterality or ""
+    ds.ViewPosition = projection or ""
+    if getattr(capture, "view_code_sequence", None):
+        items = []
+        for item in capture.view_code_sequence:
+            code = pydicom.Dataset()
+            code.CodeValue = item.code_value
+            code.CodingSchemeDesignator = item.coding_scheme_designator
+            code.CodeMeaning = item.code_meaning
+            items.append(code)
+        ds.ViewCodeSequence = Sequence(items)
 
     # Series & Instance
     series_desc = (
         getattr(dicom, "series_description", None) if dicom else None
-    ) or study_desc
+    ) or study_desc or ""
     series_number = getattr(dicom, "series_number", None) if dicom else None
     instance_number = getattr(dicom, "instance_number", None) if dicom else None
 
@@ -118,14 +125,54 @@ def enrich_dicom_file(
         ds.file_meta.MediaStorageSOPClassUID = ds.SOPClassUID
 
     # Pixel Spacing in row_mm, column_mm order
-    image_spacing = getattr(capture, "image_spacing", None) if capture else None
-    if image_spacing is not None:
-        row_mm = image_spacing.row_um / 1000.0
-        col_mm = image_spacing.column_um / 1000.0
-    else:
-        row_mm = 0.140
-        col_mm = 0.140
-    ds.PixelSpacing = [f"{row_mm:.6f}", f"{col_mm:.6f}"]
+    detector_spacing = getattr(capture, "detector_spacing", None) if capture else None
+    patient_spacing = getattr(capture, "patient_pixel_spacing", None) if capture else None
+    for keyword in ("ImagerPixelSpacing", "PixelSpacing"):
+        if hasattr(ds, keyword):
+            del ds[keyword]
+    if detector_spacing:
+        ds.ImagerPixelSpacing = [f"{detector_spacing.row_mm:.6f}", f"{detector_spacing.column_mm:.6f}"]
+    if patient_spacing:
+        ds.PixelSpacing = [f"{patient_spacing.row_mm:.6f}", f"{patient_spacing.column_mm:.6f}"]
+
+    ds.ImageType = ["DERIVED", "PRIMARY", ""]
+    ds.RescaleIntercept = "0"
+    ds.RescaleSlope = "1"
+    ds.RescaleType = "US"
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.PresentationLUTShape = "IDENTITY"
+    relationship = getattr(dicom, "pixel_intensity_relationship", None) if dicom else None
+    relationship_sign = getattr(dicom, "pixel_intensity_relationship_sign", None) if dicom else None
+    if relationship is not None:
+        ds.PixelIntensityRelationship = relationship
+    if relationship_sign is not None:
+        ds.PixelIntensityRelationshipSign = relationship_sign
+    for keyword, value in {
+        "ReferringPhysicianName": "",
+        "Manufacturer": "",
+        "DetectorType": "",
+        "PositionerType": "",
+        "StudyID": study_id or "",
+        "StudyTime": ds.StudyTime or "",
+    }.items():
+        setattr(ds, keyword, value)
+    ds.AcquisitionContextSequence = Sequence([])
+    ds.AnatomicRegionSequence = Sequence([])
+    if hasattr(ds, "SecondaryCaptureDeviceManufacturer"):
+        del ds.SecondaryCaptureDeviceManufacturer
+    if hasattr(ds, "NumberOfFrames"):
+        del ds.NumberOfFrames
+
+    exam_date = getattr(examination, "performed_at", None) if examination else None
+    if manifest.patient.birth_date and exam_date:
+        years = exam_date.date().year - manifest.patient.birth_date.year
+        if (exam_date.date().month, exam_date.date().day) < (manifest.patient.birth_date.month, manifest.patient.birth_date.day):
+            years -= 1
+        ds.PatientAge = f"{years:03d}Y"
+    elif examination and getattr(examination, "patient_age_years", None) is not None:
+        ds.PatientAge = f"{examination.patient_age_years:03d}Y"
+    elif hasattr(ds, "PatientAge"):
+        del ds.PatientAge
 
     # Remove PlanarConfiguration for monochrome images
     if getattr(ds, "SamplesPerPixel", 1) == 1 and hasattr(ds, "PlanarConfiguration"):

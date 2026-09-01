@@ -166,6 +166,33 @@ def validate_dicom_dataset(
     if projection and str(getattr(ds, "ViewPosition", "")) != projection:
         raise DICOMValidationError("ViewPosition mismatch")
 
+    pixel_source = getattr(dicom, "pixel_source", None) if dicom else None
+    legacy_emergency = getattr(capture, "detector_type", None) == "TRX"
+    relationship = getattr(dicom, "pixel_intensity_relationship", None) if dicom else None
+    relationship_sign = getattr(dicom, "pixel_intensity_relationship_sign", None) if dicom else None
+    if pixel_source == "FINAL_IMAGE":
+        raise DICOMValidationError("FINAL_IMAGE is not canonical presentation pixels")
+    if pixel_source == "CANONICAL_PRE_PRESENTATION":
+        if relationship not in ("LIN", "LOG") or relationship_sign not in (-1, 1):
+            raise DICOMValidationError("canonical pixel relationship/sign is required")
+        if str(getattr(ds, "PixelIntensityRelationship", "")) != relationship:
+            raise DICOMValidationError("PixelIntensityRelationship mismatch")
+        if int(getattr(ds, "PixelIntensityRelationshipSign", 0)) != relationship_sign:
+            raise DICOMValidationError("PixelIntensityRelationshipSign mismatch")
+        if not getattr(capture, "detector_spacing", None):
+            raise DICOMValidationError("canonical physical spacing authority is missing")
+        if not getattr(capture, "projection", None) and not getattr(capture, "view_code_sequence", None):
+            raise DICOMValidationError("canonical orientation/ViewCodeSequence authority is missing")
+    if getattr(capture, "view_code_sequence", None):
+        if "ViewCodeSequence" not in ds or not ds.ViewCodeSequence:
+            raise DICOMValidationError("ViewCodeSequence is missing")
+        item = ds.ViewCodeSequence[0]
+        expected = capture.view_code_sequence[0]
+        if (str(item.CodeValue), str(item.CodingSchemeDesignator), str(item.CodeMeaning)) != (
+            expected.code_value, expected.coding_scheme_designator, expected.code_meaning
+        ):
+            raise DICOMValidationError("ViewCodeSequence mismatch")
+
     if str(getattr(ds, "PresentationIntentType", "")) != "FOR PRESENTATION":
         raise DICOMValidationError("PresentationIntentType != FOR PRESENTATION")
 
@@ -178,22 +205,29 @@ def validate_dicom_dataset(
     if getattr(ds, "SamplesPerPixel", 1) == 1 and hasattr(ds, "PlanarConfiguration"):
         raise DICOMValidationError("PlanarConfiguration present on monochrome image")
 
-    image_spacing = getattr(capture, "image_spacing", None) if capture else None
-    if image_spacing is not None:
-        expected_row_mm = image_spacing.row_um / 1000.0
-        expected_col_mm = image_spacing.column_um / 1000.0
-    else:
-        expected_row_mm = 0.140
-        expected_col_mm = 0.140
-    spacing = [float(x) for x in getattr(ds, "PixelSpacing", [0, 0])]
+    detector_spacing = getattr(capture, "detector_spacing", None) if capture else None
+    patient_spacing = getattr(capture, "patient_pixel_spacing", None) if capture else None
+    if not detector_spacing and ((not resolved and not legacy_emergency) or pixel_source == "CANONICAL_PRE_PRESENTATION"):
+        raise DICOMValidationError("canonical physical spacing authority is missing")
+    if pixel_source == "CANONICAL_PRE_PRESENTATION" and detector_spacing:
+        spacing = [float(x) for x in getattr(ds, "ImagerPixelSpacing", [0, 0])]
+        expected = [detector_spacing.row_mm, detector_spacing.column_mm]
+        if len(spacing) != 2 or any(abs(a - b) > 1e-4 for a, b in zip(spacing, expected)):
+            raise DICOMValidationError("ImagerPixelSpacing does not match detector authority")
+    if patient_spacing:
+        spacing = [float(x) for x in getattr(ds, "PixelSpacing", [0, 0])]
+        expected = [patient_spacing.row_mm, patient_spacing.column_mm]
+        if len(spacing) != 2 or any(abs(a - b) > 1e-4 for a, b in zip(spacing, expected)):
+            raise DICOMValidationError("PixelSpacing does not match patient-plane authority")
+    elif "PixelSpacing" in ds and pixel_source == "CANONICAL_PRE_PRESENTATION":
+        raise DICOMValidationError("PixelSpacing has no patient-plane authority")
     if (
-        len(spacing) != 2
-        or abs(spacing[0] - expected_row_mm) > 1e-4
-        or abs(spacing[1] - expected_col_mm) > 1e-4
+        ((not resolved and not legacy_emergency) or pixel_source == "CANONICAL_PRE_PRESENTATION")
+        and not getattr(capture, "projection", None)
+        and not getattr(capture, "view_code_sequence", None)
+        and "PatientOrientation" not in ds
     ):
-        raise DICOMValidationError(
-            f"PixelSpacing {spacing} != [{expected_row_mm}, {expected_col_mm}]"
-        )
+        raise DICOMValidationError("canonical orientation/ViewCodeSequence authority is missing")
 
     rows = int(getattr(ds, "Rows", 0))
     cols = int(getattr(ds, "Columns", 0))

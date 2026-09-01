@@ -1074,7 +1074,7 @@ def test_minimal_manifest_http_endpoint(tmp_path: Path) -> None:
     assert ds.PresentationIntentType == "FOR PRESENTATION"
     assert ds.BurnedInAnnotation == "NO"
     assert ds.LossyImageCompression == "00"
-    assert ds.PixelSpacing == ["0.140000", "0.140000"]
+    assert "PixelSpacing" not in ds
 
 
 def test_minimal_manifest_retry_determinism(tmp_path: Path) -> None:

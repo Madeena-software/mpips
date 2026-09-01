@@ -223,7 +223,7 @@ def run_emergency_batch(
             result["error"] = preflight_error
         elif output.exists():
             try:
-                existing = pydicom.dcmread(output, stop_before_pixels=True)
+                existing = pydicom.dcmread(output)
                 shape = (int(existing.Rows), int(existing.Columns))
                 validate_dicom_dataset(output, case_manifest, shape)
             except Exception as exc:
