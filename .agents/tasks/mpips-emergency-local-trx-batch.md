@@ -1,7 +1,7 @@
 ---
 title: MPIPS emergency local TRX batch DICOM capability — DICOM clinical metadata hardening
 document_id: TASK-MPIPS-EMERGENCY-LOCAL-TRX-BATCH
-version: 1.4
+version: 1.5
 status: Validated/Published
 language: en-US
 scope:
@@ -364,6 +364,25 @@ remaining 44 studies, PACS automation, report generation, deletion, Drive
 publication, deployment, merge, or clinical/diagnostic claims. Codex MUST stop
 after handing the local artifact to the human and confirming that no PACS
 upload occurred.
+
+### Revision 1.5 — PR finalization and merge authorization
+
+The Revision 1.4 Secondary Capture interoperability experiment is complete:
+exactly one human-manual upload was performed; PACS ingest, real-pixel viewer
+rendering, visibility of 80 kVp and 25 mAs, and AI routing/report pipeline
+execution passed as interoperability evidence only. No diagnostic accuracy
+claim is made. The external display of empty PatientSex as Female is recorded
+as PACS behavior and MUST NOT cause MPIPS to fabricate sex. No second PACS
+upload is authorized.
+
+This revision authorizes GitHub inspection via `gh`, correction of PR #2
+metadata, bounded baseline CI repair through separate PRs, synchronization of
+the feature branch with current `main`, CI investigation/remediation, final
+verification, and merge of PR #2 only when all stated merge gates pass.
+
+It does not authorize deployment, 45-case regeneration, another PACS upload,
+production real-DX generation using fabricated authority, fabricated detector
+spacing, fabricated LIN/LOG/sign, report/PDF workflow, or clinical claims.
 
 ## Objective
 
