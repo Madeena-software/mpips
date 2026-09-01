@@ -74,7 +74,13 @@ jobs:
             -e REDIS_URL=redis://localhost:6379/0 \
             -p 8000:8000 \
             mpips-api:latest
-          
-          sleep 3
-          curl --fail http://localhost:8000/health || (docker logs test-api && exit 1)
-          docker rm -f test-api
+          cleanup() { docker rm -f test-api >/dev/null 2>&1 || true; }
+          trap cleanup EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8000/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs test-api
+          exit 1
