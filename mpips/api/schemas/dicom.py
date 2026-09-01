@@ -135,6 +135,19 @@ class FileManifestSchema(BaseModel):
         return v
 
 
+class XRayAcquisitionSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    expType: Optional[str] = None
+    detectorMode: Optional[str] = None
+    expMode: Optional[str] = None
+    expTime: Optional[float] = None
+    expTimeMs: Optional[float] = None
+    expMas: Optional[float] = None
+    expEnergy: Optional[float] = None
+    expCurrent: Optional[float] = None
+
+
 class CaptureSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -151,6 +164,7 @@ class CaptureSchema(BaseModel):
     detector_spacing: Optional[PixelSpacingSchema] = None
     patient_pixel_spacing: Optional[PixelSpacingSchema] = None
     view_code_sequence: Optional[list[ViewCodeSchema]] = None
+    xrayparams: Optional[XRayAcquisitionSchema] = None
 
     @field_validator("captured_at")
     @classmethod
@@ -271,6 +285,7 @@ class ResolvedCaptureSchema(BaseModel):
     detector_spacing: Optional[PixelSpacingSchema] = None
     patient_pixel_spacing: Optional[PixelSpacingSchema] = None
     view_code_sequence: Optional[list[ViewCodeSchema]] = None
+    xrayparams: Optional[XRayAcquisitionSchema] = None
 
 
 class ResolvedDICOMManifestSchema(BaseModel):
@@ -493,6 +508,7 @@ def resolve_mhcs_manifest(
         detector_spacing=capture_in.detector_spacing,
         patient_pixel_spacing=capture_in.patient_pixel_spacing,
         view_code_sequence=capture_in.view_code_sequence,
+        xrayparams=capture_in.xrayparams,
     )
 
     resolved_dicom = ResolvedDICOMManifestSchema(

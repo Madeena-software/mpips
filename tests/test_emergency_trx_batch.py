@@ -4,7 +4,6 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
-import pydicom
 import pytest
 
 from mpips.api.schemas.dicom import MHCSManifest

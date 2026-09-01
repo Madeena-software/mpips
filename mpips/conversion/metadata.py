@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any, Dict
 
 from mpips.api.schemas.dicom import MHCSManifest, PersonNameSchema, ResolvedMHCSManifest
@@ -37,6 +38,39 @@ def format_person_name(name_input: PersonNameSchema | Dict[str, Any] | Any) -> s
             return f"{family_name}^{remaining}"
 
     return full_name
+
+
+def _xray_acquisition_metadata(
+    manifest: MHCSManifest | ResolvedMHCSManifest,
+) -> Dict[str, float]:
+    capture = getattr(manifest, "capture", None)
+    params = getattr(capture, "xrayparams", None) if capture else None
+    if params is None:
+        return {}
+
+    values: Dict[str, float] = {}
+    for source, target in (
+        ("expEnergy", "KVP"),
+        ("expTimeMs", "ExposureTime"),
+        ("expCurrent", "XRayTubeCurrent"),
+        ("expMas", "Exposure"),
+    ):
+        value = getattr(params, source, None)
+        if value is None:
+            continue
+        numeric = float(value)
+        if not math.isfinite(numeric) or numeric < 0:
+            raise ValueError(f"invalid X-ray acquisition value for {source}")
+        values[target] = numeric
+
+    current = values.get("XRayTubeCurrent")
+    time_ms = values.get("ExposureTime")
+    mas = values.get("Exposure")
+    if current is not None and time_ms is not None and mas is not None:
+        expected = current * time_ms / 1000.0
+        if not math.isclose(expected, mas, rel_tol=1e-3, abs_tol=1e-6):
+            raise ValueError("X-ray acquisition mA/time does not match mAs")
+    return values
 
 
 def build_converter_metadata_json(
@@ -124,4 +158,5 @@ def build_converter_metadata_json(
         "ContentTime": content_time,
         "StudyDescription": study_desc,
         "SeriesDescription": series_desc,
+        **_xray_acquisition_metadata(manifest),
     }

@@ -7,7 +7,7 @@ import numpy as np
 import pydicom
 
 from mpips.api.schemas.dicom import MHCSManifest, ResolvedMHCSManifest, age_at
-from mpips.conversion.metadata import format_person_name
+from mpips.conversion.metadata import build_converter_metadata_json, format_person_name
 
 
 class DICOMValidationError(ValueError):
@@ -123,6 +123,35 @@ def validate_dicom_dataset(
         if str(getattr(ds, keyword, "")) != expected:
             raise DICOMValidationError(f"{keyword} does not match authoritative source")
 
+    expected_xray = {
+        keyword: value
+        for keyword in (
+            "KVP",
+            "ExposureTime",
+            "XRayTubeCurrent",
+            "Exposure",
+            "ExposureInuAs",
+        )
+        if (value := build_converter_metadata_json(manifest).get(keyword)) is not None
+    }
+    for keyword in (
+        "KVP",
+        "ExposureTime",
+        "XRayTubeCurrent",
+        "Exposure",
+        "ExposureInuAs",
+    ):
+        if keyword in expected_xray:
+            actual = float(getattr(ds, keyword, float("nan")))
+            if not np.isfinite(actual) or not np.isclose(
+                actual, expected_xray[keyword], rtol=1e-4, atol=1e-6
+            ):
+                raise DICOMValidationError(
+                    f"{keyword} does not match authoritative source"
+                )
+        elif keyword in ds and ds[keyword].value not in ("", None):
+            raise DICOMValidationError(f"{keyword} has no authoritative source")
+
     accession_number = (
         getattr(examination, "accession_number", None) if examination else None
     )
@@ -158,7 +187,8 @@ def validate_dicom_dataset(
     if examination and getattr(examination, "patient_age_years", None) is not None:
         expected_age = f"{examination.patient_age_years:03d}Y"
     elif manifest.patient.birth_date and getattr(examination, "performed_at", None):
-        expected_age = f"{age_at(manifest.patient.birth_date, examination.performed_at.date()):03d}Y"
+        exam_date = examination.performed_at.date()
+        expected_age = f"{age_at(manifest.patient.birth_date, exam_date):03d}Y"
     if expected_age is not None:
         if "PatientAge" not in ds or str(ds.PatientAge) != expected_age:
             raise DICOMValidationError("PatientAge mismatch")
@@ -209,7 +239,8 @@ def validate_dicom_dataset(
     )
     if pixel_source != "CANONICAL_PRE_PRESENTATION":
         raise DICOMValidationError(
-            "DX requires canonical presentation pixel source and physical spacing authority"
+            "DX requires canonical presentation pixel source and physical spacing "
+            "authority"
         )
     if relationship not in ("LIN", "LOG") or relationship_sign not in (-1, 1):
         raise DICOMValidationError("canonical pixel relationship/sign is required")

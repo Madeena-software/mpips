@@ -183,6 +183,15 @@ def _preflight(
         try:
             radiograph = load_radiograph(source)
             gain = gains.require(str(radiograph["gain_id"]))
+            manifest = MHCSManifest.model_validate(
+                {
+                    **manifest.model_dump(mode="json"),
+                    "capture": {
+                        **(manifest.capture or CaptureSchema()).model_dump(mode="json"),
+                        "xrayparams": radiograph["xray_params"],
+                    },
+                }
+            )
         except Exception as exc:
             cases.append((source, manifest, capture_id, type(exc).__name__))
             continue

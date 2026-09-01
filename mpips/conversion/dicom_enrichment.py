@@ -55,6 +55,18 @@ def enrich_dicom_file(
     ds.ContentDate = temporal["ContentDate"]
     ds.ContentTime = temporal["ContentTime"]
 
+    for keyword in (
+        "KVP",
+        "ExposureTime",
+        "XRayTubeCurrent",
+        "Exposure",
+        "ExposureInuAs",
+    ):
+        if keyword in ds:
+            del ds[keyword]
+        if keyword in temporal:
+            setattr(ds, keyword, temporal[keyword])
+
     # Examination & Study
     accession_number = (
         getattr(examination, "accession_number", None) if examination else None

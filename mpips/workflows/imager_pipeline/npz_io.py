@@ -124,6 +124,7 @@ def load_radiograph(path: str | Path) -> dict[str, Any]:
                 "gain_id": str(gain_id),
                 "raw": _image(data, "rawimage").copy(),
                 "camera_params": _mapping(data, "cameraparams", required=False),
+                "xray_params": xray_params,
                 "detector_mode": detector_mode(xray_params),
             }
     except (OSError, ValueError) as exc:
