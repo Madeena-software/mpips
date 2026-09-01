@@ -1,7 +1,7 @@
 ---
 title: MPIPS emergency local TRX batch DICOM capability — DICOM clinical metadata hardening
 document_id: TASK-MPIPS-EMERGENCY-LOCAL-TRX-BATCH
-version: 1.3
+version: 1.4
 status: Validated/Published
 language: en-US
 scope:
@@ -324,10 +324,46 @@ one-DICOM experiment, report generation, Drive replacement of clinical
 DICOMs, production deployment, or any other external mutation.
 
 For this immediate task-publication step only: update this task to version
-1.3, validate consistency, run `git diff --check`, and commit only this task
+1.4, validate consistency, run `git diff --check`, and commit only this task
 revision. Do not implement production changes, regenerate the 45 studies,
 contact YiZhun, or publish the new 45-case evidence yet. Stop for
 Planner/Reviewer review after publication.
+
+### Revision 1.4 — one real-pixel Secondary Capture QA interoperability artifact
+
+This revision is a narrow exception to Revision 1.3. It authorizes exactly
+one de-identified Secondary Capture DICOM QA artifact containing real
+processed pixels from `TRX_1787899731256.npz`, using the already-authorized
+gain `TRX_1787726609597.npz` and accepted TRX calibration locally.
+
+It authorizes local processing, generation, validation, visual inspection, and
+handoff of the artifact path and hashes to the human operator. The human may
+manually upload exactly that one file to the already-authorized AI-PACS.
+Codex MUST NOT upload it or automate browser interaction.
+
+The artifact MUST use Secondary Capture Image Storage
+(`1.2.840.10008.5.1.4.1.1.7`), synthetic identity `MPIPS^INTEROP_TEST` and
+`MPIPS-REALPIXEL-SC-001`, empty birth date/sex, absent age, and the QA study
+and series descriptions. It MUST preserve the real processed pixel matrix and
+use new QA-specific UIDs. It MAY include only proven acquisition values: KVP
+80, XRayTubeCurrent 50, ExposureTime 500, and Exposure 25. It MUST omit
+`ExposureInuAs`, dose metrics, ambiguous `expTime`, and
+`cameraparams.Exposure`.
+
+The artifact MUST NOT fabricate detector spacing, `PixelSpacing`,
+`ImagerPixelSpacing`, `PixelIntensityRelationship`,
+`PixelIntensityRelationshipSign`, `DetectorType`, or other unresolved DX
+semantics. It MUST pass pydicom parse/decode, current `dciodvfy` validation
+with zero current-standard errors, burned-in-PHI inspection, and local visual
+QA. The handoff directory `/tmp/mpips-ai-pacs-realpixel-sc-test/` must contain
+exactly `MPIPS_REALPIXEL_SC_INTEROP_TEST.dcm` and no source, manifest,
+sidecar, mapping, symlink, nested directory, or second DICOM.
+
+This revision does not authorize production real-DX generation, processing the
+remaining 44 studies, PACS automation, report generation, deletion, Drive
+publication, deployment, merge, or clinical/diagnostic claims. Codex MUST stop
+after handing the local artifact to the human and confirming that no PACS
+upload occurred.
 
 ## Objective
 
