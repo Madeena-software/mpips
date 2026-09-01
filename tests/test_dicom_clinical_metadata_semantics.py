@@ -269,6 +269,64 @@ def test_final_presentation_pixels_fail_canonical_semantic_gate(tmp_path: Path) 
         validate_dicom_dataset(path, manifest, (4, 4))
 
 
+def test_canonical_pre_presentation_requires_and_exports_pixel_relationship(tmp_path: Path) -> None:
+    base = _manifest().model_dump(mode="json")
+    manifest = MHCSManifest.model_validate(
+        {
+            **base,
+            "capture": {
+                **base["capture"],
+                "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+                "projection": "PA",
+                "view_code_sequence": [{
+                    "code_value": "272479007",
+                    "coding_scheme_designator": "SCT",
+                    "code_meaning": "postero-anterior",
+                }],
+            },
+            "dicom": {
+                **base["dicom"],
+                "pixel_source": "CANONICAL_PRE_PRESENTATION",
+                "pixel_intensity_relationship": "LIN",
+                "pixel_intensity_relationship_sign": 1,
+            },
+        }
+    )
+    path = tmp_path / "image.dcm"
+    _convert(tmp_path, manifest).save_as(path)
+    ds = pydicom.dcmread(path)
+    assert ds.PixelIntensityRelationship == "LIN"
+    assert ds.PixelIntensityRelationshipSign == 1
+    validate_dicom_dataset(path, manifest, (4, 4))
+
+
+def test_canonical_pre_presentation_missing_relationship_fails_closed(tmp_path: Path) -> None:
+    base = _manifest().model_dump(mode="json")
+    manifest = MHCSManifest.model_validate(
+        {
+            **base,
+            "capture": {
+                **base["capture"],
+                "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+                "projection": "PA",
+                "view_code_sequence": [{
+                    "code_value": "272479007",
+                    "coding_scheme_designator": "SCT",
+                    "code_meaning": "postero-anterior",
+                }],
+            },
+            "dicom": {
+                **base["dicom"],
+                "pixel_source": "CANONICAL_PRE_PRESENTATION",
+            },
+        }
+    )
+    path = tmp_path / "image.dcm"
+    _convert(tmp_path, manifest).save_as(path)
+    with pytest.raises(DICOMValidationError, match="relationship|sign"):
+        validate_dicom_dataset(path, manifest, (4, 4))
+
+
 def test_patient_orientation_is_not_guessed(tmp_path: Path) -> None:
     ds = _convert(tmp_path, _manifest())
     assert "PatientOrientation" not in ds
@@ -349,7 +407,35 @@ def test_dciodvfy_fixture_helper_is_skippable(tmp_path: Path) -> None:
     binary = shutil.which("dciodvfy")
     if binary is None:
         pytest.skip("dciodvfy unavailable")
+    base = _manifest().model_dump(mode="json")
+    manifest = MHCSManifest.model_validate(
+        {
+            **base,
+            "capture": {
+                **base["capture"],
+                "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+                "projection": "PA",
+                "view_code_sequence": [{
+                    "code_value": "272479007",
+                    "coding_scheme_designator": "SCT",
+                    "code_meaning": "postero-anterior",
+                }],
+            },
+            "dicom": {
+                **base["dicom"],
+                "pixel_source": "CANONICAL_PRE_PRESENTATION",
+                "pixel_intensity_relationship": "LIN",
+                "pixel_intensity_relationship_sign": 1,
+            },
+        }
+    )
     path = tmp_path / "image.dcm"
-    _convert(tmp_path, _manifest()).save_as(path)
+    _convert(tmp_path, manifest).save_as(path)
     result = subprocess.run([binary, str(path)], capture_output=True, text=True, check=False)
-    assert result.returncode == 0, result.stdout + result.stderr
+    raw_output = result.stdout + result.stderr
+    stale = "Error - Unrecognized enumerated value <FOR PRESENTATION> for value 1 of attribute <Presentation Intent Type>"
+    current_standard_errors = [
+        line for line in raw_output.splitlines()
+        if line.startswith("Error -") and line != stale
+    ]
+    assert not current_standard_errors, raw_output
