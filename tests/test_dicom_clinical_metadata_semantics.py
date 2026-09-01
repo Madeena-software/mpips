@@ -123,6 +123,72 @@ def test_patient_sex_never_fabricates_unknown(
     assert ds.PatientSex == expected
 
 
+def test_authoritative_xray_parameters_reach_dicom(tmp_path: Path) -> None:
+    manifest = MHCSManifest.model_validate(
+        {
+            **_manifest().model_dump(mode="json"),
+            "capture": {
+                "xrayparams": {
+                    "expEnergy": "80",
+                    "expCurrent": "50",
+                    "expTimeMs": 500.0,
+                    "expMas": 25.0,
+                }
+            },
+        }
+    )
+    ds = _convert(tmp_path, manifest)
+    assert (ds.KVP, ds.XRayTubeCurrent, ds.ExposureTime, ds.Exposure) == (
+        80,
+        50,
+        500,
+        25,
+    )
+    assert "ExposureInuAs" not in ds
+
+
+def test_xray_parameters_are_absent_without_authority(tmp_path: Path) -> None:
+    ds = _convert(tmp_path, _manifest())
+    assert not any(
+        keyword in ds
+        for keyword in (
+            "KVP",
+            "XRayTubeCurrent",
+            "ExposureTime",
+            "Exposure",
+            "ExposureInuAs",
+        )
+    )
+
+
+def test_xray_parameters_reject_inconsistent_mas(tmp_path: Path) -> None:
+    manifest = MHCSManifest.model_validate(
+        {
+            **_manifest().model_dump(mode="json"),
+            "capture": {
+                "xrayparams": {
+                    "expEnergy": "80",
+                    "expCurrent": "50",
+                    "expTimeMs": 500.0,
+                    "expMas": 24.0,
+                }
+            },
+        }
+    )
+    with pytest.raises(ValueError, match="mAs"):
+        _convert(tmp_path, manifest)
+
+
+def test_ambiguous_xray_units_are_rejected() -> None:
+    with pytest.raises(ValueError, match="extra_forbidden"):
+        MHCSManifest.model_validate(
+            {
+                **_manifest().model_dump(mode="json"),
+                "capture": {"xrayparams": {"expTimeSeconds": 0.5}},
+            }
+        )
+
+
 def test_patient_age_is_derived_at_birthday_boundary(tmp_path: Path) -> None:
     ds = _convert(tmp_path, _manifest(birth_date="1958-08-28"))
     assert ds.PatientAge == "068Y"

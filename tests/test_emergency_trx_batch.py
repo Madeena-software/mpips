@@ -98,6 +98,7 @@ def test_canonical_radiograph_boundary_ignores_processedimage(tmp_path: Path) ->
         "gain_id",
         "raw",
         "camera_params",
+        "xray_params",
         "detector_mode",
     }
     np.testing.assert_array_equal(
