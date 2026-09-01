@@ -1,7 +1,7 @@
 ---
-title: MPIPS emergency local TRX batch DICOM capability
+title: MPIPS emergency local TRX batch DICOM capability — DICOM clinical metadata hardening
 document_id: TASK-MPIPS-EMERGENCY-LOCAL-TRX-BATCH
-version: 1.2
+version: 1.3
 status: Validated/Published
 language: en-US
 scope:
@@ -200,6 +200,134 @@ The one-DICOM result is a decision gate. Planner/Reviewer must inspect the local
 corrected-DICOM evidence and private YiZhun before/after result before deciding
 the safe strategy for the full population. This task alone does not authorize
 the remaining 44 studies.
+
+## Revision 1.3 — DICOM clinical metadata hardening and full 45-case offline validation
+
+This revision supersedes any conflicting external-validation permission in the
+earlier sections of this task. It authorizes no YiZhun, PACS, Drive clinical
+DICOM, report-generation, deployment, or other external mutation.
+
+### Human intent and current findings
+
+The temporal provenance defect is corrected: authoritative examination date
+drives StudyDate, unknown examination time remains unknown, and synthetic
+captured_at does not leak into ContentDate/ContentTime. One corrected real
+DICOM confirmed corrected StudyDate, empty unknown times, preserved UIDs,
+unchanged PixelData, and unchanged orientation.
+
+The remaining known gap is demographic correctness. Enrichment currently
+writes PatientName, PatientID, PatientBirthDate when known, and PatientSex,
+but not PatientAge. `validate_dicom_dataset()` does not adequately verify
+PatientBirthDate, PatientSex, or PatientAge against authoritative data.
+
+PatientBirthDate (0010,0030) and PatientSex (0010,0040) are Type 2 attributes:
+the attribute remains present and may be zero-length when unknown. Investigate
+and correct any `unknown -> "O"` behavior that conflates UNKNOWN with OTHER.
+PatientAge (0010,1010), VR AS, must never be fabricated.
+
+### Phase 1 — root-cause and data-flow audit
+
+Before implementation, trace each clinically relevant value through:
+
+```text
+private source manifest → MHCSManifest → ResolvedMHCSManifest → converter metadata
+→ base DICOM → enrichment → final DICOM → validator
+```
+
+Build a private authoritative-field matrix for all 45 studies. At minimum
+audit PatientName, PatientID, PatientBirthDate, PatientSex, PatientAge,
+StudyDate, StudyTime, SeriesDate, SeriesTime, AcquisitionDate,
+AcquisitionTime, ContentDate, ContentTime, AcquisitionDateTime,
+AccessionNumber, StudyID, Study/Series/SOPInstanceUID, Modality,
+BodyPartExamined, ViewPosition, ImageLaterality, PresentationIntentType,
+InstitutionName, StationName, Rows, Columns, PixelSpacing,
+PhotometricInterpretation, BitsAllocated, BitsStored, HighBit,
+PixelRepresentation, and PixelData hash.
+
+Classify every populated clinical tag as AUTHORITATIVE,
+DERIVED_FROM_AUTHORITATIVE, TECHNICAL_IDENTIFIER, STANDARD_REQUIRED_EMPTY,
+SYSTEM_DEFAULT, or UNSUPPORTED / SPECULATIVE. No unsupported/speculative
+clinical value may survive acceptance.
+
+Explicitly cover: known DOB; absent DOB with authoritative age; neither DOB
+nor age; known male; known female; and unknown sex.
+
+If authoritative birth_date and examination date exist, derive completed age
+at examination date and encode valid DICOM AS (for example `054Y`). Do not
+use current time, file time, conversion time, UUID time, or pseudo captured_at.
+Support authoritative age without DOB only when the private source and schema
+preserve its provenance safely. Otherwise omit the age value without
+fabrication.
+
+Audit all temporal attributes: StudyDate/Time, SeriesDate/Time,
+AcquisitionDate/Time, AcquisitionDateTime, ContentDate/Time,
+InstanceCreationDate/Time. Synthetic timestamps must not leak into clinical
+date/time attributes; distinguish legitimate instance-creation metadata from
+examination/acquisition metadata.
+
+### Phase 2 — failing tests
+
+After Phase 1 and before production changes, add focused tests that fail on
+current behavior where appropriate. Cover wrong PatientBirthDate, wrong
+PatientSex, unknown sex versus OTHER, age across a birthday boundary, no
+invented age, authoritative age-only data, date-only StudyTime, pseudo-time
+leakage, UID preservation, PixelData preservation, and orientation/presentation
+preservation.
+
+### Phase 3 — bounded implementation and validator hardening
+
+Implement only fixes proven necessary by Phases 1 and 2. Likely scoped files
+include `mpips/api/schemas/dicom.py`, `mpips/conversion/metadata.py`,
+`mpips/conversion/dicom_enrichment.py`, `mpips/conversion/validation.py`,
+`mpips/workflows/imager_pipeline/emergency_batch.py`, and focused tests.
+Do not refactor unrelated code.
+
+Validation must fail closed for wrong demographic metadata and check
+PatientName, PatientID, PatientBirthDate presence/value, PatientSex
+presence/value, and PatientAge when authoritative or derived, in addition to
+existing temporal, UID, image, and pixel checks.
+
+### Phase 4 — full 45-case offline regeneration
+
+After implementation tests pass and local implementation acceptance, generate
+exactly the authorized 45 DICOM studies in a fresh private local workspace.
+Do not contact YiZhun or PACS and do not publish clinical DICOMs to Drive.
+Each case must have an anonymized index, source-date category, metadata/pixel/
+visual validation results, whole-file and PixelData SHA-256, UID preservation,
+temporal-tag summary, and demographic-tag summary.
+
+Require Rows=4096, Columns=3000, authoritative ViewPosition=PA,
+unchanged PixelData, no horizontal mirror, no unintended rotation, and no
+crop/stretch. Preserve established StudyInstanceUID, SeriesInstanceUID, and
+SOPInstanceUID. Run an independent DICOM conformance tool such as
+dciodvfy/DCMTK only if already installed; do not install unfamiliar software.
+Record availability and result.
+
+### Evidence gate
+
+Evidence publication is required before Planner/Reviewer acceptance. Use the
+existing private MPIPS evidence root and create child folder
+`06_full-45-dicom-correctness/` with `01_root-cause/`, `02_tests/`,
+`03_metadata-audit/`, `04_pixel-orientation-audit/`, `05_conformance/`, and
+`06_review-index/`. Publish anonymized root-cause, authoritative-field,
+metadata, temporal, demographic, UID, pixel, test, visual, conformance (if
+available), index, and review-summary evidence.
+
+Never publish `.env`, credentials, cookies, tokens, auth-state, raw network
+credentials, or the approximately 1.1 GB raw DICOM set unless separately
+authorized.
+
+### External-mutation prohibition and publication gate
+
+This revision does not authorize YiZhun upload, PACS upload, a second
+one-DICOM experiment, report generation, Drive replacement of clinical
+DICOMs, production deployment, or any other external mutation.
+
+For this immediate task-publication step only: update this task to version
+1.3, validate consistency, run `git diff --check`, and commit only this task
+revision. Do not implement production changes, regenerate the 45 studies,
+contact YiZhun, or publish the new 45-case evidence yet. Stop for
+Planner/Reviewer review after publication.
 
 ## Objective
 
