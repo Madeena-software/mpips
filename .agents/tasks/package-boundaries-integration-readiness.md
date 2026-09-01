@@ -1,7 +1,7 @@
 ---
 title: Package Boundaries Integration Readiness
 document_id: TASK-PACKAGE-BOUNDARIES-INTEGRATION-READINESS-001
-version: 1.0
+version: 1.1
 status: Validated/Published
 language: en-US
 last_updated: 2026-09-01
@@ -64,15 +64,40 @@ identities.
 
 ### Governing authority
 
+- applicable higher-priority Human Request;
 - `AGENTS.md`
 - `.agents/AGENTS.md`
 - `.agents/software-workflow.md`
-- `.agents/context/project.md`
-- `.agents/prompts/plan-create-task.md`
-- `.agents/tasks/_template.md`
-- accepted/closed `.agents/tasks/main-hotfix-reconciliation.md` v1.14
-- accepted `.agents/tasks/radiography-pipeline-optimization.md` v1.1 at `5d884d63887fb2c6a88fb78e4b9a015ab040b553`
-- current Human Request
+- accepted repository delivery state and decisions legitimately governing this work;
+- this task once accepted as the governing delivery contract.
+
+### Supporting context and procedure
+
+- `.agents/context/project.md`;
+- `.agents/prompts/plan-create-task.md`;
+- `.agents/tasks/_template.md`.
+
+These materials support planning and execution but do not independently govern
+the delivery objective.
+
+### Accepted prior decisions and traceability
+
+- accepted/closed `.agents/tasks/main-hotfix-reconciliation.md` v1.14;
+- accepted/closed `.agents/tasks/radiography-pipeline-optimization.md` v1.1;
+- accepted implementation baseline `5d884d63887fb2c6a88fb78e4b9a015ab040b553`.
+
+These are historical delivery contracts and accepted decisions for
+traceability; they do not independently govern this new objective.
+
+### Observed implementation and verification evidence
+
+- source code, tests, and configuration relevant to package boundaries;
+- Git history, current branch/main refs, and the known merge base;
+- `.github/workflows/ci.yml` as the current observed/configured repository CI verification surface and a relevant source for reproducing applicable quality checks;
+- available local or CI verification results.
+
+Observed evidence describes repository reality and does not become governing
+authority merely because it is useful for verification.
 
 ### Relevant accepted decisions and observed facts
 
@@ -83,7 +108,6 @@ identities.
 - Its historical expected hash is `5604df97f587cb2f158d5076fb0464b364e2f2449db5027cdef36a4b7a293b6b`.
 - Accepted canonical TRX behavior has produced `5b9af36adc670ed1d93d650179d60b9cb2688cc53fa21f64fb4049de33e88d56` on both pre-optimization and accepted optimization states.
 - Protected converter SHA-256 is `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
-- `.github/workflows/ci.yml` is the relevant branch-quality verification authority for dependency, converter, static, test, build, and smoke checks.
 
 ## Objective
 
@@ -108,7 +132,7 @@ mutation.
 
 - actual merge, rebase, cherry-pick, or conflict resolution that changes either branch;
 - push, pull request or issue writes, deployment, release, or production mutation;
-- updating the stale TRX golden expectation without independent confirmation and Planner authorization;
+- updating the stale TRX golden expectation without the bounded independent-confirmation conditions defined below;
 - reopening BED threshold semantics, TRX threshold bypass or orientation, ImageJ/Fiji fidelity decisions, calibration policy, or radiography optimization scope;
 - changing the protected DICOM converter;
 - unrelated refactoring, new product behavior, or dependency adoption.
@@ -121,6 +145,22 @@ mutation.
 - calibration default `fixed` and expanded calibration remaining opt-in;
 - unapproved numeric calibration thresholds remaining unadopted;
 - protected converter integrity and canonical package/import boundaries.
+
+## Bounded TRX characterization alignment
+
+The task authorizes correction of the stale expected golden value in
+`tests/test_config_characterization.py::test_characterize_trx_golden_output_hash`
+under this same umbrella objective only when the Executor independently:
+
+1. reproduces the canonical TRX characterization output from the accepted implementation baseline;
+2. obtains exactly `5b9af36adc670ed1d93d650179d60b9cb2688cc53fa21f64fb4049de33e88d56`;
+3. verifies the accepted TRX orientation and geometry semantics; and
+4. confirms that changing only the stale expected value from
+   `5604df97f587cb2f158d5076fb0464b364e2f2449db5027cdef36a4b7a293b6b` is sufficient.
+
+If the independently reproduced hash differs, or runtime/source changes are
+needed, stop and return to Planner. This is test-contract alignment to
+accepted behavior, not a new TRX semantic decision.
 
 ## Dependencies and assumptions
 
@@ -137,7 +177,7 @@ mutation.
 ### Remaining approval requirements
 
 - Planner/Reviewer acceptance of the immutable task revision before execution.
-- Planner decision for any semantic conflict, scope expansion, golden-expectation change, merge strategy, or consequential external side effect.
+- Planner decision for any semantic conflict, scope expansion, merge strategy, or consequential external side effect.
 
 ## Required capabilities
 
@@ -162,6 +202,7 @@ mutation.
 - [ ] Package boundaries, public API behavior, configuration defaults, and protected converter integrity are assessed.
 - [ ] Branch-versus-`main` differences are reviewed for semantic and architectural integration risk beyond textual conflicts.
 - [ ] The stale TRX characterization result is independently confirmed before any expectation change is proposed.
+- [ ] If the bounded TRX conditions are satisfied, the stale golden expectation is corrected under this task and the focused test passes; otherwise execution stops without changing it.
 - [ ] BED, TRX, ImageJ/Fiji, calibration, and radiography optimization decisions remain preserved.
 - [ ] Findings identify evidence, risk, limitations, and any required Planner decision.
 - [ ] No merge or other integration mutation is performed.
@@ -183,8 +224,16 @@ Stop and return to Planner/Reviewer if:
 After Planner accepts the immutable task revision, Executor may inspect the
 repository, run non-destructive local checks, perform non-persistent
 integration analysis/simulation, create bounded textual evidence where
-authorized, and create an ordinary local implementation/evidence commit only
-when explicitly within the resulting execution scope.
+authorized, correct the stale TRX characterization expectation when the
+conditions above are independently satisfied, and create ordinary bounded
+test/evidence commits required by this objective.
+
+The Executor retains discretion over the exact verification sequence,
+non-persistent Git analysis mechanism, technically equivalent inspections,
+temporary analysis artifacts, and bounded test/evidence implementation details.
+
+Runtime or product source changes are not authorized merely to make readiness
+checks pass; such a need returns to Planner.
 
 This task does not authorize push, PR/issue writes, merge, rebase,
 cherry-pick, deployment, release, production mutation, external-system
