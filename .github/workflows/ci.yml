@@ -32,11 +32,21 @@ jobs:
             exit 1
           fi
 
-      - name: Run Code Quality Checks
+      - name: Run Black Check
         run: |
           uv run black --check mpips tests
+
+      - name: Run Flake8 Check
+        run: |
           uv run flake8 mpips tests
-          uv run mypy mpips tests
+
+      - name: Run Mypy Regression Gate
+        env:
+          MYPY_BASE_SHA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          uv run python scripts/check_mypy_regressions.py \
+            --base-ref "${MYPY_BASE_SHA:-HEAD^}" \
+            --candidate-ref "$GITHUB_SHA"
 
       - name: Run pytest Suite
         run: |
