@@ -46,11 +46,13 @@ def _manifest(**patient: object) -> MHCSManifest:
     )
 
 
-def _convert(tmp_path: Path, manifest: MHCSManifest) -> pydicom.Dataset:
+def _convert(
+    tmp_path: Path, manifest: MHCSManifest, shape: tuple[int, int] = (4, 4)
+) -> pydicom.Dataset:
     image = tmp_path / "image.tiff"
     metadata = tmp_path / "metadata.json"
     dicom = tmp_path / "image.dcm"
-    write_tiff(image, np.arange(16, dtype=np.uint16).reshape(4, 4))
+    write_tiff(image, np.arange(np.prod(shape), dtype=np.uint16).reshape(shape))
     metadata.write_text(json.dumps(build_converter_metadata_json(manifest)))
     tiff_json_to_dcm(str(image), str(metadata), str(dicom))
     enrich_dicom_file(dicom, manifest)
@@ -147,43 +149,68 @@ def test_spacing_without_authority_fails_closed(tmp_path: Path) -> None:
         validate_dicom_dataset(path, manifest, (4, 4))
 
 
-def test_authoritative_spacing_populates_imager_spacing_only() -> None:
+def test_authoritative_spacing_populates_imager_spacing_only(tmp_path: Path) -> None:
     """Future contract: detector-plane spacing is distinct from PixelSpacing."""
     manifest = MHCSManifest.model_validate(
         {
             **_manifest().model_dump(mode="json"),
-            "capture": {"detector_spacing": {"row_mm": 0.150, "column_mm": 0.160}},
+            "capture": {
+                **_manifest().model_dump(mode="json")["capture"],
+                "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+            },
         }
     )
-    assert manifest.capture.detector_spacing == {"row_mm": 0.150, "column_mm": 0.160}
+    ds = _convert(tmp_path, manifest)
+    assert ds.ImagerPixelSpacing == ["0.150000", "0.160000"]
+    assert "PixelSpacing" not in ds
 
 
-def test_patient_plane_spacing_has_independent_authority() -> None:
+def test_patient_plane_spacing_has_independent_authority(tmp_path: Path) -> None:
     manifest = MHCSManifest.model_validate(
         {
             **_manifest().model_dump(mode="json"),
-            "capture": {"patient_pixel_spacing": {"row_mm": 0.150, "column_mm": 0.160}},
+            "capture": {
+                **_manifest().model_dump(mode="json")["capture"],
+                "patient_pixel_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+            },
         }
     )
-    assert manifest.capture.patient_pixel_spacing == {"row_mm": 0.150, "column_mm": 0.160}
+    ds = _convert(tmp_path, manifest)
+    assert ds.PixelSpacing == ["0.150000", "0.160000"]
+    assert "ImagerPixelSpacing" not in ds
 
 
-@pytest.mark.parametrize("derived_from", ["rows_columns", "image_dimensions", "remap_shape", "fallback_0140"])
-def test_spacing_authority_cannot_be_inferred_from_geometry(tmp_path: Path, derived_from: str) -> None:
+@pytest.mark.parametrize("shape", [(4, 4), (2, 8)])
+def test_rows_and_columns_do_not_establish_physical_spacing(
+    tmp_path: Path, shape: tuple[int, int]
+) -> None:
     manifest = _manifest()
     path = tmp_path / "image.dcm"
-    _convert(tmp_path, manifest).save_as(path)
+    _convert(tmp_path, manifest, shape=shape).save_as(path)
+    with pytest.raises(DICOMValidationError, match="physical spacing authority"):
+        validate_dicom_dataset(path, manifest, shape)
+
+
+def test_old_pixel_spacing_fallback_is_not_authority(tmp_path: Path) -> None:
+    manifest = _manifest()
+    path = tmp_path / "image.dcm"
+    ds = _convert(tmp_path, manifest)
+    assert ds.PixelSpacing == ["0.140000", "0.140000"]
+    ds.save_as(path)
     with pytest.raises(DICOMValidationError, match="physical spacing authority"):
         validate_dicom_dataset(path, manifest, (4, 4))
 
 
-def test_age_only_contract_is_examination_anchored() -> None:
-    MHCSManifest.model_validate(
+def test_age_only_contract_is_examination_anchored(tmp_path: Path) -> None:
+    manifest = MHCSManifest.model_validate(
         {
+            **_manifest(birth_date=None).model_dump(mode="json"),
             "examination": {"performed_at": "2026-08-28T00:00:00+00:00", "patient_age_years": 68},
-            "patient": {"medical_record_number": "SYNTHETIC-001", "name": "SYNTHETIC", "sex": "unknown"},
         }
     )
+    ds = _convert(tmp_path, manifest)
+    assert "PatientBirthDate" in ds and ds.PatientBirthDate == ""
+    assert ds.PatientAge == "068Y"
 
 
 def test_no_authoritative_age_omits_patient_age(tmp_path: Path) -> None:
@@ -229,14 +256,17 @@ def test_metadata_enrichment_preserves_uids_and_pixels(tmp_path: Path) -> None:
     ).digest()
 
 
-def test_final_presentation_pixels_fail_canonical_semantic_gate() -> None:
-    MHCSManifest.model_validate(
+def test_final_presentation_pixels_fail_canonical_semantic_gate(tmp_path: Path) -> None:
+    manifest = MHCSManifest.model_validate(
         {
-            "examination": {"performed_at": "2026-08-28T00:00:00+00:00"},
-            "patient": {"medical_record_number": "SYNTHETIC-001", "name": "SYNTHETIC", "sex": "unknown"},
-            "dicom": {"pixel_source": "FINAL_IMAGE"},
+            **_manifest().model_dump(mode="json"),
+            "dicom": {**_manifest().model_dump(mode="json")["dicom"], "pixel_source": "FINAL_IMAGE"},
         }
     )
+    path = tmp_path / "image.dcm"
+    _convert(tmp_path, manifest).save_as(path)
+    with pytest.raises(DICOMValidationError, match="canonical|pixel|presentation"):
+        validate_dicom_dataset(path, manifest, (4, 4))
 
 
 def test_patient_orientation_is_not_guessed(tmp_path: Path) -> None:
@@ -249,11 +279,12 @@ def test_patient_orientation_is_not_guessed(tmp_path: Path) -> None:
         validate_dicom_dataset(path, _manifest(), (4, 4))
 
 
-def test_verified_pa_view_code_future_contract() -> None:
+def test_verified_pa_view_code_future_contract(tmp_path: Path) -> None:
     manifest = MHCSManifest.model_validate(
         {
             **_manifest().model_dump(mode="json"),
             "capture": {
+                **_manifest().model_dump(mode="json")["capture"],
                 "projection": "PA",
                 "view_code_sequence": [{
                     "code_value": "272479007",
@@ -263,7 +294,13 @@ def test_verified_pa_view_code_future_contract() -> None:
             },
         }
     )
-    assert manifest.capture.view_code_sequence[0]["code_value"] == "272479007"
+    ds = _convert(tmp_path, manifest)
+    assert ds.ViewPosition == "PA"
+    assert len(ds.ViewCodeSequence) == 1
+    assert ds.ViewCodeSequence[0].CodeValue == "272479007"
+    assert ds.ViewCodeSequence[0].CodingSchemeDesignator == "SCT"
+    assert ds.ViewCodeSequence[0].CodeMeaning == "postero-anterior"
+    assert "PatientOrientation" not in ds
 
 
 def test_explicit_authoritative_pa_is_allowed(tmp_path: Path) -> None:
