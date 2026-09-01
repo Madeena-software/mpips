@@ -12,6 +12,7 @@ import shutil
 import subprocess
 from datetime import datetime
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 import pydicom
@@ -91,7 +92,7 @@ def _convert(
     dicom = tmp_path / "image.dcm"
     write_tiff(image, np.arange(np.prod(shape), dtype=np.uint16).reshape(shape))
     metadata.write_text(json.dumps(build_converter_metadata_json(manifest)))
-    tiff_json_to_dcm(str(image), str(metadata), str(dicom))
+    cast(Any, tiff_json_to_dcm)(str(image), str(metadata), str(dicom))
     enrich_dicom_file(dicom, manifest)
     return pydicom.dcmread(dicom)
 
@@ -406,6 +407,7 @@ def test_dob_age_uses_examination_date_boundary(
     tmp_path: Path, examination_date: str, expected: str
 ) -> None:
     manifest = _manifest(birth_date="1958-08-28")
+    assert manifest.examination is not None
     manifest.examination = manifest.examination.model_copy(
         update={"performed_at": datetime.fromisoformat(examination_date)}
     )
@@ -635,6 +637,7 @@ def test_verified_pa_view_code_future_contract(tmp_path: Path) -> None:
 
 def test_explicit_authoritative_pa_is_allowed(tmp_path: Path) -> None:
     manifest = _manifest()
+    assert manifest.capture is not None
     manifest.capture = manifest.capture.model_copy(update={"projection": "PA"})
     assert _convert(tmp_path, manifest).ViewPosition == "PA"
 
@@ -666,7 +669,7 @@ def test_clahe_is_local_and_context_dependent() -> None:
 def test_active_median_depends_on_neighborhood() -> None:
     image = np.full((7, 7), 1000, dtype=np.uint16)
     image[3, 3] = 60000
-    result = apply_advanced_median_filter(image, "standard", 1)
+    result = cast(Any, apply_advanced_median_filter)(image, "standard", 1)
     assert result[3, 3] != image[3, 3]
 
 

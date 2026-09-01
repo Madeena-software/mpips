@@ -66,7 +66,7 @@ def _write_calibration(path: Path, *, shape: tuple[int, int] = (4, 4)) -> None:
 
 
 def _manifest(
-    path: Path, rows: list[dict[str, str]], gain: Path, calibration: Path
+    path: Path, rows: list[dict[str, object]], gain: Path, calibration: Path
 ) -> None:
     path.write_text(
         json.dumps(

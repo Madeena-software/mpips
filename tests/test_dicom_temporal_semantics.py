@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 import pydicom
@@ -46,7 +47,7 @@ def _convert(tmp_path: Path, manifest: MHCSManifest) -> pydicom.Dataset:
     dcm_path = tmp_path / f"{manifest.patient.medical_record_number}.dcm"
     write_tiff(tiff_path, np.arange(16, dtype=np.uint16).reshape(4, 4))
     json_path.write_text(json.dumps(build_converter_metadata_json(manifest)))
-    tiff_json_to_dcm(str(tiff_path), str(json_path), str(dcm_path))
+    cast(Any, tiff_json_to_dcm)(str(tiff_path), str(json_path), str(dcm_path))
     enrich_dicom_file(dcm_path, manifest)
     return pydicom.dcmread(dcm_path)
 
@@ -123,6 +124,8 @@ def test_emergency_date_only_input_is_marked_without_time_precision(
         1,
     )
 
+    assert manifest.examination is not None
+    assert manifest.examination.performed_at is not None
     assert manifest.examination.performed_at.date().isoformat() == "2026-08-28"
     assert manifest.examination.examination_time_known is False
 

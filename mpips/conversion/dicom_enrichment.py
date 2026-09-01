@@ -106,9 +106,12 @@ def enrich_dicom_file(
     ds.BodyPartExamined = body_part or ""
     ds.ImageLaterality = laterality or ""
     ds.ViewPosition = projection or ""
-    if getattr(capture, "view_code_sequence", None):
+    view_code_sequence = (
+        getattr(capture, "view_code_sequence", None) if capture else None
+    )
+    if view_code_sequence:
         items = []
-        for item in capture.view_code_sequence:
+        for item in view_code_sequence:
             code = pydicom.Dataset()
             code.CodeValue = item.code_value
             code.CodingSchemeDesignator = item.coding_scheme_designator

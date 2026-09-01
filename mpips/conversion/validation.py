@@ -186,8 +186,10 @@ def validate_dicom_dataset(
     expected_age = None
     if examination and getattr(examination, "patient_age_years", None) is not None:
         expected_age = f"{examination.patient_age_years:03d}Y"
-    elif manifest.patient.birth_date and getattr(examination, "performed_at", None):
-        exam_date = examination.performed_at.date()
+    elif manifest.patient.birth_date and (
+        exam_performed_at := getattr(examination, "performed_at", None)
+    ):
+        exam_date = exam_performed_at.date()
         expected_age = f"{age_at(manifest.patient.birth_date, exam_date):03d}Y"
     if expected_age is not None:
         if "PatientAge" not in ds or str(ds.PatientAge) != expected_age:
@@ -250,11 +252,14 @@ def validate_dicom_dataset(
         raise DICOMValidationError("PixelIntensityRelationshipSign mismatch")
     if not getattr(capture, "detector_spacing", None):
         raise DICOMValidationError("canonical physical spacing authority is missing")
-    if getattr(capture, "view_code_sequence", None):
+    view_code_sequence = (
+        getattr(capture, "view_code_sequence", None) if capture else None
+    )
+    if view_code_sequence:
         if "ViewCodeSequence" not in ds or not ds.ViewCodeSequence:
             raise DICOMValidationError("ViewCodeSequence is missing")
         item = ds.ViewCodeSequence[0]
-        expected = capture.view_code_sequence[0]
+        expected = view_code_sequence[0]
         if (
             str(item.CodeValue),
             str(item.CodingSchemeDesignator),
