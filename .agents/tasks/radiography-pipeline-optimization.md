@@ -2,13 +2,16 @@
 
 title: Radiography Pipeline Optimization
 document_id: TASK-RADIOGRAPHY-PIPELINE-OPTIMIZATION-001
-version: 1.0
+version: 1.1
 status: Validated/Published
 language: en-US
-
-authority_note:
-
-This task authorizes evidence-driven optimization of the existing canonical radiography processing flow while preserving the accepted behavior and boundaries established by the closed Main Hotfix Reconciliation. It does not authorize new image-processing policy, calibration-policy changes, DICOM conversion changes, deployment, release, or production mutation.
+authority_note: >-
+  This task authorizes evidence-driven optimization of the existing canonical
+  radiography processing flow while preserving the accepted behavior and
+  boundaries established by the closed Main Hotfix Reconciliation. It does not
+  authorize new image-processing policy, calibration-policy changes, DICOM
+  conversion changes, deployment, release, or production mutation.
+---
 
 # Executable Task
 
