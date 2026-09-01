@@ -303,6 +303,16 @@ class ResolvedMHCSManifest(BaseModel):
     dicom: ResolvedDICOMManifestSchema
 
 
+def age_at(birth_date: date, examination_date: date) -> int:
+    years = examination_date.year - birth_date.year
+    if (examination_date.month, examination_date.day) < (
+        birth_date.month,
+        birth_date.day,
+    ):
+        years -= 1
+    return years
+
+
 def resolve_mhcs_manifest(
     raw_manifest_text: str,
     input_manifest: MHCSManifest,
@@ -394,6 +404,14 @@ def resolve_mhcs_manifest(
 
     # 6. Accession Number & Timestamps
     exam_in = input_manifest.examination or ExaminationSchema()
+    if (
+        input_manifest.patient.birth_date is not None
+        and exam_in.patient_age_years is not None
+        and exam_in.performed_at is not None
+        and age_at(input_manifest.patient.birth_date, exam_in.performed_at.date())
+        != exam_in.patient_age_years
+    ):
+        raise ValueError("patient age conflicts with birth date and examination date")
     accession_number = exam_in.accession_number or ""
     capture_is_authoritative = capture_in.captured_at is not None
     examination_is_authoritative = exam_in.performed_at is not None
@@ -426,6 +444,7 @@ def resolve_mhcs_manifest(
         examination_time_known=examination_time_known,
         study_description=exam_in.study_description,
         protocol_name=exam_in.protocol_name,
+        patient_age_years=exam_in.patient_age_years,
     )
 
     pat_in = input_manifest.patient

@@ -5,7 +5,7 @@ import pydicom
 from pydicom.sequence import Sequence
 from pydicom.uid import UID, generate_uid
 
-from mpips.api.schemas.dicom import MHCSManifest, ResolvedMHCSManifest
+from mpips.api.schemas.dicom import MHCSManifest, ResolvedMHCSManifest, age_at
 from mpips.conversion.metadata import build_converter_metadata_json, format_person_name
 
 
@@ -21,7 +21,8 @@ def enrich_dicom_file(
     ds.PatientID = manifest.patient.medical_record_number
     ds.PatientBirthDate = (
         manifest.patient.birth_date.strftime("%Y%m%d")
-        if manifest.patient.birth_date else ""
+        if manifest.patient.birth_date
+        else ""
     )
 
     sex_map = {"male": "M", "female": "F", "other": "O", "unknown": ""}
@@ -37,6 +38,16 @@ def enrich_dicom_file(
     examination = getattr(manifest, "examination", None)
     site = getattr(manifest, "site", None)
     capture = getattr(manifest, "capture", None)
+
+    if (
+        examination
+        and manifest.patient.birth_date is not None
+        and examination.patient_age_years is not None
+        and examination.performed_at is not None
+        and age_at(manifest.patient.birth_date, examination.performed_at.date())
+        != examination.patient_age_years
+    ):
+        raise ValueError("patient age conflicts with birth date and examination date")
 
     temporal = build_converter_metadata_json(manifest)
     ds.StudyDate = temporal["StudyDate"]
@@ -95,8 +106,10 @@ def enrich_dicom_file(
 
     # Series & Instance
     series_desc = (
-        getattr(dicom, "series_description", None) if dicom else None
-    ) or study_desc or ""
+        (getattr(dicom, "series_description", None) if dicom else None)
+        or study_desc
+        or ""
+    )
     series_number = getattr(dicom, "series_number", None) if dicom else None
     instance_number = getattr(dicom, "instance_number", None) if dicom else None
 
@@ -126,14 +139,22 @@ def enrich_dicom_file(
 
     # Pixel Spacing in row_mm, column_mm order
     detector_spacing = getattr(capture, "detector_spacing", None) if capture else None
-    patient_spacing = getattr(capture, "patient_pixel_spacing", None) if capture else None
+    patient_spacing = (
+        getattr(capture, "patient_pixel_spacing", None) if capture else None
+    )
     for keyword in ("ImagerPixelSpacing", "PixelSpacing"):
         if hasattr(ds, keyword):
             del ds[keyword]
     if detector_spacing:
-        ds.ImagerPixelSpacing = [f"{detector_spacing.row_mm:.6f}", f"{detector_spacing.column_mm:.6f}"]
+        ds.ImagerPixelSpacing = [
+            f"{detector_spacing.row_mm:.6f}",
+            f"{detector_spacing.column_mm:.6f}",
+        ]
     if patient_spacing:
-        ds.PixelSpacing = [f"{patient_spacing.row_mm:.6f}", f"{patient_spacing.column_mm:.6f}"]
+        ds.PixelSpacing = [
+            f"{patient_spacing.row_mm:.6f}",
+            f"{patient_spacing.column_mm:.6f}",
+        ]
 
     ds.ImageType = ["DERIVED", "PRIMARY", ""]
     ds.RescaleIntercept = "0"
@@ -141,8 +162,12 @@ def enrich_dicom_file(
     ds.RescaleType = "US"
     ds.PhotometricInterpretation = "MONOCHROME2"
     ds.PresentationLUTShape = "IDENTITY"
-    relationship = getattr(dicom, "pixel_intensity_relationship", None) if dicom else None
-    relationship_sign = getattr(dicom, "pixel_intensity_relationship_sign", None) if dicom else None
+    relationship = (
+        getattr(dicom, "pixel_intensity_relationship", None) if dicom else None
+    )
+    relationship_sign = (
+        getattr(dicom, "pixel_intensity_relationship_sign", None) if dicom else None
+    )
     if relationship is not None:
         ds.PixelIntensityRelationship = relationship
     if relationship_sign is not None:
@@ -165,9 +190,7 @@ def enrich_dicom_file(
 
     exam_date = getattr(examination, "performed_at", None) if examination else None
     if manifest.patient.birth_date and exam_date:
-        years = exam_date.date().year - manifest.patient.birth_date.year
-        if (exam_date.date().month, exam_date.date().day) < (manifest.patient.birth_date.month, manifest.patient.birth_date.day):
-            years -= 1
+        years = age_at(manifest.patient.birth_date, exam_date.date())
         ds.PatientAge = f"{years:03d}Y"
     elif examination and getattr(examination, "patient_age_years", None) is not None:
         ds.PatientAge = f"{examination.patient_age_years:03d}Y"

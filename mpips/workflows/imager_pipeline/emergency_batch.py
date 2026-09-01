@@ -116,6 +116,7 @@ def _build_case(row: Any, root: Path, index: int) -> tuple[Path, MHCSManifest, s
         performed_at=performed_at,
         examination_time_known=examination_time_known,
         study_description=row.get("study_description", "CHEST RADIOGRAPH"),
+        patient_age_years=row.get("patient_age_years"),
     )
     return (
         source,

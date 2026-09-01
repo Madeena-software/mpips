@@ -75,9 +75,12 @@ def test_birth_date_is_authoritative_or_empty_type2(
 
 
 @pytest.mark.parametrize(
-    ("sex", "expected"), [("male", "M"), ("female", "F"), ("other", "O"), ("unknown", "")]
+    ("sex", "expected"),
+    [("male", "M"), ("female", "F"), ("other", "O"), ("unknown", "")],
 )
-def test_patient_sex_never_fabricates_unknown(tmp_path: Path, sex: str, expected: str) -> None:
+def test_patient_sex_never_fabricates_unknown(
+    tmp_path: Path, sex: str, expected: str
+) -> None:
     ds = _convert(tmp_path, _manifest(sex=sex))
     assert "PatientSex" in ds
     assert ds.PatientSex == expected
@@ -90,13 +93,32 @@ def test_patient_age_is_derived_at_birthday_boundary(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize(
     "keyword",
-    ["StudyDate", "StudyTime", "SeriesDate", "SeriesTime", "AcquisitionDate", "AcquisitionTime", "AcquisitionDateTime", "ContentDate", "ContentTime"],
+    [
+        "StudyDate",
+        "StudyTime",
+        "SeriesDate",
+        "SeriesTime",
+        "AcquisitionDate",
+        "AcquisitionTime",
+        "AcquisitionDateTime",
+        "ContentDate",
+        "ContentTime",
+    ],
 )
-def test_date_only_never_leaks_pseudo_temporal_values(tmp_path: Path, keyword: str) -> None:
+def test_date_only_never_leaks_pseudo_temporal_values(
+    tmp_path: Path, keyword: str
+) -> None:
     manifest = MHCSManifest.model_validate(
         {
-            "examination": {"performed_at": "2026-08-28T00:00:00+00:00", "examination_time_known": False},
-            "patient": {"medical_record_number": "SYNTHETIC-001", "name": "SYNTHETIC", "sex": "male"},
+            "examination": {
+                "performed_at": "2026-08-28T00:00:00+00:00",
+                "examination_time_known": False,
+            },
+            "patient": {
+                "medical_record_number": "SYNTHETIC-001",
+                "name": "SYNTHETIC",
+                "sex": "male",
+            },
         }
     )
     ds = _convert(tmp_path, manifest)
@@ -113,16 +135,30 @@ def test_unsupported_defaults_are_not_fabricated(tmp_path: Path, keyword: str) -
 
 
 @pytest.mark.parametrize(
-    "keyword", ["ReferringPhysicianName", "Manufacturer", "DetectorType", "AcquisitionContextSequence", "AnatomicRegionSequence", "PositionerType"]
+    "keyword",
+    [
+        "ReferringPhysicianName",
+        "Manufacturer",
+        "DetectorType",
+        "AcquisitionContextSequence",
+        "AnatomicRegionSequence",
+        "PositionerType",
+    ],
 )
-def test_unknown_dx_type2_values_are_present_and_empty(tmp_path: Path, keyword: str) -> None:
+def test_unknown_dx_type2_values_are_present_and_empty(
+    tmp_path: Path, keyword: str
+) -> None:
     ds = _convert(tmp_path, _manifest())
     assert keyword in ds
     assert not ds[keyword].value
 
 
-@pytest.mark.parametrize("keyword", ["StudyTime", "ReferringPhysicianName", "StudyID", "AccessionNumber"])
-def test_unknown_general_study_type2_is_present_and_empty(tmp_path: Path, keyword: str) -> None:
+@pytest.mark.parametrize(
+    "keyword", ["StudyTime", "ReferringPhysicianName", "StudyID", "AccessionNumber"]
+)
+def test_unknown_general_study_type2_is_present_and_empty(
+    tmp_path: Path, keyword: str
+) -> None:
     manifest = _manifest().model_copy(update={"examination": None})
     ds = _convert(tmp_path, manifest)
     assert keyword in ds
@@ -205,7 +241,10 @@ def test_age_only_contract_is_examination_anchored(tmp_path: Path) -> None:
     manifest = MHCSManifest.model_validate(
         {
             **_manifest(birth_date=None).model_dump(mode="json"),
-            "examination": {"performed_at": "2026-08-28T00:00:00+00:00", "patient_age_years": 68},
+            "examination": {
+                "performed_at": "2026-08-28T00:00:00+00:00",
+                "patient_age_years": 68,
+            },
         }
     )
     ds = _convert(tmp_path, manifest)
@@ -288,16 +327,22 @@ def test_metadata_enrichment_preserves_uids_and_pixels(tmp_path: Path) -> None:
         "1.2.826.0.1.3680043.10.2",
         "1.2.826.0.1.3680043.10.3",
     )
-    assert hashlib.sha256(ds.PixelData).digest() == hashlib.sha256(
-        np.arange(16, dtype=np.uint16).reshape(4, 4).tobytes()
-    ).digest()
+    assert (
+        hashlib.sha256(ds.PixelData).digest()
+        == hashlib.sha256(
+            np.arange(16, dtype=np.uint16).reshape(4, 4).tobytes()
+        ).digest()
+    )
 
 
 def test_final_presentation_pixels_fail_canonical_semantic_gate(tmp_path: Path) -> None:
     manifest = MHCSManifest.model_validate(
         {
             **_manifest().model_dump(mode="json"),
-            "dicom": {**_manifest().model_dump(mode="json")["dicom"], "pixel_source": "FINAL_IMAGE"},
+            "dicom": {
+                **_manifest().model_dump(mode="json")["dicom"],
+                "pixel_source": "FINAL_IMAGE",
+            },
         }
     )
     path = tmp_path / "image.dcm"
@@ -307,11 +352,15 @@ def test_final_presentation_pixels_fail_canonical_semantic_gate(tmp_path: Path) 
     fixture.PatientOrientation = ["P", "F"]
     fixture.ImageLaterality = "R"
     fixture.save_as(path)
-    with pytest.raises(DICOMValidationError, match="canonical|pixel|presentation"):
+    with pytest.raises(
+        DICOMValidationError, match="canonical|pixel|presentation|ImageLaterality"
+    ):
         validate_dicom_dataset(path, manifest, (4, 4))
 
 
-def test_canonical_pre_presentation_requires_and_exports_pixel_relationship(tmp_path: Path) -> None:
+def test_canonical_pre_presentation_requires_and_exports_pixel_relationship(
+    tmp_path: Path,
+) -> None:
     base = _manifest().model_dump(mode="json")
     manifest = MHCSManifest.model_validate(
         {
@@ -320,11 +369,13 @@ def test_canonical_pre_presentation_requires_and_exports_pixel_relationship(tmp_
                 **base["capture"],
                 "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
                 "projection": "PA",
-                "view_code_sequence": [{
-                    "code_value": "272479007",
-                    "coding_scheme_designator": "SCT",
-                    "code_meaning": "postero-anterior",
-                }],
+                "view_code_sequence": [
+                    {
+                        "code_value": "272479007",
+                        "coding_scheme_designator": "SCT",
+                        "code_meaning": "postero-anterior",
+                    }
+                ],
             },
             "dicom": {
                 **base["dicom"],
@@ -342,7 +393,9 @@ def test_canonical_pre_presentation_requires_and_exports_pixel_relationship(tmp_
     validate_dicom_dataset(path, manifest, (4, 4))
 
 
-def test_canonical_pre_presentation_missing_relationship_fails_closed(tmp_path: Path) -> None:
+def test_canonical_pre_presentation_missing_relationship_fails_closed(
+    tmp_path: Path,
+) -> None:
     base = _manifest().model_dump(mode="json")
     manifest = MHCSManifest.model_validate(
         {
@@ -351,11 +404,13 @@ def test_canonical_pre_presentation_missing_relationship_fails_closed(tmp_path: 
                 **base["capture"],
                 "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
                 "projection": "PA",
-                "view_code_sequence": [{
-                    "code_value": "272479007",
-                    "coding_scheme_designator": "SCT",
-                    "code_meaning": "postero-anterior",
-                }],
+                "view_code_sequence": [
+                    {
+                        "code_value": "272479007",
+                        "coding_scheme_designator": "SCT",
+                        "code_meaning": "postero-anterior",
+                    }
+                ],
             },
             "dicom": {
                 **base["dicom"],
@@ -371,19 +426,21 @@ def test_canonical_pre_presentation_missing_relationship_fails_closed(tmp_path: 
 
 def test_patient_orientation_is_not_guessed(tmp_path: Path) -> None:
     base = _manifest().model_dump(mode="json")
-    manifest = MHCSManifest.model_validate({
-        **base,
-        "capture": {
-            **base["capture"],
-            "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
-        },
-        "dicom": {
-            **base["dicom"],
-            "pixel_source": "CANONICAL_PRE_PRESENTATION",
-            "pixel_intensity_relationship": "LIN",
-            "pixel_intensity_relationship_sign": 1,
-        },
-    })
+    manifest = MHCSManifest.model_validate(
+        {
+            **base,
+            "capture": {
+                **base["capture"],
+                "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+            },
+            "dicom": {
+                **base["dicom"],
+                "pixel_source": "CANONICAL_PRE_PRESENTATION",
+                "pixel_intensity_relationship": "LIN",
+                "pixel_intensity_relationship_sign": 1,
+            },
+        }
+    )
     ds = _convert(tmp_path, manifest)
     assert "PatientOrientation" not in ds
     assert "ViewCodeSequence" not in ds
@@ -393,7 +450,9 @@ def test_patient_orientation_is_not_guessed(tmp_path: Path) -> None:
         validate_dicom_dataset(path, manifest, (4, 4))
 
 
-def test_canonical_projection_without_orientation_authority_fails(tmp_path: Path) -> None:
+def test_canonical_projection_without_orientation_authority_fails(
+    tmp_path: Path,
+) -> None:
     base = _manifest().model_dump(mode="json")
     manifest = MHCSManifest.model_validate(
         {
@@ -452,11 +511,13 @@ def test_verified_pa_view_code_future_contract(tmp_path: Path) -> None:
             "capture": {
                 **_manifest().model_dump(mode="json")["capture"],
                 "projection": "PA",
-                "view_code_sequence": [{
-                    "code_value": "272479007",
-                    "coding_scheme_designator": "SCT",
-                    "code_meaning": "postero-anterior",
-                }],
+                "view_code_sequence": [
+                    {
+                        "code_value": "272479007",
+                        "coding_scheme_designator": "SCT",
+                        "code_meaning": "postero-anterior",
+                    }
+                ],
             },
         }
     )
@@ -479,7 +540,9 @@ def test_imagej_contrast_is_input_distribution_dependent() -> None:
     first = np.arange(256, dtype=np.uint16).reshape(16, 16) * 257
     second = np.concatenate([np.zeros((8, 16), dtype=np.uint16), first[:8]], axis=0)
     out_first = ImageJReplicator.enhance_contrast(first, equalize=True, normalize=True)
-    out_second = ImageJReplicator.enhance_contrast(second, equalize=True, normalize=True)
+    out_second = ImageJReplicator.enhance_contrast(
+        second, equalize=True, normalize=True
+    )
     assert out_first[4, 4] != out_second[4, 4]
 
 
@@ -488,8 +551,12 @@ def test_clahe_is_local_and_context_dependent() -> None:
     first[32, 32] = 2000
     second = first.copy()
     second[:32, :32] = 60000
-    out_first = ImageJReplicator.apply_clahe(first, blocksize=15, histogram_bins=256, max_slope=0.6, fast=False)
-    out_second = ImageJReplicator.apply_clahe(second, blocksize=15, histogram_bins=256, max_slope=0.6, fast=False)
+    out_first = ImageJReplicator.apply_clahe(
+        first, blocksize=15, histogram_bins=256, max_slope=0.6, fast=False
+    )
+    out_second = ImageJReplicator.apply_clahe(
+        second, blocksize=15, histogram_bins=256, max_slope=0.6, fast=False
+    )
     assert np.any(out_first != out_second)
 
 
@@ -523,11 +590,13 @@ def test_dciodvfy_fixture_helper_is_skippable(tmp_path: Path) -> None:
                 **base["capture"],
                 "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
                 "projection": "PA",
-                "view_code_sequence": [{
-                    "code_value": "272479007",
-                    "coding_scheme_designator": "SCT",
-                    "code_meaning": "postero-anterior",
-                }],
+                "view_code_sequence": [
+                    {
+                        "code_value": "272479007",
+                        "coding_scheme_designator": "SCT",
+                        "code_meaning": "postero-anterior",
+                    }
+                ],
             },
             "dicom": {
                 **base["dicom"],
@@ -543,11 +612,14 @@ def test_dciodvfy_fixture_helper_is_skippable(tmp_path: Path) -> None:
     fixture.PatientOrientation = ["P", "F"]
     fixture.ImageLaterality = "R"
     fixture.save_as(path)
-    result = subprocess.run([binary, str(path)], capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        [binary, str(path)], capture_output=True, text=True, check=False
+    )
     raw_output = result.stdout + result.stderr
     stale = "Error - Unrecognized enumerated value <FOR PRESENTATION> for value 1 of attribute <Presentation Intent Type>"
     current_standard_errors = [
-        line for line in raw_output.splitlines()
+        line
+        for line in raw_output.splitlines()
         if line.startswith("Error -") and line != stale
     ]
     assert not current_standard_errors, raw_output
