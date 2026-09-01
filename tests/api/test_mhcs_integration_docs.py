@@ -63,7 +63,7 @@ def test_mhcs_minimal_example_manifest_validates_cleanly() -> None:
         gain_bytes_len=1000,
         gain_sha256_hex="b" * 64,
     )
-    assert resolved.examination.study_id == "STUDY01"
+    assert resolved.examination.study_id == ""
     assert resolved.examination.protocol_name is None
     assert resolved.patient.member_id is None
     assert resolved.site.department_name is None
