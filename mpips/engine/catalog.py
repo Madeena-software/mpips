@@ -627,28 +627,36 @@ NODE_CATALOG = [
                 name="x_start",
                 type="integer",
                 default=0,
-                description="ROI starting X coordinate (left) used to measure the current mean",
+                description=(
+                    "ROI starting X coordinate (left) used to measure the current mean"
+                ),
                 min=0,
             ),
             Parameter(
                 name="y_start",
                 type="integer",
                 default=0,
-                description="ROI starting Y coordinate (top) used to measure the current mean",
+                description=(
+                    "ROI starting Y coordinate (top) used to measure the current mean"
+                ),
                 min=0,
             ),
             Parameter(
                 name="width",
                 type="integer",
                 default=0,
-                description="ROI width in pixels; 0 extends to the right edge of the image",
+                description=(
+                    "ROI width in pixels; 0 extends to the right edge of the image"
+                ),
                 min=0,
             ),
             Parameter(
                 name="height",
                 type="integer",
                 default=0,
-                description="ROI height in pixels; 0 extends to the bottom edge of the image",
+                description=(
+                    "ROI height in pixels; 0 extends to the bottom edge of the image"
+                ),
                 min=0,
             ),
         ],
