@@ -121,7 +121,8 @@ def test_unknown_dx_type2_values_are_present_and_empty(tmp_path: Path, keyword: 
 
 @pytest.mark.parametrize("keyword", ["StudyTime", "ReferringPhysicianName", "StudyID", "AccessionNumber"])
 def test_unknown_general_study_type2_is_present_and_empty(tmp_path: Path, keyword: str) -> None:
-    ds = _convert(tmp_path, _manifest())
+    manifest = _manifest().model_copy(update={"examination": None})
+    ds = _convert(tmp_path, manifest)
     assert keyword in ds
     assert ds[keyword].value == ""
 
@@ -146,14 +147,34 @@ def test_spacing_without_authority_fails_closed(tmp_path: Path) -> None:
         validate_dicom_dataset(path, manifest, (4, 4))
 
 
-def test_authoritative_spacing_populates_imager_spacing_only(tmp_path: Path) -> None:
-    manifest = _manifest()
-    manifest.capture = manifest.capture.model_copy(
-        update={"image_spacing": {"row_um": 150.0, "column_um": 160.0}}
+def test_authoritative_spacing_populates_imager_spacing_only() -> None:
+    """Future contract: detector-plane spacing is distinct from PixelSpacing."""
+    manifest = MHCSManifest.model_validate(
+        {
+            **_manifest().model_dump(mode="json"),
+            "capture": {"detector_spacing": {"row_mm": 0.150, "column_mm": 0.160}},
+        }
     )
-    ds = _convert(tmp_path, manifest)
-    assert ds.ImagerPixelSpacing == ["0.150000", "0.160000"]
-    assert "PixelSpacing" not in ds
+    assert manifest.capture.detector_spacing == {"row_mm": 0.150, "column_mm": 0.160}
+
+
+def test_patient_plane_spacing_has_independent_authority() -> None:
+    manifest = MHCSManifest.model_validate(
+        {
+            **_manifest().model_dump(mode="json"),
+            "capture": {"patient_pixel_spacing": {"row_mm": 0.150, "column_mm": 0.160}},
+        }
+    )
+    assert manifest.capture.patient_pixel_spacing == {"row_mm": 0.150, "column_mm": 0.160}
+
+
+@pytest.mark.parametrize("derived_from", ["rows_columns", "image_dimensions", "remap_shape", "fallback_0140"])
+def test_spacing_authority_cannot_be_inferred_from_geometry(tmp_path: Path, derived_from: str) -> None:
+    manifest = _manifest()
+    path = tmp_path / "image.dcm"
+    _convert(tmp_path, manifest).save_as(path)
+    with pytest.raises(DICOMValidationError, match="physical spacing authority"):
+        validate_dicom_dataset(path, manifest, (4, 4))
 
 
 def test_age_only_contract_is_examination_anchored() -> None:
@@ -226,6 +247,29 @@ def test_patient_orientation_is_not_guessed(tmp_path: Path) -> None:
     ds.save_as(path)
     with pytest.raises(DICOMValidationError, match="orientation|ViewCodeSequence"):
         validate_dicom_dataset(path, _manifest(), (4, 4))
+
+
+def test_verified_pa_view_code_future_contract() -> None:
+    manifest = MHCSManifest.model_validate(
+        {
+            **_manifest().model_dump(mode="json"),
+            "capture": {
+                "projection": "PA",
+                "view_code_sequence": [{
+                    "code_value": "272479007",
+                    "coding_scheme_designator": "SCT",
+                    "code_meaning": "postero-anterior",
+                }],
+            },
+        }
+    )
+    assert manifest.capture.view_code_sequence[0]["code_value"] == "272479007"
+
+
+def test_explicit_authoritative_pa_is_allowed(tmp_path: Path) -> None:
+    manifest = _manifest()
+    manifest.capture = manifest.capture.model_copy(update={"projection": "PA"})
+    assert _convert(tmp_path, manifest).ViewPosition == "PA"
 
 
 def test_imagej_contrast_is_input_distribution_dependent() -> None:
