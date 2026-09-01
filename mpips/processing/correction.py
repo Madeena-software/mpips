@@ -9,9 +9,9 @@ def flat_field_correction(
     raw_image: np.ndarray, dark_image: np.ndarray, flat_image: np.ndarray
 ) -> np.ndarray:
     """Perform the legacy CPU flat-field correction calculation."""
-    raw_32 = raw_image.astype(np.float32)
-    dark_32 = dark_image.astype(np.float32)
-    flat_32 = flat_image.astype(np.float32)
+    raw_32 = raw_image.astype(np.float32, copy=False)
+    dark_32 = dark_image.astype(np.float32, copy=False)
+    flat_32 = flat_image.astype(np.float32, copy=False)
 
     # Calculate (flat - dark)
     flat_minus_dark = np.maximum(0, flat_32 - dark_32)
