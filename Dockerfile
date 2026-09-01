@@ -26,7 +26,7 @@ WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,id=mpips-api-uv,target=/root/.cache/uv,sharing=locked \
-    uv sync --frozen --no-dev --extra service --no-install-project
+    uv sync --frozen --no-dev --extra service --extra imager --extra calibration --no-install-project
 
 COPY mpips ./mpips
 COPY docker/entrypoint.sh /usr/local/bin/mpips-entrypoint

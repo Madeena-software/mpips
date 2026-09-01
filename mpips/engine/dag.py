@@ -6,7 +6,6 @@ from typing import List, Dict, Any, Optional, Callable, cast
 from mpips.storage import S3StorageBackend, StorageBackend
 from mpips.engine.registry import get_node_class
 
-
 # Madeena radiograph capture NPZ (id/gainid/darkid/xrayparams/...) image
 # keys, most-preferred first: rawimage is the sensor capture, processedimage
 # a derived fallback, darkimage a calibration reference used only if
@@ -106,7 +105,8 @@ def _convert_to_8bit(image: np.ndarray) -> np.ndarray:
         max_val = image.max()
         if max_val > min_val:
             return cast(
-                np.ndarray, ((image - min_val) / (max_val - min_val) * 255.0).astype(np.uint8)
+                np.ndarray,
+                ((image - min_val) / (max_val - min_val) * 255.0).astype(np.uint8),
             )
         return cast(np.ndarray, (image * 255.0).clip(0, 255).astype(np.uint8))
     if image.dtype in [np.uint16, np.int32, np.uint32]:
@@ -114,13 +114,16 @@ def _convert_to_8bit(image: np.ndarray) -> np.ndarray:
         max_val = image.max()
         if max_val > min_val:
             return cast(
-                np.ndarray, ((image - min_val) / (max_val - min_val) * 255.0).astype(np.uint8)
+                np.ndarray,
+                ((image - min_val) / (max_val - min_val) * 255.0).astype(np.uint8),
             )
         return cast(np.ndarray, image.clip(0, 255).astype(np.uint8))
     return image
 
 
-def _resolve_output_config(output_config: Dict[str, Any], node_id: str) -> Dict[str, Any]:
+def _resolve_output_config(
+    output_config: Dict[str, Any], node_id: str
+) -> Dict[str, Any]:
     """Merges a per-output-node override onto the shared output config.
 
     A pipeline with multiple "output" nodes can route each one to its own
