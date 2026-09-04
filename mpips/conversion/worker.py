@@ -57,7 +57,6 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         gain_npz_path = args["gain_npz_path"]
         expected_gain_id = args["expected_gain_id"]
         expected_detector_mode = args.get("expected_detector_mode")
-        expected_camera_serial = args.get("expected_camera_serial")
         calibration_dir_str = args.get("calibration_dir")
         max_rows = int(args.get("max_rows", 16384))
         max_cols = int(args.get("max_cols", 16384))
@@ -197,40 +196,6 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
             rad_norm = "TRX" if rad_mode.upper() == "THORAX" else rad_mode.upper()
             if rad_norm != exp_norm:
                 raise NPZValidationError("Detector mode does not match expected config")
-
-        # Camera serial verification across radiograph, gain, and calibration artifact
-        rad_cam_sn = str(
-            rad_info.get("camera_params", {}).get("serialNumber")
-            or rad_info.get("camera_params", {}).get("cameraSerial")
-            or ""
-        )
-        gain_cam_sn = str(
-            gain_record.camera_params.get("serialNumber")
-            or gain_record.camera_params.get("cameraSerial")
-            or ""
-        )
-        cal_cam_sn = ""
-        if isinstance(cal_source_meta, dict):
-            cal_cam_params = cal_source_meta.get("camera_params", {})
-            if isinstance(cal_cam_params, dict):
-                cal_cam_sn = str(
-                    cal_cam_params.get("serialNumber")
-                    or cal_cam_params.get("cameraSerial")
-                    or ""
-                )
-
-        serials = {s for s in (rad_cam_sn, gain_cam_sn, cal_cam_sn) if s}
-        if len(serials) > 1:
-            raise NPZValidationError(
-                f"Camera serial number mismatch: {sorted(serials)}"
-            )
-
-        if (
-            expected_camera_serial
-            and rad_cam_sn
-            and str(rad_cam_sn) != str(expected_camera_serial)
-        ):
-            raise NPZValidationError("Camera serial does not match expected config")
 
         rows, cols = raw.shape
         if rows > max_rows or cols > max_cols or (rows * cols) > max_pixels:

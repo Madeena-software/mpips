@@ -167,3 +167,7 @@ def _adaptive_median_filter(image: np.ndarray, max_kernel_size: int = 7) -> np.n
                 filtered[i, j] = np.median(window)
 
     return filtered.astype(image.dtype)
+
+
+apply_advanced_median_filter = apply_median_filter
+__all__ = ["apply_median_filter", "apply_advanced_median_filter"]

@@ -29,10 +29,6 @@ from mpips.workflows.imager_pipeline.npz_io import (
 from mpips.workflows.imager_pipeline.pipeline import process_radiography_arrays
 
 
-def _camera_serial(params: dict[str, object]) -> str:
-    return str(params.get("cameraSerial", ""))
-
-
 def _validate_compatibility(
     radiograph: dict[str, Any],
     gain: GainRecord,
@@ -53,14 +49,6 @@ def _validate_compatibility(
         raise ValueError("Calibration source metadata is invalid")
     if radiograph["detector_mode"] != calibration_source.get("detector_mode"):
         raise ValueError("Radiograph and calibration detector modes differ")
-    serials = {
-        _camera_serial(radiograph["camera_params"]),
-        _camera_serial(gain.camera_params),
-        _camera_serial(calibration_source.get("camera_params", {})),
-    }
-    serials.discard("")
-    if len(serials) > 1:
-        raise ValueError(f"Camera serial mismatch: {sorted(serials)}")
 
 
 def process_npz_batch(

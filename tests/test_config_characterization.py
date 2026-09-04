@@ -87,7 +87,7 @@ def test_characterize_trx_golden_output_hash() -> None:
     assert out.shape == (24, 24)
     out_hash = hashlib.sha256(out.tobytes()).hexdigest()
     assert (
-        out_hash == "5604df97f587cb2f158d5076fb0464b364e2f2449db5027cdef36a4b7a293b6b"
+        out_hash == "5b9af36adc670ed1d93d650179d60b9cb2688cc53fa21f64fb4049de33e88d56"
     )
 
 

@@ -36,6 +36,118 @@ class CalibrationValidationError(RuntimeError):
     """Raised when canonical calibration validation rejects an artifact set."""
 
 
+# Fixed-canvas remaps must retain most of the detector, not just a valid-sized mask.
+MIN_REMAP_VALID_FRACTION = 0.85
+MIN_REMAP_WIDTH_RATIO = 0.75
+MIN_REMAP_HEIGHT_RATIO = 0.75
+MIN_EXPANDED_VALID_FRACTION = 0.80
+MIN_EXPANDED_OUTPUT_WIDTH_RATIO = 0.80
+MIN_EXPANDED_OUTPUT_HEIGHT_RATIO = 0.80
+MIN_EXPANDED_SOURCE_WIDTH_COVERAGE = 0.80
+MIN_EXPANDED_SOURCE_HEIGHT_COVERAGE = 0.80
+
+
+def remap_geometry_evidence(
+    map_x: np.ndarray,
+    map_y: np.ndarray,
+    width: int,
+    height: int,
+    *,
+    output_shape: tuple[int, int] | None = None,
+) -> dict[str, Any]:
+    """Return remap coverage evidence against the source detector domain."""
+    if map_x.shape != map_y.shape or map_x.ndim != 2 or not map_x.size:
+        raise CalibrationValidationError("remap maps must be non-empty 2-D arrays")
+    output_shape = output_shape or (height, width)
+    if map_x.shape != output_shape:
+        raise CalibrationValidationError("remap maps do not match the output canvas")
+    if not np.isfinite(map_x).all() or not np.isfinite(map_y).all():
+        raise CalibrationValidationError("remap maps contain non-finite coordinates")
+    valid = (map_x >= 0) & (map_x <= width - 1) & (map_y >= 0) & (map_y <= height - 1)
+    ys, xs = np.where(valid)
+    if not xs.size:
+        bbox = None
+        width_ratio = height_ratio = 0.0
+    else:
+        bbox = [int(xs.min()), int(ys.min()), int(xs.max()), int(ys.max())]
+        width_ratio = (bbox[2] - bbox[0] + 1) / output_shape[1]
+        height_ratio = (bbox[3] - bbox[1] + 1) / output_shape[0]
+        source_width_coverage = (
+            float(map_x[valid].max()) - float(map_x[valid].min()) + 1
+        ) / width
+        source_height_coverage = (
+            float(map_y[valid].max()) - float(map_y[valid].min()) + 1
+        ) / height
+    if not xs.size:
+        source_width_coverage = source_height_coverage = 0.0
+    valid_fraction = float(np.mean(valid))
+    return {
+        "REMAP_VALID_FRACTION": valid_fraction,
+        "REMAP_OUT_OF_BOUNDS_FRACTION": 1.0 - valid_fraction,
+        "VALID_REMAP_BBOX": bbox,
+        "VALID_REMAP_WIDTH_RATIO": float(width_ratio),
+        "VALID_REMAP_HEIGHT_RATIO": float(height_ratio),
+        "SOURCE_IMAGE_SHAPE": [height, width],
+        "REMAP_OUTPUT_SHAPE": list(output_shape),
+        "VALID_OUTPUT_BBOX": bbox,
+        "VALID_OUTPUT_WIDTH_RATIO": float(width_ratio),
+        "VALID_OUTPUT_HEIGHT_RATIO": float(height_ratio),
+        "SOURCE_COORDINATE_X_MIN": (float(map_x[valid].min()) if xs.size else None),
+        "SOURCE_COORDINATE_X_MAX": float(map_x[valid].max()) if xs.size else None,
+        "SOURCE_COORDINATE_Y_MIN": float(map_y[valid].min()) if xs.size else None,
+        "SOURCE_COORDINATE_Y_MAX": float(map_y[valid].max()) if xs.size else None,
+        "SOURCE_DOMAIN_WIDTH_COVERAGE": float(source_width_coverage),
+        "SOURCE_DOMAIN_HEIGHT_COVERAGE": float(source_height_coverage),
+        "MAP_X_MIN": float(map_x.min()),
+        "MAP_X_MAX": float(map_x.max()),
+        "MAP_Y_MIN": float(map_y.min()),
+        "MAP_Y_MAX": float(map_y.max()),
+    }
+
+
+def validate_fixed_canvas_remap(
+    map_x: np.ndarray, map_y: np.ndarray, width: int, height: int
+) -> dict[str, Any]:
+    """Reject maps whose valid coordinates collapse the fixed output canvas."""
+    evidence = remap_geometry_evidence(map_x, map_y, width, height)
+    if (
+        evidence["REMAP_VALID_FRACTION"] < MIN_REMAP_VALID_FRACTION
+        or evidence["VALID_REMAP_WIDTH_RATIO"] < MIN_REMAP_WIDTH_RATIO
+        or evidence["VALID_REMAP_HEIGHT_RATIO"] < MIN_REMAP_HEIGHT_RATIO
+    ):
+        raise CalibrationValidationError(
+            "Fixed-canvas remap coverage is unsafe: "
+            f"valid_fraction={evidence['REMAP_VALID_FRACTION']:.6f}, "
+            f"bbox={evidence['VALID_REMAP_BBOX']}"
+        )
+    return evidence
+
+
+def validate_expanded_canvas_remap(
+    map_x: np.ndarray, map_y: np.ndarray, width: int, height: int
+) -> dict[str, Any]:
+    """Reject expanded maps with catastrophic output or source-domain support."""
+    evidence = remap_geometry_evidence(
+        map_x, map_y, width, height, output_shape=map_x.shape
+    )
+    if (
+        evidence["REMAP_VALID_FRACTION"] < MIN_EXPANDED_VALID_FRACTION
+        or evidence["VALID_OUTPUT_WIDTH_RATIO"] < MIN_EXPANDED_OUTPUT_WIDTH_RATIO
+        or evidence["VALID_OUTPUT_HEIGHT_RATIO"] < MIN_EXPANDED_OUTPUT_HEIGHT_RATIO
+        or evidence["SOURCE_DOMAIN_WIDTH_COVERAGE"] < MIN_EXPANDED_SOURCE_WIDTH_COVERAGE
+        or evidence["SOURCE_DOMAIN_HEIGHT_COVERAGE"]
+        < MIN_EXPANDED_SOURCE_HEIGHT_COVERAGE
+    ):
+        raise CalibrationValidationError(
+            "Expanded-canvas remap geometry is unsafe: "
+            f"valid_fraction={evidence['REMAP_VALID_FRACTION']:.6f}, "
+            f"output_bbox={evidence['VALID_OUTPUT_BBOX']}, "
+            f"source_coverage=({evidence['SOURCE_DOMAIN_WIDTH_COVERAGE']:.6f}, "
+            f"{evidence['SOURCE_DOMAIN_HEIGHT_COVERAGE']:.6f})"
+        )
+    return evidence
+
+
 def _load_calibration_image(
     calibration_npz: str | Path,
     calibration_gain_npz: str | Path | None = None,
@@ -61,16 +173,6 @@ def _load_calibration_image(
         )
     if radiograph["detector_mode"] != gain.detector_mode:
         raise NPZValidationError("Calibration and gain detector mode must match")
-    serials = {
-        str(radiograph["camera_params"].get("cameraSerial", "")),
-        str(gain.camera_params.get("cameraSerial", "")),
-    }
-    serials.discard("")
-    if len(serials) > 1:
-        raise NPZValidationError(
-            f"Calibration and gain camera serial must match: {sorted(serials)}"
-        )
-
     corrected = flat_field_correction(
         to_uint16(raw, "calibration raw"),
         to_uint16(gain.dark, "calibration gain dark"),
@@ -385,6 +487,10 @@ def build_or_load_calibration(
     map_x, map_y, remap_stats = build_inverse_maps(
         model, width, height, norm_scale, config, coordinates=coordinates
     )
+    if config.canvas_mode == "fixed":
+        remap_stats.update(validate_fixed_canvas_remap(map_x, map_y, width, height))
+    else:
+        remap_stats.update(validate_expanded_canvas_remap(map_x, map_y, width, height))
     np.savez_compressed(remap_path, map_x=map_x, map_y=map_y)
     valid_mask = (
         (map_x >= 0) & (map_x <= width - 1) & (map_y >= 0) & (map_y <= height - 1)
@@ -443,7 +549,14 @@ def build_or_load_calibration(
         "source": str(source),
         "source_metadata": source_metadata,
         "grid_shape": list(extracted[0].shape[:2]),
+        "SOURCE_IMAGE_SHAPE": list(image.shape),
+        "REMAP_OUTPUT_SHAPE": list(map_x.shape),
+        "CANVAS_MODE": config.canvas_mode,
     }
+    if config.canvas_mode == "expanded":
+        expanded = remap_stats.get("expanded_canvas", {})
+        metadata["expanded_origin_xy"] = expanded.get("origin_xy")
+        metadata["expanded_output_size"] = expanded.get("output_size")
     metadata_path.write_text(json.dumps(metadata, indent=2) + "\n")
     durable_directory.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(directory, durable_directory, dirs_exist_ok=True)

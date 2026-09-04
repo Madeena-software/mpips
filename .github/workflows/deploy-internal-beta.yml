@@ -64,8 +64,78 @@ jobs:
       - name: Build immutable images
         run: |
           set -Eeuo pipefail
-          docker build -t "mpips-api:$MPIPS_VERSION" -f Dockerfile .
-          docker build -t "mpips-npz-worker:$MPIPS_VERSION" -f docker/Dockerfile.worker .
+          BUILDER=mpips-production-cache
+          CACHE_ROOT="${HOME}/.cache/mpips-buildkit"
+          API_CACHE="$CACHE_ROOT/api"
+          WORKER_CACHE="$CACHE_ROOT/worker"
+          API_CACHE_NEXT="$API_CACHE.next"
+          WORKER_CACHE_NEXT="$WORKER_CACHE.next"
+          mkdir -p "$CACHE_ROOT"
+
+          if docker buildx inspect "$BUILDER" >/dev/null 2>&1; then
+            docker buildx use "$BUILDER"
+          else
+            docker buildx create --name "$BUILDER" --driver docker-container --use
+          fi
+          bootstrap_builder() {
+            local max_attempts=3
+            local attempt
+            for attempt in $(seq 1 "$max_attempts"); do
+              echo "BuildKit bootstrap attempt $attempt/$max_attempts"
+              if docker buildx inspect --bootstrap "$BUILDER"; then
+                return 0
+              fi
+              if [ "$attempt" -eq "$max_attempts" ]; then
+                echo "BuildKit bootstrap failed after $max_attempts attempts" >&2
+                return 1
+              fi
+              case "$attempt" in
+                1) sleep 10 ;;
+                2) sleep 30 ;;
+              esac
+            done
+          }
+
+          bootstrap_builder
+
+          rotate_cache() {
+            local active="$1" next="$2"
+            test -f "$next/index.json"
+            rm -rf "$active.previous"
+            if [ -d "$active" ]; then
+              mv "$active" "$active.previous"
+            fi
+            if mv "$next" "$active"; then
+              rm -rf "$active.previous"
+            elif [ -d "$active.previous" ]; then
+              mv "$active.previous" "$active"
+              return 1
+            else
+              return 1
+            fi
+          }
+
+          build_image() {
+            local image="$1" dockerfile="$2" active="$3" next="$4"
+            local cache_from=()
+            rm -rf "$next"
+            if [ -f "$active/index.json" ]; then
+              cache_from=(--cache-from "type=local,src=$active")
+            fi
+            docker buildx build \
+              --builder "$BUILDER" \
+              --load \
+              "${cache_from[@]}" \
+              --cache-to "type=local,dest=$next,mode=max,ignore-error=true" \
+              -t "$image" \
+              -f "$dockerfile" \
+              .
+            docker image inspect "$image" >/dev/null
+            rotate_cache "$active" "$next"
+          }
+
+          build_image "mpips-api:$MPIPS_VERSION" Dockerfile "$API_CACHE" "$API_CACHE_NEXT"
+          build_image "mpips-npz-worker:$MPIPS_VERSION" docker/Dockerfile.worker "$WORKER_CACHE" "$WORKER_CACHE_NEXT"
 
   deploy:
     name: Deploy
@@ -200,8 +270,7 @@ jobs:
             sudo chown -R "$(id -u):$(id -g)" "$REMOTE_PATH"
           fi
           mkdir -p "$REMOTE_PATH/calibration" "$REMOTE_PATH/launcher" /tmp/mpips-workspaces
-          test -s "$REMOTE_PATH/calibration/metadata.json"
-          test -s "$REMOTE_PATH/calibration/remap.npz"
+          uv run python scripts/validate_calibration_layout.py "$REMOTE_PATH/calibration"
           uv run python scripts/local_dicom_burn_in.py \
             --base-dir "$REMOTE_PATH/burn-in" prepare
           if [ -f "$REMOTE_PATH/docker-compose.prod.yml" ]; then

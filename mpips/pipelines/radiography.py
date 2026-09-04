@@ -20,6 +20,38 @@ MAX_16BIT = 65535
 _THRESHOLD_SKIP_VALUES = {"none", "off", "skip", "no"}
 
 
+def _report_stage(stage_observer: Any, name: str, image: Any) -> None:
+    if stage_observer is None:
+        return
+    image = np.asarray(image)
+    nonzero = np.argwhere(image != 0)
+    bbox = None
+    if nonzero.size:
+        y0, x0 = nonzero.min(axis=0)[:2]
+        y1, x1 = nonzero.max(axis=0)[:2]
+        bbox = [int(x0), int(y0), int(x1), int(y1)]
+    stage_observer(
+        name,
+        {
+            "shape": list(image.shape),
+            "dtype": str(image.dtype),
+            "min": float(image.min()),
+            "max": float(image.max()),
+            "mean": float(image.mean()),
+            "p01": float(np.percentile(image, 1)),
+            "p05": float(np.percentile(image, 5)),
+            "p25": float(np.percentile(image, 25)),
+            "p50": float(np.percentile(image, 50)),
+            "p75": float(np.percentile(image, 75)),
+            "p95": float(np.percentile(image, 95)),
+            "p99": float(np.percentile(image, 99)),
+            "exact_zero_ratio": float(np.mean(image == 0)),
+            "nonzero_ratio": float(np.mean(image != 0)),
+            "nonzero_bbox": bbox,
+        },
+    )
+
+
 class RadiographyPipeline:
     """Process radiography arrays without engine, workflow, or file I/O state."""
 
@@ -41,6 +73,8 @@ class RadiographyPipeline:
         *,
         map_x: np.ndarray | None = None,
         map_y: np.ndarray | None = None,
+        stage_observer: Any = None,
+        threshold_method_override: str | None = None,
     ) -> np.ndarray:
         """Return the processed uint16 radiography array."""
         if raw.shape != dark.shape or raw.shape != flat.shape:
@@ -54,13 +88,16 @@ class RadiographyPipeline:
         raw_image = raw.astype(np.float32) / MAX_16BIT
         dark_image = dark.astype(np.float32) / MAX_16BIT
         flat_image = flat.astype(np.float32) / MAX_16BIT
+        _report_stage(stage_observer, "SOURCE_RAW", raw_image)
 
         if self.config.use_denoise:
             dark_image = self._denoise(dark_image)
             flat_image = self._denoise(flat_image)
             raw_image = self._denoise(raw_image)
+            _report_stage(stage_observer, "DENOISED_RAW", raw_image)
 
         ffc_result = flat_field_correction(raw_image, dark_image, flat_image)
+        _report_stage(stage_observer, "FFC", ffc_result)
 
         valid_remap_mask: np.ndarray | None = None
         if map_x is not None and map_y is not None:
@@ -72,6 +109,7 @@ class RadiographyPipeline:
                 & (map_y <= source_height - 1)
             ).astype(np.uint8)
             ffc_result = apply_calibration_remap(ffc_result, map_x, map_y)
+            _report_stage(stage_observer, "REMAP", ffc_result)
 
         if self.config.use_crop_rotate:
             ffc_result = self._crop_and_rotate(ffc_result, detector_mode)
@@ -79,15 +117,22 @@ class RadiographyPipeline:
                 valid_remap_mask = (
                     self._crop_and_rotate(valid_remap_mask, detector_mode) > 0
                 )
+            _report_stage(stage_observer, "CROP_ROTATE", ffc_result)
 
         if self.config.use_normalize:
             normalized_result = self._normalize_to_max_value(ffc_result)
         else:
             normalized_result = ffc_result.copy()
 
-        threshold_method = self.config.threshold_method.lower()
+        _report_stage(stage_observer, "PRE_THRESHOLD", normalized_result)
+
+        threshold_method = (
+            threshold_method_override
+            if threshold_method_override is not None
+            else self.config.threshold_method
+        ).lower()
         if (
-            detector_mode.upper() == "TRX"
+            (threshold_method_override is None and detector_mode.upper() == "TRX")
             or not self.config.use_threshold
             or threshold_method in _THRESHOLD_SKIP_VALUES
         ):
@@ -96,10 +141,13 @@ class RadiographyPipeline:
             threshold = detect_threshold(normalized_result, method=threshold_method)
             threshold_result = apply_threshold_separation(normalized_result, threshold)
 
+        _report_stage(stage_observer, "THRESHOLD_SEPARATION", threshold_result)
+
         if self.config.use_invert:
             inverted = invert_image(threshold_result)
         else:
             inverted = threshold_result
+        _report_stage(stage_observer, "INVERT", inverted)
 
         if not self.config.use_contrast_enhancement or not self.imagej_available:
             enhanced_uint16 = (
@@ -123,6 +171,8 @@ class RadiographyPipeline:
             else:
                 enhanced_uint16 = enhanced
 
+        _report_stage(stage_observer, "CONTRAST", enhanced_uint16)
+
         if not self.config.use_clahe or not self.imagej_available:
             final_result_uint16 = enhanced_uint16
         else:
@@ -142,6 +192,8 @@ class RadiographyPipeline:
             else:
                 final_result_uint16 = clahe_result
 
+        _report_stage(stage_observer, "CLAHE", final_result_uint16)
+
         if self.config.use_final_denoise:
             final_denoised = self._denoise(
                 final_result_uint16.astype(np.float32) / MAX_16BIT
@@ -157,10 +209,13 @@ class RadiographyPipeline:
                 radius=self.config.median_filter_radius,
                 imagej_available=self.imagej_available,
             )
+            _report_stage(stage_observer, "MEDIAN", final_result_uint16)
 
         if valid_remap_mask is not None:
             final_result_uint16[~valid_remap_mask] = 0
+            _report_stage(stage_observer, "REMAP_MASK", final_result_uint16)
 
+        _report_stage(stage_observer, "FINAL_IMAGE", final_result_uint16)
         return np.asarray(final_result_uint16, dtype=np.uint16)
 
     def _denoise(self, image: np.ndarray) -> np.ndarray:

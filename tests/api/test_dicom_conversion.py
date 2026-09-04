@@ -130,6 +130,14 @@ def make_test_manifest(
             "body_part_examined": "CHEST",
             "laterality": "U",
             "projection": "PA",
+            "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+            "view_code_sequence": [
+                {
+                    "code_value": "272479007",
+                    "coding_scheme_designator": "SCT",
+                    "code_meaning": "postero-anterior",
+                }
+            ],
             "captured_at": "2026-08-04T19:30:00+07:00",
             "radiograph": {
                 "filename": "capture-001.npz",
@@ -150,6 +158,9 @@ def make_test_manifest(
             "instance_number": 1,
             "series_description": "Chest PA",
             "presentation_intent": "FOR PRESENTATION",
+            "pixel_source": "CANONICAL_PRE_PRESENTATION",
+            "pixel_intensity_relationship": "LIN",
+            "pixel_intensity_relationship_sign": 1,
         },
     }
 
@@ -558,8 +569,7 @@ def test_expanded_canvas_remap_shape_accepted(tmp_path: Path) -> None:
     assert Path(tmp_path / "output.tiff").exists()
 
 
-def test_detector_and_camera_mismatch_fails(tmp_path: Path) -> None:
-    # Test A: detector mode mismatch
+def test_detector_mode_mismatch_fails(tmp_path: Path) -> None:
     cal_dir_det = create_test_calibration_artifact(
         tmp_path / "cal_det", detector_mode="TRX"
     )
@@ -585,20 +595,93 @@ def test_detector_and_camera_mismatch_fails(tmp_path: Path) -> None:
     assert res_det["status"] == "failed"
     assert res_det["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
 
-    # Test B: camera serial mismatch
-    cal_dir_cam = create_test_calibration_artifact(
+
+def test_camera_metadata_mismatch_does_not_fail(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(
         tmp_path / "cal_cam", camera_serial="CAM999"
     )
-    args_data["calibration_dir"] = str(cal_dir_cam)
-    args_file_cam = tmp_path / "args_cam.json"
-    args_file_cam.write_text(json.dumps(args_data))
+    r_path, g_path, *_ = generate_test_npzs(str(tmp_path))
+    args_path = tmp_path / "args.json"
+    result_path = tmp_path / "result.json"
+    args_path.write_text(
+        json.dumps(
+            {
+                "radiograph_npz_path": r_path,
+                "gain_npz_path": g_path,
+                "calibration_dir": str(cal_dir),
+                "expected_gain_id": "GAIN-000042",
+                "expected_detector_mode": "BED",
+                "expected_camera_serial": "CAM999",
+                "output_tiff_path": str(tmp_path / "output.tiff"),
+                "result_path": str(result_path),
+            }
+        )
+    )
 
-    with pytest.raises(SystemExit):
-        execute_conversion_worker(str(args_file_cam), str(tmp_path / "result_cam.json"))
+    from mpips.conversion.worker import execute_conversion_worker
 
-    res_cam = json.loads((tmp_path / "result_cam.json").read_text())
-    assert res_cam["status"] == "failed"
-    assert res_cam["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
+    execute_conversion_worker(str(args_path), str(result_path))
+    assert json.loads(result_path.read_text())["status"] == "success"
+
+
+def test_radiograph_and_gain_camera_metadata_mismatch_does_not_fail(
+    tmp_path: Path,
+) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, *_ = generate_test_npzs(str(tmp_path))
+    with np.load(g_path, allow_pickle=True) as data:
+        payload = {key: data[key] for key in data.files}
+    payload["cameraparams"] = np.array({"serialNumber": "CAM999"}, dtype=object)
+    np.savez_compressed(g_path, **payload)
+    args_path = tmp_path / "args.json"
+    result_path = tmp_path / "result.json"
+    args_path.write_text(
+        json.dumps(
+            {
+                "radiograph_npz_path": r_path,
+                "gain_npz_path": g_path,
+                "calibration_dir": str(cal_dir),
+                "expected_gain_id": "GAIN-000042",
+                "expected_detector_mode": "BED",
+                "output_tiff_path": str(tmp_path / "output.tiff"),
+                "result_path": str(result_path),
+            }
+        )
+    )
+
+    from mpips.conversion.worker import execute_conversion_worker
+
+    execute_conversion_worker(str(args_path), str(result_path))
+    assert json.loads(result_path.read_text())["status"] == "success"
+
+
+def test_missing_camera_metadata_does_not_fail(tmp_path: Path) -> None:
+    cal_dir = create_test_calibration_artifact(tmp_path / "calibration")
+    r_path, g_path, *_ = generate_test_npzs(str(tmp_path))
+    for path in (r_path, g_path):
+        with np.load(path, allow_pickle=True) as data:
+            payload = {key: data[key] for key in data.files if key != "cameraparams"}
+        np.savez_compressed(path, **payload)
+    args_path = tmp_path / "args.json"
+    result_path = tmp_path / "result.json"
+    args_path.write_text(
+        json.dumps(
+            {
+                "radiograph_npz_path": r_path,
+                "gain_npz_path": g_path,
+                "calibration_dir": str(cal_dir),
+                "expected_gain_id": "GAIN-000042",
+                "expected_detector_mode": "BED",
+                "output_tiff_path": str(tmp_path / "output.tiff"),
+                "result_path": str(result_path),
+            }
+        )
+    )
+
+    from mpips.conversion.worker import execute_conversion_worker
+
+    execute_conversion_worker(str(args_path), str(result_path))
+    assert json.loads(result_path.read_text())["status"] == "success"
 
 
 def test_calibrated_output_differs_from_uncalibrated_control_fixture() -> None:
@@ -1024,6 +1107,19 @@ def test_minimal_manifest_dicom_conversion(tmp_path: Path) -> None:
             "body_part_examined": "CHEST",
             "laterality": "U",
             "projection": "PA",
+            "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+            "view_code_sequence": [
+                {
+                    "code_value": "272479007",
+                    "coding_scheme_designator": "SCT",
+                    "code_meaning": "postero-anterior",
+                }
+            ],
+        },
+        "dicom": {
+            "pixel_source": "CANONICAL_PRE_PRESENTATION",
+            "pixel_intensity_relationship": "LIN",
+            "pixel_intensity_relationship_sign": 1,
         },
     }
     manifest = MHCSManifest.model_validate(minimal_manifest)
@@ -1115,7 +1211,7 @@ def test_minimal_manifest_http_endpoint(tmp_path: Path) -> None:
     assert ds.PresentationIntentType == "FOR PRESENTATION"
     assert ds.BurnedInAnnotation == "NO"
     assert ds.LossyImageCompression == "00"
-    assert ds.PixelSpacing == ["0.140000", "0.140000"]
+    assert "PixelSpacing" not in ds
 
 
 def test_minimal_manifest_retry_determinism(tmp_path: Path) -> None:
@@ -1130,6 +1226,20 @@ def test_minimal_manifest_retry_determinism(tmp_path: Path) -> None:
             },
             "capture": {
                 "detector_type": "BED",
+                "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+                "projection": "PA",
+                "view_code_sequence": [
+                    {
+                        "code_value": "272479007",
+                        "coding_scheme_designator": "SCT",
+                        "code_meaning": "postero-anterior",
+                    }
+                ],
+            },
+            "dicom": {
+                "pixel_source": "CANONICAL_PRE_PRESENTATION",
+                "pixel_intensity_relationship": "LIN",
+                "pixel_intensity_relationship_sign": 1,
             },
         }
     ).encode("utf-8")
@@ -1342,11 +1452,23 @@ def test_explicit_identifier_preservation(tmp_path: Path) -> None:
         "capture": {
             "capture_id": explicit_cap_id,
             "detector_type": "BED",
+            "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+            "projection": "PA",
+            "view_code_sequence": [
+                {
+                    "code_value": "272479007",
+                    "coding_scheme_designator": "SCT",
+                    "code_meaning": "postero-anterior",
+                }
+            ],
         },
         "dicom": {
             "study_instance_uid": explicit_study_uid,
             "series_instance_uid": explicit_series_uid,
             "sop_instance_uid": explicit_sop_uid,
+            "pixel_source": "CANONICAL_PRE_PRESENTATION",
+            "pixel_intensity_relationship": "LIN",
+            "pixel_intensity_relationship_sign": 1,
         },
     }
 
@@ -1402,12 +1524,44 @@ def test_new_logical_conversion_escape_hatch(tmp_path: Path) -> None:
 
     manifest_a = {
         "patient": {"medical_record_number": "MRN-ESCAPE-01", "name": "ESCAPE A"},
-        "capture": {"detector_type": "BED"},
+        "capture": {
+            "detector_type": "BED",
+            "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+            "projection": "PA",
+            "view_code_sequence": [
+                {
+                    "code_value": "272479007",
+                    "coding_scheme_designator": "SCT",
+                    "code_meaning": "postero-anterior",
+                }
+            ],
+        },
+        "dicom": {
+            "pixel_source": "CANONICAL_PRE_PRESENTATION",
+            "pixel_intensity_relationship": "LIN",
+            "pixel_intensity_relationship_sign": 1,
+        },
     }
     manifest_b = {
         "conversion_job_id": "86dda8de-c82b-42d6-9dad-b8bca4bb18e9",
         "patient": {"medical_record_number": "MRN-ESCAPE-01", "name": "ESCAPE A"},
-        "capture": {"detector_type": "BED"},
+        "capture": {
+            "detector_type": "BED",
+            "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+            "projection": "PA",
+            "view_code_sequence": [
+                {
+                    "code_value": "272479007",
+                    "coding_scheme_designator": "SCT",
+                    "code_meaning": "postero-anterior",
+                }
+            ],
+        },
+        "dicom": {
+            "pixel_source": "CANONICAL_PRE_PRESENTATION",
+            "pixel_intensity_relationship": "LIN",
+            "pixel_intensity_relationship_sign": 1,
+        },
     }
 
     client = TestClient(app)
@@ -1482,7 +1636,23 @@ def test_detector_type_verification(tmp_path: Path) -> None:
     # 1. BED detector_type + BED NPZ -> success 200
     manifest_bed = {
         "patient": {"medical_record_number": "MRN-DET-01", "name": "DET TESTER"},
-        "capture": {"detector_type": "BED"},
+        "capture": {
+            "detector_type": "BED",
+            "detector_spacing": {"row_mm": 0.150, "column_mm": 0.160},
+            "projection": "PA",
+            "view_code_sequence": [
+                {
+                    "code_value": "272479007",
+                    "coding_scheme_designator": "SCT",
+                    "code_meaning": "postero-anterior",
+                }
+            ],
+        },
+        "dicom": {
+            "pixel_source": "CANONICAL_PRE_PRESENTATION",
+            "pixel_intensity_relationship": "LIN",
+            "pixel_intensity_relationship_sign": 1,
+        },
     }
     with (
         patch(

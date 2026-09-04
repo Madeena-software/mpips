@@ -1,0 +1,53 @@
+name: Promote Production Calibration
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: mpips-internal-beta
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    runs-on: [self-hosted, production]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install uv
+          uv sync --frozen --extra service --extra dev --extra npz-worker --extra imager
+      - name: Preflight production calibration promotion
+        env:
+          MPIPS_API_KEY: ${{ secrets.MPIPS_API_KEY }}
+          MPIPS_TRX_CARRIER_FILE_ID: ${{ secrets.MPIPS_TRX_CARRIER_FILE_ID }}
+        run: |
+          uv run python -m scripts.promote_production_calibration \
+            --preflight-only \
+            --active /var/www/mpips-runtime/calibration \
+            --summary "$GITHUB_STEP_SUMMARY"
+      - name: Preflight gdown tooling
+        run: uv run --with "gdown==6.1.0" python -c "import gdown; assert gdown.__version__ == '6.1.0'"
+      - name: Download and promote reviewed calibration
+        env:
+          MPIPS_API_KEY: ${{ secrets.MPIPS_API_KEY }}
+          MPIPS_TRX_CARRIER_FILE_ID: ${{ secrets.MPIPS_TRX_CARRIER_FILE_ID }}
+        run: |
+          set -euo pipefail
+          work_dir="$(mktemp -d /tmp/mpips-calibration-promotion.XXXXXX)"
+          trap 'rm -rf "$work_dir"' EXIT
+          carrier="$work_dir/trx-calibration.tar.gz"
+          uv run --with "gdown==6.1.0" gdown "$MPIPS_TRX_CARRIER_FILE_ID" -O "$carrier.part"
+          mv "$carrier.part" "$carrier"
+          uv run python -m scripts.promote_production_calibration \
+            --verify-carrier-only --carrier "$carrier" --summary "$GITHUB_STEP_SUMMARY"
+          uv run python -m scripts.promote_production_calibration \
+            --promotion-only \
+            --carrier "$carrier" \
+            --active /var/www/mpips-runtime/calibration \
+            --summary "$GITHUB_STEP_SUMMARY"

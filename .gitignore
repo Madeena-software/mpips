@@ -35,6 +35,8 @@ research/**/.ipynb_checkpoints/
 *.npz
 research/kambing-260714/data/output
 research/phantom-gotri-thorax
+research/real-thorax-dicom/
+output/
 
 # Large calibration inputs, generated outputs, and bundled paper binaries
 artifacts/camera-calibration-dotgrid/data/*.tif

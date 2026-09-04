@@ -34,6 +34,7 @@ from mpips.workflows.imager_pipeline.npz_io import (
 from mpips.workflows.imager_pipeline.pipeline import (
     apply_calibration_remap,
     apply_clahe,
+    crop_and_rotate,
     apply_threshold_separation,
     flat_field_correction,
     hybrid_median_filter,
@@ -191,23 +192,16 @@ def test_calibration_gain_override_is_optional_and_requires_matching_id(
 
 
 @pytest.mark.parametrize(
-    ("shape", "detector_mode", "camera", "message"),
+    ("shape", "detector_mode", "message"),
     [
-        ((7, 8), "BED", None, "shape"),
-        ((8, 8), "TRX", None, "detector mode"),
-        (
-            (8, 8),
-            "BED",
-            {**CAMERA, "cameraSerial": "DIFFERENT"},
-            "camera serial",
-        ),
+        ((7, 8), "BED", "shape"),
+        ((8, 8), "TRX", "detector mode"),
     ],
 )
 def test_calibration_gain_override_validates_compatibility(
     tmp_path: Path,
     shape: tuple[int, int],
     detector_mode: str,
-    camera: dict[str, str] | None,
     message: str,
 ) -> None:
     calibration_path = tmp_path / "calibration.npz"
@@ -217,11 +211,25 @@ def test_calibration_gain_override_validates_compatibility(
         gain_path,
         shape=shape,
         detector_mode=detector_mode,
-        camera=camera,
     )
 
     with pytest.raises(NPZValidationError, match=message):
         _load_calibration_image(calibration_path, gain_path)
+
+
+def test_calibration_gain_camera_mismatch_is_informational(tmp_path: Path) -> None:
+    calibration_path = tmp_path / "calibration.npz"
+    gain_path = tmp_path / "gain.npz"
+    save_calibration(calibration_path)
+    save_gain(gain_path, camera={**CAMERA, "cameraSerial": "DIFFERENT"})
+
+    image, metadata, gain_metadata = _load_calibration_image(
+        calibration_path, gain_path
+    )
+
+    assert image.shape == (8, 8)
+    assert metadata["camera_params"]["cameraSerial"] == "SERIAL-1"
+    assert gain_metadata["id"] == "gain-1"
 
 
 def test_gain_catalog_rejects_duplicate_ids(tmp_path: Path) -> None:
@@ -307,6 +315,85 @@ def test_extract_dot_grid_requires_rectangular_grid() -> None:
     assert coords.shape == (4, 5, 2)
     assert diameters.shape == (4, 5)
     assert circularity.shape == (4, 5)
+
+
+def test_extract_dot_grid_rejects_irregular_rows_instead_of_trimming() -> None:
+    image = np.zeros((260, 220), dtype=np.uint8)
+    for row in range(6):
+        for column in range(5):
+            if row != 2 or column != 4:
+                cv2.circle(image, (30 + column * 40, 30 + row * 40), 7, 255, -1)
+
+    with pytest.raises(
+        CalibrationValidationError,
+        match=r"inconsistent row widths; refusing to discard rows; row widths: "
+        r"5, 5, 4, 5, 5, 5",
+    ):
+        extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
+
+
+def test_extract_dot_grid_recovers_lattice_from_border_fragments() -> None:
+    image = np.zeros((220, 220), dtype=np.uint8)
+    for row in range(4):
+        for column in range(5):
+            cv2.circle(image, (30 + column * 40, 30 + row * 40), 7, 255, -1)
+    cv2.circle(image, (208, 110), 2, 255, -1)
+    cv2.circle(image, (208, 114), 2, 255, -1)
+
+    coords, diameters, circularity = extract_dot_grid(
+        image, NeuralCalibrationConfig(row_tolerance=20)
+    )
+
+    assert coords.shape == (4, 5, 2)
+    assert diameters.shape == (4, 5)
+    assert circularity.shape == (4, 5)
+
+
+def test_extract_dot_grid_excludes_only_clipped_outer_rows() -> None:
+    image = np.zeros((220, 220), dtype=np.uint8)
+    for row in range(6):
+        for column in range(5):
+            if row not in {0, 5}:
+                cv2.circle(image, (30 + column * 40, 30 + row * 40), 7, 255, -1)
+
+    coords, _, _ = extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
+
+    assert coords.shape == (4, 5, 2)
+
+
+def test_extract_dot_grid_excludes_genuinely_clipped_outer_circles() -> None:
+    image = np.zeros((240, 220), dtype=np.uint8)
+    for row_y in (4, 50, 90, 130, 170, 210, 236):
+        for column_x in (30, 70, 110, 150, 190):
+            cv2.circle(image, (column_x, row_y), 10, 255, -1)
+
+    coords, _, _ = extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
+
+    assert coords.shape == (5, 5, 2)
+
+
+def test_extract_dot_grid_excludes_genuinely_clipped_outer_columns() -> None:
+    image = np.zeros((180, 220), dtype=np.uint8)
+    for row_y in (30, 70, 110, 150):
+        for column_x in (4, 50, 90, 130, 170, 216):
+            cv2.circle(image, (column_x, row_y), 10, 255, -1)
+
+    coords, _, _ = extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
+
+    assert coords.shape == (4, 4, 2)
+
+
+def test_extract_dot_grid_rejects_interior_extra_dot() -> None:
+    image = np.zeros((180, 220), dtype=np.uint8)
+    for row in range(4):
+        for column in range(5):
+            cv2.circle(image, (30 + column * 40, 30 + row * 40), 7, 255, -1)
+    cv2.circle(image, (50, 110), 7, 255, -1)
+
+    with pytest.raises(
+        CalibrationValidationError, match="too few complete rows|row widths"
+    ):
+        extract_dot_grid(image, NeuralCalibrationConfig(row_tolerance=20))
 
 
 def test_supplied_gotri_extracts_19_by_26_grid() -> None:
@@ -512,6 +599,40 @@ def test_full_pipeline_can_run_fixed_recipe_without_optional_steps() -> None:
     assert output.dtype == np.uint16
 
 
+def test_trx_crop_and_rotate_is_clockwise_and_bed_is_unchanged() -> None:
+    sentinel = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.uint16)
+    config = ImagerPipelineConfig()
+
+    trx = crop_and_rotate(sentinel, "TRX", config)
+    bed = crop_and_rotate(sentinel, "BED", config)
+
+    np.testing.assert_array_equal(trx, [[4, 1], [5, 2], [6, 3]])
+    assert trx.shape == (3, 2)
+    np.testing.assert_array_equal(bed, sentinel)
+
+
+def test_pipeline_preserves_trx_orientation_and_bed_shape() -> None:
+    sentinel = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.uint16)
+    config = ImagerPipelineConfig(
+        use_denoise=False,
+        use_threshold=False,
+        use_invert=False,
+        use_contrast_enhancement=False,
+        use_clahe=False,
+        use_median_filter=False,
+        use_final_denoise=False,
+    )
+    dark = np.zeros_like(sentinel)
+    flat = np.ones_like(sentinel)
+
+    trx = process_radiography_arrays(sentinel, dark, flat, "TRX", config)
+    bed = process_radiography_arrays(sentinel, dark, flat, "BED", config)
+
+    np.testing.assert_array_equal(trx, [[4, 1], [5, 2], [6, 3]])
+    assert trx.shape == (3, 2)
+    np.testing.assert_array_equal(bed, sentinel)
+
+
 def test_batch_writes_tiff_and_manifest_and_continues_failures(tmp_path: Path) -> None:
     gain_path = tmp_path / "gain.npz"
     valid_path = tmp_path / "valid.npz"
@@ -608,7 +729,7 @@ def test_batch_passes_validated_arrays_without_input_tiff_staging(
     assert detector_modes == ["BED"]
 
 
-def test_batch_records_camera_mismatch_as_failure(tmp_path: Path) -> None:
+def test_batch_accepts_camera_mismatch_as_informational(tmp_path: Path) -> None:
     gain_path = tmp_path / "gain.npz"
     radio_path = tmp_path / "radio.npz"
     save_gain(gain_path)
@@ -623,8 +744,9 @@ def test_batch_records_camera_mismatch_as_failure(tmp_path: Path) -> None:
         tmp_path / "output",
         ImagerPipelineConfig(use_denoise=False),
     )
-    assert result.failed == 1
-    assert "Camera serial mismatch" in (result.items[0].error or "")
+    assert result.succeeded == 1
+    assert result.failed == 0
+    assert result.items[0].output is not None
 
 
 def test_batch_uses_collision_safe_output_names(tmp_path: Path) -> None:
