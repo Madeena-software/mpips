@@ -51,6 +51,11 @@ def process_radiography_arrays(
 ) -> np.ndarray:
     """Run arrays through the canonical array-only radiography pipeline."""
     config = config or ImagerPipelineConfig()
+    extra_kwargs: dict[str, Any] = {}
+    if stage_observer is not None:
+        extra_kwargs["stage_observer"] = stage_observer
+    if threshold_method_override is not None:
+        extra_kwargs["threshold_method_override"] = threshold_method_override
     return RadiographyPipeline(
         config,
         imagej_available=imagej_available,
@@ -61,8 +66,7 @@ def process_radiography_arrays(
         detector_mode,
         map_x=map_x,
         map_y=map_y,
-        stage_observer=stage_observer,
-        threshold_method_override=threshold_method_override,
+        **extra_kwargs,
     )
 
 
