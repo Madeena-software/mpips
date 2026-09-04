@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 from mpips.pipelines.config import ImagerPipelineConfig
-from mpips.pipelines.radiography import RadiographyPipeline, _report_stage
+from mpips.pipelines.radiography import RadiographyPipeline
 import mpips.processing as processing
 from mpips.processing.thresholding import detect_threshold
 
@@ -90,11 +90,7 @@ def threshold_method_for_detector(
     """Bypass destructive threshold separation for supported radiography modes."""
     if diagnostic_override is not None:
         return diagnostic_override
-    return (
-        "none"
-        if str(detector_type).upper() in {"BED", "TRX"}
-        else configured_method
-    )
+    return "none" if str(detector_type).upper() in {"BED", "TRX"} else configured_method
 
 
 def auto_threshold_detection(image: np.ndarray) -> float:
@@ -126,9 +122,13 @@ def process_single_image(
         )
 
     import mpips.pipelines.radiography as rad_mod
+
     saved_apply = None
     current_apply = globals().get("apply_threshold_separation")
-    if current_apply is not None and current_apply is not rad_mod.apply_threshold_separation:
+    if (
+        current_apply is not None
+        and current_apply is not rad_mod.apply_threshold_separation
+    ):
         saved_apply = rad_mod.apply_threshold_separation
         rad_mod.apply_threshold_separation = current_apply
     saved_auto = None

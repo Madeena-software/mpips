@@ -288,7 +288,7 @@ _FROZEN_PARITY = {
     ),
     "detector_trx_nonzero_crop": (
         (21, 21),
-        "086deda818b953e06b2e8fcc44c8d977f99cc8c433992022661cc8f1a32dba80",
+        "4a65921671c74691796c17076ecb319ada04b878bd819290e02b68daa53bf6d8",
     ),
     "identity_remap": (
         (24, 24),

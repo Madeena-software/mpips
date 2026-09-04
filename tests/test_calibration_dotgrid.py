@@ -220,7 +220,7 @@ def test_minimum_contour_area_remains_strictly_greater_than_threshold(
     np.testing.assert_array_equal(above_boundary[0][0], [[30.0, 20.0], [70.0, 20.0]])
 
 
-def test_row_tolerance_grouping_and_auto_trim_match_historical_behavior(
+def test_row_tolerance_grouping_and_irregular_row_rejection(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
     jittered = [
@@ -238,7 +238,10 @@ def test_row_tolerance_grouping_and_auto_trim_match_historical_behavior(
 
     with pytest.raises(
         ValueError,
-        match=r"Detected dot grid is not rectangular; row widths: 1, 1, 1, 1, 1, 1",
+        match=(
+            r"Detected dot grid has inconsistent row widths; refusing to discard rows; "
+            r"row widths: 1, 1, 1, 1, 1, 1"
+        ),
     ):
         extract_grid(str(jittered_path), str(tmp_path), row_tolerance=5)
 
@@ -249,16 +252,11 @@ def test_row_tolerance_grouping_and_auto_trim_match_historical_behavior(
     ]
     trimmed_path = tmp_path / "trimmed.png"
     _write_grid(trimmed_path, trimmed)
-    result = _extract_grid(trimmed_path, tmp_path, row_tolerance=20)
-
-    assert result[0].shape == (2, 2, 2)
-    np.testing.assert_array_equal(
-        result[0], [[[30.0, 70.0], [70.0, 70.0]], [[30.0, 110.0], [70.0, 110.0]]]
-    )
-    assert (
-        "Auto-trimmed grid from 3 rows to 2 rectangular rows of width 2"
-        in capsys.readouterr().out
-    )
+    with pytest.raises(
+        ValueError,
+        match=r"Detected dot grid has too few complete rows",
+    ):
+        extract_grid(str(trimmed_path), str(tmp_path), row_tolerance=20)
 
 
 def test_invalid_grid_error_and_missing_image_behavior_are_preserved(
@@ -275,7 +273,7 @@ def test_invalid_grid_error_and_missing_image_behavior_are_preserved(
 
     with pytest.raises(
         ValueError,
-        match=r"Detected dot grid is not rectangular; row widths: 3, 2",
+        match=r"Detected dot grid has too few complete rows",
     ):
         extract_grid(str(invalid_path), str(tmp_path), row_tolerance=20)
 

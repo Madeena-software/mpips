@@ -256,7 +256,7 @@ def warp_image(
     mask_path=None,
     crop_valid=False,
     crop_output_path=None,
-    canvas_mode="expanded",
+    canvas_mode="fixed",
     expanded_bounds_step=4,
     expanded_margin=16,
     metadata_path=None,
@@ -429,7 +429,7 @@ if __name__ == "__main__":
         "--mask-out",
         default=default_artifact_path("output/neural_model/calibrated_valid_mask.png"),
     )
-    parser.add_argument("--canvas-mode", choices=CANVAS_MODE, default="expanded")
+    parser.add_argument("--canvas-mode", choices=CANVAS_MODE, default="fixed")
     parser.add_argument(
         "--expanded-bounds-step",
         type=int,

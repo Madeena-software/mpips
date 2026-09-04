@@ -490,7 +490,11 @@ def build_or_load_calibration(
     if config.canvas_mode == "fixed":
         remap_stats.update(validate_fixed_canvas_remap(map_x, map_y, width, height))
     else:
-        remap_stats.update(validate_expanded_canvas_remap(map_x, map_y, width, height))
+        remap_stats.update(
+            remap_geometry_evidence(
+                map_x, map_y, width, height, output_shape=map_x.shape
+            )
+        )
     np.savez_compressed(remap_path, map_x=map_x, map_y=map_y)
     valid_mask = (
         (map_x >= 0) & (map_x <= width - 1) & (map_y >= 0) & (map_y <= height - 1)

@@ -81,19 +81,34 @@ EXPECTED_CIRCULAR_I4A_HASHES = {
     ("uint16", 0.5): "591fb6b495566b159d3608336c22e84074ba41eaa092677626206f63eff29ad9",
     ("uint16", 1.0): "12cba42e4296eac0dd557f6a9106f1acba6073014076bae71f2701bb0504a6c5",
     ("uint16", 1.5): "b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05",
-    ("uint16", 1.74): "b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05",
-    ("uint16", 1.75): "b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05",
+    (
+        "uint16",
+        1.74,
+    ): "b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05",
+    (
+        "uint16",
+        1.75,
+    ): "b9a0490d260ecc63e135441b67389da4b756de8e4b1c053c3a9d02ffa6d37b05",
     ("uint16", 2.0): "af5398c57504217097440e2a525bb1b2026315083306d7f36a9d27430504a7a8",
     ("uint16", 2.5): "b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6",
-    ("uint16", 2.84): "b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6",
-    ("uint16", 2.85): "b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6",
+    (
+        "uint16",
+        2.84,
+    ): "b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6",
+    (
+        "uint16",
+        2.85,
+    ): "b2047c7fe0fcdfb4c1cdeaf540414771ac56938da77d73d280f3a96ad54ceec6",
     ("uint16", 3.0): "b65b95665a2d108ad31a02b7b66554b22f77a2418f880db0d6c97c90be64605c",
 }
 
 
 @pytest.mark.parametrize(
     "dtype,radius,expected_hash",
-    [(dtype, radius, expected) for (dtype, radius), expected in EXPECTED_CIRCULAR_I4A_HASHES.items()],
+    [
+        (dtype, radius, expected)
+        for (dtype, radius), expected in EXPECTED_CIRCULAR_I4A_HASHES.items()
+    ],
 )
 def test_circular_median_matches_accepted_i4a_matrix(
     dtype: str, radius: float, expected_hash: str
@@ -110,9 +125,7 @@ def test_circular_median_matches_accepted_i4a_matrix(
     )
     image = values if dtype == "uint8" else (values.astype(np.uint16) * 257)
 
-    output = apply_median_filter(
-        image, filter_type="circular_imagej", radius=radius
-    )
+    output = apply_median_filter(image, filter_type="circular_imagej", radius=radius)
 
     assert output.shape == image.shape
     assert output.dtype == image.dtype
