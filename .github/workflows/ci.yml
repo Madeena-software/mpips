@@ -152,7 +152,8 @@ jobs:
             docker network rm "$NETWORK" >/dev/null 2>&1 || true
             docker image rm "$API_IMAGE" "$WORKER_IMAGE" >/dev/null 2>&1 || true
           }
-          cleanup
+          docker rm -f "$API_CONTAINER" "$REDIS_CONTAINER" >/dev/null 2>&1 || true
+          docker network rm "$NETWORK" >/dev/null 2>&1 || true
           trap cleanup EXIT
 
           docker network create "$NETWORK"
