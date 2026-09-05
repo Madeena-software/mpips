@@ -1,18 +1,18 @@
 ---
 title: NPZ to DICOM Public Import Module and Direct Git Distribution
 document_id: TASK-NPZ-DICOM-IMPORT-MODULE-001
-version: 1.0-candidate
+version: 1.1-candidate
 status: Candidate / Draft (Planner Review Required)
 language: en-US
 last_updated: 2026-09-05
 scope:
-  - public Python import surface for NPZ-to-DICOM conversion
-  - direct Git distribution via pip and uv without manual clone
+  - public Python import surface for NPZ-to-DICOM conversion (from mpips import convert_npz_to_dicom)
+  - direct Git distribution via pip against an immutable commit SHA without manual clone
   - HTTP API and protected converter preservation
   - clinical DICOM and orientation invariant enforcement
   - clean-environment installation and end-to-end verification
 authority_note: >-
-  This candidate task artifact authors the reviewable delivery contract for the
+  This candidate task artifact defines the reviewable delivery contract for the
   NPZ-to-DICOM import module and direct Git distribution successor work. It does
   not implement product code or mutate dependencies. Implementation begins only
   after formal Planner/Reviewer validation and acceptance.
@@ -56,9 +56,10 @@ immutable governing task revision before renewed execution.
 
 **Delivery objective / Work Package / MVP:**  
 Enable a user to install MPIPS directly from the public GitHub repository without
-manually cloning it, then use a supported Python import surface for NPZ-to-DICOM
-conversion, while preserving the existing HTTP API, package boundaries, protected
-converter SHA, and clinical DICOM invariants.
+manually cloning it, then use the required public Python import surface
+`from mpips import convert_npz_to_dicom` for NPZ-to-DICOM conversion, while
+preserving the existing HTTP API, package boundaries, protected converter SHA,
+and clinical DICOM invariants.
 
 **Owner / designated planning authority:**  
 Repository Planner/Reviewer under the `.agents/` delivery contract.
@@ -79,19 +80,17 @@ Currently:
 1. `mpips` can be run as an HTTP microservice exposing `POST /v1/radiographs/dicom`.
 2. `mpips.conversion` contains conversion modules (`service.py`, `validation.py`,
    `metadata.py`, `dicom_enrichment.py`, `worker.py`, `tiff_json_to_dcm.py`), but
-   lacks `mpips/conversion/__init__.py`. Because `pyproject.toml` uses
-   `tool.setuptools.packages.find` with `include = ["mpips*"]`, setuptools only
-   packages directories containing an `__init__.py`. Consequently, installing `mpips`
-   from Git currently omits `mpips.conversion` entirely from the built wheel.
+   lacks packaging discovery configuration. Consequently, installing `mpips` from
+   Git must ensure that all conversion modules are included in the built wheel.
 3. Users who want to programmatically convert radiographs from NPZ arrays and gain
    calibrations to DICOM in Python without running or calling an HTTP service have no
-   supported, documented import entrypoint.
+   supported, documented top-level import entrypoint.
 4. The distribution model requires direct installation from public GitHub via `pip`
-   or `uv` without requiring manual repository cloning.
+   against an immutable commit SHA without requiring manual repository cloning.
 
-This candidate delivery contract specifies the technical requirements, design
-options, invariants, and verification obligations to implement this capability
-safely and reproducibly.
+This candidate delivery contract specifies the technical requirements, concrete
+architectural contracts, invariants, and verification obligations to implement this
+capability safely and reproducibly.
 
 ## Baseline and task revision
 
@@ -107,10 +106,12 @@ Do not change the implementation baseline silently during execution.
 
 ## Objective
 
-Deliver a supported, documented, and thoroughly verified Python import surface for
-converting NPZ radiograph and gain data plus manifest metadata into standard
-DICOM files, installable directly from public GitHub via `pip` or `uv` without
-cloning, with zero regressions to the existing HTTP API or clinical DICOM invariants.
+Deliver a supported, documented, and thoroughly verified Python import surface
+`from mpips import convert_npz_to_dicom` (with `from mpips.conversion import convert_npz_to_dicom`
+as an optional convenience) for converting NPZ radiograph and gain data plus
+manifest metadata into standard DICOM files, installable directly from public
+GitHub via `pip` against an immutable commit SHA without manual cloning, with
+zero regressions to the existing HTTP API or clinical DICOM invariants.
 
 ## Authoritative inputs
 
@@ -148,28 +149,39 @@ cloning, with zero regressions to the existing HTTP API or clinical DICOM invari
 ### In scope
 
 1. **Packaging configuration**:
-   - Ensure `mpips.conversion` is recognized and packaged by setuptools so that
-     direct Git installs contain all necessary modules.
-   - Introduce `mpips/conversion/__init__.py` to define the public conversion package.
+   - Ensure `mpips.conversion` and all required submodules are recognized and packaged
+     by setuptools so that direct Git installs contain all necessary conversion modules.
 2. **Public import surface**:
-   - Provide a clean, documented public import spelling for NPZ-to-DICOM conversion.
-   - Ensure input parameters accept paths (`Path` or `str`), dictionaries, or
-     pydantic manifest objects (`MHCSManifest`, `ResolvedMHCSManifest`).
+   - Deliver the required consumer-facing import: `from mpips import convert_npz_to_dicom`.
+   - An import via `from mpips.conversion import convert_npz_to_dicom` may be provided
+     and documented as an additional convenience only; it is not an alternative to the
+     required top-level interface.
+   - Satisfy outcome-level conversion obligations: library callers can invoke NPZ-to-DICOM
+     conversion with the file-based inputs necessary for the existing supported conversion
+     workflow (radiograph NPZ path, gain NPZ path, manifest metadata, destination output
+     DICOM path, and optional calibration assets directory).
+   - Ensure ordinary Python-library usage does not require a running API/worker service
+     or web-framework background daemons.
    - Decouple library-level exception reporting from web-framework exceptions
-     (`fastapi.HTTPException`), so that library users experience standard Python
-     exceptions (`ValueError`, `RuntimeError`, or a lightweight `ConversionError`).
+     (`fastapi.HTTPException`), raising standard Python exceptions on failure.
+   - Preserve Executor technical discretion over internal mechanics (exact module layout,
+     export technique, internal signature details, and exception types) consistent
+     with existing repository patterns.
 3. **HTTP API preservation**:
    - The existing HTTP endpoint `POST /v1/radiographs/dicom` and `GET /health` must
      remain completely supported, unchanged, and operational.
-   - The endpoint handler may delegate to the public import surface or share the
-     underlying isolated execution service.
+   - The endpoint handler may delegate to the public import surface or share
+     underlying isolated execution services.
 4. **Direct Git installation verification**:
-   - Support installation via `pip` and `uv` directly from GitHub using a Git URL.
-   - Verify installation in an isolated, clean virtual environment without repository
-     cloning.
+   - Support installation via `pip` directly from GitHub using a Git URL targeting
+     an immutable commit SHA without manual cloning.
+   - Require clean-environment testing of the primary `pip` command with minimal
+     declared extras/dependencies actually required.
+   - Do not claim a bare install is sufficient unless verification proves all
+     required runtime imports succeed without optional extras.
+   - If `uv` installation is documented, it must also be tested and verified.
 5. **Comprehensive verification**:
-   - Add focused tests for the public import surface (`tests/test_conversion_import.py`
-     or integration into `tests/test_public_boundaries.py`).
+   - Add focused tests for the public import surface.
    - Run existing test suites for API surface, DICOM conversion, converter protection,
      and static analysis (Black, Flake8, mypy).
 
@@ -181,7 +193,8 @@ cloning, with zero regressions to the existing HTTP API or clinical DICOM invari
 4. Modifying the protected converter `mpips/conversion/tiff_json_to_dcm.py` or its SHA.
 5. Altering clinical image processing algorithms, thresholding, CLAHE, or TRX calibration.
 6. Refactoring unrelated subsystems (e.g. DAG executor, Celery workers, dotgrid neural models).
-7. Adding heavy external dependencies not already in `pyproject.toml`.
+7. Adding heavy external dependencies not already declared in `pyproject.toml`.
+8. Tag creation or release branching (reserved for release governance).
 
 ### Preserved behavior and invariants
 
@@ -202,122 +215,74 @@ cloning, with zero regressions to the existing HTTP API or clinical DICOM invari
    - Output DICOM orientation must preserve the verified clockwise orientation and
      threshold bypass invariants established in production.
 
-## Design options and recommendations for Planner/Reviewer decision
+## Concrete delivery specification and architectural contracts
 
-### 1. Supported Git installation command and Git reference
+### 1. Direct Git installation contract
 
-**Analysis of Git reference alternatives:**
+The primary installation method for consumers is direct installation from GitHub via
+`pip` targeting an immutable commit SHA without manual cloning:
 
-| Reference Type | Example | Reproducibility | Maintenance & Conventions |
-| :--- | :--- | :--- | :--- |
-| **Branch** | `git+https://github.com/Madeena-software/mpips.git@main` | Mutable; changes when commits land; risk of non-deterministic behavior in clinical pipelines. | Convenient for rolling consumers, but violates immutable baseline requirements of `.agents/AGENTS.md`. |
-| **Release Tag** | `git+https://github.com/Madeena-software/mpips.git@v0.1.0` | High; semantic versioning; standard Python packaging convention. | Currently **no git tags exist** in the repository (`git tag -l` returns empty). Tag creation belongs to release governance, which is out of scope. |
-| **Immutable Commit SHA** (Recommended) | `git+https://github.com/Madeena-software/mpips.git@c612ca4067a4cae83fb364858d0ed38cb8c2a0a0` | **Absolute (Cryptographic)**; 100% reproducible; immune to branch drift or upstream changes. | Strongly aligns with `.agents/` delivery contract and medical device software traceability. Works natively in `pip` and `uv`. |
+```bash
+pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"
+```
 
-**Proposed supported installation commands:**
+- **Minimal declared extras/dependencies**: The Executor must verify whether a bare
+  `pip install` satisfies all runtime requirements for `from mpips import convert_npz_to_dicom`
+  or if a minimal declared extra (e.g. `[service]` or a dedicated conversion extra) is required.
+  A bare install must NOT be claimed sufficient unless clean-environment testing proves it.
+  If an extra is required, the primary command must explicitly specify the minimal declared
+  extra (e.g. `pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>#egg=mpips[<extra>]"`
+  or `pip install "mpips[<extra>] @ git+https://github.com/Madeena-software/mpips.git@<commit-sha>"`).
+- **No manual clone**: Consumers must not be instructed or required to clone the repository manually.
+- **Secondary tool testing (`uv`)**: If `uv` installation is documented (e.g. `uv pip install ...`),
+  it must also be tested and verified in an isolated clean environment.
 
-- Primary (reproducible):
-  ```bash
-  pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"
+### 2. Public import surface contract
+
+- **Required acceptance interface**:
+  ```python
+  from mpips import convert_npz_to_dicom
   ```
-  ```bash
-  uv pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"
-  ```
-- Secondary (rolling development convenience):
-  ```bash
-  pip install "git+https://github.com/Madeena-software/mpips.git@main"
-  ```
-  ```bash
-  uv pip install "git+https://github.com/Madeena-software/mpips.git@main"
-  ```
-
-### 2. Public import surface spelling
-
-**Analysis of import spelling options:**
-
-- **Option A (Subpackage canonical entrypoint — Recommended)**:
+  This top-level import is mandatory and forms the primary public library contract.
+- **Convenience interface**:
   ```python
   from mpips.conversion import convert_npz_to_dicom
   ```
-  *Justification*: Matches the established pattern in MPIPS for domain subpackages:
-  - `from mpips.calibration import warp_image`
-  - `from mpips.dag import DAGExecutor`
-  - `from mpips.iqa import calculate_all_metrics`
-  Exposing `convert_npz_to_dicom` in `mpips.conversion` follows the existing convention
-  identically.
+  May be documented and provided as an additional convenience only, but does not substitute
+  for or weaken the requirement for `from mpips import convert_npz_to_dicom`.
+- **Outcome-level functional obligations**:
+  - Library callers can invoke `convert_npz_to_dicom` passing the file-based inputs
+    necessary for the supported conversion workflow:
+    - radiograph NPZ file path,
+    - gain calibration NPZ file path,
+    - manifest metadata (file path, raw JSON, parsed dict, or manifest model),
+    - output DICOM destination path,
+    - optional calibration directory override.
+  - The invocation must execute locally and must NOT require a running FastAPI HTTP
+    server, Celery worker process, Redis instance, or external daemon.
+  - The invocation must decouple from web framework error models: library consumers
+    must receive standard Python exceptions (e.g. `ValueError`, `FileNotFoundError`,
+    or runtime error) rather than `fastapi.HTTPException`.
+- **Executor technical discretion**:
+  - The Executor retains discretion over bounded implementation details: exact argument
+    typing, helper function layout, export mechanism (e.g. `__all__` list and lazy loading
+    patterns), internal exception class hierarchy, and worker isolation mechanism, provided
+    they adhere to existing repository conventions and meet all functional obligations.
 
-- **Option B (Top-level package export)**:
-  ```python
-  import mpips
-  mpips.convert_npz_to_dicom(...)
-  # or
-  from mpips import convert_npz_to_dicom
-  ```
-  *Justification*: Matches `mpips.app` and `mpips.DAGExecutor` in `mpips/__init__.py`.
-  Can be implemented via lazy `__getattr__` in `mpips/__init__.py` to avoid eager loading.
+### 3. HTTP API compatibility contract
 
-- **Option C (Both Option A and Option B)**:
-  Provide the canonical symbol in `mpips.conversion` and re-export lazily in `mpips`
-  top-level `__init__.py`.
+- The existing endpoint `POST /v1/radiographs/dicom` and `GET /health` must remain
+  fully operational and backward-compatible.
+- Route handlers in `mpips/api/routes/v1/dicom.py` may delegate to the public import
+  surface or share underlying conversion services, mapping any internal errors cleanly
+  to existing HTTP status codes (200, 400, 422, 500, 504) as asserted by existing tests.
 
-- **Option D (Direct service function exposure)**:
-  ```python
-  from mpips.conversion.service import run_isolated_dicom_conversion
-  ```
-  *Limitation*: Currently raises `fastapi.HTTPException`, coupling the library caller
-  to FastAPI error models.
+### 4. Packaging requirements
 
-**Recommended spelling for Planner/Reviewer adoption:**
-Option C (primary in `mpips.conversion`, lazy convenience alias in `mpips`).
-
-### 3. Public function signature & exception decoupling
-
-**Proposed signature:**
-```python
-def convert_npz_to_dicom(
-    radiograph_npz_path: str | Path,
-    gain_npz_path: str | Path,
-    manifest: str | Path | dict[str, Any] | MHCSManifest | ResolvedMHCSManifest,
-    output_dicom_path: str | Path,
-    *,
-    calibration_dir: str | Path | None = None,
-) -> dict[str, Any]:
-    """Convert NPZ radiograph and gain arrays into an enriched DICOM file.
-    
-    Args:
-        radiograph_npz_path: Path to radiograph NPZ file.
-        gain_npz_path: Path to gain calibration NPZ file.
-        manifest: Manifest as file path, JSON string, dict, or Pydantic model.
-        output_dicom_path: Destination path for output DICOM file.
-        calibration_dir: Optional path to directory containing calibration assets.
-                         If omitted, uses default resolved calibration directory.
-                         
-    Returns:
-        dict with execution status, output byte size, and validation flags.
-        
-    Raises:
-        ValueError: If input arguments, manifests, or NPZ contents fail validation.
-        FileNotFoundError: If input files or calibration assets do not exist.
-        ConversionError: If conversion worker process fails or times out.
-    """
-```
-
-**Exception handling decoupling:**
-`run_isolated_dicom_conversion` currently raises `fastapi.HTTPException`.
-The recommended implementation will introduce a core conversion layer (or wrap
-exceptions) that raises standard Python exceptions (`ConversionError`, `ValueError`,
-`FileNotFoundError`), while the HTTP route in `mpips/api/routes/v1/dicom.py` maps
-these exceptions cleanly to HTTP 400, 422, 500, or 504 responses.
-
-### 4. Packaging prerequisite
-
-**Observed evidence in current baseline:**
-Running `setuptools.find_packages` currently discovers:
-`['mpips', 'mpips.workflows', 'mpips.processing', 'mpips.api', 'mpips.dag', 'mpips.calibration', 'mpips.pipelines', 'mpips.iqa', 'mpips.worker', ...]`
-`mpips.conversion` is **missing** from package discovery because `mpips/conversion/__init__.py`
-does not exist.
-Creating `mpips/conversion/__init__.py` with proper `__all__` and lazy exports solves
-this issue immediately and enables full packaging during `pip install`.
+- Setuptools configuration and package directory layout must ensure `mpips.conversion`
+  and all required modules are discovered and packaged into distribution wheels.
+- A wheel built from the repository or installed via Git must contain all modules
+  needed to execute `from mpips import convert_npz_to_dicom`.
 
 ## Dependencies and assumptions
 
@@ -332,45 +297,52 @@ this issue immediately and enables full packaging during `pip install`.
 - The public GitHub repository URL is `https://github.com/Madeena-software/mpips.git`.
 - Base dependencies declared in `pyproject.toml` (`numpy`, `opencv-python-headless`,
   `pydantic`, `scipy`, `scikit-image`, `PyWavelets`, `pydicom`, `python-multipart`)
-  are sufficient for NPZ-to-DICOM conversion.
-- Optional dependencies like `fastapi`, `uvicorn`, `celery`, `redis`, `boto3` must
-  NOT be required for basic Python library import and conversion.
+  are the baseline for conversion.
+- Optional service dependencies (`fastapi`, `uvicorn`, `celery`, `redis`, `boto3`)
+  must NOT be required for basic Python library import and conversion invocation.
 
 ### Remaining approval requirements
 
-- Formal Planner/Reviewer review and validation of this candidate task contract.
-- Reviewer confirmation on preferred import spelling (`mpips.conversion` vs `mpips`).
+- Formal Planner/Reviewer validation of this candidate task revision (`1.1-candidate`)
+  before implementation begins.
 - No release, tagging, or PyPI publishing is authorized.
 
 ## Required capabilities
 
 - Repository read and local write;
 - Local shell execution for tests and static checks;
-- Creation of isolated virtual environments for installation verification;
+- Creation of isolated virtual environments for clean installation verification;
 - Git branch management and remote push to `origin/feat/npz-dicom-import-module`.
 
 ## Execution constraints
 
 1. **Strict non-modification of protected converter**:
-   `mpips/conversion/tiff_json_to_dcm.py` MUST NOT be touched.
+   `mpips/conversion/tiff_json_to_dcm.py` MUST NOT be touched (SHA-256 invariant).
 2. **Strict preservation of HTTP API**:
    Do not remove, alter, or rename any routes or existing API models.
 3. **Ponytail reuse discipline**:
    Reuse existing validation logic in `mpips/conversion/service.py`, `validation.py`,
    and `metadata.py`. Do not create parallel conversion engines.
 4. **Clean boundary separation**:
-   Pure library usage must not import `fastapi`, `celery`, or `boto3`.
+   Pure library usage must not require importing or running `fastapi`, `celery`, or `boto3`.
 
 ## Acceptance criteria
 
 - [ ] `mpips.conversion` is properly recognized by setuptools and included in package
       builds (`python -m build --wheel` or `pip install`).
-- [ ] MPIPS can be installed directly in a clean virtual environment using:
+- [ ] MPIPS can be installed directly in a clean virtual environment without manual cloning
+      using the documented primary command:
       `pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"`
-      and `uv pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"`.
-- [ ] Public import `from mpips.conversion import convert_npz_to_dicom` (and/or
-      `from mpips import convert_npz_to_dicom`) works cleanly without requiring
-      `fastapi` or background service daemons.
+      (with minimal declared extras if required, as verified by test).
+- [ ] If `uv` installation is documented, it is also verified in an isolated clean environment.
+- [ ] Bare install is not claimed sufficient unless clean-environment verification proves
+      all required runtime imports succeed without optional extras.
+- [ ] Required public import `from mpips import convert_npz_to_dicom` works cleanly and
+      successfully converts NPZ radiograph, gain, and manifest to DICOM.
+- [ ] Convenience import `from mpips.conversion import convert_npz_to_dicom` may be supported
+      as an additional convenience, but does not substitute for `from mpips import convert_npz_to_dicom`.
+- [ ] Ordinary library usage does not require a running API/worker service or raise
+      `fastapi.HTTPException`.
 - [ ] Protected converter SHA-256 remains
       `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0` at
       `mpips/conversion/tiff_json_to_dcm.py` (`tests/test_converter_protection.py` passes).
@@ -401,9 +373,10 @@ this issue immediately and enables full packaging during `pip install`.
    ```bash
    python3 -m venv /tmp/test-mpips-env
    /tmp/test-mpips-env/bin/pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"
-   /tmp/test-mpips-env/bin/python -c "from mpips.conversion import convert_npz_to_dicom; print('Import succeeded')"
+   /tmp/test-mpips-env/bin/python -c "from mpips import convert_npz_to_dicom; print('Top-level import succeeded')"
    rm -rf /tmp/test-mpips-env
    ```
+   (If minimal declared extras are required, test with those extras; verify `uv` similarly if documented).
 6. **Code Quality**:
    `black --check mpips tests`  
    `flake8 mpips tests`  
@@ -413,7 +386,7 @@ this issue immediately and enables full packaging during `pip install`.
 
 The Executor must report:
 - Pre-task baseline commit SHA (`c612ca4067a4cae83fb364858d0ed38cb8c2a0a0`);
-- Git status proving only `.agents/tasks/npz-dicom-import-module.md` was created;
+- Git status proving only `.agents/tasks/npz-dicom-import-module.md` was updated;
 - Verification that no product code, tests, CI workflows, or dependencies were altered;
 - Branch push confirmation to `origin/feat/npz-dicom-import-module`.
 
@@ -440,4 +413,4 @@ merging are authorized.
 ## Expected terminal outcome
 
 Candidate task authored and pushed for formal review:
-`CANDIDATE SUCCESSOR DELIVERY CONTRACT — PLANNER REVIEW REQUIRED`
+`CANDIDATE TASK REMEDIATED — PLANNER REVIEW REQUIRED`
