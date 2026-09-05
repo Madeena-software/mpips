@@ -27,7 +27,7 @@ from mpips.api.schemas.dicom import (
 from mpips.conversion.dicom_enrichment import enrich_dicom_file
 from mpips.conversion.metadata import build_converter_metadata_json
 from mpips.conversion.validation import validate_dicom_dataset
-from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
+from mpips.conversion.tiff_json_to_dcm import tiff_json_to_dcm
 
 logger = logging.getLogger(__name__)
 

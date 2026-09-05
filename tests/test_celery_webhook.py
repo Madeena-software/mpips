@@ -49,7 +49,7 @@ def test_dispatch_webhook(mock_httpx_client: Any) -> None:
 
 
 @patch("mpips.worker.tasks.dispatch_webhook")
-@patch("mpips.engine.dag.DAGExecutor.execute")
+@patch("mpips.dag.executor.DAGExecutor.execute")
 def test_run_pipeline_success(
     mock_execute: Any, mock_dispatch: Any, mock_redis: Any
 ) -> None:
@@ -99,7 +99,7 @@ def test_run_pipeline_success(
 
 
 @patch("mpips.worker.tasks.dispatch_webhook")
-@patch("mpips.engine.dag.DAGExecutor.execute")
+@patch("mpips.dag.executor.DAGExecutor.execute")
 def test_run_pipeline_dispatches_progress_webhook(
     mock_execute: Any, mock_dispatch: Any, mock_redis: Any
 ) -> None:
@@ -153,7 +153,7 @@ def test_run_pipeline_dispatches_progress_webhook(
 
 
 @patch("mpips.worker.tasks.dispatch_webhook")
-@patch("mpips.engine.dag.DAGExecutor.execute")
+@patch("mpips.dag.executor.DAGExecutor.execute")
 def test_run_pipeline_failure(
     mock_execute: Any, mock_dispatch: Any, mock_redis: Any
 ) -> None:

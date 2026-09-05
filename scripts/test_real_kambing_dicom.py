@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 import httpx
+from httpx._types import RequestFiles
 import pydicom
 
 import os
@@ -63,12 +64,16 @@ manifest_data = {
         "radiograph": {
             "filename": "BED_1783222264263.npz",
             "byte_size": 69615538,
-            "sha256": "1a1436b6aab20a2161e862617afe7f951e4483a35b869bb7df2539d16cdc64f0",
+            "sha256": (
+                "1a1436b6aab20a2161e862617afe7f951e4483a35b869bb7df2539d16cdc64f0"
+            ),
         },
         "gain": {
             "filename": "BED_1783219207291.npz",
             "byte_size": 16371836,
-            "sha256": "2467d0e0efd81f7441053fc8bfdc7d246db457cd31d9d56be44b4239c22719c0",
+            "sha256": (
+                "2467d0e0efd81f7441053fc8bfdc7d246db457cd31d9d56be44b4239c22719c0"
+            ),
         },
     },
     "dicom": {
@@ -88,7 +93,7 @@ manifest_json_str = json.dumps(manifest_data)
 print(f"POSTing real kambing NPZ files to {URL}...")
 with httpx.Client(timeout=120.0) as client:
     with open(RAD_PATH, "rb") as rad_f, open(GAIN_PATH, "rb") as gain_f:
-        files = {
+        files: RequestFiles = {
             "manifest": ("manifest.json", manifest_json_str, "application/json"),
             "radiograph_npz": (
                 "BED_1783222264263.npz",

@@ -12,8 +12,9 @@ import cv2
 import numpy as np
 import pydicom
 
-from mpips.engine.imager_pipeline import complete_pipeline as engine
-from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
+from mpips.conversion.tiff_json_to_dcm import tiff_json_to_dcm
+from mpips.pipelines.radiography import _report_stage
+from mpips.processing.correction import flat_field_correction
 from mpips.workflows.imager_pipeline.npz_io import (
     load_calibration_processed_image,
     load_gain_catalog,
@@ -48,7 +49,7 @@ def inspect_neural_support(directory: Path = SUPPORT_DIR) -> dict[str, object]:
     """Compare learned displacement inside/outside detected grid support."""
     import torch
 
-    from mpips.engine.calibration.dotgrid.neural_model.model import MLPCompensation
+    from mpips.calibration.dotgrid.neural_model.model import MLPCompensation
 
     coordinates = []
     with (directory / "grid_coordinates.csv").open() as source:
@@ -359,7 +360,7 @@ def _case(
         if mode == "HISTORICAL_789ADFF_REMAP":
             with np.load(SUPPORT_DIR / "remap.npz", allow_pickle=False) as remap:
                 map_x, map_y = remap["map_x"], remap["map_y"]
-    corrected = engine.flat_field_correction(
+    corrected = flat_field_correction(
         raw.astype(np.float32) / 65535,
         dark.astype(np.float32) / 65535,
         flat.astype(np.float32) / 65535,
@@ -385,7 +386,7 @@ def _case(
         stage_observer=stages.__setitem__,
         threshold_method_override=("auto" if threshold_mode == "auto" else None),
     )
-    engine._report_stage(stages.__setitem__, "SOURCE_PROCESSED_REFERENCE", reference)
+    _report_stage(stages.__setitem__, "SOURCE_PROCESSED_REFERENCE", reference)
     mode_dir = output / f"case-{case}" / threshold_mode / mode.lower().replace("_", "-")
     mode_dir.mkdir(parents=True, exist_ok=True)
     _preview(mode_dir / "final-preview.png", final)

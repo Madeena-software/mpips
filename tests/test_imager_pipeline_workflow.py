@@ -22,12 +22,14 @@ from mpips.workflows.imager_pipeline.calibration import (
     _load_calibration_image,
     _validate_metrics,
     extract_dot_grid,
+    load_remap,
 )
 from mpips.workflows.imager_pipeline.npz_io import (
     load_calibration_processed_image,
     load_radiograph,
     sha256_file,
     to_uint16,
+    write_tiff,
 )
 from mpips.workflows.imager_pipeline.pipeline import (
     apply_calibration_remap,
@@ -40,7 +42,7 @@ from mpips.workflows.imager_pipeline.pipeline import (
     imagej_stretch,
     process_radiography_arrays,
 )
-from mpips.engine.imager_pipeline.imagej_replicator import ImageJReplicator
+from mpips.processing.imagej import ImageJReplicator
 
 CAMERA = {
     "cameraUserID": "BED-1",
@@ -420,6 +422,36 @@ def test_calibration_quality_gate_rejects_weak_metrics() -> None:
         _validate_metrics(metrics, metrics, NeuralCalibrationConfig())
 
 
+def test_calibration_quality_gate_preserves_exact_threshold_boundary() -> None:
+    before = {
+        "col_rmse": 100.0,
+        "reproj": 100.0,
+        "spacing_x_std": 100.0,
+        "spacing_y_std": 100.0,
+        "diam_std": 100.0,
+    }
+    passing_metrics = {
+        "col_rmse": 1.0,
+        "spacing_x_std": 1.0,
+        "spacing_y_std": 1.0,
+        "diam_std": 1.0,
+    }
+    exact = {**before, **passing_metrics, "reproj": 50.0}
+    config = NeuralCalibrationConfig(min_reprojection_reduction=50.0)
+
+    reductions = _validate_metrics(before, exact, config)
+
+    assert reductions["reprojection"] == 50.0
+
+    immediately_below = {
+        **before,
+        **passing_metrics,
+        "reproj": np.nextafter(50.0, np.inf),
+    }
+    with pytest.raises(CalibrationValidationError, match="reprojection"):
+        _validate_metrics(before, immediately_below, config)
+
+
 def test_pipeline_primitives_preserve_shapes_and_dtype() -> None:
     image = np.arange(25, dtype=np.uint16).reshape(5, 5)
     y_values, x_values = np.indices(image.shape, dtype=np.float32)
@@ -432,9 +464,23 @@ def test_pipeline_primitives_preserve_shapes_and_dtype() -> None:
         np.full_like(image, 100, dtype=np.float32),
     )
     assert corrected.shape == image.shape
+    assert corrected.dtype == np.float32
+    assert np.isfinite(corrected).all()
     filtered = hybrid_median_filter(image, radius=1)
     assert filtered.shape == image.shape
     assert filtered.dtype == np.uint16
+
+
+def test_identity_calibration_artifact_loads_float32_maps(tmp_path: Path) -> None:
+    map_x, map_y = load_remap(identity_artifacts(tmp_path))
+
+    assert map_x.shape == (8, 8)
+    assert map_y.shape == (8, 8)
+    assert map_x.dtype == np.float32
+    assert map_y.dtype == np.float32
+    y_values, x_values = np.indices((8, 8), dtype=np.float32)
+    np.testing.assert_array_equal(map_x, x_values)
+    np.testing.assert_array_equal(map_y, y_values)
 
 
 def test_imagej_operations_match_golden_arrays() -> None:
@@ -473,11 +519,8 @@ def test_reference_notebook_defaults_are_preserved() -> None:
 
 def test_promoted_canonical_modules_are_importable() -> None:
     modules = (
-        "mpips.engine.calibration.dotgrid.extract_grid",
-        "mpips.engine.calibration.dotgrid.neural_model.phantom",
-        "mpips.engine.imager_pipeline.complete_pipeline",
-        "mpips.engine.imager_pipeline.imagej_replicator",
-        "mpips.engine.imager_pipeline.wavelet_denoising",
+        "mpips.calibration.dotgrid.extract_grid",
+        "mpips.calibration.dotgrid.neural_model.phantom",
     )
     for module in modules:
         assert importlib.import_module(module) is not None
@@ -505,7 +548,7 @@ def test_precise_and_fast_clahe_adapters_match_canonical_engine() -> None:
         np.testing.assert_array_equal(actual, expected)
 
 
-def test_complete_promoted_recipe_matches_golden_tiff_pixels() -> None:
+def test_complete_promoted_recipe_matches_golden_tiff_pixels(tmp_path: Path) -> None:
     shape = (24, 24)
     y_values, x_values = np.indices(shape)
     raw = (
@@ -514,10 +557,29 @@ def test_complete_promoted_recipe_matches_golden_tiff_pixels() -> None:
     dark = (40 + ((x_values + y_values) % 7)).astype(np.uint16)
     flat = (3100 + x_values * 3 + y_values * 5).astype(np.uint16)
     output = process_radiography_arrays(raw, dark, flat, "BED", ImagerPipelineConfig())
+
+    assert raw.dtype == np.uint16
+    assert dark.dtype == np.uint16
+    assert flat.dtype == np.uint16
+    assert raw.shape == dark.shape == flat.shape == (24, 24)
+    assert output.shape == raw.shape
     assert output.dtype == np.uint16
-    assert hashlib.sha256(output.tobytes()).hexdigest() == (
-        "a5dc3a5c98b8f9bb5acfcd3b61974c70b0a3b637e7e792343c97f904d73f92e4"
+    assert 0 <= output.min() <= output.max() <= 65535
+    np.testing.assert_array_equal(
+        output[[0, 0, 4, 8, 23], [0, 4, 0, 0, 23]],
+        np.array([65535, 47802, 43690, 0, 0], dtype=np.uint16),
     )
+    assert hashlib.sha256(output.tobytes()).hexdigest() == (
+        "f176b16a29fc3a37fee76a133f88bc0018514210cccb461218008933186e18b7"
+    )
+
+    output_path = write_tiff(tmp_path / "canonical.tiff", output)
+    read_back = cv2.imread(str(output_path), cv2.IMREAD_UNCHANGED)
+    assert read_back is not None
+    assert read_back.shape == output.shape
+    assert read_back.dtype == np.uint16
+    assert 0 <= read_back.min() <= read_back.max() <= 65535
+    np.testing.assert_array_equal(read_back, output)
 
 
 def test_full_pipeline_can_run_fixed_recipe_without_optional_steps() -> None:
@@ -600,7 +662,71 @@ def test_batch_writes_tiff_and_manifest_and_continues_failures(tmp_path: Path) -
     assert result.items[0].output is not None
     written = cv2.imread(result.items[0].output, cv2.IMREAD_UNCHANGED)
     assert written is not None
+    assert written.shape == expected.shape
+    assert written.dtype == np.uint16
+    assert 0 <= written.min() <= written.max() <= 65535
     np.testing.assert_allclose(written, expected, atol=1)
+
+
+def test_batch_passes_validated_arrays_without_input_tiff_staging(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    gain_path = tmp_path / "gain.npz"
+    radio_path = tmp_path / "radio.npz"
+    save_gain(gain_path)
+    expected_raw = save_radiograph(radio_path)
+    catalog = load_gain_catalog([gain_path])
+    expected_gain = catalog.records["gain-1"]
+    writes: list[str] = []
+    captured: dict[str, np.ndarray] = {}
+    detector_modes: list[str] = []
+    real_write_tiff = write_tiff
+
+    def recording_write_tiff(path: str | Path, image: np.ndarray) -> Path:
+        writes.append(Path(path).name)
+        return real_write_tiff(path, image)
+
+    def fake_process(
+        raw: np.ndarray,
+        dark: np.ndarray,
+        flat: np.ndarray,
+        detector_mode: str,
+        config: ImagerPipelineConfig,
+        *,
+        map_x: np.ndarray | None = None,
+        map_y: np.ndarray | None = None,
+    ) -> np.ndarray:
+        captured["raw"] = raw.copy()
+        captured["dark"] = dark.copy()
+        captured["flat"] = flat.copy()
+        detector_modes.append(detector_mode)
+        return np.full(raw.shape, 1234, dtype=np.uint16)
+
+    monkeypatch.setattr(
+        "mpips.workflows.imager_pipeline.batch.write_tiff", recording_write_tiff
+    )
+    monkeypatch.setattr(
+        "mpips.workflows.imager_pipeline.batch.process_radiography_arrays",
+        fake_process,
+    )
+
+    result = process_npz_batch(
+        [radio_path],
+        catalog,
+        identity_artifacts(tmp_path),
+        tmp_path / "output",
+        ImagerPipelineConfig(use_denoise=False),
+    )
+
+    assert result.succeeded == 1
+    assert writes == ["radio_processed.tiff"]
+    np.testing.assert_array_equal(captured["raw"], expected_raw)
+    np.testing.assert_array_equal(captured["dark"], expected_gain.dark)
+    np.testing.assert_array_equal(captured["flat"], expected_gain.flat)
+    assert captured["raw"].dtype == np.uint16
+    assert captured["dark"].dtype == np.uint16
+    assert captured["flat"].dtype == np.uint16
+    assert detector_modes == ["BED"]
 
 
 def test_batch_accepts_camera_mismatch_as_informational(tmp_path: Path) -> None:

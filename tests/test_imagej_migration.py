@@ -1,0 +1,256 @@
+import hashlib
+import importlib
+import subprocess
+import sys
+import textwrap
+from typing import Any
+from unittest.mock import patch
+
+import numpy as np
+import pytest
+
+import mpips.processing as processing
+
+
+def _imagej_class() -> type[Any]:
+    from mpips.processing.imagej import ImageJReplicator
+
+    return ImageJReplicator
+
+
+def test_imagej_replicator_is_canonical_in_processing() -> None:
+    canonical = _imagej_class()
+
+    assert canonical.__module__ == "mpips.processing.imagej"
+
+
+def test_legacy_imagej_module_is_retired() -> None:
+    with pytest.raises(ModuleNotFoundError):
+        importlib.import_module("mpips.engine.imager_pipeline.imagej_replicator")
+
+
+def test_processing_imagej_wrappers_do_not_import_legacy_module() -> None:
+    _imagej_class()
+    image = np.array([[0, 0, 1, 2], [2, 2, 3, 3]], dtype=np.uint8)
+
+    with patch.dict(
+        sys.modules,
+        {"mpips.engine.imager_pipeline.imagej_replicator": None},
+    ):
+        processing.imagej_stretch(image, 0.0)
+        processing.imagej_equalize(image)
+        processing.apply_clahe(
+            np.arange(16, dtype=np.uint16).reshape(4, 4),
+            3,
+            256,
+            0.6,
+        )
+        processing.hybrid_median_filter(image, radius=1)
+
+
+def test_canonical_imagej_import_is_service_runtime_safe() -> None:
+    script = textwrap.dedent("""
+        import sys
+
+        from mpips.processing.imagej import ImageJReplicator
+
+        assert ImageJReplicator.__module__ == "mpips.processing.imagej"
+        forbidden = {
+            "boto3",
+            "celery",
+            "fastapi",
+            "httpx",
+            "mpips.api",
+            "mpips.engine",
+            "mpips.worker",
+            "mpips.workflows",
+        }
+        assert not forbidden.intersection(sys.modules)
+        """)
+    result = subprocess.run(
+        [sys.executable, "-c", script],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, result.stderr
+
+
+def test_imagej_wrappers_preserve_baseline_outputs() -> None:
+    image = np.array([[0, 0, 1, 2], [2, 2, 3, 3]], dtype=np.uint8)
+    equalized = processing.imagej_equalize(image)
+    stretched = processing.imagej_stretch(image, 0.0)
+    assert equalized.shape == image.shape
+    assert equalized.dtype == np.uint8
+    assert stretched.shape == image.shape
+    assert stretched.dtype == np.uint8
+    np.testing.assert_array_equal(
+        equalized,
+        np.array([[0, 0, 63, 135], [135, 135, 218, 218]], dtype=np.uint8),
+    )
+    np.testing.assert_array_equal(
+        stretched,
+        np.array([[0, 0, 85, 170], [170, 170, 255, 255]], dtype=np.uint8),
+    )
+
+    clahe_input = np.arange(64, dtype=np.uint16).reshape(8, 8) * 1000
+    precise = processing.apply_clahe(
+        clahe_input,
+        5,
+        256,
+        0.6,
+        fast=False,
+        composite=True,
+    )
+    assert precise.shape == clahe_input.shape
+    assert precise.dtype == np.uint16
+    assert 0 <= precise.min() <= precise.max() <= 65535
+    assert hashlib.sha256(precise.tobytes()).hexdigest() == (
+        "5d94b2940b94f2dfbcfe41f130edef7bebfa59fa5a050e7cdbb9bbfbe140dcf6"
+    )
+    fast = processing.apply_clahe(
+        clahe_input,
+        5,
+        256,
+        0.6,
+        fast=True,
+        composite=True,
+    )
+    assert fast.shape == clahe_input.shape
+    assert fast.dtype == np.uint16
+    assert 0 <= fast.min() <= fast.max() <= 65535
+    assert hashlib.sha256(fast.tobytes()).hexdigest() == (
+        "1c4bb383c6e5af18532aff7f0c68e094fdb81c8dc545493758d11e2de8b49ea2"
+    )
+
+    median_input = np.array(
+        [
+            [9, 2, 7, 4, 6],
+            [3, 8, 1, 5, 0],
+            [6, 4, 9, 2, 7],
+            [5, 1, 8, 3, 6],
+            [0, 7, 2, 9, 4],
+        ],
+        dtype=np.uint16,
+    )
+    median = processing.hybrid_median_filter(median_input, radius=2)
+    assert median.shape == median_input.shape
+    assert median.dtype == np.uint16
+    np.testing.assert_array_equal(
+        median,
+        np.array(
+            [
+                [9, 2, 7, 4, 6],
+                [3, 7, 4, 5, 4],
+                [6, 4, 6, 3, 5],
+                [5, 4, 7, 4, 6],
+                [3, 7, 2, 9, 4],
+            ],
+            dtype=np.uint16,
+        ),
+    )
+
+
+def test_imagej_uint16_stretch_and_equalization_match_accepted_references() -> None:
+    image = (np.arange(25, dtype=np.uint16) * 257).reshape(5, 5)
+
+    stretched = processing.imagej_stretch(image, 0.35)
+    assert stretched.shape == image.shape
+    assert stretched.dtype == image.dtype
+    assert hashlib.sha256(stretched.tobytes()).hexdigest() == (
+        "776abec193b4d98a9ba397b111718d3b40cb921c2faa224bd21dbec1b9f04dbd"
+    )
+
+
+@pytest.mark.parametrize(
+    ("classic", "dtype", "expected_hash"),
+    (
+        (
+            False,
+            np.uint8,
+            "37c75a82822033dec9f4cc9c504a46664d0a816a648953be4bb054890ffca3f7",
+        ),
+        (
+            True,
+            np.uint8,
+            "3ed1dd4695afb31ff8fb96a14efbe8f22e9b87ff06d5b785f73f1c3c1b9f9e55",
+        ),
+        (
+            False,
+            np.uint16,
+            "172fdc9ad53f216f5c4c41e6de9582abcc5a73217a9b0e6ab3ab616effe695fb",
+        ),
+        (
+            True,
+            np.uint16,
+            "577694133e8f9225f5b45cc07a9f1bd81caab768a70f76c279cd151d19cdf2d8",
+        ),
+    ),
+)
+def test_imagej_equalization_sparse_fixture_matches_accepted_references(
+    classic: bool, dtype: type[np.generic], expected_hash: str
+) -> None:
+    values = np.asarray([0] * 20 + [17, 17, 200, 255, 255], dtype=np.uint16)
+    image = (values * 257 if dtype == np.uint16 else values.astype(np.uint8)).reshape(
+        5, 5
+    )
+    output = processing.imagej_equalize(image, classic=classic)
+
+    assert output.shape == image.shape
+    assert output.dtype == image.dtype
+    assert hashlib.sha256(output.tobytes()).hexdigest() == expected_hash
+
+
+@pytest.mark.parametrize(
+    ("fast", "fiji_hash", "legacy_hash"),
+    (
+        (
+            False,
+            "b12db91a188b0dccdf2703dc3caa948bab24613e61256ef0002023d147daa34b",
+            "cf2067619fe4078bb2294d5449fd0ed2541e0286fda341fa0452af3595b1867d",
+        ),
+        (
+            True,
+            "b4a4958976bd092c0bc12d4d02b52e80d693549a72ee9ec9a7916cbf319b8fda",
+            "6dc3be3cb86149a8cd8ae9677da482c32cabea0326930d028b2260bac2ceea02",
+        ),
+    ),
+)
+def test_clahe_uint16_preserves_governed_mpips_divergence(
+    fast: bool, fiji_hash: str, legacy_hash: str
+) -> None:
+    y, x = np.indices((128, 128), dtype=np.uint64)
+    image = ((x * 257 + y * 509 + ((x * y) % 251) * 131) % 65536).astype(np.uint16)
+
+    assert hashlib.sha256(image.tobytes()).hexdigest() == (
+        "01941aeb2b4070d224e0271e9ef3f8bd6075001638d4cd75f9bfd06e4b0355c1"
+    )
+    output = processing.apply_clahe(image, 127, 256, 1.5, fast=fast, composite=True)
+    output_hash = hashlib.sha256(output.tobytes()).hexdigest()
+
+    assert output.shape == image.shape
+    assert output.dtype == np.uint16
+    assert output_hash == legacy_hash
+    assert output_hash != fiji_hash
+
+
+@pytest.mark.parametrize(
+    ("fast", "expected_hash"),
+    (
+        (False, "4b7790391a5d0fcc5dabc7059b44a6f877df5ea4236252560ba81ec7d578797e"),
+        (True, "dee626ac2c1c97e49ff9f810c3429660a40dea9c0ca0b1d9a9a3bad7b53013c9"),
+    ),
+)
+def test_clahe_uint8_preserves_legacy_mpips_contract(
+    fast: bool, expected_hash: str
+) -> None:
+    image = np.arange(64, dtype=np.uint8).reshape(8, 8)
+    assert hashlib.sha256(image.tobytes()).hexdigest() == (
+        "fdeab9acf3710362bd2658cdc9a29e8f9c757fcf9811603a8c447cd1d9151108"
+    )
+    output = processing.apply_clahe(image, 5, 256, 0.6, fast=fast, composite=True)
+
+    assert output.shape == image.shape
+    assert output.dtype == np.uint8
+    assert hashlib.sha256(output.tobytes()).hexdigest() == expected_hash

@@ -1,0 +1,1321 @@
+# Main Hotfix Reconciliation Evidence
+
+## Phase 1 — Upstream Hotfix Impact Mapping
+
+### Governing identity
+
+- Governing task publication: `32edb5b429b29a1dc6183727a6af21fb9a5fce27`
+- Accepted ImageJ/Fiji baseline: `a4a5c16881e589154680f0606c849e2a4514041f`
+- Refactor implementation baseline: `a4a5c16881e589154680f0606c849e2a4514041f`
+- Frozen main: `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd`
+- Known merge base: `fec5695048acbc3ce95d0a658032ec3701b6e045`
+- Pre-execution HEAD: `32edb5b429b29a1dc6183727a6af21fb9a5fce27`
+- Branch: `refactor/package-boundaries`
+- `origin/refactor/package-boundaries`: `32edb5b429b29a1dc6183727a6af21fb9a5fce27`
+- Observed `origin/main`: `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd` (not newer than frozen baseline).
+
+The pre-execution worktree was clean. All named commits resolved. The protected
+converter SHA-256 was verified as
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+### Frozen range inventory
+
+The exact range `fec5695048acbc3ce95d0a658032ec3701b6e045..203c6c65cf6d6b5a8df0271ab610ded950b8f9fd` contains 25 commits:
+
+| # | SHA | Subject | Main paths / behavior classification |
+|---:|---|---|---|
+| 1 | `babfe33720f9d93d197eadae8b7c523633f090d4` | ci: add production DICOM E2E diagnostic | Diagnostic workflow/script/tests; infrastructure and test-only. |
+| 2 | `3cdfe114436ce06b67eba3990a656306c2b0a48f` | fix: harden production DICOM E2E diagnostic | Diagnostic assertions and failure handling; infrastructure/test-only. |
+| 3 | `2cf997cf1e5715727b22db2d616e7abe7ef8be56` | fix: classify diagnostic download failures | Diagnostic classification; infrastructure-only. |
+| 4 | `f377f9d9a5653b6aeed4181719eab87a00e5d414` | fix: complete production DICOM diagnostic classification | Diagnostic classification and tests; infrastructure/test-only. |
+| 5 | `9f06c13c91be8e6a3ff7eb2f0687d373425b10ee` | fix: finalize production DICOM diagnostic safeguards | Diagnostic safeguards; infrastructure/test-only. |
+| 6 | `28258be60c81453223baeb163bb09aa5dc2867d2` | fix: preserve production diagnostic failure precedence | Diagnostic result precedence; infrastructure/test-only. |
+| 7 | `55237df29160687b7b5f3771fefb28eff5a0a5c0` | fix: harden Drive download for production diagnostic | Download staging and diagnostics; infrastructure-only. |
+| 8 | `6013ef86e06f4c1ddfe5e5228260804937a4dfe0` | ci: prepare multi-mode calibration promotion | Calibration-layout validator and deployment preparation; infrastructure/test-only. |
+| 9 | `253360b08cda48d33dcf1c6434d8e372b289fdf5` | fix: harden multi-mode calibration preflight | Carrier/layout preflight; infrastructure/test-only. |
+| 10 | `d175a6fa56ca32cf78007c39baff24075dbd5a0e` | fix: make camera metadata non-blocking for DICOM conversion | Removes camera-serial rejection from NPZ/workflow validation; runtime compatibility semantic. |
+| 11 | `be7757160ef635e703f2e5b902854fe2831038c0` | test: prepare real thorax TRX validation | Manifest fixture and test; test-only. |
+| 12 | `9414d5c5b894801bc7061458e200c3e3b8f14768` | ci: add guarded production calibration promotion | Promotion workflow/script/tests; infrastructure/test-only. |
+| 13 | `5db4ba15132458cf4288a09fc94e6f6449d68af0` | fix: harden calibration promotion rollback verification | Rollback and manifest checks; infrastructure/test-only. |
+| 14 | `096e8b4e391daa5d0c48006d96c4470c092a33a4` | fix: update .gitignore to include additional output directories | Repository hygiene; not applicable to runtime reconciliation. |
+| 15 | `e6482cea4de2b0a45fcac61a0c3aee919b9b14fd` | fix: preserve calibration root during promotion | Promotion root/rollback and TRX validation script; infrastructure/test-only. |
+| 16 | `92c8c167d2d537a1de5ae27db8958e8f46cd3b78` | fix: reject unsafe calibration remaps | Fixed-canvas remap coverage guard; canonical workflow runtime validation semantic. |
+| 17 | `ec1aae0448a82e615fdc39ec6ebaa1fc2ec1089` | fix: preserve complete calibration grid extraction | Legacy extractor retains complete rectangular lattice; calibration semantic. |
+| 18 | `870745f92326e4df845b0b7ac23cb86b514d823b` | fix: recover calibration lattice from border artifacts | Legacy border/partial-edge recovery; calibration semantic. |
+| 19 | `6f495cccbfe372e6f3ff467888d602fb9dc1656c` | fix: recover complete calibration lattice symmetrically | Legacy symmetric lattice recovery and spurious-row handling; calibration semantic. |
+| 20 | `ff2d0eba741f842b721735092649f1de3289c4ab` | ci: prepare validated trx calibration promotion | Carrier and validation workflow; infrastructure/test-only. |
+| 21 | `b034401f9ae290407f3eb7159402bb12583e2a68` | fix: reject collapsed trx pipeline outputs | Exact-zero/nonzero/bbox/range gates in TRX validation; production validation/test-only, not universal runtime quality policy. |
+| 22 | `e268bf0d8c8692b0e65e05dd5905595095db4d23` | fix: prevent destructive trx threshold separation | TRX threshold bypass, configured BED behavior, diagnostic override; runtime policy semantic in legacy pipeline. |
+| 23 | `b3ed78d5077d8e4634c913939e5c28f8620679e9` | test: complete trx threshold bypass validation | TRX bypass validation; test-only plus legacy plumbing. |
+| 24 | `91263f7db860d97414bc90731c8eaf898739c4b6` | fix: require validated trx pipeline for calibration promotion | Promotion prerequisite; infrastructure-only. |
+| 25 | `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd` | ci: pin validated trx calibration carrier | Carrier ID/fingerprint pinning; infrastructure-only. |
+
+### Behavior reconciliation table
+
+| Upstream SHA / subject | Behavior/change | Category | Relevant to canonical refactor? / owner | Presence and conflict | Proposed disposition / rationale |
+|---|---|---|---|---|---|
+| `babfe337`, `3cdfe114`, `2cf997cf`, `f377f9d9`, `9f06c13c`, `28258be`, `55237df` diagnostic chain | Production DICOM E2E download, classification, precedence, and failure safeguards. | Production diagnostics | No runtime owner; `scripts/` and `.github/` only. | Not present as canonical runtime behavior; no semantic conflict. | **INFRA-ONLY**. Keep out of Phase 2; these validate deployment and external data access. |
+| `6013ef8`, `253360b` | Multi-mode calibration layout/preflight and carrier metadata. | Promotion validation | No canonical processing owner. | Canonical calibration artifacts are consumed by workflow code, but promotion layout is external operational policy. | **INFRA-ONLY**. |
+| `d175a6f` | Camera metadata becomes optional/non-blocking while detector/gain/shape checks remain. | Conversion/NPZ compatibility | `mpips/workflows/imager_pipeline/npz_io.py`, `batch.py`, `calibration.py`, and conversion worker/service. | Current refactor still rejects camera-serial disagreement in the shown canonical calibration/batch paths; current NPZ loaders accept optional camera mappings. | **REVIEW REQUIRED**. This is a concrete runtime compatibility decision, but it is separate from Otsu/TRX and needs its own bounded task or explicit Phase-2 inclusion. |
+| `be77571` | Real TRX manifest fixture. | Test data | `tests/` and `artifacts/`. | No production semantic. | **TEST-ONLY**. |
+| `9414d5c`, `5db4ba1`, `e6482ce`, `ff2d0eb`, `91263f7`, `203c6c6` | Guarded promotion, fingerprint/carrier pinning, rollback, runtime preflight, and validated-TRX prerequisites. | Production operations | No canonical runtime owner. | Not present in registered API path; intentionally operational. | **INFRA-ONLY**. Do not port deployment machinery. |
+| `096e8b4` | Ignore generated promotion/output directories. | Repository operations | None. | No runtime effect. | **NOT APPLICABLE**. |
+| `92c8c16` | Reject fixed-canvas remaps with low valid fraction or collapsed valid bounding box; preserve evidence for expanded canvas. | Calibration/runtime validation | `mpips/workflows/imager_pipeline/calibration.py`. | Canonical workflow lacks these frozen-main coverage constants/checks. | **SEPARATE TASK REQUIRED** with calibration reconciliation; not part of minimal image hotfix. |
+| `ec1aae0`, `870745f`, `6f495cc` | Preserve complete grid; recover partial border rows/columns; reject spurious rows and recover symmetric lattice. | Calibration algorithm | Canonical `mpips/calibration/dotgrid/extract_grid.py`. | Current extractor groups contours and trims to modal row width; it does not contain the frozen-main lattice-recovery algorithm. Legacy implementation is under `mpips/engine`, which must not be copied wholesale. | **PLANNING REQUIRED — CALIBRATION RECONCILIATION MUST BE SEPARATED**. |
+| `b034401` | Validation records exact-zero ratio, nonzero ratio, nonzero bbox, dynamic range, and first collapse stage for real TRX acceptance. | Known-data regression gate | `scripts/validate_real_trx_pipeline.py`, promotion tests. | No equivalent general gate in canonical processing; canonical output is produced by `RadiographyPipeline`. | **TEST-ONLY** plus **INFRA-ONLY** promotion gate. Do not make dataset thresholds universal image-quality rules. |
+| `e268bf0`, `b3ed78d` | `threshold_method_for_detector`: TRX defaults to `none`; BED keeps configured method; explicit diagnostic override can force a method. | Runtime detector policy / validation | Policy belongs at `mpips/workflows/imager_pipeline/pipeline.py` or `mpips/pipelines/radiography.py`; mathematics belongs in `mpips/processing/thresholding.py`. | Current canonical `RadiographyPipeline.process()` accepts `detector_mode` but applies configured threshold identically to TRX and BED; no override/stage observer exists. | **REIMPLEMENT CANONICALLY** for policy, with a separate validation-only override. Do not teach low-level threshold math detector types. |
+| `d175a6f` conversion edits | Camera metadata optionality propagates through NPZ loading and conversion. | Conversion/service | `mpips/conversion/service.py`, `worker.py`, workflow adapters. | Final-image-to-DICOM boundary is already present and protected; camera policy is the only possible semantic delta. | **REVIEW REQUIRED** / separate bounded compatibility decision. Protected converter is unchanged. |
+
+### Otsu semantic contradiction
+
+Canonical owner: `mpips/processing/thresholding.py`, `detect_threshold()`.
+
+Current code uses the OpenCV contract backwards in both branches:
+
+```python
+_, threshold_otsu_uint16 = cv2.threshold(image_uint16, 0, 65535, flags)
+```
+
+OpenCV returns `(threshold_value, thresholded_image)`, so the current code stores
+the thresholded image in `threshold_otsu_uint16`, divides the whole image by
+65535, then takes the first pixel as the apparent scalar threshold. The uint16
+path therefore returns either `0.0` or `1.0`-scale data from pixel zero rather
+than the Otsu scalar in the uint16 domain. The float32 path has the same error
+after conversion to uint16 and normalization.
+
+Frozen main corrects this to:
+
+```python
+threshold_otsu_uint16, _ = cv2.threshold(...)
+threshold_otsu = threshold_otsu_uint16 / 65535
+```
+
+For uint16 input the returned scalar must remain in the uint16 intensity domain
+(and be passed to the method selector in that domain). For normalized float32
+input, conversion to uint16 for OpenCV must be followed by scalar normalization
+back to `[0, 1]`. The current first-pixel dependence can produce zero, causing
+Otsu-selected separation to collapse all output to the background, or a
+non-threshold scalar, making historical Otsu rows materially invalid.
+
+Existing `tests/test_thresholding_processing.py` explicitly records `otsu == 0`
+and does not test scalar-vs-image return semantics. Proposed Phase-2 regression
+coverage, without implementing it here: scalar return; uint16-domain threshold;
+normalized float32-domain threshold; independence from the first output pixel;
+and deterministic repeated execution. The smallest candidate write surface is
+`mpips/processing/thresholding.py` plus `tests/test_thresholding_processing.py`.
+
+### Detector-specific threshold policy
+
+Threshold mathematics remains detector-agnostic in
+`mpips/processing/thresholding.py`. Detector policy belongs in the orchestration
+boundary, preferably `mpips/pipelines/radiography.py` (or its workflow adapter
+if the API contract must stay workflow-specific), because that layer already
+receives `detector_mode` and owns sequencing. The current canonical pipeline
+does not bypass threshold separation for TRX. BED must retain its configured
+method. A diagnostic override is useful for controlled validation, but should
+be validation-only plumbing and not a production default/API contract.
+
+Smallest candidate Phase-2 policy surface: `mpips/pipelines/radiography.py`,
+possibly `mpips/workflows/imager_pipeline/pipeline.py` if the adapter must carry
+the explicit override, and focused tests in `tests/test_radiography_pipeline.py`
+or `tests/test_config_characterization.py`. This is separate from the Otsu math
+fix and must not broaden the low-level detector API unnecessarily.
+
+### Stage observability and collapse validation
+
+Frozen main’s `stage_observer` reports stages including `SOURCE_RAW`,
+`DENOISED_RAW`, `FFC`, `REMAP`, `CROP_ROTATE`, `PRE_THRESHOLD`,
+`THRESHOLD_SEPARATION`, `INVERT`, `CONTRAST`, `CLAHE`, `MEDIAN`, `REMAP_MASK`,
+and `FINAL_IMAGE`, with shape, dtype, ranges, percentiles, zero/nonzero ratios,
+and a nonzero bounding box. In the frozen range this is attached to the legacy
+pipeline and real-TRX diagnostic validation. The canonical pipeline has no
+observer hook, and the current API does not require per-stage telemetry.
+
+Disposition: **VALIDATION-ONLY / SEPARATE OBSERVABILITY CONCERN**. Do not port
+the instrumentation into production processing in Phase 2. If needed later,
+add a separately approved opt-in diagnostic interface with bounded cost and no
+change to default image semantics.
+
+The exact-zero ratio, nonzero ratio, bbox, and dynamic-range checks are
+**KNOWN-DATA REGRESSION GATES** for the pinned real-TRX acceptance workflow.
+They are not general clinical/image-quality rules. Keep them in diagnostic
+scripts, tests, and the production promotion gate; do not add universal zero
+floors to `mpips/processing`.
+
+### Calibration reconciliation
+
+The frozen calibration changes address border artifacts, partial edge rows and
+columns, complete/symmetric lattice recovery, spurious-row rejection, and safe
+remap coverage. Current canonical `mpips/calibration/dotgrid/extract_grid.py`
+uses contour grouping plus modal-width trimming; it does not implement those
+semantics. Current runtime remapping is exposed through canonical workflow
+adapters, but the frozen lattice extractor is in legacy `mpips/engine` paths.
+
+Disposition: **PLANNING REQUIRED — CALIBRATION RECONCILIATION MUST BE
+SEPARATED**. Do not copy `mpips/engine/calibration/**`. A later task must map
+the required behavior into `mpips/calibration/**`, define fixtures for border and
+partial-edge cases, and separately reconcile the fixed-canvas remap coverage
+guard. Calibration is not a safely bounded Phase-2 image hotfix.
+
+### Conversion / worker / DICOM boundary
+
+The frozen conversion changes are limited to camera metadata optionality in the
+worker/service/workflow validation path. The canonical flow already separates
+processed TIFF/final image generation from parent-side DICOM conversion,
+enrichment, and structural validation (`mpips/conversion/service.py`,
+`mpips/conversion/worker.py`, and `mpips/conversion/validation.py`). Existing
+tests validate DICOM dimensions, 16-bit unsigned pixels, parseability, and
+manifest-derived structure. `mpips/conversion/tiff_json_to_dcm.py` is byte/hash
+protected.
+
+Disposition: no final-image/DICOM semantic port is required. Camera metadata
+optionality is a **REVIEW REQUIRED** compatibility decision, not a reason to
+modify the converter or merge legacy service code. NPZ → processing → TIFF →
+DICOM routing is already canonical through the workflow and conversion worker;
+promotion diagnostics and output-directory behavior remain operational/test
+concerns.
+
+### Production infrastructure exclusions
+
+Do not port the Drive download diagnostic, production DICOM E2E workflow,
+carrier IDs or secrets, calibration promotion workflow, runtime preflight,
+rollback directory machinery, deployment workflow edits, `.gitignore` changes,
+promotion manifests, or pinned production calibration carriers. These are
+**INFRA-ONLY** and remain outside the canonical processing packages.
+
+### ImageJ/Fiji impact
+
+**NO REOPENING REQUIRED.** Frozen-range changes do not materially change
+Contrast Stretch, Weighted/Classical Equalization, Hybrid Median, Circular
+Median, or CLAHE semantics. The accepted ImageJ/Fiji closure at
+`a4a5c16881e589154680f0606c849e2a4514041f` remains protected. No direct
+contradiction was found.
+
+### I-5B impact
+
+Historical I-5B publication: task `82cf2187b2efd6146de790021c1ba5e4e307b9d7`,
+corrected evidence baseline `8396fbc768285cc68ed3bbe572561cd664b70e8b`.
+The immutable cohort is six identities: three `Kepala` and three `Tulang
+Belakang`. The original matrix is 72 rows: 4 threshold conditions × 3 CLAHE
+conditions × 6 cases.
+
+| Condition | Impact classification | Evidence |
+|---|---|---|
+| `NONE` | Unaffected by Otsu return-value fix. | No Otsu selection. |
+| `OTSU` / `T_ALT1` | Directly affected; historical Otsu outputs collapsed to zero under the buggy scalar. | Corrected historical evidence says Otsu collapses all governed outputs. |
+| `KNEE` / `T_ALT2` | Not affected merely because Otsu was buggy. | Independent threshold method. |
+| `CLAHE` combinations | Not automatically invalidated; revalidate only where paired with affected threshold conditions. | CLAHE value conclusion is independent and remains supported pending bounded comparison. |
+| `AUTO` | Not proven directly affected. | Auto selects valley first, then secondary peak, then Otsu only as a fallback when the scalar is positive. Historical AUTO rows were not collapsed, but the artifact does not record the selected fallback method; an AUTO→Otsu path cannot be excluded from source/evidence alone. |
+| Interaction conclusion | Partially conditional. | The historical interaction signal involved Otsu collapse versus Knee/AUTO behavior; it must be rechecked after the implementation fix, without changing the original experiment identity. |
+
+### Proposed bounded Phase-4 revalidation
+
+Reuse the exact six original cases and their original raw/gain/calibration
+identities. Do not use the later Drive source. The smallest defensible matrix is
+36 rows: all 18 `T_ALT1`/Otsu rows and all 18 `T_AUTO` rows, each with C0, M06,
+and M15. AUTO is included because selected-method provenance was not recorded
+and the source permits an Otsu fallback; NONE and KNEE do not need reruns for
+this implementation-change isolation question.
+
+For every row, require: the corrected output and DICOM/final shape, dtype,
+deterministic output hash, stage/output exact-zero and nonzero ratios, nonzero
+bbox, dynamic range, the historical IQA metrics (alignment Pearson, edge
+recall, gradient-energy retention, informative-tile counts/lost fraction,
+low-percentile retention, informative-extreme fraction), and comparison with
+the historical row values. Preserve the original cohort, calibration
+fingerprint, input identities, and row keys.
+
+Disposition: classify each row as unchanged, corrected-only, non-comparable, or
+error. Confirm whether corrected Otsu remains a catastrophic collapse, whether
+AUTO selected Otsu, and whether the interaction conclusion survives. Do not
+rewrite the historical 72-row evidence and do not start a new population or
+stage-order experiment.
+
+### Proposed Phase-2 write surface
+
+1. `mpips/processing/thresholding.py` — correct the OpenCV scalar return-value
+   unpacking and preserve uint16/normalized-float32 domain semantics.
+2. `tests/test_thresholding_processing.py` — add only the five focused Otsu
+   regressions listed above.
+3. `mpips/pipelines/radiography.py` — apply TRX default bypass and preserve BED
+   configuration at the orchestration boundary, only if Phase-2 planning accepts
+   the policy as part of this hotfix task.
+4. `tests/test_radiography_pipeline.py` — verify TRX/BED policy separation and
+   deterministic outputs, only with the bounded policy change.
+
+Camera metadata optionality and calibration remap/lattice behavior are not
+included in this minimal surface; each needs a separate bounded decision/task.
+
+### Items explicitly not to port
+
+- `mpips/engine/calibration/**` or any whole legacy engine module.
+- Production diagnostic scripts/workflows and Drive download logic.
+- Carrier IDs, production secrets, promotion manifests, runtime preflight,
+  rollback, and deployment changes.
+- Universal zero-ratio, nonzero-ratio, bbox, or dynamic-range quality rules in
+  the processing runtime.
+- Stage observers and diagnostic stage snapshots in the default production
+  pipeline.
+- Changes to `mpips/conversion/tiff_json_to_dcm.py`.
+- Historical I-5B evidence or artifacts.
+- ImageJ/Fiji semantic changes or stage-order changes.
+
+### Protected converter
+
+Observed SHA-256:
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0` (matches
+the required invariant).
+
+### Remaining uncertainties
+
+- The current I-5B row artifacts do not record the selected AUTO fallback
+  method, so AUTO rows must be included in bounded Phase-4 revalidation.
+- Camera-serial optionality is present in frozen main but conflicts with current
+  canonical compatibility checks; it requires an explicit scoped decision.
+- Calibration lattice/remap fixes cannot be bounded with the image hotfix and
+  require a separate planning task.
+
+### Verification record
+
+Commands actually run included branch/HEAD/ref checks, commit resolvability and
+range inventory, `git merge-base`, clean-worktree inspection, protected-file
+`sha256sum`, frozen-range path/diff inspection, canonical source/test inspection,
+and immutable I-5B artifact inspection. No runtime production data, new Drive
+data, deployment, or external system was accessed.
+
+`git diff --check`: **PASS**. Because this file is intentionally untracked,
+the equivalent `/dev/null` versus evidence-file check was also run and passed.
+
+### Terminal state
+
+**Review Required**. Phase 2–5 remain unauthorized until review acceptance and
+republished task authority.
+
+## Phase 2 — Canonical Hotfix Port
+
+### Governing identity
+
+- Governing publication: `c652c0b47aa9560cf794a627550e65c8fe1f496b`.
+- Pre-execution HEAD: `c652c0b47aa9560cf794a627550e65c8fe1f496b`.
+- Branch: `refactor/package-boundaries`.
+- `origin/refactor/package-boundaries`: `c652c0b47aa9560cf794a627550e65c8fe1f496b`.
+- Frozen main: `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd` (resolvable).
+- Task: `.agents/tasks/main-hotfix-reconciliation.md`, version `1.1`.
+- Worktree was clean before execution. No newer main commits were absorbed.
+
+### Otsu correction
+
+The previous implementation retained OpenCV's thresholded output array and
+used its first element as the threshold, producing `0.0` for the
+representative fixture. The corrected implementation unpacks
+`threshold_value, thresholded_image = cv2.threshold(...)`, uses the scalar
+first return value, and discards the image output. Float32 input is converted
+to uint16 and the scalar is divided by `65535`; non-float32 input retains the
+scalar in its input intensity domain. The obsolete ndarray/first-pixel
+fallback was removed.
+
+Independent characterization on `_threshold_fixture()` produced OpenCV scalar
+`13107.0`, first thresholded-output pixel `0`, and normalized scalar
+`0.2`; the canonical result is `0.2`. Repeated calls returned `0.2`.
+The accepted representative Otsu golden is `0.2`.
+
+The deterministic uint16 fixture produced direct and canonical scalar `100.0`.
+The float32 result was scalar `0.2` in `[0, 1]`; the uint16 result was scalar
+`100.0` in `[0, 65535]`.
+
+### TRX/BED policy
+
+- TRX: **BYPASS BY DEFAULT**.
+- BED: **CONFIGURED THRESHOLD PRESERVED**.
+- Canonical orchestration location: `mpips/pipelines/radiography.py`.
+- Detector-agnostic threshold detection remains in
+  `mpips/processing/thresholding.py`.
+
+TRX bypasses threshold separation without mutating `use_threshold`,
+`threshold_method`, or unrelated CLAHE/median configuration. BED continues to
+invoke configured threshold detection; `none` and `use_threshold=False` retain
+the bypass behavior.
+
+### Regression evidence
+
+- `./.venv/bin/python -m pytest -q tests/test_thresholding_processing.py` — **18 passed**.
+- `./.venv/bin/python -m pytest -q tests/test_radiography_pipeline.py` — **28 passed, 11 warnings**.
+- Combined focused run — **46 passed, 11 warnings**.
+- `./.venv/bin/python -m pytest -q tests/test_imager_pipeline_workflow.py` — **27 passed, 1 skipped, 3 warnings**.
+- `./.venv/bin/python -m pytest -q tests/test_imagej_migration.py` — **14 passed**.
+- `git diff --check` — **PASS**.
+- Protected converter SHA-256 remained
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+The default BED regression remained unchanged. AUTO remains unchanged because
+the representative fixture selects Valley before Otsu; Otsu is not selected.
+
+### Explicit exclusions
+
+Diagnostic override, stage observer, collapse gate, calibration, camera
+metadata compatibility, production infrastructure, later main commits,
+I-5B rerun, and ImageJ reopening were not ported or performed. The protected
+converter was not modified.
+
+### Remaining reconciliation items
+
+Calibration reconciliation, the camera metadata compatibility decision, and
+Phase-4 revalidation of the bounded 36-row I-5B AUTO/Otsu affected set remain
+explicitly unresolved and unauthorized.
+
+### Converter
+
+Protected converter:
+`mpips/conversion/tiff_json_to_dcm.py`.
+SHA-256: `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+### Terminal state
+
+**Review Required**. Phase 3–5 remain unauthorized pending review and
+republished task authority. Acceptance is not release authorization.
+
+## Phase 3 — Newer-Main Radiography Semantic Drift Mapping
+
+### Governing and observed identity
+
+- Phase-2 task publication: `c652c0b47aa9560cf794a627550e65c8fe1f496b`.
+- Phase-2 accepted implementation: `e0ff8a5c093f5ad265bf65326b40663cb4454943`.
+- Historical frozen Phase-2 upstream main: `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd`.
+- Accepted ImageJ/Fiji baseline: `a4a5c16881e589154680f0606c849e2a4514041f`.
+- Phase-3 observed `origin/main` after fetch: `e94784db65bb134d43e87a2046037ab4d1cbfe02`.
+- Merge base: `fec5695048acbc3ce95d0a658032ec3701b6e045`.
+- Accepted Phase-2 branch state remained unchanged before this documentation remediation.
+
+The newer-main observation boundary is distinct from the historical frozen
+Phase-2 authority. No merge, rebase, cherry-pick, or runtime synchronization
+was performed.
+
+### Newer-main range inventory
+
+The observed range `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd..e94784db65bb134d43e87a2046037ab4d1cbfe02` contains 28 commits. The relevant inventory is:
+
+| Commits | Classification | Disposition |
+|---|---|---|
+| `ae41b1d5`, `80729162` | Calibration canvas/remap validation and expanded-canvas runtime semantics | **SEPARATE CALIBRATION SCOPE** |
+| `dd7c21ee` | BED and TRX threshold bypass in legacy radiography orchestration | **PORT / RECONCILE** for BED only after Planner review; Phase 3 does not implement it |
+| `4495f622`, `9a38b19a`, `369619b8`, `46b0e9f7` | Real BED verifier workflow, hardening, dependency staging, and observability | **EVIDENCE REQUIRED / PRODUCTION INFRASTRUCTURE ONLY** |
+| `195baf0a`, `f6b3b69f`, `3beffc3b`, `4bdac9e4`, `f34a82ce`, `392ceaec`, `86f4a66f`, `899383f4` | TRX calibration promotion modes, preflight, isolation, and promotion-only workflow | **PRODUCTION INFRASTRUCTURE ONLY** |
+| `ad116c69`, `7f6b773a`, `7006dbe2`, `320e5d0d`, `bc23d68f`, `e8122ad7` | Real TRX acceptance task, verifier, and CI/runtime-preflight hardening | **EVIDENCE REQUIRED / PRODUCTION INFRASTRUCTURE ONLY** |
+| `496b286f` | Published TRX orientation task | **ALREADY SATISFIED as task authority; implementation applicability requires reconciliation** |
+| `f2bf7b99` | Clockwise TRX orientation implementation and deterministic tests in legacy ownership | **PORT / RECONCILE**, with canonical ownership mapping required |
+| `4ccbcb1b`, `303675f2`, `bda82397`, `a05ebea2`, `e94784db` | Docker/build-cache optimization and bootstrap documentation | **DEFER TO OPTIMIZATION / PRODUCTION INFRASTRUCTURE ONLY** |
+
+The remaining commits in this range are included in the grouped inventory
+above; no additional canonical image-processing semantic was found beyond BED
+threshold policy, TRX orientation, and calibration/canvas behavior.
+
+### BED threshold default policy
+
+Commit `dd7c21eead66a2c5396522a2310f5dd9cbd85b85` changes legacy
+`mpips/engine/imager_pipeline/complete_pipeline.py` so both `BED` and `TRX`
+return threshold method `none` by default, while an explicit diagnostic
+override still applies. Its tests update the BED golden and assert that BED
+and TRX defaults skip threshold separation while explicit override applies.
+
+This is a newer semantic relative to accepted Phase 2: TRX bypass is already
+accepted, but BED configured threshold behavior was deliberately preserved
+under the frozen Phase-2 contract. Therefore current-main BED bypass is not
+retroactively justified by current behavior. It is a candidate **PORT /
+RECONCILE** decision for canonical orchestration, with **EVIDENCE REQUIRED**
+before implementation or acceptance.
+
+Commit `4495f6220ff610d80cfd119be6e6f9c62625acc0` adds a production-runner
+BED verifier; subsequent commits harden it and stage `gdown`. The repository
+contains workflow and verifier machinery, but no observed successful workflow
+result in this review. The machinery is not proof of completed production BED
+validation and remains production infrastructure/evidence input only.
+
+### TRX output orientation
+
+The published task `.agents/tasks/mpips-trx-output-orientation-hotfix.md` is
+validated/published on main at `496b286f...`, with implementation commit
+`f2bf7b9980f9af7649e1a6c45c46aaee7a55a36a`. The implementation changes legacy
+`crop_and_rotate_by_detector()` from `cv2.ROTATE_90_COUNTERCLOCKWISE` to
+`cv2.ROTATE_90_CLOCKWISE` and adds asymmetric sentinel tests mapping
+`[[1,2,3],[4,5,6]]` to `[[4,1],[5,2],[6,3]]`; BED remains unchanged.
+
+This is a justified production semantic candidate and **PORT / RECONCILE**
+for canonical ownership: the accepted refactor owns the operation in
+`mpips/processing/geometry.py`, while newer main routes through legacy engine
+ownership. The task/tests provide implementation evidence, but no separate
+observed production acceptance result was found. Do not port it during Phase 3.
+
+### Calibration and geometric corrections
+
+`ae41b1d5...` adds expanded-canvas validation and `80729162...` makes expanded
+calibration canvas behavior canonical across calibration/remap/model paths.
+The later range also contains calibration carrier, promotion, rollback,
+preflight, and TRX validation changes. Algorithm/runtime calibration semantics
+are **SEPARATE CALIBRATION SCOPE**; carriers, promotion, and preflight are
+**PRODUCTION INFRASTRUCTURE ONLY**. None were changed or absorbed here.
+
+### Production validation and CI
+
+The real BED/TRX verifier workflows, task documents, download integrity checks,
+promotion modes, and build-cache commits are evidence or operations machinery,
+not proof of successful production execution. No production workflow was
+dispatched, no production result was imported, and no deployment or promotion
+occurred. These items remain **EVIDENCE REQUIRED** or **PRODUCTION
+INFRASTRUCTURE ONLY** as classified above.
+
+### Preserved boundaries and unresolved gaps
+
+- Phase-2 Otsu, TRX bypass, BED configured-threshold behavior, ImageJ/Fiji
+  closure, and protected converter remain unchanged.
+- Protected converter SHA-256 remains
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+- No newer-main runtime semantic was implemented during this remediation.
+- BED bypass needs a separately reviewed canonical decision and evidence plan.
+- TRX orientation needs canonical geometry reconciliation and focused review.
+- Calibration/canvas and camera/conversion questions remain separate scopes.
+- I-5B revalidation and all optimization/ablation phases remain unauthorized.
+
+### Deferred BED/TRX characterization inputs
+
+These are future characterization/optimization inputs, not Phase-3 workload:
+
+- BED: `https://drive.google.com/drive/folders/1-15d10XwoZxB3fDzjoxG6Rh392aKJxd8` — heterogeneous sessions, calibration, processed artifacts, and goat/radiograph material; do not treat it as one cohort.
+- TRX source A: `https://drive.google.com/drive/folders/1Zn0JC4Rvg1-07ljSwA5hckSmO0FBidIv` — mixed real radiographs, calibration validation, and production carrier artifacts.
+- TRX source B: `https://drive.google.com/drive/folders/10wGVGU03Zut07DBsnBllzAgz44idgwM5` — 19 full TRX NPZ acquisitions and paired `NPZ tanpa processedimage` variants; verify fields, detector, calibration fingerprint, and orientation before use.
+
+Existing `processedimage` files are not automatically ground truth.
+
+### Phase-3 verification record
+
+Commands run: `git fetch origin`; branch/status/HEAD/ref/merge-base checks;
+newer-main range and path inventory; direct inspection of `dd7c21ee`,
+`4495f622`, `ae41b1d5`, `80729162`, `496b286f`, and `f2bf7b99`; orientation task
+inspection; protected converter `sha256sum`; `git diff --check`; and final
+changed-file/status checks. No production data, Drive data, deployment, or
+external mutation was accessed.
+
+### Terminal state
+
+**Review Required**. Phase 3 is mapping/evidence only. Subsequent runtime
+reconciliation, revalidation, and optimization remain unauthorized pending
+Planner/Reviewer review and republication.
+
+## Phase 3 contract remediation note
+
+The candidate documentation/evidence commit `bc093e66c590367b663a6e95073e7e0fd86d210e`
+was reviewed but was not accepted as the governing Phase-3 revision because
+the task contract retained stale Phase-2 current-scope language, left Phase 3
+as `CURRENT RELEASED PHASE` after the mapping was complete, and did not fully
+record the current documentation write surface or detector-specific source
+map. The semantic mapping itself was not rejected.
+
+Version `1.3` corrects those defects while preserving immutable Phase-2
+provenance, the Phase-3 mapping conclusions, and the deferred BED/TRX source
+references. Phase 3 is now `COMPLETED / REVIEW REQUIRED`; all runtime
+reconciliation, revalidation, optimization, and production work remains
+`UNAUTHORIZED`.
+
+## Phase 4 publication note
+
+Planner accepted Phase 3 closed at `b9093b0aec5dd66cf2a5afcd5028c2876cf889bd`.
+The umbrella task is republished as version `1.5` to release the bounded
+canonical TRX orientation port. The residual Phase-2 wording was corrected to
+historical/satisfied tense; no Phase-3 mapping conclusion was changed.
+
+Phase 4 authorizes only `mpips/processing/geometry.py`,
+`tests/test_geometry_processing.py`, and this evidence file. It ports the
+accepted clockwise TRX semantic from `f2bf7b9980f9af7649e1a6c45c46aaee7a55a36a`
+at canonical ownership. No runtime implementation occurred during this task
+republication; BED policy, calibration, conversion, ImageJ/Fiji, deployment,
+production, and optimization remain outside scope.
+
+During Planner review, `origin/refactor/package-boundaries` was observed at
+`bc093e66c590367b663a6e95073e7e0fd86d210e`. The prior Executor report stated
+that no push occurred. The candidate was reported as locally created; the
+remote branch was later observed at that candidate, and attribution of the
+remote update is unresolved. No runtime semantic was changed during this
+corrective remediation.
+
+## Phase 4 — Canonical TRX Orientation Port Evidence
+
+### Execution identity
+
+- Governing task: `.agents/tasks/main-hotfix-reconciliation.md` version `1.5` at `5f6e03d928c0d7e062f1cb666f4ab57e0273ff3a`.
+- Execution-start `HEAD`: `5f6e03d928c0d7e062f1cb666f4ab57e0273ff3a`.
+- Branch/worktree: `refactor/package-boundaries` / `/var/www/mpips`.
+- Initial worktree: clean; observed `origin/refactor/package-boundaries` at `5f6e03d928c0d7e062f1cb666f4ab57e0273ff3a`; observed `origin/main` at `e94784db65bb134d43e87a2046037ab4d1cbfe02`.
+
+### Orientation result
+
+Canonical owner: `mpips/processing/geometry.py`, function
+`crop_and_rotate()`. The old TRX operation was
+`cv2.ROTATE_90_COUNTERCLOCKWISE`; it is now
+`cv2.ROTATE_90_CLOCKWISE`. Crop-before-rotation remains unchanged and no
+second transform was added.
+
+For the exact sentinel input:
+
+```text
+[[1, 2, 3],
+ [4, 5, 6]]
+```
+
+the observed TRX output is:
+
+```text
+[[4, 1],
+ [5, 2],
+ [6, 3]]
+```
+
+The cropped TRX sentinel output was `[[11, 6], [12, 7], [13, 8]]`, with
+shape `(3, 2)` and `uint16` dtype. The workflow wrapper produced the same
+exact pixels, shape, and dtype. BED remained crop-only and unrotated, with
+the cropped sentinel output `[[6, 7, 8], [11, 12, 13]]`, shape `(2, 3)`,
+and `uint16` dtype. Zero-crop BED and supported `uint8`/`uint16` dtype
+coverage also passed.
+
+### Verification
+
+Executor-run local results, not GitHub CI or production evidence:
+
+- `./.venv/bin/python -m pytest -q tests/test_geometry_processing.py` — **8 passed**.
+- `./.venv/bin/python -m pytest -q tests/test_imager_pipeline_workflow.py` — **27 passed, 1 skipped, 3 warnings**.
+- `./.venv/bin/python -m pytest -q tests/test_radiography_pipeline.py` — **28 passed, 11 warnings**.
+- `./.venv/bin/python -m pytest -q tests/test_converter_protection.py` — **1 passed**.
+- `sha256sum mpips/conversion/tiff_json_to_dcm.py` — **a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0**.
+- `git diff --check` — **PASS**.
+
+Exact changed-file inventory: `mpips/processing/geometry.py`,
+`tests/test_geometry_processing.py`, and
+`.agents/evidence/main-hotfix-reconciliation.md`.
+
+Explicitly unchanged: BED threshold policy (**NO change**); calibration and
+calibration canvas/remap (**NO change**); DICOM converter (**NO change**);
+ImageJ/Fiji (**NO change**); deployment (**NO**); production workflow dispatch
+and production mutation (**NO**); Drive experiments (**NO**); optimization
+(**NO**). The NPZ → processing → DICOM boundaries remain preserved.
+
+Terminal state: **Review Required**. No next reconciliation phase was started.
+
+## Phase 5 publication — BED Threshold Policy Evidence Characterization
+
+Planner republished `.agents/tasks/main-hotfix-reconciliation.md` as version
+`1.6`. Phase 4 remains accepted and closed at
+`820948734e8b598b851135cc82c2210ead934963`.
+
+Phase 5 is required because canonical behavior preserves BED's configured
+threshold policy while later `main` defaults both BED and TRX to threshold
+bypass. Existing corrected bypass evidence supports TRX only; production-main
+behavior alone is insufficient evidence for BED. The authorized read-only BED
+source is the heterogeneous Drive folder:
+
+`https://drive.google.com/drive/folders/1-15d10XwoZxB3fDzjoxG6Rh392aKJxd8`
+
+The publication bounds recursive provenance inventory, repository-native NPZ
+validation, deterministic bounded cohort selection, paired `BED_AUTO` versus
+`BED_NONE` runs, frozen non-threshold semantics, stage-local IQA, lossless
+geometry, final-output statistics, and one of the three required bounded
+classifications. It authorizes no BED runtime-policy change, calibration
+decision, production action, optimization, or release.
+
+The future execution write surface is limited to the characterization helper,
+its report/JSON/CSV artifacts, and this evidence file as listed in the task.
+No external radiograph, NPZ, image, NumPy, calibration, or other
+patient/subject binary may be committed. The protected converter,
+ImageJ/Fiji closure, accepted TRX orientation/bypass, current BED behavior,
+and `NPZ → processing → DICOM` boundaries remain unchanged.
+
+No Phase-5 experiment, Drive access, data analysis, or runtime modification was
+performed during this task republication. Terminal state: **Review Required**.
+
+## Phase 5 contract remediation note
+
+Phase-5 v1.6 was published at
+`0481ea6e889efb63cf6c12088d35e0b7d49fd4c0`. Planner review found stale
+current-looking Phase-4 execution, verification, side-effect, and terminal
+language in the governing task. No defect was found in the substantive Phase-5
+experiment design. Version 1.7 corrects contract authority only.
+
+No Phase-5 experiment was run, and no runtime, configuration, calibration,
+converter, ImageJ/Fiji, or production behavior changed. During Planner review,
+`origin/refactor/package-boundaries` was observed at
+`0481ea6e889efb63cf6c12088d35e0b7d49fd4c0`. No attribution is made regarding
+the remote update.
+
+## Phase 5 execution evidence (superseded by remediation below)
+
+The accepted v1.7 Phase-5 experiment was executed from
+`e230ffc6d1ae86e09cba706c46f4632979d547b1` using the authorized Drive folder
+read-only. Recursive inventory visited 96 folders and identified 200
+acquisition NPZ candidates, six gain NPZ files, processed/reference material,
+and calibration material. Processed/reference material was not treated as
+ground truth; no calibration was generated, promoted, substituted, or
+mutated.
+
+The frozen primary cohort contains nine valid BED radiographs: three sessions
+(`Ambil Data 1`, `Ambil Data 2`, `Ambil Data 3`) × three subject folders. The
+selection used lexicographic session/subject grouping and stable numeric
+acquisition ordering, selecting the first acquisition from each group in
+round-robin order to the bounded nine-case cohort before either threshold
+state was processed. Every selected case resolved to a matching gain ID and
+passed repository-native NPZ validation; no cases were excluded.
+
+Each case ran exactly `BED_AUTO` (`use_threshold=True`, `threshold_method="auto"`)
+and `BED_NONE` (`threshold_method="none"`) through the canonical pipeline with
+the same raw/gain inputs and no calibration remap. Pre-threshold arrays were
+captured at the canonical threshold boundary. Stage-local IQA reused
+`mpips.iqa.analyze_structural_preservation`; final output shape, dtype, hashes,
+intensity, zero, saturation, and dynamic-range statistics are in the JSON and
+CSV artifacts.
+
+Across all nine cases, AUTO edge recall was 0.2211–0.2614 while NONE was 1.0;
+AUTO lost-informative-tile fraction was 0.4967–0.5862 while NONE was 0.0.
+Final hashes differed in all nine pairs, and the median final AUTO-minus-NONE
+mean-intensity delta was -12633.43. The direction was consistent by session
+and subject, with no conflict favoring AUTO.
+
+This provisional classification is superseded by the remediation below and is
+not the current Phase-5 classification.
+
+This is bounded decision support only. It does not authorize or implement a
+BED runtime-policy change. No external binary was committed, Google Drive was
+not mutated, and the protected converter remained unchanged.
+
+## Phase 5 evidence remediation execution
+
+The prior nine-case Phase-5 candidate is superseded for Planner review by the
+remediated execution. The corrected helper recursively inventoried the
+authorized Drive tree: 196 acquisition BED NPZ candidates, six gain NPZ files,
+four calibration or processed NPZ files, and 96 folders. All 196 acquisition
+entries are classified in the JSON manifest; 12 are selected and 184 are
+recorded separately as valid but unselected due to the cap. No invalid,
+non-BED, duplicate, gain-unresolved, or calibration-unresolved acquisition
+entry was encountered in the inventory classification.
+
+The deterministic primary cohort contains exactly 12 valid paired BED
+radiographs, distributed across all six sessions and four subject-folder name
+variants. Selection was frozen before processing using lexicographic
+session/subject grouping, stable acquisition ordering, first/last distinct
+acquisitions where available, and round-robin selection. The JSON artifact
+contains the complete selection manifest and per-case Drive provenance,
+repository-native NPZ semantics, SHA-256 values, radiograph/gain metadata, and
+gain dark/flat statistics.
+
+Each selected case ran exactly `BED_AUTO` versus `BED_NONE` with identical raw,
+gain, and canonical pipeline semantics. Independently captured pre-threshold
+arrays matched for all 12 cases. Stage-local structural-preservation metrics
+were generated with `mpips.iqa.analyze_structural_preservation`; final-output
+intensity, clipping, zero, saturation, and hash statistics are in the JSON and
+CSV artifacts. AUTO changed every case relative to NONE, but NONE is an
+identity/bypass control rather than trustworthy exact same-acquisition ground
+truth. Reference comparability is therefore **NON-COMPARABLE**; the result
+does not prove that AUTO changes are undesirable.
+
+The corrected artifacts classify the evidence as **BED THRESHOLD POLICY
+UNRESOLVED**. This is decision support only and does not authorize or
+implement a BED runtime-policy change. No external binary was committed,
+Google Drive was not mutated, and the protected converter remained unchanged.
+
+## Phase 6 task republication — BED threshold policy reference grounding
+
+The umbrella task is republished as version `1.8`. Phase 5 is historical
+`ACCEPTED / CLOSED` at
+`80d815c191766798bf0a6977f7abcbe24977cfbd`, with classification **BED
+THRESHOLD POLICY UNRESOLVED**. Its artifacts remain unchanged and are not
+rewritten during this publication.
+
+At that publication revision, Phase 6 was the only current released phase. Its objective was to determine
+whether trustworthy exact-same-acquisition processed/reference material exists
+in the authorized BED Drive source and can be losslessly associated with the
+Phase-5 acquisition radiographs for an engineering comparison baseline. The
+reference taxonomy is exactly: `EXACT_SAME_ACQUISITION_LOSSLESS`,
+`SAME_ACQUISITION_PROVENANCE_INSUFFICIENT`,
+`SAME_SUBJECT_DIFFERENT_OR_UNKNOWN_ACQUISITION`,
+`DERIVED_PROVENANCE_UNKNOWN`, and `NON-COMPARABLE`. Exact-same-acquisition
+requires positive provenance evidence.
+
+Permitted comparison geometry is limited to known orientation transform, crop,
+pad, integer translation, and valid-mask intersection. Resize, interpolation,
+resampling, warp, or non-rigid registration is not permitted. If no trustworthy
+exact-same-acquisition comparator is established, the required final decision
+remains **BED THRESHOLD POLICY UNRESOLVED**.
+
+The future Phase-6 write surface is
+`scripts/bed_threshold_reference_grounding.py`, the matching
+`bed-threshold-reference-grounding.md/.json/.csv` artifacts under
+`artifacts/real-data-regression/`, and this evidence file. BED runtime policy,
+calibration, converter, ImageJ/Fiji, production, deployment, and optimization
+remain unauthorized. No Phase-6 experiment, Drive access, runtime change, or
+external mutation occurred during this republication.
+
+## Phase 6 contract remediation — immutable Phase-5 target set
+
+The v1.8 publication candidate was `83bcfbb7c997af6c17617671cf69eb68c4a12b2c`.
+Planner review found stale Phase-5 cohort-selection and fresh
+characterization semantics in the current Phase-6 contract. The substantive
+Phase-6 reference taxonomy and lossless geometry boundary were otherwise
+accepted.
+
+Version 1.9 makes the accepted 12-case Phase-5 cohort immutable for Phase 6.
+Phase 6 does not select a new radiograph cohort. AUTO/NONE regeneration is
+permitted only for an accepted Phase-5 case when required for an established
+reference comparison, with accepted input/output hash checks and a stop on any
+discrepancy. If no trustworthy exact-same-acquisition reference exists, Phase
+6 short-circuits without rerunning characterization and retains **BED
+THRESHOLD POLICY UNRESOLVED**.
+
+No Phase-6 experiment, runtime change, or Drive mutation occurred. During
+Planner review, remote `refactor/package-boundaries` was observed at
+`83bcfbb7c997af6c17617671cf69eb68c4a12b2c`.
+
+## Phase 6 execution evidence — reference grounding
+
+Phase 6 executed under task revision
+`084aa1c1d5bf5a4dd60a68d2ac7e83c2c18c991a`, using the accepted 12-case
+Phase-5 identity set from `80d815c191766798bf0a6977f7abcbe24977cfbd` without
+selecting a new cohort. The authorized Drive source was accessed read-only.
+
+The processed/reference inventory recorded 196 TIFF candidates across the six
+session trees. Historical Phase-5 inventory counts were retained for the
+separate categories: 196 acquisition NPZ candidates, 6 gain NPZ files, and 4
+calibration/processed NPZ files. No generated outputs were observed in scope.
+Drive metadata supplied file IDs, paths, titles, MIME types, and sizes;
+reference bytes were not materialized, so reference SHA-256, dimensions, dtype,
+and orientation remain unavailable.
+
+There were 84 plausible same-session/subject mappings to the accepted cases.
+None qualified as `EXACT_SAME_ACQUISITION_LOSSLESS`: four filename-level
+acquisition-number matches were classified
+`SAME_ACQUISITION_PROVENANCE_INSUFFICIENT` because no derivation log or
+metadata established provenance, and 80 were classified
+`SAME_SUBJECT_DIFFERENT_OR_UNKNOWN_ACQUISITION`. No
+`DERIVED_PROVENANCE_UNKNOWN` or `NON-COMPARABLE` mapping was created. The
+repository's batch naming convention (`mpips/workflows/imager_pipeline/batch.py`)
+was treated as naming context, not proof that these external files were
+generated by that workflow.
+
+Because no accepted case had a trustworthy exact-same-acquisition reference,
+Phase 6 short-circuited. No AUTO/NONE arrays were regenerated; no reference ↔
+AUTO/NONE measurements were run; no geometry transform was applied. The
+machine-readable and Markdown artifacts record the complete processed/reference
+inventory, all mappings, taxonomy results, limitations, and the required final
+classification **BED THRESHOLD POLICY UNRESOLVED**.
+
+Generated artifacts:
+
+- `scripts/bed_threshold_reference_grounding.py`
+- `artifacts/real-data-regression/bed-threshold-reference-grounding.md`
+- `artifacts/real-data-regression/bed-threshold-reference-grounding.json`
+- `artifacts/real-data-regression/bed-threshold-reference-grounding.csv`
+
+No runtime/default/configuration/calibration/converter/ImageJ/Fiji/deployment/
+production/optimization change or Drive mutation occurred.
+
+## Phase 6 evidence reproducibility remediation
+
+The provisional Phase-6 candidate was `d9f087e2aabcf12bb1fb42ad41aa440292a20993`.
+Planner review accepted its conservative semantics but found that the helper
+only validated committed artifacts and could not reproduce them. The helper was
+remediated into a deterministic evidence builder. It consumes the accepted
+Phase-5 cases from the accepted JSON and a same-run, authorized read-only Drive
+inventory export, normalizes and sorts the inventory, derives mappings and
+taxonomy counts, and writes and validates the JSON, CSV, and Markdown artifacts
+from one model.
+
+The refreshed inventory contains 196 processed/reference TIFF records with
+normalized digest
+`99691cb7d676239c51bde7a6eab3cf230144ff0f8052de9713ee024f6320a18d`.
+Compared with the provisional 196-record inventory: additions 0, removals 0,
+changed metadata 0; the inventory matches. Programmatic taxonomy counts are 0
+`EXACT_SAME_ACQUISITION_LOSSLESS`, 4
+`SAME_ACQUISITION_PROVENANCE_INSUFFICIENT`, 80
+`SAME_SUBJECT_DIFFERENT_OR_UNKNOWN_ACQUISITION`, 0
+`DERIVED_PROVENANCE_UNKNOWN`, and 0 `NON-COMPARABLE`.
+
+The final classification remains **BED THRESHOLD POLICY UNRESOLVED**. Because
+the exact count is zero, Phase 6 short-circuited; AUTO/NONE were not rerun and
+no reference measurements were performed. No runtime policy change occurred.
+
+## Phase 7 task republication — calibration semantic reconciliation mapping
+
+The umbrella task is republished as version `1.10`. Phase 6 is accepted and
+closed at `3809463632685f264b78dd0dcc8d21886cfafa`. Its final classification is
+**BED THRESHOLD POLICY UNRESOLVED**. The BED bypass from newer `main` was not
+evidence-accepted and remains unported; canonical BED configured-threshold
+behavior is retained unchanged. This is a conservative no-change decision,
+not evidence that the configured threshold is superior. BED threshold
+reconciliation is closed unless materially new provenance or evidence appears.
+
+Phase 7 is the only current released phase. It is a documentation- and
+evidence-only mapping of newer-main calibration semantic drift, including
+primary commits `ae41b1d5c11d99420aa195385cefa7e9b5b0a595` and
+`80729162b50e92d99d45061c50ba0d875b2c4202`. The mapping must establish
+calibration/canvas/remap semantic changes, distinguish validation-only from
+runtime semantics, identify current canonical owners, evaluate newer-main
+expanded-canvas behavior, record interactions with accepted Phase-1–6 image
+processing, and determine whether existing carriers/evidence establish
+applicability without generating or promoting calibration.
+
+Each relevant change must receive exactly one disposition: **ALREADY
+SATISFIED**, **PORT / RECONCILE CANDIDATE**, **EVIDENCE REQUIRED**,
+**INCOMPATIBLE / REJECT**, **PRODUCTION INFRASTRUCTURE ONLY**, or **DEFER**.
+Phase 7 runtime implementation remains **UNAUTHORIZED**. This republication
+turn did not execute the mapping, inspect or mutate external calibration
+sources, generate or regenerate calibration, promote carriers, change runtime
+code, alter threshold policy, alter TRX orientation, alter DICOM conversion,
+deploy, or mutate production.
+
+The protected converter SHA remains
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+Terminal state: **PHASE 7 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW
+REQUIRED**.
+
+## Phase 7 contract remediation — execution authority separation
+
+The v1.10 publication candidate was
+`d940e17574cd91ea94677ca7fe8889baa15da893`. Planner review found no
+substantive Phase-7 mapping-design defect, but found ambiguity in current-task
+mutability, execution terminal states, and side-effect authority.
+
+Version 1.11 separates the corrective publication write surface from the
+Phase-7 execution write surface. The publication turn may modify only this
+task and evidence file; after Planner acceptance, Phase-7 execution may modify
+only `.agents/evidence/main-hotfix-reconciliation.md`, while the governing task
+file remains immutable. The current Phase-7 side-effect authorization and
+successful/blocked mapping terminal states are explicit.
+
+No Phase-7 mapping was executed. No calibration carrier or runtime behavior was
+changed. During Planner review, remote `refactor/package-boundaries` was
+observed at `d940e17574cd91ea94677ca7fe8889baa15da893`; this is recorded only
+as observed state.
+
+## Phase 7 execution evidence — calibration semantic reconciliation mapping
+
+### Execution identity and provenance
+
+- Governing task: `.agents/tasks/main-hotfix-reconciliation.md` version `1.11`
+  at `5d41596788a4fe2abffca72c27e3cca68b5c4e50`.
+- Execution-start `HEAD`: `5d41596788a4fe2abffca72c27e3cca68b5c4e50`.
+- Branch/worktree: `refactor/package-boundaries` / `/var/www/mpips`.
+- Initial worktree: clean. `origin/refactor/package-boundaries` resolved to
+  `5d41596788a4fe2abffca72c27e3cca68b5c4e50`; `origin/main` resolved to
+  `e94784db65bb134d43e87a2046037ab4d1cbfe02`.
+- Accepted Phase-6 evidence: `3809463632685f264b78dd0dcc8d21886cfafa`.
+- Upstream range inspected: `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd` →
+  `ae41b1d5c11d99420aa195385cefa7e9b5b0a595` →
+  `80729162b50e92d99d45061c50ba0d875b2c4202`.
+- `ae41b1d5c11d99420aa195385cefa7e9b5b0a595` has parent
+  `203c6c65cf6d6b5a8df0271ab610ded950b8f9fd` and subject `fix expanded
+  calibration canvas validation`.
+- `80729162b50e92d99d45061c50ba0d875b2c4202` has parent
+  `ae41b1d5c11d99420aa195385cefa7e9b5b0a595` and subject `fix: make expanded
+  calibration canvas canonical`.
+
+### Semantic units and dispositions
+
+The commit messages were not used as applicability evidence. The following
+units were separated from the parent diffs and traced to source/functions.
+
+| Upstream semantic unit | Upstream owner | Canonical owner / observed state | Semantic impact | Final disposition |
+|---|---|---|---|---|
+| Generalize remap coverage evidence to distinguish source detector dimensions from expanded output shape; allow a non-source-sized output map and compute valid coverage against the source domain. | `mpips/workflows/imager_pipeline/calibration.py`: `remap_geometry_evidence()` and expanded branch of `build_or_load_calibration()` in `ae41b1d5`. | `mpips/workflows/imager_pipeline/calibration.py` delegates map generation to `mpips/calibration/dotgrid/neural_model/warp_image.py`; the canonical generator already accepts `output_width`, `output_height`, `dst_origin`, and source dimensions. Canonical workflow lacks the upstream coverage-evidence/acceptance gate. | **VALIDATION ONLY** | **PORT / RECONCILE CANDIDATE** — bounded future validation addition has clear ownership, but no runtime port is authorized here. |
+| Permit expanded remap dimensions during layout validation while retaining fixed-canvas shape checks and source-domain bounds checks. | `scripts/validate_calibration_layout.py` and `tests/test_calibration_layout.py` in `ae41b1d5`. | No current canonical equivalent validator is registered for the canonical workflow cache; canonical output validation allows expanded calibrated-image dimensions through `allow_expanded_calibrated`. | **VALIDATION ONLY** | **PORT / RECONCILE CANDIDATE** — reconcile the validator with canonical metadata and carrier contracts in a later bounded task. |
+| Compute expanded geometry evidence: valid fraction, valid output-bounding-box ratios, source-domain width/height coverage, and the distinction between source detector shape and output canvas shape. | Legacy `mpips/workflows/imager_pipeline/calibration.py`: `remap_geometry_evidence()` in `80729162`. | The canonical workflow computes source-domain validity and output shape, but does not currently expose the full equivalent metric set or source-coverage ratios. Canonical ownership is clear under `mpips/workflows/imager_pipeline/calibration.py` and `mpips/calibration/dotgrid/neural_model/warp_image.py`. | **VALIDATION ONLY** | **PORT / RECONCILE CANDIDATE** — measurements can be added without deciding acceptance policy. |
+| Apply numeric expanded-remap acceptance gates: `0.80` minimum valid fraction, output width/height ratios, and source width/height coverage; reject the calibration artifact before acceptance/write. | Legacy `mpips/workflows/imager_pipeline/calibration.py`: `validate_expanded_canvas_remap()` and its call from `build_or_load_calibration()`; `scripts/validate_calibration_layout.py`; tests in `80729162`. | The canonical workflow has no accepted evidence establishing these constants for BED, TRX, all calibration geometries, or production consumers. The constants are artifact-acceptance policy, not metric collection. | **VALIDATION ONLY** (policy is applied at artifact acceptance, not as an image-processing pixel transform) | **EVIDENCE REQUIRED** — do not treat the upstream `0.80` values as implementation-ready canonical thresholds. |
+| Persist source image shape, remap output shape, canvas mode, expanded origin, and expanded output size in calibration metadata. | Legacy `mpips/workflows/imager_pipeline/calibration.py`: metadata writes in `80729162`. | Current canonical cache and conversion readers consume known fields (`image_shape`, fingerprint, validation, and source metadata) and tolerate additional JSON keys; no reader rejects unknown additive metadata and no migration is required. However, existing carrier provenance and promotion compatibility remain insufficient. | **VALIDATION ONLY** (carrier interpretation/evidence contract; no pixel transform) | **PORT / RECONCILE CANDIDATE** — additive persistence is compatible with current readers, subject to future carrier/provenance verification. |
+| Make expanded canvas the default in the neural calibration model and legacy CLI/warp entry points. | Legacy `mpips/workflows/imager_pipeline/models.py`, `mpips/engine/calibration/dotgrid/neural_model/run_pipeline.py`, and `warp_image.py` in `80729162`. | Canonical `NeuralCalibrationConfig.canvas_mode` and canonical CLI defaults remain `fixed`; `expanded` remains explicit opt-in. The canonical runtime supports both modes. | **RUNTIME SEMANTIC** | **EVIDENCE REQUIRED** — no approved requirement establishes that the default should change for the refactored architecture, and existing carrier evidence is insufficient for promotion. |
+| Move/use expanded-canvas generation and inverse-map coordinate semantics through the canonical package boundary rather than legacy `mpips/engine` ownership. | Legacy `mpips/engine/calibration/dotgrid/neural_model/warp_image.py` and workflow adapters in `80729162`; relevant canonical move is present in the branch history at `b776d39`. | `mpips/calibration/dotgrid/neural_model/warp_image.py`: `estimate_expanded_canvas()` and `build_inverse_maps()`; `mpips/workflows/imager_pipeline/calibration.py`: `build_inverse_maps()`. The canonical implementation already samples source bounds, applies margin, uses output origin/size, and creates source-domain remaps. Direct legacy imports are mechanically invalid and must not be restored. | **RUNTIME SEMANTIC** | **ALREADY SATISFIED** — equivalent expanded generation and coordinate semantics are present under canonical ownership; this does not accept the legacy default switch or validation gates. |
+| Add expanded-canvas regression/default tests and layout assertions. | `tests/test_calibration_layout.py` and new `tests/test_calibration_defaults.py` in `ae41b1d5`/`80729162`. | Current tests already cover canonical module ownership, expanded workflow execution, non-source-sized remap output, valid-mask padding, and fixed/expanded behavior under explicit configuration. The upstream default tests target legacy CLI/model defaults and do not prove canonical default applicability. | **VALIDATION ONLY** | **DEFER** — retain existing canonical tests; add focused tests only with a future approved validation/default change. |
+
+### Expanded-canvas semantics
+
+The original calibration source domain in the relevant tests and inspected BED
+carrier is `height=3000`, `width=4096`. Newer-main expanded output is a separate
+destination canvas: the observed BED remap is `(3053, 4059)` with float32
+`map_x`/`map_y`, while the source remains `(3000, 4096)`. The implementation
+computes corrected-point bounds, floors the minimum after subtracting a margin
+to obtain `origin_xy`, ceils the maximum after adding the margin, and derives
+`output_size = max_pixel - origin + 1`. Inverse-map sampling then evaluates
+destination coordinates shifted by `dst_origin`, and each map coordinate is
+validated against the source detector domain. Thus expansion changes runtime
+pixel geometry and introduces padded/out-of-source output regions; it is not
+merely a validation label.
+
+Expansion occurs during calibration remap generation (`estimate_expanded_canvas`
+and `build_inverse_maps`), during calibration-output validation, and in the
+layout validator. It does not require a different mathematical map array
+format: the carrier remains paired same-shaped `map_x`/`map_y` arrays, but
+metadata must preserve source shape, output shape, canvas mode, and origin if a
+consumer needs to interpret coordinates unambiguously. Existing canonical
+`mpips.calibration.dotgrid.neural_model.warp_image` already implements the
+generation coordinate semantics. Existing canonical workflow configuration
+defaults to fixed canvas, so adopting the newer default would change runtime
+output geometry and would require explicit authority and compatibility evidence.
+
+### Remap and downstream interaction
+
+The remap is an inverse map from each expanded destination pixel to a source
+detector coordinate. Out-of-domain coordinates produce border-filled pixels;
+the corresponding valid mask is computed from source bounds. The canonical
+`mpips.processing.radiography.apply_calibration_remap()` accepts map shapes
+different from the source image, and `mpips.pipelines.radiography` applies the
+same remap mask to the output and follows it through crop/rotate. Existing
+tests demonstrate a non-source-sized output canvas and zeroed invalid border
+regions. The converter worker keeps `metadata.image_shape` as the source
+radiograph shape while consuming the map shape for the processed output; the
+protected TIFF-to-DICOM converter is not involved in the remap decision.
+
+The current canonical workflow does not persist the expanded origin/output
+fields in its generated `metadata.json`, and its cache loader validates only
+the source `image_shape`, fingerprint, and `validated` flag. This is a carrier
+interpretation gap, not evidence that existing expanded maps are unsafe.
+
+### Carrier and evidence inventory
+
+Read-only inspection covered:
+
+- `artifacts/real_kambing_calibration/bed_mode/metadata.json`: BED metadata
+  identifies source shape `[3000, 4096]`, `canvas_mode: expanded`, source
+  SHA-256 `2f8630d5ae21b4f062f371903ebb7332a2a740532fcbcbb82af5516b418c83be`,
+  source ID `1783219960996`, gain ID `1783219207291`, and fingerprint
+  `4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b`.
+  The repository path contains metadata but not the paired remap/mask/model
+  files, so it is not a complete promotable carrier at that path.
+- `research/kambing-260714/data/output/calibration-cache/4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b/`:
+  the same BED metadata plus a read-only `remap.npz`. Its map shape is
+  `(3053, 4059)`, both arrays are float32, coordinate ranges are
+  `x=[-39.2277, 4118.5034]` and `y=[-50.8455, 3072.8206]`, and source-domain
+  valid fraction is `0.9575378787`. Metadata keys do not include expanded
+  origin or output shape. The remap SHA-256 is
+  `f5ae883bd17960a56c60add99d5e8d2f393ea9427ec5ce3fd1a5d0b920c671bb`.
+- `artifacts/real_kambing_calibration/trx_mode/metadata.json`: synthetic TRX
+  metadata with source shape `[64, 64]` and no expanded-canvas declaration; no
+  paired remap was present at that path.
+- Existing Phase-1–6 evidence and `.agents/context/project.md`: these record
+  fixed/expanded semantics, the read-only real BED cache fingerprint, accepted
+  TRX/BED behavior, and the protected converter, but do not establish a
+  generation log proving that the BED cache was produced by either inspected
+  upstream commit.
+
+Carrier applicability is therefore partially demonstrated for the inspected
+BED cache's geometry, but provenance, complete carrier contents, origin
+metadata, and promotion compatibility are insufficient to authorize adoption
+of the newer default or validation policy. No carrier was modified, generated,
+regenerated, substituted, or promoted.
+
+### Interaction with accepted Phase 1–6 behavior
+
+- Corrected Otsu behavior and TRX threshold bypass remain unchanged.
+- Canonical BED configured-threshold behavior remains unchanged; the Phase-6
+  classification remains **BED THRESHOLD POLICY UNRESOLVED**, and no BED
+  bypass was ported.
+- Accepted TRX clockwise orientation remains downstream of remap and is not
+  changed by this mapping.
+- ImageJ/Fiji fidelity closure and the protected DICOM converter remain
+  untouched; converter SHA remains
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+- Expanded output geometry can affect downstream dimensions and invalid-border
+  masks, but current canonical pipeline tests already cover those mechanics;
+  no accepted Phase-1–6 image-processing conclusion is reopened.
+
+### Unresolved questions and recommendation
+
+Unresolved questions are whether expanded should become the canonical default,
+which coverage thresholds and metadata fields are approved for canonical
+carriers, whether the existing BED carrier has complete provenance and all
+required files, and whether any production consumer requires fixed dimensions.
+
+Recommendation: keep expanded generation/inverse-map coordinate semantics as
+**ALREADY SATISFIED**. A future bounded reconciliation task may add expanded
+geometry evidence computation and additive metadata persistence, both
+**PORT / RECONCILE CANDIDATE**, after carrier provenance and consumer
+compatibility are supplied. The numeric expanded-remap acceptance thresholds
+are **EVIDENCE REQUIRED** and must not be bundled into that implementation
+until policy evidence establishes their applicability. The fixed-to-expanded
+default switch is also **EVIDENCE REQUIRED** and should remain fixed/opt-in.
+Expanded layout validation remains a **PORT / RECONCILE CANDIDATE** only where
+it does not depend on unapproved thresholds or metadata assumptions. Test
+changes tied to an unapproved default or policy remain **DEFER**. Legacy
+`mpips/engine` ownership, promotion machinery, and carrier substitution remain
+excluded.
+
+### Verification and terminal state
+
+- Read-only source, history, test, metadata, and carrier inspection completed;
+  no calibration generation/regeneration/promotion/substitution occurred.
+- No runtime, default, configuration, threshold, orientation, DICOM, ImageJ,
+  deployment, production, or external-system mutation occurred.
+- Only `.agents/evidence/main-hotfix-reconciliation.md` changed; the governing
+  task file remains byte-identical to `5d41596788a4fe2abffca72c27e3cca68b5c4e50`.
+- `sha256sum mpips/conversion/tiff_json_to_dcm.py` remained
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+- `git diff --check` passed before publication of this evidence commit.
+
+Terminal state: **PHASE 7 MAPPING CANDIDATE — PLANNER REVIEW REQUIRED**.
+
+## Phase 8 task republication — calibration carrier and consumer compatibility grounding
+
+The umbrella task is republished as version `1.12`. Phase 7 is accepted and
+closed at `3ab4495b3ba15886fa12465c17757e92c74a7755`; Phase 8 is the only
+current released phase.
+
+Phase 8 is evidence and compatibility grounding only. Its objective is to
+establish carrier provenance and completeness, the canonical carrier contract,
+consumer compatibility, structural expanded-layout validation applicability,
+and the bounded implementation recommendation for the Phase-7 candidates.
+The Phase-8 execution surface is evidence-only: after Planner acceptance, only
+this stable evidence file may be changed and the v1.12 task must remain
+immutable.
+
+This publication turn did not execute Phase 8. It did not inspect or mutate
+carriers beyond the already accepted Phase-7 evidence, generate or regenerate
+calibration, promote or substitute carriers, change runtime/default/configuration
+or tests, adopt numeric acceptance thresholds, change the fixed-to-expanded
+default, alter conversion or image-processing behavior, deploy, release, or
+mutate production/external systems.
+
+The unapproved expanded-remap `0.80` threshold values remain
+**EVIDENCE REQUIRED** and unauthorized. The fixed-to-expanded default change
+remains unauthorized. No calibration implementation is implicitly authorized.
+
+Publication write surface:
+
+- `.agents/tasks/main-hotfix-reconciliation.md`
+- `.agents/evidence/main-hotfix-reconciliation.md`
+
+Future Phase-8 execution write surface:
+
+- `.agents/evidence/main-hotfix-reconciliation.md`
+
+The protected converter SHA remains
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+Terminal state: **PHASE 8 TASK REPUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED**.
+
+## Phase 8 final-contract remediation — publication only
+
+The umbrella task is republished as version `1.13` on top of publication
+candidate `ccf82a075183ec3d4a7ff53c317275d27d154a63`. This corrective turn
+replaces stale current Phase-7 execution authority with Phase-8 verification
+requirements and side-effect boundaries, and makes Phase 8 the final phase of
+this umbrella reconciliation.
+
+Phase 8 remains evidence/compatibility grounding only and was not executed in
+this publication. No carrier or calibration was generated, regenerated,
+modified, promoted, or substituted. No runtime, default, configuration, test,
+threshold, deployment, production, release, or external-system mutation
+occurred.
+
+The phase map now ends at Phase 8. Post-Phase-8 actions are not authorized and
+are not numbered successor phases. After Phase-8 evidence review, the Planner
+must determine whether any remaining hotfix-reconciliation issue materially
+requires implementation before closure; optional calibration-policy evidence
+gaps that do not block current canonical/refactor behavior do not prolong this
+umbrella task.
+
+Terminal state: **PHASE 8 CONTRACT REMEDIATION CANDIDATE — PLANNER REVIEW REQUIRED**.
+
+## Phase 8 execution evidence — final compatibility grounding
+
+### Execution identity and prechecks
+
+- Governing task: `.agents/tasks/main-hotfix-reconciliation.md` version `1.13`
+  at immutable revision `31443b8435fd828dbf60300efdb87e056f57b11d`.
+- Execution-start `HEAD`: `31443b8435fd828dbf60300efdb87e056f57b11d`.
+- Branch/worktree: `refactor/package-boundaries` / `/var/www/mpips`.
+- Execution-start worktree: clean.
+- `origin/refactor/package-boundaries` resolved to
+  `31443b8435fd828dbf60300efdb87e056f57b11d`.
+- `origin/main` resolved to
+  `e94784db65bb134d43e87a2046037ab4d1cbfe02`.
+- The governing task was not modified during execution.
+
+The inspection used `git status --short`, branch and revision checks,
+`git fetch origin`, repository source searches, metadata reads, file inventory,
+and a non-mutating NumPy inspection of the existing remap. No calibration was
+generated, regenerated, reconstructed, modified, promoted, or substituted.
+
+### A. Carrier provenance and completeness
+
+| Carrier/component | Observed contents and geometry | Provenance/completeness conclusion |
+|---|---|---|
+| `artifacts/real_kambing_calibration/bed_mode/metadata.json` | BED; source acquisition ID `1783219960996`; gain ID `1783219207291`; source SHA-256 `2f8630d5ae21b4f062f371903ebb7332a2a740532fcbcbb82af5516b418c83be`; fingerprint `4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b`; source shape `[3000, 4096]`; `canvas_mode: expanded`; metadata SHA-256 `15741968305c7b74bc1c84f5487216f7e944cdeaace0150500ede4aa32326ecd`. | `remap.npz`, mask, model, and metrics are absent. The recorded source path does not exist in the current tree. No generation log is present. **PROVENANCE INSUFFICIENT**; incomplete carrier. |
+| `research/kambing-260714/data/output/calibration-cache/4832df384f0539643af026fbfc5f29cd2d44e380143e1e67b4118b42bdf1555b/metadata.json` | Same BED metadata and hashes as above; metadata is present. | The source path is absent and no generation provenance is recorded. **PROVENANCE INSUFFICIENT** for generation/promotion conclusions. |
+| `.../calibration-cache/.../remap.npz` | SHA-256 `f5ae883bd17960a56c60add99d5e8d2f393ea9427ec5ce3fd1a5d0b920c671bb`; keys exactly `map_x`, `map_y`; both float32, shape `(3053, 4059)`, finite, non-empty, equal-shaped; coordinate ranges `map_x=[-39.227680, 4118.503418]`, `map_y=[-50.845482, 3072.820557]`; source-domain valid fraction `0.9569610608`. | Expanded output geometry is materially demonstrated, but the component is not a complete canonical cache carrier: mask, model, metrics, and required sidecar files are absent. **PROVENANCE INSUFFICIENT** as a standalone promoted carrier component. |
+| `artifacts/real_kambing_calibration/trx_mode/metadata.json` | Synthetic TRX; fingerprint `synthetic-trx-calibration-v1`; source shape `[64, 64]`; metadata SHA-256 `fc961f1ae7e52dd9a5ed8a45c0f3e43f9a0cdc9135d7ded58ebd91d8c09eb6a5`; no source acquisition ID, gain ID, remap, mask, model, or metrics. | Historical compatibility fixture only. **PROVENANCE INSUFFICIENT** and incomplete; not a promotion candidate. |
+
+Matching fingerprint, filename, source ID, or directory location was not
+treated as generation provenance. No carrier was promoted.
+
+### B. Canonical carrier/cache contract
+
+`mpips/workflows/imager_pipeline/calibration.py::_cached_artifacts` requires
+`metadata.json` plus every non-empty file in `_CACHE_FILES`: model, remap,
+valid mask, metrics, coordinate/diameter/circularity CSVs, compensated CSVs,
+metrics text files, model metadata, and four plots. It then requires metadata
+`fingerprint`, `validated: true`, and a two-element `image_shape`. Cache reuse
+returns only the paths for model, remap, mask, metrics, and metadata; the other
+files are completeness gates.
+
+The conversion worker has a smaller runtime contract. It selects metadata by
+detector mode when needed, then requires `metadata.json` and `remap.npz`,
+`validated: true`, a string `fingerprint`, a two-element `image_shape`, and
+paired `map_x`/`map_y` arrays. It validates source radiograph/gain shape against
+metadata and map pairing, but does not require the map shape to equal the
+source shape. The batch workflow consumes a validated `CalibrationArtifacts`,
+loads the paired remap, and uses metadata source shape for radiograph/gain
+compatibility.
+
+Therefore:
+
+- mandatory runtime files: `metadata.json` and `remap.npz`;
+- mandatory full cache-reuse files: `metadata.json` and every `_CACHE_FILES`
+  entry above;
+- mandatory metadata fields for runtime loading: `validated`, string
+  `fingerprint`, two-element `image_shape`, and detector mode in
+  `source_metadata` where mode selection/compatibility is used;
+- optional/additive metadata: unknown JSON keys are tolerated by observed
+  readers; proposed expanded geometry keys are not currently consumed;
+- validation-only evidence: mask, metrics, model metadata, and calibration
+  evaluation outputs beyond the runtime pair;
+- research/historical artifacts: the synthetic TRX metadata and the incomplete
+  BED artifact directory.
+
+Adding expanded metadata is additive and requires no migration for current
+readers. It would clarify carrier interpretation but must not be confused with
+provenance or acceptance policy.
+
+### C. Consumer compatibility inventory
+
+| Consumer | Assumption and observed behavior | Classification |
+|---|---|---|
+| `mpips/workflows/imager_pipeline/calibration.py::_cached_artifacts` and `load_remap` | Uses source `image_shape`, validation/fingerprint, full cache-file presence, and paired map loading. Unknown metadata keys are ignored; remap output shape is derived from arrays. | **METADATA COMPATIBILITY ONLY** |
+| `mpips/workflows/imager_pipeline/batch.py::_validate_compatibility`, `process_npz_batch` | Requires raw/gain/source calibration shapes to match the source `image_shape`; loads map shape independently and passes it to the pipeline. | **EXPANDED COMPATIBLE** |
+| `mpips/conversion/worker.py::execute_conversion_worker` | Requires metadata/remap, source input shape equal to metadata, and equal map shapes; does not require map shape equal to source shape. | **EXPANDED COMPATIBLE** |
+| `mpips/pipelines/radiography.py::RadiographyPipeline.process` | Computes valid mask against source dimensions, remaps to map dimensions, then carries the mask through crop/rotation and zeros invalid output pixels. | **EXPANDED COMPATIBLE** |
+| `mpips/processing/radiography.py::apply_calibration_remap` | Requires only equal `map_x`/`map_y` shapes and passes their output geometry to `cv2.remap`. | **EXPANDED COMPATIBLE** |
+| `mpips/conversion/service.py::_validate_tiff_descriptor` | Validates final TIFF size against configured maximum rows, columns, and pixels; does not require source/output dimension equality. | **EXPANDED COMPATIBLE** |
+| `.github/workflows/setup-runtime-dirs.yml`, `.github/workflows/deploy-internal-beta.yml` | Operational setup checks/stages metadata and remap; no source-dimension equality rule was found. These are deployment consumers, not canonical processing ownership. | **METADATA COMPATIBILITY ONLY** |
+| `scripts/local_dicom_burn_in.py` and focused tests | Diagnostic/test helpers derive output shape from the remap where present; not production-consumer evidence. | **METADATA COMPATIBILITY ONLY** |
+
+No material canonical or observed production-facing consumer was found to be
+`FIXED-DIMENSION DEPENDENT`. No consumer currently reads expanded origin or
+output-size metadata. Additional JSON keys do not alter runtime behavior.
+
+### D. Structural expanded-layout validation
+
+**IMPLEMENTATION READY** as a future bounded structural validator. The current
+implementation already provides the primitives: paired map loading, equal map
+shapes, source-domain valid-mask computation, finite remap inspection, fixed
+default configuration, explicit `fixed`/`expanded` modes, and expanded output
+shape support. A validator can check presence, equality, dimensionality,
+non-empty arrays, finiteness, known canvas mode, fixed source-sized maps,
+expanded distinct output shape, source-domain interpretation, and metadata
+consistency without using any numeric acceptance threshold.
+
+The existing output validator also separates fixed image-size checking from
+expanded opt-in through `allow_expanded_calibrated`; its quality reductions are
+separate policy inputs and are not evidence for a new expanded-remap gate.
+The upstream `0.80` values were not used as pass/fail criteria.
+
+### E. Proposed additive metadata
+
+| Field | Deterministically available? | Reader/consumer result | Classification |
+|---|---|---|---|
+| source image shape | Yes; already persisted as `image_shape` and consumed for source compatibility. | No migration; no new field is needed. | **UNNECESSARY** |
+| remap output shape | Yes; equal to `map_x`/`map_y` shape at generation time and derivable by readers. | Unknown metadata is tolerated; no current consumer requires it. | **ADDITIVE / IMPLEMENTATION READY** |
+| canvas mode | Yes; already present in generation config/stats and the BED metadata config. | No current reader consumes a top-level carrier value; additive persistence is tolerated. | **ADDITIVE / IMPLEMENTATION READY** |
+| expanded origin | Yes during expanded generation via `origin_xy`/`dst_origin_xy`. | No current consumer requires it; additive persistence needs no migration. | **ADDITIVE / IMPLEMENTATION READY** |
+| expanded output size | Yes; generation stats and remap shape provide it. | No current consumer requires it; additive persistence needs no migration. | **ADDITIVE / IMPLEMENTATION READY** |
+
+These are compatibility conclusions only. No metadata field was added.
+
+### F. Policy boundaries preserved
+
+The expanded-remap values
+`MIN_EXPANDED_VALID_FRACTION`, `MIN_EXPANDED_OUTPUT_WIDTH_RATIO`,
+`MIN_EXPANDED_OUTPUT_HEIGHT_RATIO`, `MIN_EXPANDED_SOURCE_WIDTH_COVERAGE`, and
+`MIN_EXPANDED_SOURCE_HEIGHT_COVERAGE` remain `0.80` evidence-only values and
+were not used as pass/fail criteria. Numeric acceptance-threshold policy is
+**EVIDENCE REQUIRED**. `NeuralCalibrationConfig.canvas_mode` and the canonical
+CLI defaults remain `fixed`; expanded remains opt-in and the fixed-to-expanded
+default change is **EVIDENCE REQUIRED**. BED threshold policy remains
+**BED THRESHOLD POLICY UNRESOLVED** and BED bypass remains unported.
+
+### G. Final Phase-7 candidate dispositions
+
+| Phase-7 candidate | Final Phase-8 disposition | Boundary |
+|---|---|---|
+| Expanded geometry/evidence measurement computation without acceptance policy | **IMPLEMENTATION READY** | Future bounded measurement/metadata work may expose source-domain and output-geometry evidence; no threshold policy is included. |
+| Additive expanded metadata persistence | **IMPLEMENTATION READY** | Fields are deterministic and reader-compatible; source shape already exists, while output shape/mode/origin/size are additive. No migration or carrier promotion is authorized by this evidence. |
+| Expanded structural layout validation without unapproved thresholds | **IMPLEMENTATION READY** | Structural checks are separable from policy and no fixed-dimension consumer blocker was observed. |
+
+Expanded generation and inverse-map coordinate semantics remain
+**ALREADY SATISFIED**. Numeric thresholds and the default switch remain
+**EVIDENCE REQUIRED**. Tests tied to an unapproved default or acceptance policy
+remain deferred.
+
+### H. Final umbrella closure question
+
+**Is there any remaining hotfix-reconciliation issue that materially requires
+implementation before this umbrella task can close? No.**
+
+Current canonical behavior already supports the accepted expanded remap
+geometry and downstream output dimensions, while the remaining improvements
+(geometry evidence metrics, additive metadata, and structural validation) are
+bounded optional follow-up candidates. The incomplete and provenance-
+insufficient BED carrier does not block current canonical/refactor behavior and
+must not be promoted on this evidence. The unresolved optional threshold policy
+and fixed-to-expanded default question are not material blockers to closure.
+
+Recommend: **MAIN HOTFIX RECONCILIATION ACCEPTED / CLOSED**. Do not create a
+Phase 9 under this umbrella task. Any implementation-ready follow-up requires a
+separate Planner-authorized task.
+
+### Verification and terminal state
+
+- Only `.agents/evidence/main-hotfix-reconciliation.md` changed during
+  Phase-8 execution; the v1.13 task remained unchanged.
+- No calibration generation/regeneration, carrier mutation/promotion/
+  substitution, runtime/default/configuration/test change, threshold-policy
+  adoption, deployment, production mutation, or external-system mutation
+  occurred.
+- `git diff --check` passed after the evidence update.
+- The protected converter SHA-256 remained
+  `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+Terminal state: **PHASE 8 GROUNDING CANDIDATE — PLANNER REVIEW REQUIRED**.
+
+## Umbrella closure publication — Planner acceptance
+
+The Planner accepts and closes Phase 8 at
+`4c6ed59743568d5139db8e56cd3f014d5381bfba`. All Phases 1–8 are
+`ACCEPTED / CLOSED`; the umbrella reconciliation is
+`MAIN HOTFIX RECONCILIATION ACCEPTED / CLOSED`.
+
+There is no current released phase, no successor phase, and no implementation
+authority remaining under this umbrella task. No Phase 9 is created. Any
+post-closure implementation requires a separate task and separate Planner
+authorization.
+
+The following closure boundaries are preserved:
+
+- BED threshold policy remains **UNRESOLVED**; the BED bypass remains unported.
+- Expanded generation/remap semantics are **ALREADY SATISFIED**.
+- Numeric expanded-remap thresholds are not adopted.
+- The canonical calibration default remains `fixed`; expanded mode remains
+  opt-in.
+- Geometry metrics, additive metadata, and structural validation remain
+  optional separate follow-up candidates only.
+
+This is an administrative closure publication only. It did not modify runtime,
+tests, configuration, calibration, carriers, binaries, conversion, deployment,
+or production, and did not merge, rebase, cherry-pick, deploy, release, or
+perform implementation work.
+
+The protected converter SHA-256 remains
+`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+
+Terminal state: **MAIN HOTFIX RECONCILIATION CLOSURE PUBLICATION CANDIDATE — PLANNER REVIEW REQUIRED**.

@@ -1,0 +1,2449 @@
+{
+  "schema_version": 1,
+  "title": "MPIPS CLAHE parameter-contract resolution",
+  "governing_task": {
+    "path": ".agents/tasks/clahe-parameter-contract-resolution.md",
+    "revision": "396071888842b99081a0f89a9f56a1452d99235b",
+    "accepted_baseline": "979de4ee9cd24731d5adf74aa19dc412f1dedc37"
+  },
+  "status": "evidence-only; Review Required after authorized commit and push",
+  "decision": {
+    "clahe_max_slope": 0.6,
+    "classification": "INHERITED MPIPS DEFAULT — RATIONALE NOT RECOVERED",
+    "hold": "I-4C0 MUST NOT change clahe_max_slope=0.6",
+    "quality_decision": false
+  },
+  "verification": {
+    "pre_evidence_head": "396071888842b99081a0f89a9f56a1452d99235b",
+    "pre_evidence_origin": "396071888842b99081a0f89a9f56a1452d99235b",
+    "branch": "refactor/package-boundaries",
+    "baseline_is_ancestor": true,
+    "protected_converter_sha256": "a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0",
+    "raw_matrix_sha256": "77f9a50c7092ed61e2e359aed65ea17ba4e53b30e7ff0bfef2760dee5373052a",
+    "ci_claim": false
+  },
+  "git_provenance": [
+    {
+      "revision": "3169a725752d0007cc97dbb58512feffd13eb864",
+      "role": "parent of first-known legacy module commits"
+    },
+    {
+      "revision": "2de4a4ed13a5f7bf07628a8be63b67d11b455465",
+      "date": "2026-07-07",
+      "message": "make module",
+      "role": "first visible 0.6 in active ancestry",
+      "paths": [
+        "imager-pipeline/complete_pipeline.py",
+        "imager-pipeline/archive/complete_pipeline_coba1.py"
+      ],
+      "rationale_recovered": false
+    },
+    {
+      "revision": "6a1f48b9d3e33fbfa178b9bd09154004aa09c446",
+      "date": "2026-07-07",
+      "message": "make module",
+      "role": "parallel first-known 0.6 introduction from the same parent",
+      "rationale_recovered": false
+    },
+    {
+      "revision": "15dcb1194b18b8ca6fbe139a25f887dff6df385e",
+      "date": "2026-07-14",
+      "message": "Add imager pipeline source resolution and processing functionality",
+      "role": "moved legacy material into artifacts and mpips/engine/imager_pipeline"
+    },
+    {
+      "revision": "aad1aa9e553222ca1935e0ab62adcbae674d110d",
+      "date": "2026-08-13",
+      "message": "refactor(config): consolidate imager pipeline configuration",
+      "role": "introduced canonical config/schema/default/test surfaces"
+    },
+    {
+      "revision": "ceac045cbe05c75c93ee3e1ae148cbe654da645d",
+      "date": "2026-08-13",
+      "message": "fix(config): make canonical pipeline semantics authoritative",
+      "role": "preserved 0.6 as canonical"
+    },
+    {
+      "revision": "ad6fa7154067ee73290b306aa84992a42e10960f",
+      "date": "2026-08-19",
+      "message": "refactor: move pipeline config ownership",
+      "role": "moved ownership to mpips/pipelines/config.py"
+    },
+    {
+      "revision": "17e1cdddc43a4a573c05eaab0b7a88ee92e0f43b",
+      "date": "2026-08-19",
+      "message": "refactor: move imagej processing implementation",
+      "role": "moved ownership to mpips/processing/imagej.py"
+    }
+  ],
+  "reference_environment": {
+    "jdk": "Eclipse Temurin 17.0.19+10 HotSpot Linux x86_64",
+    "jdk_archive_sha256": "d8afc263758141a66e0e3aafc321e783f7016696f4eaea067d340a269037d331",
+    "imagej": "ImageJ v1.54p ij-1.54p.jar",
+    "imagej_jar_sha256": "2e1a09961dfb41cee66ddc821b2577a41a072566ce45a49bae69267099741e20",
+    "fiji_mpicbg_commit": "0ed8a9d0592b1b679311f798b0b4dac6f44d3ef0",
+    "tracked_harness_sha256": "4dd097ff92002f6d3d6a52ef6d2231e31aa3b32610c8af9e0c9e300559f2bcd5",
+    "hybrid_source_sha256": "494cc92747ba8e01e9ad19f16d735ffe8faf0b65eba00f02fda691bc5529af03",
+    "source_sha256": {
+      "mpicbg/ij/clahe/Apply.java": "2dbbecd5dc2355004b10998f3a32dc40b037f226d98001c2aa8a34daf27c8c7a",
+      "mpicbg/ij/clahe/ByteApply.java": "adb4bd88aa68af148374b6fd3e97f8bdc3fdaa27421496fe67149c36d5b37428",
+      "mpicbg/ij/clahe/FastByteApply.java": "3744374e2846305cf28579382467df0ceedaa2132cf0345701832a566a250abc",
+      "mpicbg/ij/clahe/FastFlat.java": "09fa2048f80d258a2ce02b8940373e2a9e9b8176e5b86e0a4c5ae6710114b3fd",
+      "mpicbg/ij/clahe/Flat.java": "112ba574034acb2c740dfcc5365fb9489305d62e9527df71665cac8971dedee2",
+      "mpicbg/ij/clahe/FloatApply.java": "7d66d1c71ab282aa00a7645545924a568f08ec222ca6306c7f27e7ce8891a891",
+      "mpicbg/ij/clahe/RGBApply.java": "e08de2b9054709e8926ae00a0098547019f7559287e82b5c285fc4559bbf561b",
+      "mpicbg/ij/clahe/ShortApply.java": "c7394768b9d3821d8813b5c556edebf3cec5d1382d8c84af19ce0b6289f521e9",
+      "mpicbg/ij/clahe/Util.java": "4dbe118c08eaa36a5f87c78930169383a602a84f25ca7b975284cb089bdd1689",
+      "mpicbg/util/Util.java": "c1310ea802c965f6c69ca520455d6fef5ab69df71f3791d13531b59b6274d26c"
+    }
+  },
+  "geometry_and_equations": {
+    "displayed_bins": 256,
+    "internal_bins": 255,
+    "blocksize": 127,
+    "block_radius": 63,
+    "flat_histogram_length": 255,
+    "fastflat_histogram_length": 256,
+    "flat_limit": "L_F(n,s)=roundPos(s*n/255.0f)=(int)(s*n/255.0f+0.5f)",
+    "flat_capacity": "255*L_F >= n",
+    "flat_local_counts_128x128": {
+      "corner": 4096,
+      "non_corner_edge": 8128,
+      "interior": 16129
+    },
+    "flat_boundary": {
+      "corner": 1.0272216796875,
+      "edge": 0.9882504921259843,
+      "interior": 1.0039370078740157,
+      "formula": "255*(ceil(n/255)-0.5)/n"
+    },
+    "fastflat_block_size": 127,
+    "fastflat_fixed_count": 16129,
+    "fastflat_limit": "L_Fast(s)=roundPos(s*16129/255.0f)",
+    "fastflat_capacity": "256*L_Fast >= 16129",
+    "fastflat_boundary": 1.0039370078740157,
+    "rounding": "positive roundPos(float)=(int)(a+0.5f); double analog uses +0.5",
+    "interpolation": "FastFlat builds adjacent-center LUTs and bilinearly interpolates transfer values before roundPos(t*255.0f)"
+  },
+  "fixture": {
+    "definition": "np.arange(128*128, dtype=np.uint32).reshape(128,128) % 64; uint16 multiplies by 257",
+    "input_sha256": {
+      "uint16": "eccb2e706b615b7eb1a7a97ec92e14b4492973a4843667da02a6e36ab50a37f5",
+      "uint8": "218ce717d7c6040fa9d31c9cf7c5f8d970d49faac646004bc6920544d869cc7b"
+    },
+    "name": "clahe_runtime_mod64",
+    "shape": [
+      128,
+      128
+    ]
+  },
+  "production": {
+    "classification": {
+      "mpips_python_clahe": "PRODUCTION-REACHABLE",
+      "java_fiji_runtime": "NOT PRODUCTION-REACHABLE"
+    },
+    "call_path": [
+      "POST /radiographs/dicom",
+      "run_isolated_dicom_conversion",
+      "python -m mpips.conversion.worker",
+      "process_radiography_arrays(..., config omitted)",
+      "ImagerPipelineConfig()",
+      "RadiographyPipeline",
+      "ImageJReplicator.apply_clahe"
+    ],
+    "dtype": "uint16",
+    "use_clahe": true,
+    "blocksize": 127,
+    "block_radius": 63,
+    "displayed_bins": 256,
+    "internal_bins": 255,
+    "max_slope": 0.6,
+    "fast": false,
+    "composite": true,
+    "mask": null,
+    "default_change_gates": [
+      "explicit product/technical semantic selection",
+      "documented supported geometry, bins, masks, and dtypes",
+      "real-radiograph comparison",
+      "regression impact analysis",
+      "config/schema/migration approval",
+      "validated implementation task"
+    ]
+  },
+  "decision_options": {
+    "selected": null,
+    "A": "Legacy MPIPS Contract: keep 0.6 as MPIPS-specific and stop claiming exact Fiji parity",
+    "B": "Fiji Flat Contract: authoritative Flat with valid domain, independent implementation, and radiograph validation",
+    "C": "Fiji FastFlat Contract: distinct FastFlat contract requiring separate parity work"
+  },
+  "recommended_next_experiment": {
+    "executed": false,
+    "description": "Later real-radiograph ablation comparing MPIPS precise at 0.6, informative higher values, and Fiji-Flat-compatible candidates around 1.03, 1.5, 2.0, and 3.0"
+  },
+  "cases": [
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 0.6,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 0.6",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "13c27e2398dc0ffca5232248589fcdd1ae8d7a4fa06de286289db3bbaec297f9",
+        "output_min": 0,
+        "output_max": 89
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.0",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.003,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.003",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0039,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.0039",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.00394,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.00394",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.00395,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.00395",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.004,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.004",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.027,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.027",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0272,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.0272",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02722,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.02722",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02722168,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.02722168",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "ebc87b6401070f5609d63b6c4939255017243d2eecf48f7e25028345b835f557",
+        "output_min": 0,
+        "output_max": 67,
+        "output_unique_values": 68
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02723,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.02723",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "0106c7b7d8bc0b0eb8215a07138418f24b8e962bd070979df364867950d2e100",
+        "output_min": 0,
+        "output_max": 67,
+        "output_unique_values": 68
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.028,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.028",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "015d60099c8325133cb9a7f28039a2b3ed74261b8d68d34dc2aab6796369497b",
+        "output_min": 0,
+        "output_max": 67,
+        "output_unique_values": 68
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.03,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.03",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "f5ac457f997c5d6602e4db49cae079827898d1604cdfafc75c4b0743cc47ee7b",
+        "output_min": 0,
+        "output_max": 67,
+        "output_unique_values": 68
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "75d08087abf6393f7bfe894c87052eb7c07a01b1c6930025fae8d2290ee0b009",
+        "output_min": 0,
+        "output_max": 110
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.5,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 1.5",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "93008033d627f115a8a556dc600ee205d730db035dc4ac3d90374dd3e715e7bb",
+        "output_min": 0,
+        "output_max": 97,
+        "output_unique_values": 98
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6d270504242b4232deb2c68d5172e83497794b13701fca34907d7883ccae7f2b",
+        "output_min": 0,
+        "output_max": 134
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 2.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 2.0",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "fd2c4732d510dec8b656a9574fbbc40c04b98d1ac1628ce7e1dcd20e4e7155da",
+        "output_min": 0,
+        "output_max": 128,
+        "output_unique_values": 113
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "3002cb7f2ec239840b1335575b12ad7d632a18fb4eb6dfdf7de11b9f477f59df",
+        "output_min": 0,
+        "output_max": 158
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 3.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint8 128 128 63 255 3.0",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "f1906810ad7ec8931b0383f3a59c895e3aadb2536cfbbe69a60916459d2dfeff",
+        "output_min": 0,
+        "output_max": 193,
+        "output_unique_values": 160
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "5cf909e2ee2149d3a754d508ea8632fcc36b1561e6ad22883e6bfbf839bb9b95",
+        "output_min": 0,
+        "output_max": 206
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 0.6,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 0.6",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.createTransfer(Util.java:145)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)",
+          "at ReferenceHarness.main(ReferenceHarness.java:101)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "d727abf7121673f83afa5327829501e2a6ea1cb92cdf71fe5162e2deebd46c4b",
+        "output_min": 1,
+        "output_max": 92
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.0",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.createTransfer(Util.java:145)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)",
+          "at ReferenceHarness.main(ReferenceHarness.java:101)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "ceebcb9ac07a634e4d6475de600867dac5e486221f030507c38fe4f8eb205d9b",
+        "output_min": 2,
+        "output_max": 112
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.003,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.003",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.createTransfer(Util.java:145)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)",
+          "at ReferenceHarness.main(ReferenceHarness.java:101)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "ceebcb9ac07a634e4d6475de600867dac5e486221f030507c38fe4f8eb205d9b",
+        "output_min": 2,
+        "output_max": 112
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0039,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.0039",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.createTransfer(Util.java:145)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)",
+          "at ReferenceHarness.main(ReferenceHarness.java:101)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "ceebcb9ac07a634e4d6475de600867dac5e486221f030507c38fe4f8eb205d9b",
+        "output_min": 2,
+        "output_max": 112
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.00394,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.00394",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "4daa15d8e97c1007a3c9c9c1ba1f3f1d16d65e4253b5e9dbb0bf330b19039b42",
+        "output_min": 0,
+        "output_max": 64,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "ceebcb9ac07a634e4d6475de600867dac5e486221f030507c38fe4f8eb205d9b",
+        "output_min": 2,
+        "output_max": 112
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.00395,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.00395",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "4daa15d8e97c1007a3c9c9c1ba1f3f1d16d65e4253b5e9dbb0bf330b19039b42",
+        "output_min": 0,
+        "output_max": 64,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "ceebcb9ac07a634e4d6475de600867dac5e486221f030507c38fe4f8eb205d9b",
+        "output_min": 2,
+        "output_max": 112
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.004,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.004",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "4daa15d8e97c1007a3c9c9c1ba1f3f1d16d65e4253b5e9dbb0bf330b19039b42",
+        "output_min": 0,
+        "output_max": 64,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "ceebcb9ac07a634e4d6475de600867dac5e486221f030507c38fe4f8eb205d9b",
+        "output_min": 2,
+        "output_max": 112
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.027,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.027",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "f532b7e3e33f3ca6a7e2ef291c584ac6a7532173ca4b157213f18b4b79770abf",
+        "output_min": 0,
+        "output_max": 65,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "8336c8d9eae1a6c636eaa2411eea6813e7518293101f6018b28e8285eb75f05d",
+        "output_min": 2,
+        "output_max": 113
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0272,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.0272",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "f532b7e3e33f3ca6a7e2ef291c584ac6a7532173ca4b157213f18b4b79770abf",
+        "output_min": 0,
+        "output_max": 65,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "8336c8d9eae1a6c636eaa2411eea6813e7518293101f6018b28e8285eb75f05d",
+        "output_min": 2,
+        "output_max": 113
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02722,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.02722",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "f532b7e3e33f3ca6a7e2ef291c584ac6a7532173ca4b157213f18b4b79770abf",
+        "output_min": 0,
+        "output_max": 65,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "8336c8d9eae1a6c636eaa2411eea6813e7518293101f6018b28e8285eb75f05d",
+        "output_min": 2,
+        "output_max": 113
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02722168,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.02722168",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "f532b7e3e33f3ca6a7e2ef291c584ac6a7532173ca4b157213f18b4b79770abf",
+        "output_min": 0,
+        "output_max": 65,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "8336c8d9eae1a6c636eaa2411eea6813e7518293101f6018b28e8285eb75f05d",
+        "output_min": 2,
+        "output_max": 113
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02723,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.02723",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "f532b7e3e33f3ca6a7e2ef291c584ac6a7532173ca4b157213f18b4b79770abf",
+        "output_min": 0,
+        "output_max": 65,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "8336c8d9eae1a6c636eaa2411eea6813e7518293101f6018b28e8285eb75f05d",
+        "output_min": 2,
+        "output_max": 113
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.028,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.028",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "f532b7e3e33f3ca6a7e2ef291c584ac6a7532173ca4b157213f18b4b79770abf",
+        "output_min": 0,
+        "output_max": 65,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "8336c8d9eae1a6c636eaa2411eea6813e7518293101f6018b28e8285eb75f05d",
+        "output_min": 2,
+        "output_max": 113
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.03,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.03",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "f532b7e3e33f3ca6a7e2ef291c584ac6a7532173ca4b157213f18b4b79770abf",
+        "output_min": 0,
+        "output_max": 65,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "8336c8d9eae1a6c636eaa2411eea6813e7518293101f6018b28e8285eb75f05d",
+        "output_min": 2,
+        "output_max": 113
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.5,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 1.5",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "27bf5c54f94dbc9f0c466c971e257cb65f612281719bc574041e0c5aac1dca4f",
+        "output_min": 0,
+        "output_max": 95,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "ca1c4a05d5dffe54f1716dbc1061e397bd3beb0da77bcaa02b460e06fe41aba4",
+        "output_min": 2,
+        "output_max": 135
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 2.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 2.0",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "d58f32a93449a2acefd60682b3a3f50c33b5ff97008a3c49e3b0f9f12acd72cf",
+        "output_min": 0,
+        "output_max": 128,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "b4a8c67de6008ed8b7eff97a40ffc1ef0773639e389abba0d2014e23c4200f64",
+        "output_min": 2,
+        "output_max": 159
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint8",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 3.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint8 128 128 63 255 3.0",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "dcfa0b3ed836900ffa269a8c47c4217ad5765135b232d2d773a19b55f1d697a2",
+        "output_min": 0,
+        "output_max": 191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "f1cd77081ce45bdd9d6ff589a6496d4a4dd2d85c09c5119597ab7b3bed17c8bc",
+        "output_min": 3,
+        "output_max": 207
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 0.6,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 0.6",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "488637c5087899a587eb1caa8bf2937da8b64e2ff58bc43e8f3ec29d9f678369",
+        "output_min": 0,
+        "output_max": 22873
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.0",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.003,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.003",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0039,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.0039",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.00394,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.00394",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.00395,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.00395",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.004,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.004",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.027,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.027",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0272,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.0272",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02722,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.02722",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.transferValue(Util.java:215)",
+          "at mpicbg.ij.clahe.Flat$SlidingWindowHistogram.getNormalizedValue(Flat.java:165)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:454)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at ReferenceHarness.main(ReferenceHarness.java:100)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02722168,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.02722168",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "36cd0a8409aa109556d252426b8f8b90114c6534c47b5a569b6eb732c778a80d",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 142
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02723,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.02723",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "36cd0a8409aa109556d252426b8f8b90114c6534c47b5a569b6eb732c778a80d",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 142
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.028,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.028",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "820a5d302483e1a4dce920f8adb106491075bd753180073234018cc5ea7a474d",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 142
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.03,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.03",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "0393069f482684af4d61ba39b7d40e30fa0a27efb0b04eabaecb274bd835248f",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 143
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "77a2f16146aad54b0e5a6043fcedcd869cc51854569f38ff0fe489149de66f21",
+        "output_min": 0,
+        "output_max": 28270
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.5,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 1.5",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "4f7687f4cabeefd98b08547000edb9034416e68328778982a0613b6da3dc5971",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 140
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "92f92e5b276443269388c43ae8ec1f67b9dfac2a19d96c52b1685490fda527e6",
+        "output_min": 0,
+        "output_max": 34438
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 2.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 2.0",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "4d5143fb2b079a3ade08d08993bae7676f15b98b50405e5207df31929c5be6f7",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 143
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "b22cdea485d609ddaa7094eb679679a78e1d889e399e66881c07210514001b33",
+        "output_min": 0,
+        "output_max": 40606
+      }
+    },
+    {
+      "algorithm": "Flat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 3.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_flat uint16 128 128 63 255 3.0",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "d12b4084a8eb18982fc2b2a42858f95eec8cef9be1442d5e044a972391b543ac",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 278
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "d98ab93fbf2534d0625af4acd2d2a2b8fff10d074794fd4f327be9103638dd77",
+        "output_min": 0,
+        "output_max": 52942
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 0.6,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 0.6",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.createTransfer(Util.java:145)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)",
+          "at ReferenceHarness.main(ReferenceHarness.java:101)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.0",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.createTransfer(Util.java:145)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)",
+          "at ReferenceHarness.main(ReferenceHarness.java:101)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.003,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.003",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.createTransfer(Util.java:145)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)",
+          "at ReferenceHarness.main(ReferenceHarness.java:101)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0039,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "error",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.0039",
+        "error": "Exception in thread \"main\" java.lang.ArithmeticException: / by zero",
+        "error_trace": [
+          "at mpicbg.ij.clahe.Util.clipHistogram(Util.java:97)",
+          "at mpicbg.ij.clahe.Util.createTransfer(Util.java:145)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:232)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:376)",
+          "at mpicbg.ij.clahe.Flat.run(Flat.java:222)",
+          "at mpicbg.ij.clahe.FastFlat.run(FastFlat.java:98)",
+          "at ReferenceHarness.main(ReferenceHarness.java:101)"
+        ],
+        "output_sha256": null,
+        "output_min": null,
+        "output_max": null,
+        "output_unique_values": null
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.00394,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.00394",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "9de6ffe61d49e3b9d9242fb58f69ca9deede359fb5cb7c9c707f0de53c13c10d",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.00395,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.00395",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "9de6ffe61d49e3b9d9242fb58f69ca9deede359fb5cb7c9c707f0de53c13c10d",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.004,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.004",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "9de6ffe61d49e3b9d9242fb58f69ca9deede359fb5cb7c9c707f0de53c13c10d",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.027,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.027",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "0abec5e392b98a84364149dd764b42f8f487cffdf8e8f758d41005c3fffc8357",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.0272,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.0272",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "0abec5e392b98a84364149dd764b42f8f487cffdf8e8f758d41005c3fffc8357",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02722,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.02722",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "0abec5e392b98a84364149dd764b42f8f487cffdf8e8f758d41005c3fffc8357",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02722168,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.02722168",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "0abec5e392b98a84364149dd764b42f8f487cffdf8e8f758d41005c3fffc8357",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.02723,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.02723",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "0abec5e392b98a84364149dd764b42f8f487cffdf8e8f758d41005c3fffc8357",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.028,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.028",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "0abec5e392b98a84364149dd764b42f8f487cffdf8e8f758d41005c3fffc8357",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.03,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.03",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "0abec5e392b98a84364149dd764b42f8f487cffdf8e8f758d41005c3fffc8357",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 1.5,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 1.5",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "05b8e8380d6578857863d6b1e417dc08f672cb82074e70e1e47275bf55629a79",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 2.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 2.0",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "b4b7666cc22ea4253086182884172c0c755574e92f17b82b3802ce2275594278",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    },
+    {
+      "algorithm": "FastFlat",
+      "dtype": "uint16",
+      "image_shape": [
+        128,
+        128
+      ],
+      "block_radius": 63,
+      "displayed_bins": 256,
+      "internal_bins": 255,
+      "slope": 3.0,
+      "mask": null,
+      "composite": true,
+      "reference": {
+        "status": "success",
+        "command": "<TEMURIN_JAVA> -Djava.awt.headless=true -cp <REFERENCE_CLASSPATH> ReferenceHarness clahe_fast uint16 128 128 63 255 3.0",
+        "error": null,
+        "error_trace": null,
+        "output_sha256": "80daeb1c36dd95f475f85797e8fd2ae1ca829a0387f75bd9c619b24d152cfd74",
+        "output_min": 0,
+        "output_max": 16191,
+        "output_unique_values": 64
+      },
+      "mpips": {
+        "status": "numeric",
+        "output_sha256": "6945984521421e97cc35bd1fb3eacfe89b1e29ba1bbd8afc44358034e06bd38e",
+        "output_min": 8,
+        "output_max": 16448
+      }
+    }
+  ]
+}

@@ -3,7 +3,7 @@ from fastapi import FastAPI
 import mpips
 from mpips.api import app, create_app
 from mpips.asgi import app as asgi_app
-from mpips.engine import DAGExecutor, NODE_CATALOG, get_node_class, topological_sort
+from mpips.dag import DAGExecutor, NODE_CATALOG, get_node_class, topological_sort
 
 
 def test_public_package_exports_backend_app() -> None:
@@ -13,7 +13,7 @@ def test_public_package_exports_backend_app() -> None:
     assert mpips.app is app
 
 
-def test_public_package_exports_engine_primitives() -> None:
+def test_public_package_exports_dag_primitives() -> None:
     assert mpips.DAGExecutor is DAGExecutor
     assert mpips.topological_sort is topological_sort
     assert len(NODE_CATALOG) == 30

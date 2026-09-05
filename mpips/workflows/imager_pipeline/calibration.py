@@ -26,7 +26,7 @@ from mpips.workflows.imager_pipeline.npz_io import (
     to_uint16,
     write_tiff,
 )
-from mpips.workflows.imager_pipeline.pipeline import (
+from mpips.processing import (
     flat_field_correction,
     imagej_stretch,
 )
@@ -196,7 +196,7 @@ def extract_dot_grid(
     """Adapt an in-memory image to the canonical research grid extractor."""
     if image.ndim != 2 or image.dtype != np.uint8:
         raise ValueError("Dot-grid extraction requires a uint8 grayscale image")
-    from mpips.engine.calibration.dotgrid.extract_grid import extract_grid
+    from mpips.calibration.dotgrid.extract_grid import extract_grid
 
     with tempfile.TemporaryDirectory(prefix="mpips-dotgrid-extract-") as temporary:
         workspace = Path(temporary)
@@ -271,9 +271,9 @@ def build_inverse_maps(
     config: NeuralCalibrationConfig,
     coordinates: Any | None = None,
 ) -> tuple[np.ndarray, np.ndarray, dict[str, Any]]:
-    """Delegate fixed-canvas inverse-map generation to the canonical engine."""
-    from mpips.engine.calibration.dotgrid.neural_model.warp_image import (
-        build_inverse_maps as engine_build_inverse_maps,
+    """Delegate inverse-map generation to canonical calibration ownership."""
+    from mpips.calibration.dotgrid.neural_model.warp_image import (
+        build_inverse_maps as canonical_build_inverse_maps,
         estimate_expanded_canvas,
         resolve_device,
     )
@@ -301,7 +301,7 @@ def build_inverse_maps(
         output_width = int(expanded["output_size"]["width"])
         output_height = int(expanded["output_size"]["height"])
         origin = tuple(expanded["origin_xy"])
-    map_x, map_y, stats = engine_build_inverse_maps(
+    map_x, map_y, stats = canonical_build_inverse_maps(
         model,
         output_width,
         output_height,
@@ -407,12 +407,12 @@ def build_or_load_calibration(
         return cached
 
     try:
-        from mpips.engine.calibration.dotgrid.neural_model.dataset import load_data
-        from mpips.engine.calibration.dotgrid.neural_model.evaluate import (
+        from mpips.calibration.dotgrid.neural_model.dataset import load_data
+        from mpips.calibration.dotgrid.neural_model.evaluate import (
             evaluate_model,
         )
-        from mpips.engine.calibration.dotgrid.neural_model.train import train_model
-        from mpips.engine.calibration.dotgrid.neural_model.validate_outputs import (
+        from mpips.calibration.dotgrid.neural_model.train import train_model
+        from mpips.calibration.dotgrid.neural_model.validate_outputs import (
             validate_outputs,
         )
     except ImportError as exc:
@@ -438,7 +438,7 @@ def build_or_load_calibration(
     image_u8 = np.rint(image * 255.0).clip(0, 255).astype(np.uint8)
     write_tiff(calibration_tiff, image_u8)
 
-    from mpips.engine.calibration.dotgrid.extract_grid import extract_grid
+    from mpips.calibration.dotgrid.extract_grid import extract_grid
 
     try:
         extracted = extract_grid(
@@ -490,7 +490,11 @@ def build_or_load_calibration(
     if config.canvas_mode == "fixed":
         remap_stats.update(validate_fixed_canvas_remap(map_x, map_y, width, height))
     else:
-        remap_stats.update(validate_expanded_canvas_remap(map_x, map_y, width, height))
+        remap_stats.update(
+            remap_geometry_evidence(
+                map_x, map_y, width, height, output_shape=map_x.shape
+            )
+        )
     np.savez_compressed(remap_path, map_x=map_x, map_y=map_y)
     valid_mask = (
         (map_x >= 0) & (map_x <= width - 1) & (map_y >= 0) & (map_y <= height - 1)

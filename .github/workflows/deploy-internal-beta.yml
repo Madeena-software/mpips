@@ -25,7 +25,7 @@ jobs:
       app_version: ${{ steps.set_version.outputs.app_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -44,7 +44,9 @@ jobs:
           test ! -f .agents/skills/agent-task/scripts/validate_task.py || \
             .venv/bin/python .agents/skills/agent-task/scripts/validate_task.py \
             .agents/tasks/archive/mpips-simple-key-cicd-internal-beta-v1.md
-          test "$(sha256sum mpips/engine/imager_pipeline/tiff_json_to_dcm.py | awk '{print $1}')" = \
+          test -f mpips/conversion/tiff_json_to_dcm.py
+          test ! -e mpips/engine/imager_pipeline/tiff_json_to_dcm.py
+          test "$(sha256sum mpips/conversion/tiff_json_to_dcm.py | awk '{print $1}')" = \
             "a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0"
           uv run pytest \
             tests/api/test_api_surface.py \
@@ -142,7 +144,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Python
         uses: actions/setup-python@v5

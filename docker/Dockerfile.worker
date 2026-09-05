@@ -2,7 +2,7 @@
 
 FROM ghcr.io/astral-sh/uv@sha256:95f2aa1fe59274951cfe9b0cbc7972e879ff1004bc8945d130a32eb0dbd85945 AS uv
 
-FROM python:3.12-slim AS worker-runtime
+FROM python:3.12-slim@sha256:2c941e860699f878900b0edc2403613c234d4b32eda3cc9fa7036991a2a63c4a AS worker-runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -29,9 +29,10 @@ RUN --mount=type=cache,id=mpips-worker-uv,target=/root/.cache/uv,sharing=locked 
 
 COPY mpips/conversion/worker.py ./mpips/conversion/worker.py
 COPY mpips/workflows/imager_pipeline ./mpips/workflows/imager_pipeline
+COPY mpips/pipelines ./mpips/pipelines
+COPY mpips/processing ./mpips/processing
 COPY mpips/__init__.py ./mpips/__init__.py
 COPY mpips/workflows/__init__.py ./mpips/workflows/__init__.py
-COPY mpips/engine ./mpips/engine
 COPY mpips/storage.py ./mpips/storage.py
 
 RUN groupadd --system --gid 10001 mpips \

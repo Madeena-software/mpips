@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 
-from mpips.engine.imager_pipeline import complete_pipeline as pipeline
+from mpips.workflows.imager_pipeline import pipeline
 from scripts.validate_real_trx_pipeline import _first_collapse_stage, _geometry_failure
 
 

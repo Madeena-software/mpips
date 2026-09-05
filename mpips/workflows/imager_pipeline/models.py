@@ -6,7 +6,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any
 
-from mpips.engine.imager_pipeline.config import (  # noqa: F401
+from mpips.pipelines.config import (  # noqa: F401
     ImagerPipelineConfig as ImagerPipelineConfig,
 )
 
@@ -30,7 +30,7 @@ class NeuralCalibrationConfig:
     inverse_iterations: int = 10
     batch_size: int = 262144
     device: str = "auto"
-    canvas_mode: str = "expanded"
+    canvas_mode: str = "fixed"
     expanded_bounds_step: int = 4
     expanded_margin: int = 16
     min_straightness_reduction: float = 50.0

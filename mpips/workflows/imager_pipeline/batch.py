@@ -11,8 +11,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Callable, Iterable
 
-import cv2
-
 from mpips.workflows.imager_pipeline.calibration import load_remap
 from mpips.workflows.imager_pipeline.models import (
     BatchItemResult,
@@ -96,42 +94,28 @@ def process_npz_batch(
             raw = to_uint16(radiograph["raw"], "radiograph raw")
             dark = to_uint16(gain.dark, "gain dark")
             flat = to_uint16(gain.flat, "gain flat")
-            with tempfile.TemporaryDirectory(prefix="mpips-radiography-") as temporary:
-                workspace = Path(temporary)
-                raw_path = write_tiff(workspace / "raw.tiff", raw)
-                dark_path = write_tiff(workspace / "dark.tiff", dark)
-                flat_path = write_tiff(workspace / "flat.tiff", flat)
-                raw_tiff = cv2.imread(str(raw_path), cv2.IMREAD_UNCHANGED)
-                dark_tiff = cv2.imread(str(dark_path), cv2.IMREAD_UNCHANGED)
-                flat_tiff = cv2.imread(str(flat_path), cv2.IMREAD_UNCHANGED)
-                if raw_tiff is None or dark_tiff is None or flat_tiff is None:
-                    raise OSError(
-                        "Temporary NPZ-to-TIFF conversion could not be read back"
-                    )
-                output = process_radiography_arrays(
-                    raw_tiff,
-                    dark_tiff,
-                    flat_tiff,
-                    str(radiograph["detector_mode"]),
-                    config,
-                    map_x=map_x,
-                    map_y=map_y,
+            output = process_radiography_arrays(
+                raw,
+                dark,
+                flat,
+                str(radiograph["detector_mode"]),
+                config,
+                map_x=map_x,
+                map_y=map_y,
+            )
+            base_name = f"{source.stem}_processed.tiff"
+            if base_name in used_names:
+                base_name = f"{source.stem}_{source_digest[:8]}_processed.tiff"
+            collision_index = 2
+            while base_name in used_names:
+                base_name = (
+                    f"{source.stem}_{source_digest[:8]}_"
+                    f"{collision_index}_processed.tiff"
                 )
-                base_name = f"{source.stem}_processed.tiff"
-                if base_name in used_names:
-                    base_name = f"{source.stem}_{source_digest[:8]}_processed.tiff"
-                collision_index = 2
-                while base_name in used_names:
-                    base_name = (
-                        f"{source.stem}_{source_digest[:8]}_"
-                        f"{collision_index}_processed.tiff"
-                    )
-                    collision_index += 1
-                used_names.add(base_name)
-                staged = write_tiff(workspace / base_name, output)
-                staged_destination = processed_directory / base_name
-                shutil.copy2(staged, staged_destination)
-                destination = durable_run_directory / "processed" / base_name
+                collision_index += 1
+            used_names.add(base_name)
+            write_tiff(processed_directory / base_name, output)
+            destination = durable_run_directory / "processed" / base_name
             item = BatchItemResult(
                 source=str(source),
                 status="completed",

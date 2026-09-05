@@ -12,7 +12,7 @@ from mpips.api.schemas.jobs import (
     JobStatusResponse,
     JobCancelResponse,
 )
-from mpips.engine.catalog import NODE_CATALOG
+from mpips.dag.catalog import NODE_CATALOG
 
 from mpips.api.routes.v1.dicom import router as dicom_router
 

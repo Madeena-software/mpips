@@ -1,0 +1,4835 @@
+{
+  "cases": [
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.2681880696614583,
+        "numeric_threshold": 0.01070889551192522,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 9808.136231933593,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 3294834,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61705.0,
+        "sha256": "ecc250e67046dbab6640195fa3916cacc8cd1077734f68df14c4961ed5e98b12",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.73186572265625
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8752055764198303,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287921,
+        "p01": 0.28549301624298096,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "ba3cd0af654ec59ae14c8709e5fdd3e9ed3d2155c8eb794855ec618e787c0d1e",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.429036458333333e-06
+      },
+      "case": 1,
+      "detector_mode": "BED",
+      "drive_file_id": "1AUS04DQYHorVUBc1JVvyay7loDC3tDGG",
+      "final_sha256_equal": false,
+      "gain_id": "1782703552958",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.31224690755208334,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 1478777,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 4.0,
+          "sha256": "0f3448488273fac203659d51cd347688d2ae59f00bab92e2de0e3e0389b81588",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.8796568196614584
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1i9nT2bQ3VG3_TfAGHNpQDVi50JAC2Cyq",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1674.0,
+          "finite": true,
+          "max": 1692.0,
+          "mean": 819.6620664876302,
+          "median": 842.0,
+          "min": 18.0,
+          "nonzero_count": 12288000,
+          "p01": 304.0,
+          "p50": 842.0,
+          "p99": 1152.0,
+          "sha256": "4a4ef42fc561bd5723f318fd656a332a2c3ef8a1840957175c0ba602defbf138",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1782703552958",
+        "path": "Ambil Data 1/gain NPZ/Ambil_Data_1_gain.npz",
+        "sha256": "4b71867e85be890eefe74be2319c110091d5a7ba6af5857b889345421582f82a",
+        "title": "Ambil_Data_1_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1782704292552",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 21956.448399332683,
+        "median": 14980.0,
+        "min": 0.0,
+        "nonzero_count": 12287969,
+        "p01": 2827.0,
+        "p50": 14980.0,
+        "p99": 62938.0,
+        "sha256": "87ef6319fb397a3a22f22ae1fad8dba3f91bfd126ab8853cfc06f2741f720bf9",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.5227864583333333e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.030376479029655457,
+        "finite": true,
+        "max": 0.030376479029655457,
+        "mean": 0.010668950155377388,
+        "median": 0.012452617287635803,
+        "min": 0.0,
+        "nonzero_count": 12287921,
+        "p01": 0.0030573110561817884,
+        "p50": 0.012452617287635803,
+        "p99": 0.012841329909861088,
+        "sha256": "944d176dc39f4eb7707c0a69bc99fbea1878f86e1b4e248a2a162cbbdd67aeaa",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.429036458333333e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.030376479029655457,
+        "finite": true,
+        "max": 0.030376479029655457,
+        "mean": 0.010668950155377388,
+        "median": 0.012452617287635803,
+        "min": 0.0,
+        "nonzero_count": 12287921,
+        "p01": 0.0030573110561817884,
+        "p50": 0.012452617287635803,
+        "p99": 0.012841329909861088,
+        "sha256": "944d176dc39f4eb7707c0a69bc99fbea1878f86e1b4e248a2a162cbbdd67aeaa",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.429036458333333e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 1",
+      "source_path": "Ambil Data 1/file npz/kambing-1/Copy of BED_1782704291612.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1AUS04DQYHorVUBc1JVvyay7loDC3tDGG",
+        "gain_id": "1782703552958",
+        "id": "1782704292552",
+        "path": "Ambil Data 1/file npz/kambing-1/Copy of BED_1782704291612.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1518.0,
+          "finite": true,
+          "max": 1535.0,
+          "mean": 673.5463046061197,
+          "median": 677.0,
+          "min": 17.0,
+          "nonzero_count": 12288000,
+          "p01": 236.0,
+          "p50": 677.0,
+          "p99": 1126.0,
+          "sha256": "969b85ae3d2f7bb2afff9de6027b84a7a547b790cb8023feff9b61ee49998e1c",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "b394c8a5916a753a7468d31c141982fce572bc30afa68e07819c2476a8c87c57",
+        "title": "Copy of BED_1782704291612.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "b394c8a5916a753a7468d31c141982fce572bc30afa68e07819c2476a8c87c57",
+      "source_title": "Copy of BED_1782704291612.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.2613546800113673,
+          "gradient_energy_retention": 0.25063191587998523,
+          "informative_extreme_fraction": 0.3120955222469828,
+          "informative_tile_count": 1204,
+          "lost_informative_tile_fraction": 0.49667774086378735,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1204,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999803878
+        }
+      },
+      "subject": "kambing-1"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.22704768880208334,
+        "numeric_threshold": 0.010330026037991047,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 8444.173342122396,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2789333,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61672.0,
+        "sha256": "f07614960abdae85fa4079b2b3ee63d655bd01d2d3870e356bc2ede78918c500",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.7730034993489583
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8862553834915161,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287920,
+        "p01": 0.24672289192676544,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "5586301958ec425ca79c6c9ccaaef5dfdc519c27293511c2555478459b98c83e",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.510416666666667e-06
+      },
+      "case": 2,
+      "detector_mode": "BED",
+      "drive_file_id": "1VO11y9c0D-6R3fzWFVSjcJzwvDqWENcw",
+      "final_sha256_equal": false,
+      "gain_id": "1782703552958",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.31224690755208334,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 1478777,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 4.0,
+          "sha256": "0f3448488273fac203659d51cd347688d2ae59f00bab92e2de0e3e0389b81588",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.8796568196614584
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1i9nT2bQ3VG3_TfAGHNpQDVi50JAC2Cyq",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1674.0,
+          "finite": true,
+          "max": 1692.0,
+          "mean": 819.6620664876302,
+          "median": 842.0,
+          "min": 18.0,
+          "nonzero_count": 12288000,
+          "p01": 304.0,
+          "p50": 842.0,
+          "p99": 1152.0,
+          "sha256": "4a4ef42fc561bd5723f318fd656a332a2c3ef8a1840957175c0ba602defbf138",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1782703552958",
+        "path": "Ambil Data 1/gain NPZ/Ambil_Data_1_gain.npz",
+        "sha256": "4b71867e85be890eefe74be2319c110091d5a7ba6af5857b889345421582f82a",
+        "title": "Ambil_Data_1_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1782706309431",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 23214.49909879557,
+        "median": 17460.0,
+        "min": 0.0,
+        "nonzero_count": 12287990,
+        "p01": 3895.0,
+        "p50": 17460.0,
+        "p99": 63179.0,
+        "sha256": "83b8ba3f6032c0b60f0d5aeac3fbf7cc0db8b0f37f1bed7366ccde7f784bda30",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 8.138020833333334e-07
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.027618659660220146,
+        "finite": true,
+        "max": 0.027618659660220146,
+        "mean": 0.010640287771821022,
+        "median": 0.012221184559166431,
+        "min": 0.0,
+        "nonzero_count": 12287920,
+        "p01": 0.002548652235418558,
+        "p50": 0.012221184559166431,
+        "p99": 0.013010046444833279,
+        "sha256": "64462c497015fe581d43d462d55cc00e9d9658454700e37aea45585b5164ae30",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.510416666666667e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.027618659660220146,
+        "finite": true,
+        "max": 0.027618659660220146,
+        "mean": 0.010640287771821022,
+        "median": 0.012221184559166431,
+        "min": 0.0,
+        "nonzero_count": 12287920,
+        "p01": 0.002548652235418558,
+        "p50": 0.012221184559166431,
+        "p99": 0.013010046444833279,
+        "sha256": "64462c497015fe581d43d462d55cc00e9d9658454700e37aea45585b5164ae30",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 6.510416666666667e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 1",
+      "source_path": "Ambil Data 1/file npz/kambing-2/Copy of BED_1782706308504.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1VO11y9c0D-6R3fzWFVSjcJzwvDqWENcw",
+        "gain_id": "1782703552958",
+        "id": "1782706309431",
+        "path": "Ambil Data 1/file npz/kambing-2/Copy of BED_1782706308504.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1594.0,
+          "finite": true,
+          "max": 1608.0,
+          "mean": 667.004795328776,
+          "median": 681.0,
+          "min": 14.0,
+          "nonzero_count": 12288000,
+          "p01": 216.0,
+          "p50": 681.0,
+          "p99": 1068.0,
+          "sha256": "724d68926ed197c97027e9cf07c8423ec2a0ad81b741adba42405445f822fa84",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "ae014b8a4cf08e46075d74fd404b08b6961ce1615360390c826139b6b0572f1d",
+        "title": "Copy of BED_1782706308504.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "ae014b8a4cf08e46075d74fd404b08b6961ce1615360390c826139b6b0572f1d",
+      "source_title": "Copy of BED_1782706308504.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.2210671894804538,
+          "gradient_energy_retention": 0.21521961044589644,
+          "informative_extreme_fraction": 0.7968655794776047,
+          "informative_tile_count": 1257,
+          "lost_informative_tile_fraction": 0.5393794749403341,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1257,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999792017
+        }
+      },
+      "subject": "kambing-2"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.25543994140625,
+        "numeric_threshold": 0.010730769485235214,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 9395.6531171875,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 3138042,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61725.0,
+        "sha256": "6f17f8c6e6e0fb4696e08c917777a111ce573658068193e7d1e782106e4dec4b",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.74462548828125
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8804041147232056,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287959,
+        "p01": 0.2825494110584259,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "cece157f8c083773663d11661cfc9d45cd3d83953379178a8f86e11df275f26f",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.336588541666667e-06
+      },
+      "case": 3,
+      "detector_mode": "BED",
+      "drive_file_id": "1sLur8whVT8Vb4OJeVIduSJFBQ3wKCOVX",
+      "final_sha256_equal": false,
+      "gain_id": "1783219207291",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.115052978515625,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 524427,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 2.0,
+          "sha256": "aab04e10590b722bf0b599f2ccef0ac37cd89dd0660ad8a269cfb4a124c51618",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.957322021484375
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1Y3-dD4k2a_SRvfCC7Ezyj-v9ImColQjK",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1692.0,
+          "finite": true,
+          "max": 1706.0,
+          "mean": 817.6364968261719,
+          "median": 840.0,
+          "min": 14.0,
+          "nonzero_count": 12288000,
+          "p01": 307.0,
+          "p50": 840.0,
+          "p99": 1150.0,
+          "sha256": "2f44d0d231dd53d7174d08b2345e2657ccdf8e6892bd82e61e050ae1b7cae8f0",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1783219207291",
+        "path": "Ambil Data 2/gain NPZ/Ambil_Data_2_gain.npz",
+        "sha256": "2467d0e0efd81f7441053fc8bfdc7d246db457cd31d9d56be44b4239c22719c0",
+        "title": "Ambil_Data_2_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1783222265244",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 21759.54662036133,
+        "median": 15146.0,
+        "min": 0.0,
+        "nonzero_count": 12287982,
+        "p01": 2687.0,
+        "p50": 15146.0,
+        "p99": 62997.0,
+        "sha256": "b69a1bab22afe22902d1748dff9ab41c1e29364a3cadd2cee393ef6bc360205f",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 1.46484375e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.025977088138461113,
+        "finite": true,
+        "max": 0.025977088138461113,
+        "mean": 0.010695983655750751,
+        "median": 0.0123802674934268,
+        "min": 0.0,
+        "nonzero_count": 12287959,
+        "p01": 0.003031966043636203,
+        "p50": 0.0123802674934268,
+        "p99": 0.012772353366017342,
+        "sha256": "e8f8b5a452a341f0c17ee78c170107a72710ba383c4bd2714796cc2fd48e5941",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.336588541666667e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.025977088138461113,
+        "finite": true,
+        "max": 0.025977088138461113,
+        "mean": 0.010695983655750751,
+        "median": 0.0123802674934268,
+        "min": 0.0,
+        "nonzero_count": 12287959,
+        "p01": 0.003031966043636203,
+        "p50": 0.0123802674934268,
+        "p99": 0.012772353366017342,
+        "sha256": "e8f8b5a452a341f0c17ee78c170107a72710ba383c4bd2714796cc2fd48e5941",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.336588541666667e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 2",
+      "source_path": "Ambil Data 2/npz file/kambing-1/Copy of BED_1783222264263.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1sLur8whVT8Vb4OJeVIduSJFBQ3wKCOVX",
+        "gain_id": "1783219207291",
+        "id": "1783222265244",
+        "path": "Ambil Data 2/npz file/kambing-1/Copy of BED_1783222264263.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1620.0,
+          "finite": true,
+          "max": 1632.0,
+          "mean": 669.914635172526,
+          "median": 677.0,
+          "min": 12.0,
+          "nonzero_count": 12288000,
+          "p01": 256.0,
+          "p50": 677.0,
+          "p99": 1096.0,
+          "sha256": "edb19d0d888111ce5ef8c6c8f8651932baa1105d733567ae8c295a8be484a082",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "1a1436b6aab20a2161e862617afe7f951e4483a35b869bb7df2539d16cdc64f0",
+        "title": "Copy of BED_1783222264263.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "1a1436b6aab20a2161e862617afe7f951e4483a35b869bb7df2539d16cdc64f0",
+      "source_title": "Copy of BED_1783222264263.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.25012307085024377,
+          "gradient_energy_retention": 0.2408883725469137,
+          "informative_extreme_fraction": 0.3318354046337809,
+          "informative_tile_count": 1220,
+          "lost_informative_tile_fraction": 0.5270491803278688,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1220,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999810748
+        }
+      },
+      "subject": "kambing-1"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.247965087890625,
+        "numeric_threshold": 0.010283078998327255,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 9056.601389485677,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 3046459,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61668.0,
+        "sha256": "d863419f691803de0cf3e08d4ee4fb80f5a688d12c0f4ae5748e13399c370759",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.7520785319010417
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8810927867889404,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287961,
+        "p01": 0.2505967617034912,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "377f45772126cba422ce01507407f03652f30ba2ce962d632af317b8aaad95a3",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.173828125e-06
+      },
+      "case": 4,
+      "detector_mode": "BED",
+      "drive_file_id": "1NoKEdKmB3UsuIYA7GogLfqa2AEkS2cTE",
+      "final_sha256_equal": false,
+      "gain_id": "1783219207291",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.115052978515625,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 524427,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 2.0,
+          "sha256": "aab04e10590b722bf0b599f2ccef0ac37cd89dd0660ad8a269cfb4a124c51618",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.957322021484375
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1Y3-dD4k2a_SRvfCC7Ezyj-v9ImColQjK",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1692.0,
+          "finite": true,
+          "max": 1706.0,
+          "mean": 817.6364968261719,
+          "median": 840.0,
+          "min": 14.0,
+          "nonzero_count": 12288000,
+          "p01": 307.0,
+          "p50": 840.0,
+          "p99": 1150.0,
+          "sha256": "2f44d0d231dd53d7174d08b2345e2657ccdf8e6892bd82e61e050ae1b7cae8f0",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1783219207291",
+        "path": "Ambil Data 2/gain NPZ/Ambil_Data_2_gain.npz",
+        "sha256": "2467d0e0efd81f7441053fc8bfdc7d246db457cd31d9d56be44b4239c22719c0",
+        "title": "Ambil_Data_2_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1783223477351",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 22102.228947102863,
+        "median": 15545.0,
+        "min": 0.0,
+        "nonzero_count": 12287986,
+        "p01": 3341.0,
+        "p50": 15545.0,
+        "p99": 63047.0,
+        "sha256": "983e9d759ce65b67a0d2ddac5c756dc970f9cdbc64ab7c345f487f8671e3fcfe",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 1.1393229166666668e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.028230221942067146,
+        "finite": true,
+        "max": 0.028230221942067146,
+        "mean": 0.010565312579274178,
+        "median": 0.01227615401148796,
+        "min": 0.0,
+        "nonzero_count": 12287961,
+        "p01": 0.0025769055355340242,
+        "p50": 0.01227615401148796,
+        "p99": 0.01268048770725727,
+        "sha256": "43cc02a21c10740da26cb92df03a6c99fecbc721f3e6b592cedff6866c88f037",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.173828125e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.028230221942067146,
+        "finite": true,
+        "max": 0.028230221942067146,
+        "mean": 0.010565312579274178,
+        "median": 0.01227615401148796,
+        "min": 0.0,
+        "nonzero_count": 12287961,
+        "p01": 0.0025769055355340242,
+        "p50": 0.01227615401148796,
+        "p99": 0.01268048770725727,
+        "sha256": "43cc02a21c10740da26cb92df03a6c99fecbc721f3e6b592cedff6866c88f037",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.173828125e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 2",
+      "source_path": "Ambil Data 2/npz file/kambing-2/Copy of BED_1783223476352.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1NoKEdKmB3UsuIYA7GogLfqa2AEkS2cTE",
+        "gain_id": "1783219207291",
+        "id": "1783223477351",
+        "path": "Ambil Data 2/npz file/kambing-2/Copy of BED_1783223476352.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1502.0,
+          "finite": true,
+          "max": 1514.0,
+          "mean": 664.2381934407553,
+          "median": 670.0,
+          "min": 12.0,
+          "nonzero_count": 12288000,
+          "p01": 209.0,
+          "p50": 670.0,
+          "p99": 1105.0,
+          "sha256": "13868dc9e52d1d92cbe8fb814427ce2b6fb8b0df23b5248a41b4c75bf929d5c9",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "e15f063dfd622fa10c9c0cea0913487e2220f9525a3104e2b9c7282551aa6c54",
+        "title": "Copy of BED_1783223476352.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "e15f063dfd622fa10c9c0cea0913487e2220f9525a3104e2b9c7282551aa6c54",
+      "source_title": "Copy of BED_1783223476352.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.24188897384112032,
+          "gradient_energy_retention": 0.2174556537678897,
+          "informative_extreme_fraction": 0.368036878936283,
+          "informative_tile_count": 900,
+          "lost_informative_tile_fraction": 0.55,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 900,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999738666
+        }
+      },
+      "subject": "kambing-2"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.24266487630208333,
+        "numeric_threshold": 0.010535839013755322,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 9061.811517415365,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2981259,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61734.0,
+        "sha256": "30e19ed90e4f78277ac1075799fce48d95ec60dc8c781762cd81aa2b76b54009",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.757384521484375
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8837794661521912,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287947,
+        "p01": 0.2860007584095001,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "282de95f2ffb591dd7e25d4b15222994c80116daaf7c63722f72ad546dd9804e",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.313151041666667e-06
+      },
+      "case": 5,
+      "detector_mode": "BED",
+      "drive_file_id": "1PUF1XhPkGBMPdh8CMXjrEh9-yW6go3a3",
+      "final_sha256_equal": false,
+      "gain_id": "1783826141899",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.2654571126302083,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 1491004,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 3.0,
+          "sha256": "cf823144e023bf31371f3e1203b526efcb372e11c779a7bf7451988c640bcfcc",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.8786617838541667
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1nGjmoE0cGxT5lU-7KnMJG1-51N34w0Wo",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1605.0,
+          "finite": true,
+          "max": 1625.0,
+          "mean": 815.321368326823,
+          "median": 837.0,
+          "min": 20.0,
+          "nonzero_count": 12288000,
+          "p01": 306.0,
+          "p50": 837.0,
+          "p99": 1149.0,
+          "sha256": "a9d2502d328f8dd8a4ead792c214889a9a68b6665c726159428ffcbb685bd2b6",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1783826141899",
+        "path": "Ambil Data 3/gain NPZ/Ambil_Data_3_gain.npz",
+        "sha256": "0a990655f6dcf477d97717c806acb916bab2ff91e65706ea5a577d090e38c45a",
+        "title": "Ambil_Data_3_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1783826994712",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 21292.440884440104,
+        "median": 14664.0,
+        "min": 0.0,
+        "nonzero_count": 12287975,
+        "p01": 2818.0,
+        "p50": 14664.0,
+        "p99": 63016.0,
+        "sha256": "95908204d1ab0712612b2afa9c8d7e86636edb5ee51efdf90748252feae9ca53",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.0345052083333333e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.02731316164135933,
+        "finite": true,
+        "max": 0.02731316164135933,
+        "mean": 0.010718727484345436,
+        "median": 0.012379618361592293,
+        "min": 0.0,
+        "nonzero_count": 12287947,
+        "p01": 0.003013244364410639,
+        "p50": 0.012379618361592293,
+        "p99": 0.012725947424769402,
+        "sha256": "41aa6a9d3e45cd6c43b1492d4c216492658786418a1a3367fba90ec6859c691a",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.313151041666667e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.02731316164135933,
+        "finite": true,
+        "max": 0.02731316164135933,
+        "mean": 0.010718727484345436,
+        "median": 0.012379618361592293,
+        "min": 0.0,
+        "nonzero_count": 12287947,
+        "p01": 0.003013244364410639,
+        "p50": 0.012379618361592293,
+        "p99": 0.012725947424769402,
+        "sha256": "41aa6a9d3e45cd6c43b1492d4c216492658786418a1a3367fba90ec6859c691a",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.313151041666667e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 3",
+      "source_path": "Ambil Data 3/npz file/kambing 1/BED_1783826993793.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1PUF1XhPkGBMPdh8CMXjrEh9-yW6go3a3",
+        "gain_id": "1783826141899",
+        "id": "1783826994712",
+        "path": "Ambil Data 3/npz file/kambing 1/BED_1783826993793.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1519.0,
+          "finite": true,
+          "max": 1538.0,
+          "mean": 670.3472445475261,
+          "median": 680.0,
+          "min": 19.0,
+          "nonzero_count": 12288000,
+          "p01": 262.0,
+          "p50": 680.0,
+          "p99": 1097.0,
+          "sha256": "4d59c2df33856bf5634982e730ebb7c5950131b5cdbf9ae69cabfb33e8fdd8a6",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "f4cb0022f0171a2ac863f71f2df299b6ddf138be10d3f804e0a54cc7b4b322fc",
+        "title": "BED_1783826993793.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "f4cb0022f0171a2ac863f71f2df299b6ddf138be10d3f804e0a54cc7b4b322fc",
+      "source_title": "BED_1783826993793.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.23629869911559,
+          "gradient_energy_retention": 0.22978244364865902,
+          "informative_extreme_fraction": 0.28303709689520595,
+          "informative_tile_count": 1243,
+          "lost_informative_tile_fraction": 0.5325824617860017,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1243,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999811136
+        }
+      },
+      "subject": "kambing 1"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.24232682291666666,
+        "numeric_threshold": 0.010104760527610779,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 8916.375795817057,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2977147,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61742.0,
+        "sha256": "e8ac1be1bc43547eb67bd3deb7234dd81af046e00116e85cb8a3689a65f3884b",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.7577191569010416
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8820791244506836,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287945,
+        "p01": 0.25270774960517883,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "1dc834e29b511997135c1916c3477c331e09c978aa9f41eb0dfe48c7fb604618",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.475911458333333e-06
+      },
+      "case": 6,
+      "detector_mode": "BED",
+      "drive_file_id": "1lYm_xd-M-p5cjkBO7GthsKG-anY_ZLVX",
+      "final_sha256_equal": false,
+      "gain_id": "1783826141899",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.2654571126302083,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 1491004,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 3.0,
+          "sha256": "cf823144e023bf31371f3e1203b526efcb372e11c779a7bf7451988c640bcfcc",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.8786617838541667
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1nGjmoE0cGxT5lU-7KnMJG1-51N34w0Wo",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1605.0,
+          "finite": true,
+          "max": 1625.0,
+          "mean": 815.321368326823,
+          "median": 837.0,
+          "min": 20.0,
+          "nonzero_count": 12288000,
+          "p01": 306.0,
+          "p50": 837.0,
+          "p99": 1149.0,
+          "sha256": "a9d2502d328f8dd8a4ead792c214889a9a68b6665c726159428ffcbb685bd2b6",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1783826141899",
+        "path": "Ambil Data 3/gain NPZ/Ambil_Data_3_gain.npz",
+        "sha256": "0a990655f6dcf477d97717c806acb916bab2ff91e65706ea5a577d090e38c45a",
+        "title": "Ambil_Data_3_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1783828513106",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 21439.8256180013,
+        "median": 14901.0,
+        "min": 0.0,
+        "nonzero_count": 12287976,
+        "p01": 2699.0,
+        "p50": 14901.0,
+        "p99": 63115.0,
+        "sha256": "cf10a54bd8c5293d5609290a8a61258b8c0a320265c03a542e325cc7270fb200",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 1.953125e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.033270981162786484,
+        "finite": true,
+        "max": 0.033270981162786484,
+        "mean": 0.010475908406078815,
+        "median": 0.012158820405602455,
+        "min": 0.0,
+        "nonzero_count": 12287945,
+        "p01": 0.002553545869886875,
+        "p50": 0.012158820405602455,
+        "p99": 0.012539751827716827,
+        "sha256": "663f01a46c5b2d4f936dee97abb85a39d67ca73d20f5c9448c4145ad8d22f954",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.475911458333333e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.033270981162786484,
+        "finite": true,
+        "max": 0.033270981162786484,
+        "mean": 0.010475908406078815,
+        "median": 0.012158820405602455,
+        "min": 0.0,
+        "nonzero_count": 12287945,
+        "p01": 0.002553545869886875,
+        "p50": 0.012158820405602455,
+        "p99": 0.012539751827716827,
+        "sha256": "663f01a46c5b2d4f936dee97abb85a39d67ca73d20f5c9448c4145ad8d22f954",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 4.475911458333333e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 3",
+      "source_path": "Ambil Data 3/npz file/kambing 2/BED_1783828512202.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1lYm_xd-M-p5cjkBO7GthsKG-anY_ZLVX",
+        "gain_id": "1783826141899",
+        "id": "1783828513106",
+        "path": "Ambil Data 3/npz file/kambing 2/BED_1783828512202.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1553.0,
+          "finite": true,
+          "max": 1570.0,
+          "mean": 656.204660970052,
+          "median": 667.0,
+          "min": 17.0,
+          "nonzero_count": 12288000,
+          "p01": 214.0,
+          "p50": 667.0,
+          "p99": 1069.0,
+          "sha256": "2201201662e4eaf4b6e28430c174974c1c7867af05070c98e4a4e7c03ef9347d",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "1e8f46945e7469e054620377ec6d69bbef5c911eebc7da6dcff28749132c4b1c",
+        "title": "BED_1783828512202.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "1e8f46945e7469e054620377ec6d69bbef5c911eebc7da6dcff28749132c4b1c",
+      "source_title": "BED_1783828512202.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.23556917682483922,
+          "gradient_energy_retention": 0.22321068609050648,
+          "informative_extreme_fraction": 0.34591408792881234,
+          "informative_tile_count": 1192,
+          "lost_informative_tile_fraction": 0.5570469798657718,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1192,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999801744
+        }
+      },
+      "subject": "kambing 2"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.24050187174479168,
+        "numeric_threshold": 0.01059611514210701,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 9004.521595377604,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2954454,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61679.0,
+        "sha256": "1d11d142c0ed641f80730a701681ce57b4eea0410f464debefd2b5eb97953aeb",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.75956591796875
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8829129338264465,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287956,
+        "p01": 0.2779098451137543,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "4014a6d7d8f08c35c871c809255e151904628dbc31feb69f9062a18e1060ebd0",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.5807291666666666e-06
+      },
+      "case": 7,
+      "detector_mode": "BED",
+      "drive_file_id": "1AGDbZmXqGBDeftQMX7jk5MBl0bCTckVm",
+      "final_sha256_equal": false,
+      "gain_id": "1784430955728",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.16603792317708332,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 869371,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 3.0,
+          "sha256": "e1a51905a5c0d20ee1bb73ada724036478e28fcb419d295f599e4d0ed2a655d5",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.9292504069010417
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1HeuhINTVSA7tyNBBi4rSZeOdDbAmR6ds",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1669.0,
+          "finite": true,
+          "max": 1686.0,
+          "mean": 806.5823864746094,
+          "median": 828.0,
+          "min": 17.0,
+          "nonzero_count": 12288000,
+          "p01": 298.0,
+          "p50": 828.0,
+          "p99": 1137.0,
+          "sha256": "2d52c5dec141ed54e779a0bb7ed163cb5a99c17edd007d9a71b69ad79ed40d6e",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1784430955728",
+        "path": "Ambil Data 4/gain NPZ/Ambil_Data_4_gain.npz",
+        "sha256": "bfffcb4faa4d0b094c69ffbfbd5dc028fb834cf57c374871ef49847a77f1e892",
+        "title": "Ambil_Data_4_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1784431722437",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 21574.536026774087,
+        "median": 15024.0,
+        "min": 0.0,
+        "nonzero_count": 12287985,
+        "p01": 2814.0,
+        "p50": 15024.0,
+        "p99": 62986.0,
+        "sha256": "7c4811096af95b91b1945ba7f5ca0aa99f606da629f4724583f29db69a2f46e8",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 1.220703125e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.02652914822101593,
+        "finite": true,
+        "max": 0.02652914822101593,
+        "mean": 0.010674888268113136,
+        "median": 0.01231524907052517,
+        "min": 0.0,
+        "nonzero_count": 12287956,
+        "p01": 0.0029447630513459444,
+        "p50": 0.01231524907052517,
+        "p99": 0.012690961360931396,
+        "sha256": "596d78ca8ffc9e326d409c850814fd23338d345058f780a76330ecea3c43362d",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.5807291666666666e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.02652914822101593,
+        "finite": true,
+        "max": 0.02652914822101593,
+        "mean": 0.010674888268113136,
+        "median": 0.01231524907052517,
+        "min": 0.0,
+        "nonzero_count": 12287956,
+        "p01": 0.0029447630513459444,
+        "p50": 0.01231524907052517,
+        "p99": 0.012690961360931396,
+        "sha256": "596d78ca8ffc9e326d409c850814fd23338d345058f780a76330ecea3c43362d",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.5807291666666666e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 4",
+      "source_path": "Ambil Data 4/npz file/kambing 1/BED_1784431721478.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1AGDbZmXqGBDeftQMX7jk5MBl0bCTckVm",
+        "gain_id": "1784430955728",
+        "id": "1784431722437",
+        "path": "Ambil Data 4/npz file/kambing 1/BED_1784431721478.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1593.0,
+          "finite": true,
+          "max": 1607.0,
+          "mean": 668.899816813151,
+          "median": 677.0,
+          "min": 14.0,
+          "nonzero_count": 12288000,
+          "p01": 250.0,
+          "p50": 677.0,
+          "p99": 1075.0,
+          "sha256": "f2fd740d20ce6247c121824b1317ff7fb145cfebe707a571eb18027d6d7b4083",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "416c91f4dd0349f12637ae9fd3843f99621fc3f96419f59c73a0681dc49715f9",
+        "title": "BED_1784431721478.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "416c91f4dd0349f12637ae9fd3843f99621fc3f96419f59c73a0681dc49715f9",
+      "source_title": "BED_1784431721478.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.23502533704864997,
+          "gradient_energy_retention": 0.22168394267560418,
+          "informative_extreme_fraction": 0.3372357406021217,
+          "informative_tile_count": 1224,
+          "lost_informative_tile_fraction": 0.5261437908496732,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1224,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999813973
+        }
+      },
+      "subject": "kambing 1"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.23898380533854166,
+        "numeric_threshold": 0.010210799053311348,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 8859.979493570963,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2936044,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61680.0,
+        "sha256": "1b238ec3b18ddc59ff3d928b9b0c9e97c7c2861d7fe679bb88271cf89a3ba93e",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.7610641276041666
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8820662498474121,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287953,
+        "p01": 0.2509302496910095,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "d472c50662d80e5a1f3641bc30f22a81023179ecf25102146efb1f83a4605494",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.824869791666666e-06
+      },
+      "case": 8,
+      "detector_mode": "BED",
+      "drive_file_id": "1ns4-MEAy0OPP49BHQ_WAn2mjk-0ThK5c",
+      "final_sha256_equal": false,
+      "gain_id": "1784430955728",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.16603792317708332,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 869371,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 3.0,
+          "sha256": "e1a51905a5c0d20ee1bb73ada724036478e28fcb419d295f599e4d0ed2a655d5",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.9292504069010417
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1HeuhINTVSA7tyNBBi4rSZeOdDbAmR6ds",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1669.0,
+          "finite": true,
+          "max": 1686.0,
+          "mean": 806.5823864746094,
+          "median": 828.0,
+          "min": 17.0,
+          "nonzero_count": 12288000,
+          "p01": 298.0,
+          "p50": 828.0,
+          "p99": 1137.0,
+          "sha256": "2d52c5dec141ed54e779a0bb7ed163cb5a99c17edd007d9a71b69ad79ed40d6e",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1784430955728",
+        "path": "Ambil Data 4/gain NPZ/Ambil_Data_4_gain.npz",
+        "sha256": "bfffcb4faa4d0b094c69ffbfbd5dc028fb834cf57c374871ef49847a77f1e892",
+        "title": "Ambil_Data_4_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1784433111702",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 21474.15310921224,
+        "median": 14982.0,
+        "min": 0.0,
+        "nonzero_count": 12287974,
+        "p01": 2709.0,
+        "p50": 14982.0,
+        "p99": 63068.0,
+        "sha256": "a1eeba3a5c4899faa28e13e01b8f558f6080641058ce0feced16903dfa2da353",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.1158854166666666e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.03858250379562378,
+        "finite": true,
+        "max": 0.03858250379562378,
+        "mean": 0.010531909763813019,
+        "median": 0.012202217243611813,
+        "min": 0.0,
+        "nonzero_count": 12287953,
+        "p01": 0.0025621983222663403,
+        "p50": 0.012202217243611813,
+        "p99": 0.012589267455041409,
+        "sha256": "5f88ff95836cf69b52080f533da6bb77f855c4d7b8dcbf2d7f7b6fc2cf0df92e",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.824869791666666e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.03858250379562378,
+        "finite": true,
+        "max": 0.03858250379562378,
+        "mean": 0.010531909763813019,
+        "median": 0.012202217243611813,
+        "min": 0.0,
+        "nonzero_count": 12287953,
+        "p01": 0.0025621983222663403,
+        "p50": 0.012202217243611813,
+        "p99": 0.012589267455041409,
+        "sha256": "5f88ff95836cf69b52080f533da6bb77f855c4d7b8dcbf2d7f7b6fc2cf0df92e",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.824869791666666e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 4",
+      "source_path": "Ambil Data 4/npz file/kambing 2/BED_1784433110774.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1ns4-MEAy0OPP49BHQ_WAn2mjk-0ThK5c",
+        "gain_id": "1784430955728",
+        "id": "1784433111702",
+        "path": "Ambil Data 4/npz file/kambing 2/BED_1784433110774.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1499.0,
+          "finite": true,
+          "max": 1511.0,
+          "mean": 657.8193425292968,
+          "median": 672.0,
+          "min": 12.0,
+          "nonzero_count": 12288000,
+          "p01": 218.0,
+          "p50": 672.0,
+          "p99": 1045.0,
+          "sha256": "74118ded561dc7bb8160c8ce8847b3a6c7a657a4900c7d98b8a38c5bb00606a7",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "564f4678800207e65a4a47fb29153cf630d2c803eb7416e5e0a03ef085a4900a",
+        "title": "BED_1784433110774.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "564f4678800207e65a4a47fb29153cf630d2c803eb7416e5e0a03ef085a4900a",
+      "source_title": "BED_1784433110774.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.232701193903559,
+          "gradient_energy_retention": 0.2187353504004681,
+          "informative_extreme_fraction": 0.35629641175226284,
+          "informative_tile_count": 1218,
+          "lost_informative_tile_fraction": 0.5632183908045977,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1218,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.999999999980648
+        }
+      },
+      "subject": "kambing 2"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.22893798828125,
+        "numeric_threshold": 0.009840982034802437,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 8490.223877034505,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2812754,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61712.0,
+        "sha256": "66eb886a939d3dab8a80bb59acdf4e00aefa0751740de39d98b190159bba4005",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.7710974934895833
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8921176791191101,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287967,
+        "p01": 0.2851387858390808,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "38ac13326c9b5998ad4594338463748b9cf834d76d25f2e776b630c3d4197fd4",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.685546875e-06
+      },
+      "case": 9,
+      "detector_mode": "BED",
+      "drive_file_id": "1o48vcz7pKPzxKE_5gix-TaApfibQAbsv",
+      "final_sha256_equal": false,
+      "gain_id": "1785037797624",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.311421630859375,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 2192685,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 3.0,
+          "sha256": "99b4e733fb2475f5dfffc86d4e710484431fbaa08aeea80be76239ec7b256070",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.821558837890625
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1S--NR9uk6vK11nqgT1WAzHWMqGg3vasc",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1724.0,
+          "finite": true,
+          "max": 1744.0,
+          "mean": 805.8844663085938,
+          "median": 828.0,
+          "min": 20.0,
+          "nonzero_count": 12288000,
+          "p01": 280.0,
+          "p50": 828.0,
+          "p99": 1137.0,
+          "sha256": "4eb59bd7fc4e15ca33233f01d633a34bdb6f172d10efe4c313a5418b10158a91",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1785037797624",
+        "path": "Ambil Data 5/gain NPZ/Ambil_Data_5_gain.npz",
+        "sha256": "e703774a06f4235b2d65abd289c41585ccd6e8006236c5a90cd856d4003741a3",
+        "title": "Ambil_Data_5_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1785038048657",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 21339.34891845703,
+        "median": 14906.0,
+        "min": 0.0,
+        "nonzero_count": 12287971,
+        "p01": 2827.0,
+        "p50": 14906.0,
+        "p99": 63237.0,
+        "sha256": "1a1ac9986bd225f5fc4245fed9a998235efdf1ce7712be2cf50134b156cfcfc5",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.3600260416666668e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.03983069211244583,
+        "finite": true,
+        "max": 0.03983069211244583,
+        "mean": 0.010664702393114567,
+        "median": 0.012294813059270382,
+        "min": 0.0,
+        "nonzero_count": 12287967,
+        "p01": 0.0028060446493327618,
+        "p50": 0.012294813059270382,
+        "p99": 0.012660441920161247,
+        "sha256": "5b0ecf98b6d9dec6c275227336f9a52a1a700414c658d8d070ddf3e0932f7dde",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.685546875e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.03983069211244583,
+        "finite": true,
+        "max": 0.03983069211244583,
+        "mean": 0.010664702393114567,
+        "median": 0.012294813059270382,
+        "min": 0.0,
+        "nonzero_count": 12287967,
+        "p01": 0.0028060446493327618,
+        "p50": 0.012294813059270382,
+        "p99": 0.012660441920161247,
+        "sha256": "5b0ecf98b6d9dec6c275227336f9a52a1a700414c658d8d070ddf3e0932f7dde",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.685546875e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 5",
+      "source_path": "Ambil Data 5/npz file/kambing 1/BED_1785038047851.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1o48vcz7pKPzxKE_5gix-TaApfibQAbsv",
+        "gain_id": "1785037797624",
+        "id": "1785038048657",
+        "path": "Ambil Data 5/npz file/kambing 1/BED_1785038047851.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1652.0,
+          "finite": true,
+          "max": 1670.0,
+          "mean": 666.2142108561198,
+          "median": 682.0,
+          "min": 18.0,
+          "nonzero_count": 12288000,
+          "p01": 244.0,
+          "p50": 682.0,
+          "p99": 1068.0,
+          "sha256": "cdcbd1174205ee781bfbd58f4269c8dcf4eca7e56abcab8fed40d63448af90e0",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "f7f81b2b6636a892accee830bafa6eb2c84b5534622d23608409edd288098637",
+        "title": "BED_1785038047851.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "f7f81b2b6636a892accee830bafa6eb2c84b5534622d23608409edd288098637",
+      "source_title": "BED_1785038047851.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.22252759987926823,
+          "gradient_energy_retention": 0.21432315481878095,
+          "informative_extreme_fraction": 0.3642478478981561,
+          "informative_tile_count": 1162,
+          "lost_informative_tile_fraction": 0.6359724612736661,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1162,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999803285
+        }
+      },
+      "subject": "kambing 1"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.24015177408854166,
+        "numeric_threshold": 0.010421687737107277,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 8929.271307047526,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2950248,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61715.0,
+        "sha256": "912ba4afa7e10b871e71604c744d84a9c820a9404a48020d6c9722d9efc75183",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.759908203125
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8798987865447998,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287966,
+        "p01": 0.246865376830101,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "9a59b6ecd668df1c1e57395f98fa4af003bbf09a10ea15de174bb35cf8c1fd2c",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.7669270833333335e-06
+      },
+      "case": 10,
+      "detector_mode": "BED",
+      "drive_file_id": "19p0TR_yAZGlCMTgwHxDLDIknEB_q7TYJ",
+      "final_sha256_equal": false,
+      "gain_id": "1785037797624",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.311421630859375,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 2192685,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 3.0,
+          "sha256": "99b4e733fb2475f5dfffc86d4e710484431fbaa08aeea80be76239ec7b256070",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.821558837890625
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1S--NR9uk6vK11nqgT1WAzHWMqGg3vasc",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1724.0,
+          "finite": true,
+          "max": 1744.0,
+          "mean": 805.8844663085938,
+          "median": 828.0,
+          "min": 20.0,
+          "nonzero_count": 12288000,
+          "p01": 280.0,
+          "p50": 828.0,
+          "p99": 1137.0,
+          "sha256": "4eb59bd7fc4e15ca33233f01d633a34bdb6f172d10efe4c313a5418b10158a91",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1785037797624",
+        "path": "Ambil Data 5/gain NPZ/Ambil_Data_5_gain.npz",
+        "sha256": "e703774a06f4235b2d65abd289c41585ccd6e8006236c5a90cd856d4003741a3",
+        "title": "Ambil_Data_5_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1785039223970",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65248.0,
+        "finite": true,
+        "max": 65248.0,
+        "mean": 21441.444591878255,
+        "median": 15055.0,
+        "min": 0.0,
+        "nonzero_count": 12287956,
+        "p01": 2827.0,
+        "p50": 15055.0,
+        "p99": 63018.0,
+        "sha256": "0a914673b5bb39633c2ea982b3c7e96367b7d2020fcf705ad497f9e73c285343",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.5807291666666666e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.030231749638915062,
+        "finite": true,
+        "max": 0.030231749638915062,
+        "mean": 0.010540103539824486,
+        "median": 0.012201674282550812,
+        "min": 0.0,
+        "nonzero_count": 12287966,
+        "p01": 0.0025727495085448027,
+        "p50": 0.012201674282550812,
+        "p99": 0.012586280703544617,
+        "sha256": "10cf9bfe804cbe4a0c286944f2740479365e4a63255df95ad8e1123f0562b158",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.7669270833333335e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.030231749638915062,
+        "finite": true,
+        "max": 0.030231749638915062,
+        "mean": 0.010540103539824486,
+        "median": 0.012201674282550812,
+        "min": 0.0,
+        "nonzero_count": 12287966,
+        "p01": 0.0025727495085448027,
+        "p50": 0.012201674282550812,
+        "p99": 0.012586280703544617,
+        "sha256": "10cf9bfe804cbe4a0c286944f2740479365e4a63255df95ad8e1123f0562b158",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.7669270833333335e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 5",
+      "source_path": "Ambil Data 5/npz file/kambing 2/BED_1785039223045.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "19p0TR_yAZGlCMTgwHxDLDIknEB_q7TYJ",
+        "gain_id": "1785037797624",
+        "id": "1785039223970",
+        "path": "Ambil Data 5/npz file/kambing 2/BED_1785039223045.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1647.0,
+          "finite": true,
+          "max": 1666.0,
+          "mean": 660.4177976888021,
+          "median": 672.0,
+          "min": 19.0,
+          "nonzero_count": 12288000,
+          "p01": 214.0,
+          "p50": 672.0,
+          "p99": 1078.0,
+          "sha256": "3a22e92df3e796ff32a2620687829d344924384fb80624888f5bcbdd44908fe9",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "8188cbff2e9223282cda3a393f647949bbb0778c60a5cda56fcd199df800c98d",
+        "title": "BED_1785039223045.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "8188cbff2e9223282cda3a393f647949bbb0778c60a5cda56fcd199df800c98d",
+      "source_title": "BED_1785039223045.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.2338834442772193,
+          "gradient_energy_retention": 0.21626370219502236,
+          "informative_extreme_fraction": 0.323322033761285,
+          "informative_tile_count": 1170,
+          "lost_informative_tile_fraction": 0.5367521367521367,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1170,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999804641
+        }
+      },
+      "subject": "kambing 2"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.24197224934895833,
+        "numeric_threshold": 0.010477380827069283,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 9009.305592447916,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2972857,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61680.00999999978,
+        "sha256": "4a0ab7a0c9b6025956d3f185bfae54d3ed665718a04775d359c0482b341e2e06",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.7580682779947917
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.8837264180183411,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287960,
+        "p01": 0.28134724497795105,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "344cae5bb506dcb217deae073b06cda3df18aafd897fde7ec6b35b4c22da6020",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.2552083333333335e-06
+      },
+      "case": 11,
+      "detector_mode": "BED",
+      "drive_file_id": "14k8sh5-cB9HyxqQuqSrUtLvZjAsyj03v",
+      "final_sha256_equal": false,
+      "gain_id": "1785642964117",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.25184912109375,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 1577872,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 3.0,
+          "sha256": "3afc855878f70ebfd0c59a99c7840335e931787a7ee4da83e0e161cb0b2a2570",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.8715924479166667
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1R6o53hMVBy3B__cAqJBUhwcoTn14VGWF",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1760.0,
+          "finite": true,
+          "max": 1780.0,
+          "mean": 808.2067942708334,
+          "median": 830.0,
+          "min": 20.0,
+          "nonzero_count": 12288000,
+          "p01": 296.0,
+          "p50": 830.0,
+          "p99": 1142.0,
+          "sha256": "6e370db764176276890d94436509cc422e0897c41b227527ebcefea7344b7be2",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1785642964117",
+        "path": "Ambil Data 6/gain NPZ/Ambil_Data_6_gain.npz",
+        "sha256": "44673a19ebeba1b66546e1a85dede4de9b2a730a97128c6460fb3b5239070821",
+        "title": "Ambil_Data_6_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1785643210316",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 21312.956438964844,
+        "median": 14857.0,
+        "min": 0.0,
+        "nonzero_count": 12287986,
+        "p01": 2839.0,
+        "p50": 14857.0,
+        "p99": 62965.0,
+        "sha256": "65d9cf5930d1bb6bf48904289baed5d3cbc0722c99a46dcbf62d44c4591f5623",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 1.1393229166666668e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.0368688590824604,
+        "finite": true,
+        "max": 0.0368688590824604,
+        "mean": 0.010639511048793793,
+        "median": 0.012281627394258976,
+        "min": 0.0,
+        "nonzero_count": 12287960,
+        "p01": 0.0029477765783667564,
+        "p50": 0.012281627394258976,
+        "p99": 0.012626728042960167,
+        "sha256": "a417f3a14adb49c057fd3c2ac9a572b35cd683ad28a306e0f5889b522ddab38c",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.2552083333333335e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.0368688590824604,
+        "finite": true,
+        "max": 0.0368688590824604,
+        "mean": 0.010639511048793793,
+        "median": 0.012281627394258976,
+        "min": 0.0,
+        "nonzero_count": 12287960,
+        "p01": 0.0029477765783667564,
+        "p50": 0.012281627394258976,
+        "p99": 0.012626728042960167,
+        "sha256": "a417f3a14adb49c057fd3c2ac9a572b35cd683ad28a306e0f5889b522ddab38c",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.2552083333333335e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 6",
+      "source_path": "Ambil Data 6/npz file/kambing 1/BED_1785643209393.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "14k8sh5-cB9HyxqQuqSrUtLvZjAsyj03v",
+        "gain_id": "1785642964117",
+        "id": "1785643210316",
+        "path": "Ambil Data 6/npz file/kambing 1/BED_1785643209393.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1788.0,
+          "finite": true,
+          "max": 1810.0,
+          "mean": 665.0259986979166,
+          "median": 674.0,
+          "min": 22.0,
+          "nonzero_count": 12288000,
+          "p01": 256.0,
+          "p50": 674.0,
+          "p99": 1098.0,
+          "sha256": "7967c583a74d4955cc9c2f9edbb5d30766735a621b20d9517ca73d831568919f",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "3e7a832654a1d623d4e9fc0bfae758d59e6230111d2fd3526636e284c27e3964",
+        "title": "BED_1785643209393.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "3e7a832654a1d623d4e9fc0bfae758d59e6230111d2fd3526636e284c27e3964",
+      "source_title": "BED_1785643209393.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.23595248172033084,
+          "gradient_energy_retention": 0.22724971659965304,
+          "informative_extreme_fraction": 0.2788457689012564,
+          "informative_tile_count": 1187,
+          "lost_informative_tile_fraction": 0.531592249368155,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1187,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999807917
+        }
+      },
+      "subject": "kambing 1"
+    },
+    {
+      "auto": {
+        "effective_threshold_branch": "canonical_auto",
+        "fallback_semantics": null,
+        "foreground_fraction": 0.22263777669270834,
+        "numeric_threshold": 0.010085370391607285,
+        "requested_threshold_method": "auto",
+        "threshold_separation_disabled": false
+      },
+      "auto_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 8261.219200276693,
+        "median": 0.0,
+        "min": 0.0,
+        "nonzero_count": 2735241,
+        "p01": 0.0,
+        "p50": 0.0,
+        "p99": 61510.0,
+        "sha256": "a3d7ed1267b8c15914408bc010e97e6caf2a8cf7a895630e4ab64151f4535479",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 0.777405517578125
+      },
+      "auto_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 1.0,
+        "finite": true,
+        "max": 1.0,
+        "mean": 0.891004204750061,
+        "median": 1.0,
+        "min": 0.0,
+        "nonzero_count": 12287960,
+        "p01": 0.2572758197784424,
+        "p50": 1.0,
+        "p99": 1.0,
+        "sha256": "5c287b43a62cf0f908c09d199e49f05357e40a71956cd6286a7db28e6a7547d0",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.2552083333333335e-06
+      },
+      "case": 12,
+      "detector_mode": "BED",
+      "drive_file_id": "14evbV8RJa_0zWf1SPWU5KFKktMTTnlqq",
+      "final_sha256_equal": false,
+      "gain_id": "1785642964117",
+      "gain_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "dark": {
+          "dtype": "uint16",
+          "dynamic_range_span": 4094.0,
+          "finite": true,
+          "max": 4094.0,
+          "mean": 0.25184912109375,
+          "median": 0.0,
+          "min": 0.0,
+          "nonzero_count": 1577872,
+          "p01": 0.0,
+          "p50": 0.0,
+          "p99": 3.0,
+          "sha256": "3afc855878f70ebfd0c59a99c7840335e931787a7ee4da83e0e161cb0b2a2570",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.8715924479166667
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "1R6o53hMVBy3B__cAqJBUhwcoTn14VGWF",
+        "flat": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1760.0,
+          "finite": true,
+          "max": 1780.0,
+          "mean": 808.2067942708334,
+          "median": 830.0,
+          "min": 20.0,
+          "nonzero_count": 12288000,
+          "p01": 296.0,
+          "p50": 830.0,
+          "p99": 1142.0,
+          "sha256": "6e370db764176276890d94436509cc422e0897c41b227527ebcefea7344b7be2",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "id": "1785642964117",
+        "path": "Ambil Data 6/gain NPZ/Ambil_Data_6_gain.npz",
+        "sha256": "44673a19ebeba1b66546e1a85dede4de9b2a730a97128c6460fb3b5239070821",
+        "title": "Ambil_Data_6_gain.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "gain"
+        }
+      },
+      "id": "1785644352469",
+      "none": {
+        "effective_threshold_branch": "bypass",
+        "fallback_semantics": null,
+        "foreground_fraction": null,
+        "numeric_threshold": null,
+        "requested_threshold_method": "none",
+        "threshold_separation_disabled": true
+      },
+      "none_final": {
+        "dtype": "uint16",
+        "dynamic_range_span": 65278.0,
+        "finite": true,
+        "max": 65278.0,
+        "mean": 20904.485726074217,
+        "median": 14690.0,
+        "min": 0.0,
+        "nonzero_count": 12287971,
+        "p01": 2827.0,
+        "p50": 14690.0,
+        "p99": 62975.0,
+        "sha256": "5c101cf7aed8c910336113b39c13360b335e587cfcb288786a3c0f2953056d10",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 2.3600260416666668e-06
+      },
+      "none_threshold_stage": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.03217264637351036,
+        "finite": true,
+        "max": 0.03217264637351036,
+        "mean": 0.01060524582862854,
+        "median": 0.012165411375463009,
+        "min": 0.0,
+        "nonzero_count": 12287960,
+        "p01": 0.002594713354483247,
+        "p50": 0.012165411375463009,
+        "p99": 0.012508049607276917,
+        "sha256": "318c7b6f155f56cdf6de10f8c0ef9ce7e8c7c37a326a6521c9ecba9dbccac398",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.2552083333333335e-06
+      },
+      "pre_threshold": {
+        "dtype": "float32",
+        "dynamic_range_span": 0.03217264637351036,
+        "finite": true,
+        "max": 0.03217264637351036,
+        "mean": 0.01060524582862854,
+        "median": 0.012165411375463009,
+        "min": 0.0,
+        "nonzero_count": 12287960,
+        "p01": 0.002594713354483247,
+        "p50": 0.012165411375463009,
+        "p99": 0.012508049607276917,
+        "sha256": "318c7b6f155f56cdf6de10f8c0ef9ce7e8c7c37a326a6521c9ecba9dbccac398",
+        "shape": [
+          3000,
+          4096
+        ],
+        "uint16_saturation_fraction": 0.0,
+        "zero_fraction": 3.2552083333333335e-06
+      },
+      "pre_threshold_sha256_equal": true,
+      "raw_dtype": "uint16",
+      "raw_shape": [
+        3000,
+        4096
+      ],
+      "session": "Ambil Data 6",
+      "source_path": "Ambil Data 6/npz file/kambing 2/BED_1785644351492.npz",
+      "source_provenance": {
+        "cameraparams": {
+          "Exposure": 1000000.0,
+          "cameraModel": "MV-CH120-10UM",
+          "cameraSerial": "DA5234480",
+          "cameraUserID": "DETECTOR-BED-MDN-AB007",
+          "fps": 0.9990000128746033,
+          "gain": 0.0,
+          "pixelType": "Mono12"
+        },
+        "detector_mode": "BED",
+        "drive_file_id": "14evbV8RJa_0zWf1SPWU5KFKktMTTnlqq",
+        "gain_id": "1785642964117",
+        "id": "1785644352469",
+        "path": "Ambil Data 6/npz file/kambing 2/BED_1785644351492.npz",
+        "raw": {
+          "dtype": "uint16",
+          "dynamic_range_span": 1524.0,
+          "finite": true,
+          "max": 1542.0,
+          "mean": 664.1699819335937,
+          "median": 680.0,
+          "min": 18.0,
+          "nonzero_count": 12288000,
+          "p01": 223.0,
+          "p50": 680.0,
+          "p99": 1043.0,
+          "sha256": "e38e263dc2e916f47b27ae1a386b376e8dcc570dd476782ef91c1e31567f91ab",
+          "shape": [
+            3000,
+            4096
+          ],
+          "uint16_saturation_fraction": 0.0,
+          "zero_fraction": 0.0
+        },
+        "sha256": "3c282c20068285825751ae59b74cc7d6fa9cfb4681e60855f43fbcc7349026bf",
+        "title": "BED_1785644351492.npz",
+        "xrayparams": {
+          "detectorMode": "BED",
+          "expCurrent": "50",
+          "expEnergy": "80",
+          "expTime": 0.5,
+          "expType": "radiograf"
+        }
+      },
+      "source_sha256": "3c282c20068285825751ae59b74cc7d6fa9cfb4681e60855f43fbcc7349026bf",
+      "source_title": "BED_1785644351492.npz",
+      "structural_preservation": {
+        "BED_AUTO": {
+          "edge_recall": 0.21600472738174226,
+          "gradient_energy_retention": 0.20411196854695868,
+          "informative_extreme_fraction": 0.32589651545213755,
+          "informative_tile_count": 1097,
+          "lost_informative_tile_fraction": 0.5487693710118505,
+          "low_percentile_tile_retention": 0.0
+        },
+        "BED_NONE": {
+          "edge_recall": 1.0,
+          "gradient_energy_retention": 1.0,
+          "informative_extreme_fraction": 0.0,
+          "informative_tile_count": 1097,
+          "lost_informative_tile_fraction": 0.0,
+          "low_percentile_tile_retention": 0.9999999999801304
+        }
+      },
+      "subject": "kambing 2"
+    }
+  ],
+  "classification": "BED THRESHOLD POLICY UNRESOLVED",
+  "decision": {
+    "classification_basis": "NONE is an identity/bypass control and pre-threshold equality is asserted, but no trustworthy exact same-acquisition processed/reference ground truth was established; AUTO changes alone cannot support bypass.",
+    "reference_comparability": "NON-COMPARABLE"
+  },
+  "excluded": [],
+  "governing_task_revision": "e230ffc6d1ae86e09cba706c46f4632979d547b1",
+  "inventory": {
+    "acquisition_candidates": 196,
+    "calibration_or_processed_npz": 4,
+    "candidate_classification_counts": {
+      "calibration-unresolved": 0,
+      "duplicate": 0,
+      "eligible": 12,
+      "gain-unresolved": 0,
+      "invalid": 0,
+      "non-BED": 0,
+      "valid but unselected": 184
+    },
+    "candidates": [
+      {
+        "classification": "eligible",
+        "drive_file_id": "1AUS04DQYHorVUBc1JVvyay7loDC3tDGG",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-1/Copy of BED_1782704291612.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1782704291612.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "175v1A7y3ixN-9so3O_oTKRLSmvo1HdeY",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-1/Copy of BED_1782704496787.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1782704496787.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1W8kwxTu8TVHD_F8iMC1b4Hqz09tI2s3b",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-1/Copy of BED_1782704609899.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1782704609899.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "13-TCIVD5dYyNMcgk3Y82OCKh2oyAGVkF",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-1/Copy of BED_1782704876145.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1782704876145.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1pF79xYv8qjkaZZq6xBLYZ6Gfj-eftVXY",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-1/Copy of BED_1782705024307.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1782705024307.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "11-1K-JAzsslLHxsgxrICiBM1pjRpXtpq",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-1/Copy of BED_1782705542759.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1782705542759.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1qsZoM2H1zqeE2UGUQIOFWOrIZewy68vQ",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-1/Copy of BED_1782705825057.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1782705825057.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "1VO11y9c0D-6R3fzWFVSjcJzwvDqWENcw",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-2/Copy of BED_1782706308504.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1782706308504.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "16N8Ca49q2CuaGngbHyY81wbh-JP5JKH9",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-2/Copy of BED_1782706389577.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1782706389577.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "13xCB_KTbusYGPXRCIVc4R7Nc2J9LgJTu",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-2/Copy of BED_1782706462669.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1782706462669.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1rwmJCNWUY_sTQlh0zjP6hvf4Pa99YgHQ",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-2/Copy of BED_1782706601776.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1782706601776.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1dl7byx0pxbT6JxWRVPM49i13oGaiVhK7",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-2/Copy of BED_1782707209358.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1782707209358.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1mliaczOku_e_5SztHc7ZOdPNWrYE4tIp",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-2/Copy of BED_1782707391521.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1782707391521.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1s5TTQWFXro1lgb1cnHq-dlOiw_9kGaUW",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-2/Copy of BED_1782707631749.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1782707631749.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "18ZkmCLe0fpoGIHL4Nday4dhqlTnkvgeF",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-3/Copy of BED_1782708151260.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1782708151260.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1sVSB-rGyeWM8ODxTtATUxvz-Idtd6CfR",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-3/Copy of BED_1782708239353.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1782708239353.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1kfKVJEpmRszmHtFlKk6il8Hb603ywwwk",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-3/Copy of BED_1782708316414.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1782708316414.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "17wDF0tcmYiBKX1Qxw1Q6ltkLXFF-oaY3",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-3/Copy of BED_1782708418534.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1782708418534.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1bVMOhwdJ7b1SNQOnXcrP2RFURdcNRBbR",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-3/Copy of BED_1782708510607.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1782708510607.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1BkEo7gSCKJCOOs10CtChD5MeEznn0O4p",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-3/Copy of BED_1782708633721.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1782708633721.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1UjnZTk-xu7f5k0G6ebdG2p71bGchK_6V",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-3/Copy of BED_1782708771849.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1782708771849.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1nYWfdk_Ud6ZmMBB4NOWDNKHkPvXBmIim",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-4/Copy of BED_1782709216265.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1782709216265.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1LcFIcoN7AkzODG506gDb8yozarHHvbL4",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-4/Copy of BED_1782709292323.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1782709292323.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Ecz4dZSgeE1_DpGlu5pLmj2OzV1hmjn_",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-4/Copy of BED_1782709369407.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1782709369407.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "15dlB7o8yHHXMCJ6GNWcYF_xcE1yr1nB7",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-4/Copy of BED_1782709478478.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1782709478478.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1oKESTSJmMQJXw0Z9oI_eWNXnZ3rNMQVY",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-4/Copy of BED_1782709567557.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1782709567557.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Z4OWqjDBPgMRJtGkr5_9XtkXm6ZMbzm4",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-4/Copy of BED_1782709720714.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1782709720714.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1lYUkas38ydKsBweXVxx9orUujygRE6NC",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-4/Copy of BED_1782709837825.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1782709837825.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1rHK4DAQkmW-pl-Z2CvthKc9BziYYNRRa",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-5/Copy of BED_1782710431424.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1782710431424.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "15IwzB8GQbj29fly9T9a_7YYi4IHPloTr",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-5/Copy of BED_1782710499459.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1782710499459.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1t8TFzC6Kf-H9B6gJMVnLHXEWJ5w6v9Vc",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-5/Copy of BED_1782710570525.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1782710570525.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "15j-_tMmGqgbDXFgGkRKHVq9AQIPSFn0d",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-5/Copy of BED_1782710660602.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1782710660602.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1vWjIVj5gMG7zH9XbjAf53wi0qmvFnYqK",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-5/Copy of BED_1782710730670.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1782710730670.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1OtlvLqPpHE1j3W4kYoNN2efsjQmLAFt-",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-5/Copy of BED_1782710863808.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1782710863808.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1sBJ-m5V9y_lVLJbZwpXUL5Hp2YokOX7U",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-5/Copy of BED_1782710986916.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1782710986916.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "14zlqIJhb-QdSZ8RgfkoQlOHgufsmAsmp",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-6/Copy of BED_1782711579481.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1782711579481.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1vbMxpcsWSGoaiKT2njssBBMROCC6rKrW",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-6/Copy of BED_1782711843728.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1782711843728.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1csy5MsjaVUsg2AlZYJWrjFQCWtX6E2cg",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-6/Copy of BED_1782711917810.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1782711917810.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1bwhU-5UUYrUOs0cGOC0XSDCxvDHAs3wC",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-6/Copy of BED_1782712025913.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1782712025913.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1S3-TsIwVN3vY5osTpOH5lHSxoDfVOyVI",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-6/Copy of BED_1782712090948.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1782712090948.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "142dCQ9OkkaXKpjklgTkljk2lBseBgi0Z",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-6/Copy of BED_1782712218078.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1782712218078.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Nxba4R7JCb26HH_E1qMWqSlIiyL9roZz",
+        "session": "Ambil Data 1",
+        "source_path": "Ambil Data 1/file npz/kambing-6/Copy of BED_1782712355221.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1782712355221.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "1sLur8whVT8Vb4OJeVIduSJFBQ3wKCOVX",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-1/Copy of BED_1783222264263.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1783222264263.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1tZJDoZ5L-7zS_gmOQkNb6mPwFSgyN5L2",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-1/Copy of BED_1783222354297.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1783222354297.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1LLVflPIZPqP0W_88cENbIz1ECgb3zABH",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-1/Copy of BED_1783222443425.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1783222443425.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Yl0urTRpP0A0ezIolhVfAOMhPmdVbqin",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-1/Copy of BED_1783222540490.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1783222540490.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1zHJGP_sqC-3Rt0jQPSUFiI85TtYn14xp",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-1/Copy of BED_1783222656603.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1783222656603.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1jVaH36g02dnkNU9sYRBa8P5Lbst5Nnz3",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-1/Copy of BED_1783222840758.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1783222840758.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1MVLXqgF6tDStIEhrDn0Ec6HOJxnA_eAP",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-1/Copy of BED_1783222981898.npz",
+        "subject": "kambing-1",
+        "title": "Copy of BED_1783222981898.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "1NoKEdKmB3UsuIYA7GogLfqa2AEkS2cTE",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-2/Copy of BED_1783223476352.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1783223476352.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1vzOF3cGQY1DjiD0bbTg9tkHIUgjkMw5S",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-2/Copy of BED_1783223562469.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1783223562469.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "12oFFcO1d9ZeqEksDhHDrELFKB7K6Sg2I",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-2/Copy of BED_1783223634515.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1783223634515.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1APTWR9Iwr6M_XTXFk1OxWDXMQDqawDnA",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-2/Copy of BED_1783223746618.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1783223746618.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1oi-OlOhdOlGWlAUgVNQDbf_eY3jPCUFg",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-2/Copy of BED_1783223821669.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1783223821669.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "14ZzNOF0b2g83Nh7EAGreERhvaVnA5nqs",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-2/Copy of BED_1783223971814.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1783223971814.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "13fLNu82aaHfTQmuP5gzFmWI3Mn78Vbu8",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-2/Copy of BED_1783224123973.npz",
+        "subject": "kambing-2",
+        "title": "Copy of BED_1783224123973.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "10TLqDtRzvcyOR8eqpYpGtcj3PFh5Njwn",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-3/Copy of BED_1783224645493.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1783224645493.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1jdYBl8GKxadJ5zM5wL77VKQSww8BZbE0",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-3/Copy of BED_1783224779601.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1783224779601.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "15sIj6J-ObWAjAE9GBqCjrKZHZrbj8_qk",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-3/Copy of BED_1783224845666.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1783224845666.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1UbZCrfK-5koXQ2vCreuf0cxm9MnTi-8e",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-3/Copy of BED_1783224949762.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1783224949762.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "12hqEvkTPXFsNB77QvKPZ1UCmIl3ZlTUB",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-3/Copy of BED_1783225038829.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1783225038829.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1l9inehhc0lSCgDuDzlQqlGXaAq4G1l0J",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-3/Copy of BED_1783225171982.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1783225171982.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1wa-WwYOQpL-ztBmA2geGn2FUc50trQne",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-3/Copy of BED_1783225312099.npz",
+        "subject": "kambing-3",
+        "title": "Copy of BED_1783225312099.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1wUnpGzBAGs4Ie1AnNMnZM86bYsW49Kwa",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-4/Copy of BED_1783225778535.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1783225778535.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1wc4n1453zu36Rrsu13xBtPjMxOGlkkQe",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-4/Copy of BED_1783225856630.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1783225856630.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "13vEMFOyerZG-KLkzQ_aG5OVnGOzBs4Ur",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-4/Copy of BED_1783225925658.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1783225925658.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1sVZLd-llhT3-qUNyvGxZeLem20tgVK-v",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-4/Copy of BED_1783226005775.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1783226005775.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1wA7mUqGTuqMdow58WUlC_gywrKjX5030",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-4/Copy of BED_1783226094822.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1783226094822.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1k02-Ep_sog-EWnmylkDVYqS0HIdCQA7n",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-4/Copy of BED_1783226292060.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1783226292060.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "17706l763qWc8YBm2P6BdRcGq4TI2ltPm",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-4/Copy of BED_1783226438224.npz",
+        "subject": "kambing-4",
+        "title": "Copy of BED_1783226438224.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1JEZSgXpNYO8vSpNz-kTjUy0QJjKO_WEl",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-5/Copy of BED_1783226837535.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1783226837535.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1uLbqftTAIrlC8y0h7lYemkEJPrlADZ3Z",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-5/Copy of BED_1783226943629.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1783226943629.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1dFrX9JtuyXN3QoXU4L1-r2-0LFsuD-E2",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-5/Copy of BED_1783227041737.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1783227041737.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1VALsGI7CRw_-zQXjZKwbrKIQZDTOEibg",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-5/Copy of BED_1783227145828.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1783227145828.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "10u1Us1ab-dT4TUuiQ_ecAnhlzQhlsZ1k",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-5/Copy of BED_1783227214908.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1783227214908.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Yscs9kG2xjAZyUscPe5pJNl3E3KkxcYw",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-5/Copy of BED_1783227322021.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1783227322021.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1di_opXCC9iAkaL5EJ7lOYTtS5sdWe3CR",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-5/Copy of BED_1783227455147.npz",
+        "subject": "kambing-5",
+        "title": "Copy of BED_1783227455147.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1DRg01Xiicp-JzJMwq0fn4tTmr9_1N4Ev",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-6/Copy of BED_1783227764453.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1783227764453.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "13I8I7rQOgybfUOoTfFOm09V-PBJ_7SIY",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-6/Copy of BED_1783227855534.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1783227855534.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "13s_oDNhbXJ7w0LUoR_Sm84clowMP5Kdf",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-6/Copy of BED_1783227937635.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1783227937635.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "13ZRCHjKaYfiuF13DjdG_J8Emg0L27o-6",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-6/Copy of BED_1783228015668.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1783228015668.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1UE3qe7Zil6lKGLwkBFLzWBditaXNruyW",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-6/Copy of BED_1783228084756.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1783228084756.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1OegjFylNu6uXO8eLo43AjWGCKn1WLuCi",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-6/Copy of BED_1783228204857.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1783228204857.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1o0CElGORcOsOwYaRPKbUn7zG3wjAlhhI",
+        "session": "Ambil Data 2",
+        "source_path": "Ambil Data 2/npz file/kambing-6/Copy of BED_1783228340962.npz",
+        "subject": "kambing-6",
+        "title": "Copy of BED_1783228340962.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "1PUF1XhPkGBMPdh8CMXjrEh9-yW6go3a3",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 1/BED_1783826993793.npz",
+        "subject": "kambing 1",
+        "title": "BED_1783826993793.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1QWnZSu_9CP1TuVVfbjQtscAylj25N-Ol",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 1/BED_1783827067828.npz",
+        "subject": "kambing 1",
+        "title": "BED_1783827067828.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "16MNB3mL4p4_t7YM_fAFEPub3xDGxde7q",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 1/BED_1783827140872.npz",
+        "subject": "kambing 1",
+        "title": "BED_1783827140872.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "100_QUPOVaXhSwMt_3Z3bOzUHD6Gs6dtB",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 1/BED_1783827329050.npz",
+        "subject": "kambing 1",
+        "title": "BED_1783827329050.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "14tg1YiPbFF9UKFAmnE4Ey2FnHSzuQqkz",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 1/BED_1783827672400.npz",
+        "subject": "kambing 1",
+        "title": "BED_1783827672400.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1IDf_aRKWB33SwL6C0K236hmJOod6HgFS",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 1/BED_1783827839548.npz",
+        "subject": "kambing 1",
+        "title": "BED_1783827839548.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1ySegpyhWMr0I_Vf6qirFxPdnsCQ3Q_o7",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 1/BED_1783827970684.npz",
+        "subject": "kambing 1",
+        "title": "BED_1783827970684.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "1lYm_xd-M-p5cjkBO7GthsKG-anY_ZLVX",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 2/BED_1783828512202.npz",
+        "subject": "kambing 2",
+        "title": "BED_1783828512202.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1-N14Ft1bFnnszstCTTMXX4JrnYXK2FWu",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 2/BED_1783828578230.npz",
+        "subject": "kambing 2",
+        "title": "BED_1783828578230.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1UijNvbJACKbhUqqW7UAO4nFHGPFJxLwH",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 2/BED_1783828646305.npz",
+        "subject": "kambing 2",
+        "title": "BED_1783828646305.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1E-k9eql4_puC0xVfnkfVntA7eXaZduK8",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 2/BED_1783828775434.npz",
+        "subject": "kambing 2",
+        "title": "BED_1783828775434.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Z8HV7F5TMghrmKKtW7wjtetc7Uy9Crtf",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 2/BED_1783828930578.npz",
+        "subject": "kambing 2",
+        "title": "BED_1783828930578.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1MiHQpkD57MwQUP5gIeTRaWhbQgdTYpyU",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 2/BED_1783829069740.npz",
+        "subject": "kambing 2",
+        "title": "BED_1783829069740.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1ZfSwYvI92g_Ls_w-Nn2wRsKJBgbcooiv",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 2/BED_1783829195829.npz",
+        "subject": "kambing 2",
+        "title": "BED_1783829195829.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1VRfv9srolhOXDYoLIKWOkBpM2yFbLe-h",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 3/BED_1783829675331.npz",
+        "subject": "kambing 3",
+        "title": "BED_1783829675331.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1WUZK2n5TWfQ4KzVs6qut5gS6ASzM3U-_",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 3/BED_1783829741377.npz",
+        "subject": "kambing 3",
+        "title": "BED_1783829741377.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "12MZpQJn_pnVV32AeDgfldR68Ft4GGd67",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 3/BED_1783829810421.npz",
+        "subject": "kambing 3",
+        "title": "BED_1783829810421.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1CFUnzrfAGyyyJni7Gy0jXQUIvwomS6sw",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 3/BED_1783829900514.npz",
+        "subject": "kambing 3",
+        "title": "BED_1783829900514.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1nk3zyIc1ekTx4AP7JX4jKzjV37b0NpvR",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 3/BED_1783829993622.npz",
+        "subject": "kambing 3",
+        "title": "BED_1783829993622.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1hWVS3nyuzm7QnGGN8E7d3lKkXBirPpx3",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 3/BED_1783830162772.npz",
+        "subject": "kambing 3",
+        "title": "BED_1783830162772.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1RbAvdVdqQCSyEaDa7rXyxbsAXarp1aoJ",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 3/BED_1783830282868.npz",
+        "subject": "kambing 3",
+        "title": "BED_1783830282868.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1oXy6QVnQg3HM5UOSw2OOvZp4bBB290Yx",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 6/BED_1783830710271.npz",
+        "subject": "kambing 6",
+        "title": "BED_1783830710271.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1c99v5OI5tg6ABOXZulTRu8u-5VsA3unG",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 6/BED_1783830782332.npz",
+        "subject": "kambing 6",
+        "title": "BED_1783830782332.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1xxO4d8TwqNR_pXSAyo2wT1NgKP9KtWjp",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 6/BED_1783830852420.npz",
+        "subject": "kambing 6",
+        "title": "BED_1783830852420.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1dLXZuCkDpnHda4oJDAbug3JBlJknYDk0",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 6/BED_1783830950499.npz",
+        "subject": "kambing 6",
+        "title": "BED_1783830950499.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1OKQ3sP7mqAb53dKJZj-uZ6xMW38E0uBW",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 6/BED_1783831074610.npz",
+        "subject": "kambing 6",
+        "title": "BED_1783831074610.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1StSOfCtEOKSE9vm52J69wfx8mY4TQI_6",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 6/BED_1783831206802.npz",
+        "subject": "kambing 6",
+        "title": "BED_1783831206802.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1grAQTcExm05ahuXmSj6FtR29sg8rOFLQ",
+        "session": "Ambil Data 3",
+        "source_path": "Ambil Data 3/npz file/kambing 6/BED_1783831327881.npz",
+        "subject": "kambing 6",
+        "title": "BED_1783831327881.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "1AGDbZmXqGBDeftQMX7jk5MBl0bCTckVm",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 1/BED_1784431721478.npz",
+        "subject": "kambing 1",
+        "title": "BED_1784431721478.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1hTIa3PMN1fHWVXSkROjYrPjZz0THw3yy",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 1/BED_1784431803611.npz",
+        "subject": "kambing 1",
+        "title": "BED_1784431803611.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1zRstW1fjkydKTN6x53lr-rLaMV9w9g1r",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 1/BED_1784431878624.npz",
+        "subject": "kambing 1",
+        "title": "BED_1784431878624.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1QaeTHr5Mqz70thUewa8nIqt5qgzdTGAo",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 1/BED_1784431973728.npz",
+        "subject": "kambing 1",
+        "title": "BED_1784431973728.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1M-LlGNQ3uuRoGV1hcAlxvGHsk2fcwc8q",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 1/BED_1784432134867.npz",
+        "subject": "kambing 1",
+        "title": "BED_1784432134867.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1uVcpCuiROWLcYfel4iNSjGh8xLwj7g8i",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 1/BED_1784432255973.npz",
+        "subject": "kambing 1",
+        "title": "BED_1784432255973.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1386to8CGxIdluuN8W5iMikFZ9tQkLEjP",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 1/BED_1784432527218.npz",
+        "subject": "kambing 1",
+        "title": "BED_1784432527218.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "1ns4-MEAy0OPP49BHQ_WAn2mjk-0ThK5c",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 2/BED_1784433110774.npz",
+        "subject": "kambing 2",
+        "title": "BED_1784433110774.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "16HSV0YgdllwuPD4Bgb5KB8UYe0tfJ-kj",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 2/BED_1784433180826.npz",
+        "subject": "kambing 2",
+        "title": "BED_1784433180826.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1pbgmo6NXt1r4NYJOsgJB9hoUSxu17Id8",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 2/BED_1784433250888.npz",
+        "subject": "kambing 2",
+        "title": "BED_1784433250888.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1qDP8BNSI7uMGWrkGgwBqKDhSnhTP3j4H",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 2/BED_1784433339985.npz",
+        "subject": "kambing 2",
+        "title": "BED_1784433339985.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1npm6ZAr_MTT0a8FqbfqUaplhSkyaHeso",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 2/BED_1784433450076.npz",
+        "subject": "kambing 2",
+        "title": "BED_1784433450076.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "16GdkZvrkrJY6bfFJU540vszal3gOglU4",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 2/BED_1784433561171.npz",
+        "subject": "kambing 2",
+        "title": "BED_1784433561171.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1OmLUpG5uGjiMZASPO1zZalfXy96e0HVC",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 2/BED_1784433773391.npz",
+        "subject": "kambing 2",
+        "title": "BED_1784433773391.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1SXOn170QCoSobVJmUjc7OKkaG4hUl-aj",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 3/BED_1784434125723.npz",
+        "subject": "kambing 3",
+        "title": "BED_1784434125723.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "19bXizgv7tc3DeyT8JVkDBn-Iu7O8Yrzv",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 3/BED_1784434192888.npz",
+        "subject": "kambing 3",
+        "title": "BED_1784434192888.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "19VbClwpNysW8q5vOPM7o38IXaUACvm8T",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 3/BED_1784434267893.npz",
+        "subject": "kambing 3",
+        "title": "BED_1784434267893.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1tEps6-8ltWcPTcaCXsX6Xnlo0OJD6D_L",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 3/BED_1784434376957.npz",
+        "subject": "kambing 3",
+        "title": "BED_1784434376957.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1-yBooZgbxTWGnjCsbnsL8p5WUbqUPyEG",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 3/BED_1784434485111.npz",
+        "subject": "kambing 3",
+        "title": "BED_1784434485111.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1-0b405sqevI6JC0Xl5NkgsI_IoNSBmVs",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 3/BED_1784434586213.npz",
+        "subject": "kambing 3",
+        "title": "BED_1784434586213.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1yEKhE3JqsmQ3C5ovqmuNP4oChHd_XzTy",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 3/BED_1784434688261.npz",
+        "subject": "kambing 3",
+        "title": "BED_1784434688261.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1jLdXZ9Iv7n0jGCxTJpr5Xeku9mgq2dNp",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 6/BED_1784435083633.npz",
+        "subject": "kambing 6",
+        "title": "BED_1784435083633.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1AHl7rNZ5SIGfELD-R0rTghjh2gxSLQ2s",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 6/BED_1784435153737.npz",
+        "subject": "kambing 6",
+        "title": "BED_1784435153737.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Kt3qwetz2omrimYGxZRNUGW9Yb4R9XVY",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 6/BED_1784435220783.npz",
+        "subject": "kambing 6",
+        "title": "BED_1784435220783.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1A4uPYAI-5egqwPMNpz9vLsbF45Qz3dxq",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 6/BED_1784435315850.npz",
+        "subject": "kambing 6",
+        "title": "BED_1784435315850.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1w5a0ZV2T3HD-7fvxDI4W7kw0pa7Kned9",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 6/BED_1784435393933.npz",
+        "subject": "kambing 6",
+        "title": "BED_1784435393933.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Cixoztc4NSeM5JPuOo3DwM0QX4hYmnqc",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 6/BED_1784435517059.npz",
+        "subject": "kambing 6",
+        "title": "BED_1784435517059.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1O60r6el1CBSQC7Mut1Ru0tFWd3v3OeqC",
+        "session": "Ambil Data 4",
+        "source_path": "Ambil Data 4/npz file/kambing 6/BED_1784435638160.npz",
+        "subject": "kambing 6",
+        "title": "BED_1784435638160.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "1o48vcz7pKPzxKE_5gix-TaApfibQAbsv",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 1/BED_1785038047851.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785038047851.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Q0mNAyl2H1wohyKOkUgv1J5pVgLxTkiB",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 1/BED_1785038116931.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785038116931.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1NsXjl2anj6PLKESHwl6nUKRSvVgx7Ajo",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 1/BED_1785038184017.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785038184017.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1RhRZGTEiIz09x6Pk43dSsMQkur_2ngx5",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 1/BED_1785038303153.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785038303153.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1FQ8VB7oYnVh_GVb66FLOYXcHZAhhmoXu",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 1/BED_1785038395195.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785038395195.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1uBq98jzx-1abzfRAXi0lkDnkWVVcfwcC",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 1/BED_1785038521317.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785038521317.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "15WMEipuypI7aaAVNcm3NZebVPxbxPuvu",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 1/BED_1785038653448.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785038653448.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "19p0TR_yAZGlCMTgwHxDLDIknEB_q7TYJ",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 2/BED_1785039223045.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785039223045.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1V8jHyBdHH9bebm52ItUkN3_aGCmvmjwn",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 2/BED_1785039292062.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785039292062.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1XY8lNgY5CWNZUJ5SF3cIBxrv-uyTaBL-",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 2/BED_1785039430215.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785039430215.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1DMqjojJoB0YOZjDbO2IrXMqI0D1nSlc8",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 2/BED_1785039521330.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785039521330.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1WSgmrZMGY4DtCnnu3RlyLAuWKWMGByHE",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 2/BED_1785040132895.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785040132895.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1gdF9b1hz05a5Uin6E3RpPoi9NkqtbEH6",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 2/BED_1785040244019.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785040244019.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1XeMgWfK0z_1yZpKJMIJkijB7TPYn3UNZ",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 2/BED_1785040426151.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785040426151.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "14A7_oCHq7qcVseJnGNrO7k-daMKExUd5",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 3/BED_1785040808549.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785040808549.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1AixfxMiwwyAL3W7OQ60594qRh-vYDxVl",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 3/BED_1785040881568.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785040881568.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1cCORjD-ACa4ohu7uXiRLHZAUtX04mduN",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 3/BED_1785040948641.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785040948641.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1qnmlwY_AFF9PxyOl0tg5Wmw8mdyHde_C",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 3/BED_1785041032711.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785041032711.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1U3JscB9BU7ufs7lt1R5K64UBqXp8TjYB",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 3/BED_1785041137821.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785041137821.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1kEg9nyXeObdeHOLTOylsN7pYKWhh9lF_",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 3/BED_1785041256002.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785041256002.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1t0LIrGooTO0AMSk5nDhlCS8UPu-o3TlS",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 3/BED_1785041377074.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785041377074.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1HWbUhVG1euDiCJ1jOZn3eTzXw9B44A2P",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 6/BED_1785041757471.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785041757471.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Z6LkR7KuXAd2nQY9fTbgZMqDsjMOWNnl",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 6/BED_1785041836511.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785041836511.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1V6M0rivVF9JR3Sj7OZ65OAEAGcyq_eKM",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 6/BED_1785041903542.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785041903542.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1oCNXiuqXHSBTYCHYM_atcm9sJkI4J9sq",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 6/BED_1785042040676.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785042040676.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1AUq88hkD-wenxbmCT8ZkIzj7kxCp-gz6",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 6/BED_1785042172821.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785042172821.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Fh6qIoRBDH8ZaGpnCRSp-EZUaX1b4wAl",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 6/BED_1785042280911.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785042280911.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1RdGNjHfHyUQBvLFEyER5ySUpPZusbqGE",
+        "session": "Ambil Data 5",
+        "source_path": "Ambil Data 5/npz file/kambing 6/BED_1785042399023.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785042399023.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "14k8sh5-cB9HyxqQuqSrUtLvZjAsyj03v",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 1/BED_1785643209393.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785643209393.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1nmpLxnU_DGLpq0dtZ-23Q_hEqxYyD52n",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 1/BED_1785643275409.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785643275409.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1JJp7FQZeldB0PLwNfQ_sIsS0Vz6n-WyV",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 1/BED_1785643343500.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785643343500.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1t0uaEaTRFZhHbYr89OJomPRQjybCPWco",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 1/BED_1785643510664.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785643510664.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1yHjF10remM39y3-IVrAE8dd3_87dga9W",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 1/BED_1785643673811.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785643673811.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "11MNStik-saEkjZMoKUEBG5CvzgVGVYyv",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 1/BED_1785643826971.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785643826971.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1MokL2YrrI7b9RK9ysiJzgD0QXlC613MZ",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 1/BED_1785643952057.npz",
+        "subject": "kambing 1",
+        "title": "BED_1785643952057.npz"
+      },
+      {
+        "classification": "eligible",
+        "drive_file_id": "14evbV8RJa_0zWf1SPWU5KFKktMTTnlqq",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 2/BED_1785644351492.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785644351492.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1WnZf5awGweJ_alZDWqsq1NnlPwzltYnf",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 2/BED_1785644418529.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785644418529.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1zAmsuTrb_Xk9MzCB8Hw7rTmWjAuR8p1R",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 2/BED_1785644492589.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785644492589.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1nJVylbqpGQEDm5pMfKiKd-IfmSaDIhrZ",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 2/BED_1785644586668.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785644586668.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1c7x3G0saW93xZrRqiBaS07ZD9LBfTQVN",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 2/BED_1785644697794.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785644697794.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "15w-RBX19tJRy0xpwmTrpzyir8Q54v1pR",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 2/BED_1785644809916.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785644809916.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1l3DWc_7LrbXBYN2Gb9tg3PxqEXAvnnZl",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 2/BED_1785644938021.npz",
+        "subject": "kambing 2",
+        "title": "BED_1785644938021.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1YMzde_iiUhex_1l23JQ1fY0-t3znPDqe",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 3/BED_1785645350442.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785645350442.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1Z75KDZ-nNy3ILZ5JWZywZvQCDPOLiDYD",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 3/BED_1785645426472.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785645426472.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1fKBxvG5z36qqBfORkXUefgaPtrUQpXZ3",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 3/BED_1785645499572.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785645499572.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1bApRFkNN2eLcAo3VjHGs8KRlJS9lrMLd",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 3/BED_1785645594653.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785645594653.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1jIxVv-LOwvtnH9FRqyUSUgvOeV9pk5x4",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 3/BED_1785645672715.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785645672715.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1_WBQs0VenrpNwV9FMBg2xCOTjBFuHzRR",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 3/BED_1785645829932.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785645829932.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1t81BnD8kaOYOp0YXB7VkGYRr3t3AF40D",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 3/BED_1785645946600.npz",
+        "subject": "kambing 3",
+        "title": "BED_1785645946600.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1EwG5WPLcR30vSTHaOAybTVg6S9P4GSMB",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 6/BED_1785646321389.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785646321389.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "11Ulelfa1oul_Pne_nNCAVh-e4RzVCpBU",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 6/BED_1785646390488.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785646390488.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "19SvMUoMbR8b4BtHcpgsiXAxKUIupjY7f",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 6/BED_1785646456457.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785646456457.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1EX0Ixbty4g7F8wzV_FmLQWx1pYPU2dKJ",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 6/BED_1785646578599.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785646578599.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1C2Z92tNsP4XoPXHNsx1dc__pqK9ZdhrP",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 6/BED_1785646656995.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785646656995.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1aOKc3vFxR5rOb6VjUxRexgHwSCNdjwcB",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 6/BED_1785646760788.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785646760788.npz"
+      },
+      {
+        "classification": "valid but unselected",
+        "drive_file_id": "1p-cYPQJuA4sAe-TTnxVHxgAizvlbOn4-",
+        "session": "Ambil Data 6",
+        "source_path": "Ambil Data 6/npz file/kambing 6/BED_1785646873895.npz",
+        "subject": "kambing 6",
+        "title": "BED_1785646873895.npz"
+      }
+    ],
+    "folders_visited": 96,
+    "gain_npz": 6
+  },
+  "limitations": [
+    "Processed/reference and calibration trees were inventoried but not treated as ground truth.",
+    "No calibration was substituted or generated; paired runs used the canonical no-remap array path.",
+    "IQA is stage-local and not a clinical or diagnostic claim."
+  ],
+  "phase": "PHASE 5 \u2014 BED THRESHOLD POLICY EVIDENCE CHARACTERIZATION",
+  "selected_candidates": [
+    {
+      "drive_file_id": "1AUS04DQYHorVUBc1JVvyay7loDC3tDGG",
+      "session": "Ambil Data 1",
+      "source_path": "Ambil Data 1/file npz/kambing-1/Copy of BED_1782704291612.npz",
+      "subject": "kambing-1",
+      "title": "Copy of BED_1782704291612.npz"
+    },
+    {
+      "drive_file_id": "1VO11y9c0D-6R3fzWFVSjcJzwvDqWENcw",
+      "session": "Ambil Data 1",
+      "source_path": "Ambil Data 1/file npz/kambing-2/Copy of BED_1782706308504.npz",
+      "subject": "kambing-2",
+      "title": "Copy of BED_1782706308504.npz"
+    },
+    {
+      "drive_file_id": "1sLur8whVT8Vb4OJeVIduSJFBQ3wKCOVX",
+      "session": "Ambil Data 2",
+      "source_path": "Ambil Data 2/npz file/kambing-1/Copy of BED_1783222264263.npz",
+      "subject": "kambing-1",
+      "title": "Copy of BED_1783222264263.npz"
+    },
+    {
+      "drive_file_id": "1NoKEdKmB3UsuIYA7GogLfqa2AEkS2cTE",
+      "session": "Ambil Data 2",
+      "source_path": "Ambil Data 2/npz file/kambing-2/Copy of BED_1783223476352.npz",
+      "subject": "kambing-2",
+      "title": "Copy of BED_1783223476352.npz"
+    },
+    {
+      "drive_file_id": "1PUF1XhPkGBMPdh8CMXjrEh9-yW6go3a3",
+      "session": "Ambil Data 3",
+      "source_path": "Ambil Data 3/npz file/kambing 1/BED_1783826993793.npz",
+      "subject": "kambing 1",
+      "title": "BED_1783826993793.npz"
+    },
+    {
+      "drive_file_id": "1lYm_xd-M-p5cjkBO7GthsKG-anY_ZLVX",
+      "session": "Ambil Data 3",
+      "source_path": "Ambil Data 3/npz file/kambing 2/BED_1783828512202.npz",
+      "subject": "kambing 2",
+      "title": "BED_1783828512202.npz"
+    },
+    {
+      "drive_file_id": "1AGDbZmXqGBDeftQMX7jk5MBl0bCTckVm",
+      "session": "Ambil Data 4",
+      "source_path": "Ambil Data 4/npz file/kambing 1/BED_1784431721478.npz",
+      "subject": "kambing 1",
+      "title": "BED_1784431721478.npz"
+    },
+    {
+      "drive_file_id": "1ns4-MEAy0OPP49BHQ_WAn2mjk-0ThK5c",
+      "session": "Ambil Data 4",
+      "source_path": "Ambil Data 4/npz file/kambing 2/BED_1784433110774.npz",
+      "subject": "kambing 2",
+      "title": "BED_1784433110774.npz"
+    },
+    {
+      "drive_file_id": "1o48vcz7pKPzxKE_5gix-TaApfibQAbsv",
+      "session": "Ambil Data 5",
+      "source_path": "Ambil Data 5/npz file/kambing 1/BED_1785038047851.npz",
+      "subject": "kambing 1",
+      "title": "BED_1785038047851.npz"
+    },
+    {
+      "drive_file_id": "19p0TR_yAZGlCMTgwHxDLDIknEB_q7TYJ",
+      "session": "Ambil Data 5",
+      "source_path": "Ambil Data 5/npz file/kambing 2/BED_1785039223045.npz",
+      "subject": "kambing 2",
+      "title": "BED_1785039223045.npz"
+    },
+    {
+      "drive_file_id": "14k8sh5-cB9HyxqQuqSrUtLvZjAsyj03v",
+      "session": "Ambil Data 6",
+      "source_path": "Ambil Data 6/npz file/kambing 1/BED_1785643209393.npz",
+      "subject": "kambing 1",
+      "title": "BED_1785643209393.npz"
+    },
+    {
+      "drive_file_id": "14evbV8RJa_0zWf1SPWU5KFKktMTTnlqq",
+      "session": "Ambil Data 6",
+      "source_path": "Ambil Data 6/npz file/kambing 2/BED_1785644351492.npz",
+      "subject": "kambing 2",
+      "title": "BED_1785644351492.npz"
+    }
+  ],
+  "selection_rule": "Lexicographic session/subject groups; stable numeric acquisition ordering; first/last per group; round-robin; cap 12; frozen before processing.",
+  "source_access": "read-only",
+  "source_folder": "https://drive.google.com/drive/folders/1-15d10XwoZxB3fDzjoxG6Rh392aKJxd8"
+}

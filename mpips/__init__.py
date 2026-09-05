@@ -26,7 +26,7 @@ def __getattr__(name: str) -> Any:
         return {"app": app, "create_app": create_app}[name]
 
     if name in {"DAGExecutor", "topological_sort"}:
-        from mpips.engine import DAGExecutor, topological_sort
+        from mpips.dag import DAGExecutor, topological_sort
 
         return {
             "DAGExecutor": DAGExecutor,
@@ -34,12 +34,12 @@ def __getattr__(name: str) -> Any:
         }[name]
 
     if name == "NODE_CATALOG":
-        from mpips.engine import NODE_CATALOG
+        from mpips.dag import NODE_CATALOG
 
         return NODE_CATALOG
 
     if name == "get_node_class":
-        from mpips.engine import get_node_class
+        from mpips.dag import get_node_class
 
         return get_node_class
 

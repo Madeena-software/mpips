@@ -12,7 +12,7 @@ from mpips.api.schemas.dicom import MHCSManifest
 from mpips.conversion.dicom_enrichment import enrich_dicom_file
 from mpips.conversion.metadata import build_converter_metadata_json
 from mpips.conversion.validation import DICOMValidationError, validate_dicom_dataset
-from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
+from mpips.conversion.tiff_json_to_dcm import tiff_json_to_dcm
 from mpips.workflows.imager_pipeline.emergency_batch import _build_case
 from mpips.workflows.imager_pipeline.npz_io import write_tiff
 

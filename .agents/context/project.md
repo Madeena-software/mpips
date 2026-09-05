@@ -50,10 +50,14 @@ Evidence: API contracts in `mpips/api/schemas/` and the package entry points in
   NumPy/OpenCV/SciPy/scikit-image/PyWavelets for processing. Evidence:
   `.python-version`, `pyproject.toml`, and `uv.lock`.
 - `mpips/api/` owns the DICOM and health HTTP routes, schemas, auth, and
-  request controls; `mpips/conversion/` and `mpips/engine/` own the current
-  processing flow; `mpips/workflows/` owns library-facing orchestration.
-  Generic worker, DAG, storage, and catalog modules remain available in the
-  repository but are outside the current registered API surface.
+  request controls; `mpips/workflows/` owns library-facing orchestration,
+  while `mpips/pipelines/` and `mpips/processing/` own the current imager
+  processing flow. `mpips/conversion/` owns DICOM conversion, including the
+  protected canonical converter at `mpips.conversion.tiff_json_to_dcm`; its
+  byte and hash protection remains in force. The obsolete `mpips.engine`
+  package is physically retired. Generic worker, DAG, storage, and catalog
+  modules remain available in the repository but are outside the current
+  registered API surface.
 - Runtime entry points are `mpips.asgi:app`, `mpips-api`, and `mpips-worker`.
   Docker selects `api` or `worker` through `docker/entrypoint.sh`. Evidence:
   `mpips/asgi.py`, `mpips/cli.py`, `Dockerfile`, and `pyproject.toml`.
@@ -85,23 +89,24 @@ invoked through `.venv/bin/python -m uv run` for these checks.
 ### Calibration
 
 `mpips-dotgrid` runs the packaged dot-grid pipeline under
-`mpips.engine.calibration.dotgrid`; `MPIPS_ARTIFACT_ROOT` overrides its
+`mpips.calibration.dotgrid`; `MPIPS_ARTIFACT_ROOT` overrides its
 artifact location. Model metadata, remap, validity mask, metrics, and detector
 metadata must stay together. Fixed-canvas output preserves source dimensions
 and requires the mask; expanded-canvas output preserves corrected edges and
 writes coordinate-offset metadata. Filled border pixels are not measured image
 data. Evidence: the calibration entry point and optional dependency in
-`pyproject.toml`, plus `mpips/engine/calibration/dotgrid/`.
+`pyproject.toml`, plus `mpips/calibration/dotgrid/`.
 
 ### Imager pipeline
 
-`mpips-imager` runs the canonical implementation in
-`mpips.engine.imager_pipeline`; library and Colab callers should use
+`mpips-imager` runs through `mpips.cli.run_imager`,
+`mpips.workflows.imager_pipeline.file_runner`, `mpips.pipelines`, and
+`mpips.processing`; library and Colab callers should use
 `mpips.workflows.imager_pipeline`. `MPIPS_RADIOGRAPHY_ENV` selects a settings
 file, while the `colab` extra adds public Google Drive resolution. The workflow
 validates NPZ gain, radiograph, calibration, camera, detector, identifier, and
-shape data before returning 16-bit processed arrays. Reusable research code
-must be promoted into `mpips.engine` rather than imported from `research/`.
+shape data before returning 16-bit processed arrays. The protected converter
+relocation is separately guarded and byte-identical at its canonical location.
 Evidence: `pyproject.toml`, `mpips/workflows/imager_pipeline/`, and
 `tests/test_imager_pipeline_workflow.py`.
 
@@ -121,9 +126,11 @@ and `LICENSES/`; the ImageJ replication component carries GPL-v2 obligations.
 
 ## Conventions and constraints
 
-- Keep route handlers thin and processing logic in `mpips/engine/`; add node
-  implementation, registry entry, catalog metadata, and focused tests
-  together. Evidence: current layout and `tests/test_promotion_flow.py`.
+- Keep route handlers thin; imager processing logic belongs in
+  `mpips/pipelines/` and `mpips/processing/`, while DICOM conversion belongs in
+  `mpips/conversion/`. Canonical DAG node implementation, registry entry,
+  catalog metadata, and focused tests belong under `mpips/dag/` and should
+  move together. Evidence: current layout and `tests/test_promotion_flow.py`.
 - Preserve the API-key boundary, fixed idempotency namespace,
   temporary-file cleanup, image bit depth where semantics allow, isolated
   worker time/resource limits, and webhook signing in legacy flows. Evidence:

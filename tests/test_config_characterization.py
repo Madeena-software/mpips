@@ -26,6 +26,7 @@ def test_characterize_imager_pipeline_config_defaults() -> None:
     assert config.crop_bottom == 0
     assert config.crop_left == 0
     assert config.crop_right == 0
+    assert config.use_crop_rotate is True
     assert config.use_denoise is True
     assert config.wavelet == "sym4"
     assert config.wavelet_level == 3
@@ -33,6 +34,7 @@ def test_characterize_imager_pipeline_config_defaults() -> None:
     assert config.wavelet_mode == "soft"
     assert config.use_normalize is False
     assert config.normalize_saturated_pixels == 0.35
+    assert config.use_threshold is True
     assert config.threshold_method == "auto"
     assert config.use_invert is True
     assert config.use_contrast_enhancement is True
@@ -73,7 +75,7 @@ def test_characterize_bed_golden_output_hash() -> None:
     assert out.shape == (24, 24)
     out_hash = hashlib.sha256(out.tobytes()).hexdigest()
     assert (
-        out_hash == "a5dc3a5c98b8f9bb5acfcd3b61974c70b0a3b637e7e792343c97f904d73f92e4"
+        out_hash == "f176b16a29fc3a37fee76a133f88bc0018514210cccb461218008933186e18b7"
     )
 
 
@@ -85,7 +87,7 @@ def test_characterize_trx_golden_output_hash() -> None:
     assert out.shape == (24, 24)
     out_hash = hashlib.sha256(out.tobytes()).hexdigest()
     assert (
-        out_hash == "c4d3dca0ae9c7c8109842c84c9811d27374522bf8efa4930cfe7a72c1a4d2fa9"
+        out_hash == "5b9af36adc670ed1d93d650179d60b9cb2688cc53fa21f64fb4049de33e88d56"
     )
 
 

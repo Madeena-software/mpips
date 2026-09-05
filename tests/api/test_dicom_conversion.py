@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict
 from unittest.mock import patch
+from types import SimpleNamespace
 
 import numpy as np
 import pydicom
@@ -20,10 +21,10 @@ from mpips.api.idempotency import ClaimResult
 from mpips.api.routes.v1.dicom import _get_upload_limits
 from mpips.api.schemas.dicom import MHCSManifest
 from mpips.conversion.service import _cleanup_workspace, _validate_tiff_descriptor
-from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
+from mpips.conversion.tiff_json_to_dcm import tiff_json_to_dcm
 from mpips.workflows.imager_pipeline.npz_io import sha256_file, write_tiff
 
-CONVERTER_PATH = "mpips/engine/imager_pipeline/tiff_json_to_dcm.py"
+CONVERTER_PATH = "mpips/conversion/tiff_json_to_dcm.py"
 EXPECTED_HASH = "a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0"
 
 
@@ -738,6 +739,118 @@ def test_no_dicom_conversion_until_parent_tiff_valid(
         assert exc_info.value.detail == "TIFF_VALIDATION_ERROR"
         # Converter MUST NOT be called!
         assert not mock_converter.called
+
+
+def _workspace_probe_inputs(tmp_path: Path) -> tuple[Path, Path, MHCSManifest]:
+    r_path, g_path, r_sha, g_sha, r_size, g_size = generate_test_npzs(str(tmp_path))
+    manifest = MHCSManifest.model_validate(
+        make_test_manifest(r_sha, g_sha, r_size, g_size)
+    )
+    return Path(r_path), Path(g_path), manifest
+
+
+def test_owned_writable_workspace_root_is_chmodded(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    root = tmp_path / "workspace-root"
+    rad_path, gain_path, manifest = _workspace_probe_inputs(tmp_path)
+    monkeypatch.setenv("MPIPS_WORKSPACE_ROOT", str(root))
+
+    with (
+        patch("mpips.conversion.service.os.chmod") as chmod,
+        patch(
+            "mpips.conversion.service.tempfile.mkdtemp",
+            side_effect=RuntimeError("workspace probe complete"),
+        ),
+    ):
+        with pytest.raises(RuntimeError, match="workspace probe complete"):
+            from mpips.conversion.service import run_isolated_dicom_conversion
+
+            run_isolated_dicom_conversion(
+                rad_path, gain_path, manifest, tmp_path / "out.dcm"
+            )
+
+    chmod.assert_called_once_with(root, 0o755)
+
+
+def test_production_unwritable_workspace_root_fails_closed(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    root = tmp_path / "workspace-root"
+    rad_path, gain_path, manifest = _workspace_probe_inputs(tmp_path)
+    monkeypatch.setenv("MPIPS_WORKSPACE_ROOT", str(root))
+    monkeypatch.setenv("MPIPS_ENVIRONMENT", "production")
+
+    with patch(
+        "mpips.conversion.service.os.access",
+        side_effect=lambda path, mode: Path(path) != root,
+    ):
+        from mpips.conversion.service import run_isolated_dicom_conversion
+
+        with pytest.raises(RuntimeError, match="Configured workspace root"):
+            run_isolated_dicom_conversion(
+                rad_path, gain_path, manifest, tmp_path / "out.dcm"
+            )
+
+
+def test_nonproduction_unwritable_workspace_root_falls_back_to_temp(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    root = tmp_path / "workspace-root"
+    fallback = tmp_path / f"mpips-workspaces-{os.getuid()}"
+    rad_path, gain_path, manifest = _workspace_probe_inputs(tmp_path)
+    monkeypatch.setenv("MPIPS_WORKSPACE_ROOT", str(root))
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+
+    with (
+        patch(
+            "mpips.conversion.service.os.access",
+            side_effect=lambda path, mode: Path(path) != root,
+        ),
+        patch(
+            "mpips.conversion.service.tempfile.mkdtemp",
+            side_effect=RuntimeError("workspace probe complete"),
+        ) as mkdtemp,
+    ):
+        with pytest.raises(RuntimeError, match="workspace probe complete"):
+            from mpips.conversion.service import run_isolated_dicom_conversion
+
+            run_isolated_dicom_conversion(
+                rad_path, gain_path, manifest, tmp_path / "out.dcm"
+            )
+
+    assert mkdtemp.call_args.kwargs["dir"] == fallback
+
+
+def test_nonowned_workspace_root_is_not_chmodded(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    root = tmp_path / "workspace-root"
+    rad_path, gain_path, manifest = _workspace_probe_inputs(tmp_path)
+    monkeypatch.setenv("MPIPS_WORKSPACE_ROOT", str(root))
+    original_stat = Path.stat
+
+    def fake_stat(path: Path, *, follow_symlinks: bool = True) -> Any:
+        if path == root:
+            return SimpleNamespace(st_uid=os.getuid() + 1)
+        return original_stat(path, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(Path, "stat", fake_stat)
+    with (
+        patch("mpips.conversion.service.os.chmod") as chmod,
+        patch(
+            "mpips.conversion.service.tempfile.mkdtemp",
+            side_effect=RuntimeError("workspace probe complete"),
+        ),
+    ):
+        with pytest.raises(RuntimeError, match="workspace probe complete"):
+            from mpips.conversion.service import run_isolated_dicom_conversion
+
+            run_isolated_dicom_conversion(
+                rad_path, gain_path, manifest, tmp_path / "out.dcm"
+            )
+
+    assert all(call.args != (root, 0o755) for call in chmod.call_args_list)
 
 
 def test_workspace_cleanup_removes_read_only_nested_artifacts(tmp_path: Path) -> None:

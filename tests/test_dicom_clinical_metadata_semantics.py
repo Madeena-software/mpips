@@ -23,9 +23,9 @@ from mpips.api.schemas.dicom import MHCSManifest, resolve_mhcs_manifest
 from mpips.conversion.dicom_enrichment import enrich_dicom_file
 from mpips.conversion.metadata import build_converter_metadata_json
 from mpips.conversion.validation import DICOMValidationError, validate_dicom_dataset
-from mpips.engine.imager_pipeline.tiff_json_to_dcm import tiff_json_to_dcm
-from mpips.engine.imager_pipeline.complete_pipeline import apply_advanced_median_filter
-from mpips.engine.imager_pipeline.imagej_replicator import ImageJReplicator
+from mpips.conversion.tiff_json_to_dcm import tiff_json_to_dcm
+from mpips.processing.filtering import apply_advanced_median_filter
+from mpips.processing.imagej import ImageJReplicator
 from mpips.workflows.imager_pipeline.npz_io import write_tiff
 
 KNOWN_STALE_DCIODVFY_ERROR = (

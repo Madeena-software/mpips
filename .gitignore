@@ -38,6 +38,14 @@ research/phantom-gotri-thorax
 research/real-thorax-dicom/
 output/
 
+# Large calibration inputs, generated outputs, and bundled paper binaries
+artifacts/camera-calibration-dotgrid/data/*.tif
+artifacts/camera-calibration-dotgrid/data/*.tiff
+artifacts/camera-calibration-dotgrid/output/**
+artifacts/camera-calibration-dotgrid/references/*.pdf
+artifacts/imager-pipeline/archive/*.ipynb
+research/kambing-260714/*.ipynb
+
 # Python packaging / build artifacts
 *.egg-info/
 build/

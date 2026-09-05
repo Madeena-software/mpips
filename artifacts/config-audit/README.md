@@ -8,6 +8,6 @@ These artifacts document the pre-consolidation state of MPIPS radiograph image p
 
 Active canonical configuration definition and JSON schema are maintained under:
 
-- `mpips/engine/imager_pipeline/config.py`
+- `mpips/pipelines/config.py`
 - `docs/config/mpips-processing-config.schema.json`
 - `docs/config/mpips-processing-defaults.json`

@@ -1,9 +1,11 @@
 import tempfile
+from typing import Callable
 import pytest
 from unittest.mock import patch, MagicMock
 import numpy as np
-from mpips.engine import DAGExecutor, topological_sort
-from mpips.engine.dag import load_npz_image, save_npz_image
+from mpips.dag.artifacts import load_npz_image, save_npz_image
+from mpips.dag.executor import DAGExecutor
+from mpips.dag.graph import topological_sort
 
 
 def test_topological_sort_success() -> None:
@@ -42,8 +44,8 @@ def test_topological_sort_cycle() -> None:
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -96,8 +98,8 @@ def test_dag_executor(
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor_multiple_output_nodes_get_distinct_keys(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -151,8 +153,8 @@ def test_dag_executor_multiple_output_nodes_get_distinct_keys(
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor_multiple_output_nodes_per_node_override(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -210,8 +212,8 @@ def test_dag_executor_multiple_output_nodes_per_node_override(
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor_multiple_input_nodes_route_independently(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -267,8 +269,8 @@ def test_dag_executor_multiple_input_nodes_route_independently(
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor_tiff_32bit_no_convert(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -316,8 +318,8 @@ def test_dag_executor_tiff_32bit_no_convert(
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.cv2.imread")
-@patch("mpips.engine.dag.cv2.imwrite")
+@patch("mpips.dag.executor.cv2.imread")
+@patch("mpips.dag.executor.cv2.imwrite")
 def test_dag_executor_tiff_32bit_convert_to_8bit(
     mock_imwrite: MagicMock,
     mock_imread: MagicMock,
@@ -418,9 +420,9 @@ def test_load_npz_image_radiograph_capture_falls_back_when_rawimage_missing() ->
 
 @patch("mpips.storage.S3StorageBackend.download_image")
 @patch("mpips.storage.S3StorageBackend.upload_image")
-@patch("mpips.engine.dag.load_npz_named_images")
-@patch("mpips.engine.dag.load_npz_image")
-@patch("mpips.engine.dag.save_npz_image")
+@patch("mpips.dag.executor.load_npz_named_images")
+@patch("mpips.dag.executor.load_npz_image")
+@patch("mpips.dag.executor.save_npz_image")
 def test_dag_executor_npz_round_trip(
     mock_save_npz: MagicMock,
     mock_load_npz: MagicMock,
@@ -471,16 +473,18 @@ MADEENA_XRAYPARAMS = {"detectorMode": "BED", "kv": 90}
 MADEENA_CAMERAPARAMS = {"exposure_ms": 12}
 
 
-def _madeena_npz_writer(raw: np.ndarray, dark: np.ndarray, processed: np.ndarray):
+def _madeena_npz_writer(
+    raw: np.ndarray, dark: np.ndarray, processed: np.ndarray
+) -> Callable[[str, str, bool], None]:
     def fake_download(source: str, dest: str, is_presigned_url: bool = False) -> None:
         np.savez(
             dest,
             id="abc123",
             gainid="gain1",
             darkid="dark1",
-            xrayparams=MADEENA_XRAYPARAMS,
+            xrayparams=np.asarray(MADEENA_XRAYPARAMS, dtype=object),
             frameusedcount=5,
-            cameraparams=MADEENA_CAMERAPARAMS,
+            cameraparams=np.asarray(MADEENA_CAMERAPARAMS, dtype=object),
             darkimage=dark,
             rawimage=raw,
             processedimage=processed,
@@ -490,13 +494,15 @@ def _madeena_npz_writer(raw: np.ndarray, dark: np.ndarray, processed: np.ndarray
     return fake_download
 
 
-def _gain_npz_writer(flat: np.ndarray, dark: np.ndarray):
+def _gain_npz_writer(
+    flat: np.ndarray, dark: np.ndarray
+) -> Callable[[str, str, bool], None]:
     def fake_download(source: str, dest: str, is_presigned_url: bool = False) -> None:
         np.savez(
             dest,
             id="gain1",
-            xrayparams=MADEENA_XRAYPARAMS,
-            cameraparams=MADEENA_CAMERAPARAMS,
+            xrayparams=np.asarray(MADEENA_XRAYPARAMS, dtype=object),
+            cameraparams=np.asarray(MADEENA_CAMERAPARAMS, dtype=object),
             darkimage=dark,
             rawimage=flat,
         )
