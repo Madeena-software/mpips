@@ -10,12 +10,32 @@ radiography workflows.
 
 Python 3.12 is required.
 
+### Direct Git Installation (Library Distribution)
+
+Install directly from GitHub via `pip` or `uv` using an immutable commit SHA without manual cloning:
+
+```bash
+pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"
+```
+
+Or using `uv`:
+
+```bash
+uv pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"
+```
+
+> [!NOTE]
+> A bare installation satisfies all dependencies required for the NPZ-to-DICOM library conversion interface (`from mpips import convert_npz_to_dicom`).
+
+### Local Development Installation
+
 ```bash
 python -m pip install -e ".[dev]"
 ```
 
 Use `service`, `calibration`, `imager`, or `colab` instead of `dev` when only
 that dependency set is needed.
+
 
 ## Run
 
