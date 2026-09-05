@@ -205,11 +205,11 @@ def extract_grid(
     rows = [row for row, _ in row_data]
     row_widths = {len(row) for row in rows}
     if len(rows) < 2 or len(row_widths) != 1 or next(iter(row_widths)) < 2:
-        widths = ", ".join(str(len(row)) for row in rows)
+        formatted_widths = ", ".join(str(len(row)) for row in rows)
         raise ValueError(
             "Detected dot grid has inconsistent row widths; refusing to discard "
             "rows; "
-            f"row widths: {widths}"
+            f"row widths: {formatted_widths}"
         )
 
     # Columns that reach either detector edge are partial physical columns;

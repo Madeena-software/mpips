@@ -46,7 +46,7 @@ def process_radiography_arrays(
     map_x: np.ndarray | None = None,
     map_y: np.ndarray | None = None,
     imagej_available: bool = True,
-    stage_observer=None,
+    stage_observer: Any = None,
     threshold_method_override: str | None = None,
 ) -> np.ndarray:
     """Run arrays through the canonical array-only radiography pipeline."""
@@ -130,12 +130,16 @@ def process_single_image(
         and current_apply is not rad_mod.apply_threshold_separation
     ):
         saved_apply = rad_mod.apply_threshold_separation
-        rad_mod.apply_threshold_separation = current_apply
+        setattr(rad_mod, "apply_threshold_separation", current_apply)
     saved_auto = None
     current_auto = globals().get("auto_threshold_detection")
     if current_auto is not None and current_auto is not auto_threshold_detection:
         saved_auto = rad_mod.detect_threshold
-        rad_mod.detect_threshold = lambda img, method=None: current_auto(img)
+
+        def _custom_detect(img: Any, method: Any = None, **kwargs: Any) -> float:
+            return float(current_auto(img))
+
+        setattr(rad_mod, "detect_threshold", _custom_detect)
     try:
         config = ImagerPipelineConfig(
             use_denoise=CONFIG.get("USE_DENOISE", True),
@@ -159,6 +163,6 @@ def process_single_image(
         return True
     finally:
         if saved_apply is not None:
-            rad_mod.apply_threshold_separation = saved_apply
+            setattr(rad_mod, "apply_threshold_separation", saved_apply)
         if saved_auto is not None:
-            rad_mod.detect_threshold = saved_auto
+            setattr(rad_mod, "detect_threshold", saved_auto)

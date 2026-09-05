@@ -122,13 +122,15 @@ def test_trx_bypasses_threshold_and_preserves_config() -> None:
     assert active.median_filter_radius == 3
 
 
-def test_bed_preserves_configured_threshold_and_skip_behavior(monkeypatch) -> None:
+def test_bed_preserves_configured_threshold_and_skip_behavior(
+    monkeypatch: Any,
+) -> None:
     raw, dark, flat = _recipe_fixture()
     config = _minimal_config(threshold_method="auto", use_threshold=True)
     calls = 0
     original = radiography_pipeline.detect_threshold
 
-    def count_detect(*args: object, **kwargs: object) -> float:
+    def count_detect(*args: Any, **kwargs: Any) -> float:
         nonlocal calls
         calls += 1
         return original(*args, **kwargs)

@@ -111,7 +111,7 @@ EXPECTED_CIRCULAR_I4A_HASHES = {
     ],
 )
 def test_circular_median_matches_accepted_i4a_matrix(
-    dtype: str, radius: float, expected_hash: str
+    dtype: str, radius: int, expected_hash: str
 ) -> None:
     values = np.array(
         [

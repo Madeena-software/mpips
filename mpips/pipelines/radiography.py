@@ -12,7 +12,10 @@ from mpips.processing.geometry import crop_and_rotate
 from mpips.processing.imagej import ImageJReplicator
 from mpips.processing.intensity import invert_image
 from mpips.processing.radiography import apply_calibration_remap
-from mpips.processing.thresholding import apply_threshold_separation, detect_threshold
+from mpips.processing.thresholding import (
+    apply_threshold_separation as apply_threshold_separation,
+    detect_threshold as detect_threshold,
+)
 from mpips.processing.wavelet import WaveletDenoiser
 
 from .config import ImagerPipelineConfig
