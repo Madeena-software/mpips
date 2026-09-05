@@ -16,6 +16,8 @@ __all__ = [
     "NODE_CATALOG",
     "get_node_class",
     "topological_sort",
+    "convert_npz_to_dicom",
+    "ConversionError",
 ]
 
 
@@ -42,5 +44,13 @@ def __getattr__(name: str) -> Any:
         from mpips.dag import get_node_class
 
         return get_node_class
+
+    if name in {"convert_npz_to_dicom", "ConversionError"}:
+        from mpips.conversion import ConversionError, convert_npz_to_dicom
+
+        return {
+            "convert_npz_to_dicom": convert_npz_to_dicom,
+            "ConversionError": ConversionError,
+        }[name]
 
     raise AttributeError(f"module 'mpips' has no attribute {name!r}")
