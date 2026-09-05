@@ -1,7 +1,7 @@
 ---
 title: NPZ to DICOM Public Import Module and Direct Git Distribution
 document_id: TASK-NPZ-DICOM-IMPORT-MODULE-001
-version: 1.1-candidate
+version: 1.2-candidate
 status: Candidate / Draft (Planner Review Required)
 language: en-US
 last_updated: 2026-09-05
@@ -13,9 +13,9 @@ scope:
   - clean-environment installation and end-to-end verification
 authority_note: >-
   This candidate task artifact defines the reviewable delivery contract for the
-  NPZ-to-DICOM import module and direct Git distribution successor work. It does
-  not implement product code or mutate dependencies. Implementation begins only
-  after formal Planner/Reviewer validation and acceptance.
+  NPZ-to-DICOM import module and direct Git distribution successor work. Once
+  formally validated and published by the Planner/Reviewer, it governs implementation.
+  This revision is candidate pending Planner/Reviewer validation.
 ---
 
 # Executable Task
@@ -303,7 +303,7 @@ pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"
 
 ### Remaining approval requirements
 
-- Formal Planner/Reviewer validation of this candidate task revision (`1.1-candidate`)
+- Formal Planner/Reviewer validation of this candidate task revision (`1.2-candidate`)
   before implementation begins.
 - No release, tagging, or PyPI publishing is authorized.
 
@@ -354,8 +354,8 @@ pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"
       continue to pass all tests in `tests/api/test_dicom_conversion.py` and
       `tests/api/test_api_surface.py`.
 - [ ] Full quality gates pass: Black, Flake8, mypy, and relevant pytest suites.
-- [ ] Zero product code or test changes are executed before this candidate contract
-      is accepted by the Planner/Reviewer.
+- [ ] Implementation execution proceeds only after this candidate task revision is
+      formally validated and published by the Planner/Reviewer.
 
 ## Verification requirements
 
@@ -384,11 +384,14 @@ pip install "git+https://github.com/Madeena-software/mpips.git@<commit-sha>"
 
 ### Required evidence
 
-The Executor must report:
-- Pre-task baseline commit SHA (`c612ca4067a4cae83fb364858d0ed38cb8c2a0a0`);
-- Git status proving only `.agents/tasks/npz-dicom-import-module.md` was updated;
-- Verification that no product code, tests, CI workflows, or dependencies were altered;
-- Branch push confirmation to `origin/feat/npz-dicom-import-module`.
+Upon completing implementation, the Executor must report:
+- Actual execution-start commit SHA (the published governing task revision);
+- Resulting implementation commit SHA;
+- Changed files and diff summary (`git diff --stat`, `git diff --name-only`);
+- Test execution results for converter protection, public boundaries, DICOM conversion, API surface, and code quality;
+- Clean-environment virtualenv installation results (command, output, verification of `from mpips import convert_npz_to_dicom`);
+- Protected converter SHA-256 confirmation (`a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`);
+- Remote push confirmation of `feat/npz-dicom-import-module` to `origin`.
 
 ## Stop conditions
 
@@ -402,15 +405,32 @@ The Executor must stop implementation and return to planning if:
 
 ## Side-effect authorization
 
-Under this candidate task authoring phase, the only authorized side effects are:
-1. Authoring the candidate delivery contract at `.agents/tasks/npz-dicom-import-module.md`.
-2. Committing this single task file to branch `feat/npz-dicom-import-module`.
-3. Non-force pushing `feat/npz-dicom-import-module` to `origin`.
+When this task is validated and handed to an Executor for implementation, authorized side effects are strictly bounded as follows:
 
-No product code modifications, dependency alterations, tagging, or pull request
-merging are authorized.
+1. **Permitted modifications**:
+   - The Executor may modify only files directly required by this task's in-scope implementation:
+     - MPIPS package, export, and packaging configuration code (e.g. `mpips/__init__.py`, `mpips/conversion/`, `pyproject.toml`);
+     - Focused unit, integration, and boundary tests (e.g. `tests/test_conversion_import.py`, `tests/test_public_boundaries.py`, `tests/test_package_import.py`);
+     - User-facing installation and public API documentation.
+2. **Temporary verification artifacts**:
+   - The Executor may create bounded temporary clean-environment verification artifacts (such as temporary virtual environments under `/tmp` or scratch areas) strictly outside tracked repository content, ensuring they are deleted or ignored before completion.
+3. **Version control and branch operations**:
+   - The Executor may create local commits on branch `feat/npz-dicom-import-module`.
+   - The Executor may perform non-force pushes only to `origin/feat/npz-dicom-import-module`.
+4. **Preservation of unrelated work**:
+   - The Executor must strictly preserve all unrelated and pre-existing work, existing passing tests, and unrelated subsystems.
+5. **Strictly prohibited side effects**:
+   - No direct push to `main`.
+   - No branch merging or force pushing (`--force`).
+   - No pull request creation or modification.
+   - No release creation, tagging, or PyPI package publishing.
+   - No server deployment, cloud infrastructure mutation, or production service mutation.
+   - No secret, key, or credential manipulation or exposure.
+   - No unrelated remote writes.
 
 ## Expected terminal outcome
 
-Candidate task authored and pushed for formal review:
-`CANDIDATE TASK REMEDIATED — PLANNER REVIEW REQUIRED`
+Upon completion of execution under the validated task, the Executor reports:
+`IMPLEMENTATION COMPLETED — READY FOR REVIEWER ACCEPTANCE`
+
+*(Note: Prior to formal validation by the Planner/Reviewer, this artifact remains candidate pending Planner/Reviewer validation: `CANDIDATE TASK REMEDIATED — PLANNER REVIEW REQUIRED`)*
