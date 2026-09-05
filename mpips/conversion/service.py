@@ -17,8 +17,6 @@ import tempfile
 from pathlib import Path
 from typing import Any, Dict
 
-from fastapi import HTTPException, status
-
 from mpips.api.schemas.dicom import (
     MHCSManifest,
     ResolvedMHCSManifest,
@@ -28,6 +26,37 @@ from mpips.conversion.dicom_enrichment import enrich_dicom_file
 from mpips.conversion.metadata import build_converter_metadata_json
 from mpips.conversion.validation import validate_dicom_dataset
 from mpips.conversion.tiff_json_to_dcm import tiff_json_to_dcm
+
+try:
+    from fastapi import HTTPException, status
+except ImportError:
+
+    class HTTPException(Exception):  # type: ignore[no-redef]
+        def __init__(
+            self,
+            status_code: int,
+            detail: Any = None,
+            headers: dict[str, Any] | None = None,
+        ) -> None:
+            super().__init__(detail)
+            self.status_code = status_code
+            self.detail = detail
+            self.headers = headers
+
+    class status:  # type: ignore[no-redef]
+        HTTP_400_BAD_REQUEST = 400
+        HTTP_409_CONFLICT = 409
+        HTTP_422_UNPROCESSABLE_ENTITY = 422
+        HTTP_429_TOO_MANY_REQUESTS = 429
+        HTTP_500_INTERNAL_SERVER_ERROR = 500
+        HTTP_504_GATEWAY_TIMEOUT = 504
+
+
+class ConversionError(RuntimeError):
+    """Raised when DICOM conversion fails."""
+
+    pass
+
 
 logger = logging.getLogger(__name__)
 
@@ -566,3 +595,131 @@ def run_isolated_dicom_conversion(
     finally:
         if workspace_dir.exists():
             _cleanup_workspace(workspace_dir)
+
+
+def convert_npz_to_dicom(
+    radiograph_npz_path: str | Path,
+    gain_npz_path: str | Path,
+    manifest: str | Path | dict[str, Any] | MHCSManifest | ResolvedMHCSManifest,
+    output_dicom_path: str | Path,
+    *,
+    calibration_dir: str | Path | None = None,
+) -> Path:
+    """Convert NPZ radiograph and gain calibrations to a validated DICOM file.
+
+    Parameters
+    ----------
+    radiograph_npz_path : str | Path
+        Path to the radiograph NPZ file.
+    gain_npz_path : str | Path
+        Path to the gain calibration NPZ file.
+    manifest : str | Path | dict[str, Any] | MHCSManifest | ResolvedMHCSManifest
+        Manifest metadata, provided as a file path, raw JSON string, parsed dictionary,
+        or MHCSManifest instance.
+    output_dicom_path : str | Path
+        Destination path where the output DICOM file will be written.
+    calibration_dir : str | Path | None, optional
+        Optional path to calibration artifact directory. If not provided, resolves
+        via MPIPS_CALIBRATION_ARTIFACT_DIR or MPIPS_ARTIFACT_ROOT.
+
+    Returns
+    -------
+    Path
+        Resolved Path to the created DICOM file.
+
+    Raises
+    ------
+    FileNotFoundError
+        If radiograph, gain, manifest file, or calibration directory is not found.
+    ValueError
+        If manifest content or NPZ validation is invalid.
+    TimeoutError
+        If conversion worker process times out.
+    ConversionError
+        If conversion fails due to runtime or worker errors.
+    """
+    rad_path = Path(radiograph_npz_path).resolve()
+    if not rad_path.is_file():
+        raise FileNotFoundError(f"Radiograph NPZ file not found: {radiograph_npz_path}")
+
+    gain_path = Path(gain_npz_path).resolve()
+    if not gain_path.is_file():
+        raise FileNotFoundError(f"Gain NPZ file not found: {gain_npz_path}")
+
+    cal_path: Path | None = None
+    if calibration_dir is not None:
+        cal_path = Path(calibration_dir).resolve()
+        if not cal_path.is_dir():
+            raise FileNotFoundError(
+                f"Calibration directory not found: {calibration_dir}"
+            )
+
+    out_path = Path(output_dicom_path).resolve()
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    parsed_manifest: MHCSManifest | ResolvedMHCSManifest
+    if isinstance(manifest, (MHCSManifest, ResolvedMHCSManifest)):
+        parsed_manifest = manifest
+    elif isinstance(manifest, dict):
+        try:
+            parsed_manifest = MHCSManifest.model_validate(manifest)
+        except Exception as exc:
+            raise ValueError(f"Invalid manifest data: {exc}") from exc
+    elif isinstance(manifest, (str, Path)):
+        raw_str = str(manifest).strip()
+        if raw_str.startswith("{"):
+            try:
+                manifest_dict = json.loads(raw_str)
+            except Exception as exc:
+                raise ValueError(f"Invalid manifest JSON: {exc}") from exc
+            try:
+                parsed_manifest = MHCSManifest.model_validate(manifest_dict)
+            except Exception as exc:
+                raise ValueError(f"Invalid manifest schema: {exc}") from exc
+        else:
+            manifest_file = Path(manifest).resolve()
+            if not manifest_file.is_file():
+                raise FileNotFoundError(f"Manifest file not found: {manifest}")
+            try:
+                manifest_dict = json.loads(manifest_file.read_text(encoding="utf-8"))
+            except Exception as exc:
+                raise ValueError(f"Invalid manifest file contents: {exc}") from exc
+            try:
+                parsed_manifest = MHCSManifest.model_validate(manifest_dict)
+            except Exception as exc:
+                raise ValueError(f"Invalid manifest schema: {exc}") from exc
+    else:
+        raise TypeError(
+            f"Unsupported manifest type: {type(manifest).__name__}. "
+            "Expected file path, JSON string, dict, or MHCSManifest."
+        )
+
+    try:
+        run_isolated_dicom_conversion(
+            radiograph_npz_path=rad_path,
+            gain_npz_path=gain_path,
+            manifest=parsed_manifest,
+            output_dicom_path=out_path,
+            calibration_dir=cal_path,
+        )
+    except HTTPException as exc:
+        detail = getattr(exc, "detail", str(exc))
+        status_code = getattr(exc, "status_code", 500)
+        if detail == "CALIBRATION_ARTIFACT_MISSING":
+            raise FileNotFoundError(
+                f"Calibration artifact directory missing or invalid: {detail}"
+            ) from exc
+        if (
+            detail in ("NPZ_VALIDATION_ERROR", "MANIFEST_OR_DATA_ERROR")
+            or status_code == 422
+        ):
+            raise ValueError(f"Conversion validation failed: {detail}") from exc
+        if detail == "CONVERSION_TIMEOUT" or status_code == 504:
+            raise TimeoutError("DICOM conversion timed out") from exc
+        raise ConversionError(f"DICOM conversion failed: {detail}") from exc
+    except (FileNotFoundError, ValueError, TimeoutError, ConversionError):
+        raise
+    except Exception as exc:
+        raise ConversionError(f"DICOM conversion failed: {exc}") from exc
+
+    return out_path

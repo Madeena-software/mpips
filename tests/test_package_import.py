@@ -41,3 +41,16 @@ def test_only_pure_opencv_nodes_are_browser_executable() -> None:
         "canny",
         "sobel",
     }
+
+
+def test_public_package_exports_conversion_entrypoints() -> None:
+    from mpips import convert_npz_to_dicom
+    from mpips.conversion import (
+        ConversionError,
+        convert_npz_to_dicom as convenience_convert,
+    )
+
+    assert callable(convert_npz_to_dicom)
+    assert convenience_convert is convert_npz_to_dicom
+    assert issubclass(ConversionError, RuntimeError)
+    assert mpips.convert_npz_to_dicom is convert_npz_to_dicom
