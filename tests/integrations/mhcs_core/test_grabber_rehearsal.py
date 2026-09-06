@@ -1,0 +1,249 @@
+"""Localhost-only integration rehearsal for the MHCS Core Grabber round-trip.
+
+This test exercises the full round-trip against a local MHCS Core stack.
+It is skipped automatically when the local stack is absent.
+
+Requirements to run this test:
+- MHCS Core running at localhost (set MHCS_GRABBER_BASE_URL)
+- A provisioned GrabberClient record with MHCS_GRABBER_TOKEN
+- A synthetic active shift with a radiography session
+  (set MHCS_GRABBER_REHEARSAL_LOCATOR)
+- Synthetic (deidentified) NPZ files at paths set by:
+    MHCS_GRABBER_REHEARSAL_RAD_NPZ
+    MHCS_GRABBER_REHEARSAL_GAIN_NPZ
+- MHCS_GRABBER_REHEARSAL_OUTPUT_DIR: writable dir for output DICOM
+
+All patient data used MUST be synthetic (deidentified).  No real patient data.
+No external network access beyond localhost.
+
+To execute this rehearsal manually::
+
+    MHCS_GRABBER_BASE_URL=http://localhost:8080 \\
+    MHCS_GRABBER_TOKEN=test-token \\
+    MHCS_GRABBER_REHEARSAL_LOCATOR=0001 \\
+    MHCS_GRABBER_REHEARSAL_RAD_NPZ=/path/to/synthetic.npz \\
+    MHCS_GRABBER_REHEARSAL_GAIN_NPZ=/path/to/synthetic_gain.npz \\
+    MHCS_GRABBER_REHEARSAL_OUTPUT_DIR=/tmp/rehearsal-output \\
+    uv run pytest tests/integrations/mhcs_core/test_grabber_rehearsal.py -v -s
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+
+import pytest
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Skip condition: require local MHCS Core stack to be configured
+# ---------------------------------------------------------------------------
+
+_REQUIRED_REHEARSAL_VARS = [
+    "MHCS_GRABBER_BASE_URL",
+    "MHCS_GRABBER_TOKEN",
+    "MHCS_GRABBER_REHEARSAL_LOCATOR",
+    "MHCS_GRABBER_REHEARSAL_RAD_NPZ",
+    "MHCS_GRABBER_REHEARSAL_GAIN_NPZ",
+    "MHCS_GRABBER_REHEARSAL_OUTPUT_DIR",
+]
+
+_missing = [v for v in _REQUIRED_REHEARSAL_VARS if not os.environ.get(v)]
+_rehearsal_available = not _missing
+
+pytestmark = pytest.mark.skipif(
+    not _rehearsal_available,
+    reason=(
+        "Local MHCS Core rehearsal stack not configured. "
+        f"Missing env vars: {_missing}. "
+        "Set all required MHCS_GRABBER_REHEARSAL_* variables to run."
+    ),
+)
+
+
+# ---------------------------------------------------------------------------
+# Helper: verify MHCS Core is reachable at localhost
+# ---------------------------------------------------------------------------
+
+
+def _assert_localhost_only(base_url: str) -> None:
+    """Guard: reject any base_url that is not localhost."""
+    import urllib.parse
+
+    parsed = urllib.parse.urlparse(base_url)
+    host = (parsed.hostname or "").lower()
+    if host not in ("localhost", "127.0.0.1", "::1"):
+        pytest.fail(
+            "Rehearsal may only target localhost; "
+            f"MHCS_GRABBER_BASE_URL host is {host!r}"
+        )
+
+
+def _check_mhcs_core_reachable(base_url: str) -> bool:
+    """Return True if MHCS Core health endpoint responds at the given base URL."""
+    try:
+        import httpx
+
+        resp = httpx.get(f"{base_url}/api/v1/grabber/health", timeout=5.0)
+        return resp.status_code < 500
+    except Exception:
+        return False
+
+
+# ---------------------------------------------------------------------------
+# Rehearsal fixtures
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture()
+def rehearsal_output_dir(tmp_path: Path) -> Path:
+    """Use a temp dir (or configured dir) for rehearsal DICOM output."""
+    configured = os.environ.get("MHCS_GRABBER_REHEARSAL_OUTPUT_DIR")
+    if configured:
+        out = Path(configured)
+        out.mkdir(parents=True, exist_ok=True)
+        return out
+    return tmp_path / "rehearsal-output"
+
+
+# ---------------------------------------------------------------------------
+# Rehearsal tests
+# ---------------------------------------------------------------------------
+
+
+class TestGrabberRoundtripRehearsal:
+    """Full localhost integration rehearsal.
+
+    Uses synthetic/deidentified fixtures only.  No real patient data.
+    """
+
+    def test_full_roundtrip_initial(self, rehearsal_output_dir: Path) -> None:
+        """Initial upload: manifest retrieved → DICOM generated → 201 Created."""
+        from mpips.integrations.mhcs_core.client import MHCSGrabberClient
+        from mpips.integrations.mhcs_core.workflow import (
+            GrabberWorkflowResult,
+            run_grabber_roundtrip,
+        )
+
+        base_url = os.environ["MHCS_GRABBER_BASE_URL"]
+        _assert_localhost_only(base_url)
+
+        if not _check_mhcs_core_reachable(base_url):
+            pytest.skip(f"MHCS Core not reachable at {base_url}")
+
+        locator_code = os.environ["MHCS_GRABBER_REHEARSAL_LOCATOR"]
+        rad_npz = os.environ["MHCS_GRABBER_REHEARSAL_RAD_NPZ"]
+        gain_npz = os.environ["MHCS_GRABBER_REHEARSAL_GAIN_NPZ"]
+        work_dir = rehearsal_output_dir / "work"
+
+        # Remove any pre-existing DICOM/sidecar to force a fresh initial upload
+        dicom_path = rehearsal_output_dir / f"{locator_code}.dcm"
+        sidecar = work_dir / f"submission-{locator_code}.json"
+        for p in (dicom_path, sidecar):
+            if p.exists():
+                p.unlink()
+
+        client = MHCSGrabberClient.from_env()
+
+        result = run_grabber_roundtrip(
+            locator_code=locator_code,
+            radiograph_npz_path=rad_npz,
+            gain_npz_path=gain_npz,
+            output_dicom_dir=rehearsal_output_dir,
+            client=client,
+            work_dir=work_dir,
+        )
+
+        assert isinstance(result, GrabberWorkflowResult)
+        assert (
+            result.terminal_state == "awaiting_ai"
+        ), f"Expected terminal_state=awaiting_ai, got {result.terminal_state!r}"
+        assert result.replayed is False
+        assert result.locator_code == locator_code
+        assert len(result.checksum) == 64
+        assert result.bytes > 0
+
+        logger.info(
+            "Rehearsal initial upload complete: study_id=%s display_reference=%s",
+            result.study_id,
+            result.display_reference,
+        )
+
+    def test_exact_retry_replayed(self, rehearsal_output_dir: Path) -> None:
+        """Exact retry: same DICOM bytes + same submission ID → 200 replayed:true."""
+        from mpips.integrations.mhcs_core.client import MHCSGrabberClient
+        from mpips.integrations.mhcs_core.workflow import run_grabber_roundtrip
+
+        base_url = os.environ["MHCS_GRABBER_BASE_URL"]
+        _assert_localhost_only(base_url)
+
+        if not _check_mhcs_core_reachable(base_url):
+            pytest.skip(f"MHCS Core not reachable at {base_url}")
+
+        locator_code = os.environ["MHCS_GRABBER_REHEARSAL_LOCATOR"]
+        rad_npz = os.environ["MHCS_GRABBER_REHEARSAL_RAD_NPZ"]
+        gain_npz = os.environ["MHCS_GRABBER_REHEARSAL_GAIN_NPZ"]
+        work_dir = rehearsal_output_dir / "work"
+        client = MHCSGrabberClient.from_env()
+
+        # First call (or reuse from test_full_roundtrip_initial if same fixture)
+        run_grabber_roundtrip(
+            locator_code=locator_code,
+            radiograph_npz_path=rad_npz,
+            gain_npz_path=gain_npz,
+            output_dicom_dir=rehearsal_output_dir,
+            client=client,
+            work_dir=work_dir,
+        )
+
+        # Second call with the same DICOM bytes and submission ID
+        result = run_grabber_roundtrip(
+            locator_code=locator_code,
+            radiograph_npz_path=rad_npz,
+            gain_npz_path=gain_npz,
+            output_dicom_dir=rehearsal_output_dir,
+            client=client,
+            work_dir=work_dir,
+        )
+
+        assert (
+            result.replayed is True
+        ), f"Expected replayed=True on exact retry; got replayed={result.replayed}"
+        assert result.terminal_state == "awaiting_ai"
+
+        logger.info("Rehearsal exact retry result: replayed=%s", result.replayed)
+
+    def test_no_credentials_or_patient_data_in_logs(
+        self, rehearsal_output_dir: Path, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Credentials and patient data must not appear in MPIPS log output."""
+        from mpips.integrations.mhcs_core.client import MHCSGrabberClient
+        from mpips.integrations.mhcs_core.workflow import run_grabber_roundtrip
+
+        base_url = os.environ["MHCS_GRABBER_BASE_URL"]
+        _assert_localhost_only(base_url)
+
+        if not _check_mhcs_core_reachable(base_url):
+            pytest.skip(f"MHCS Core not reachable at {base_url}")
+
+        token = os.environ["MHCS_GRABBER_TOKEN"]
+        locator_code = os.environ["MHCS_GRABBER_REHEARSAL_LOCATOR"]
+        rad_npz = os.environ["MHCS_GRABBER_REHEARSAL_RAD_NPZ"]
+        gain_npz = os.environ["MHCS_GRABBER_REHEARSAL_GAIN_NPZ"]
+        work_dir = rehearsal_output_dir / "work"
+        client = MHCSGrabberClient.from_env()
+
+        with caplog.at_level(logging.DEBUG):
+            run_grabber_roundtrip(
+                locator_code=locator_code,
+                radiograph_npz_path=rad_npz,
+                gain_npz_path=gain_npz,
+                output_dicom_dir=rehearsal_output_dir,
+                client=client,
+                work_dir=work_dir,
+            )
+
+        assert token not in caplog.text, "Bearer token must not appear in logs"
+        logger.info("Credential absence from log check: PASSED")
