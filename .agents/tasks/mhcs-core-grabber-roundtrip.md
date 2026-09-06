@@ -2,9 +2,10 @@
 title: MHCS Core Grabber Round-Trip Integration
 document_id: TASK-MPIPS-MHCS-GRABBER-ROUNDTRIP-001
 version: 1.0
-status: Validated/Published
+status: Deferred
 language: en-US
 last_updated: 2026-09-06
+deferral_reason: Awaiting approved authoritative device/acquisition-profile contract.
 scope:
   - additive MHCS Core Grabber HTTP client and adapter
   - workflow orchestration for manifest lookup → NPZ conversion → DICOM upload
@@ -12,10 +13,10 @@ scope:
   - controlled local end-to-end rehearsal
   - offline NPZ-to-DICOM conversion preservation
 authority_note: >-
-  This task is validated and published. Execution and review are tied to the
-  exact immutable task revision at .agents/tasks/mhcs-core-grabber-roundtrip.md
-  @ the commit SHA recorded at publication. The protected converter, existing
-  public API, and existing HTTP endpoint are preserved unchanged.
+  This task is deferred pending approved authoritative device/acquisition-profile
+  contract. Execution and review are tied to the exact immutable task revision
+  at .agents/tasks/mhcs-core-grabber-roundtrip.md @ the commit SHA recorded at publication.
+  The protected converter, existing public API, and existing HTTP endpoint are preserved unchanged.
 ---
 
 # Executable Task
@@ -38,7 +39,10 @@ Executor's responsibility within the constraints established here.
 `.agents/tasks/mhcs-core-grabber-roundtrip.md`
 
 **Task contract state:**
-`Validated/Published`
+`Deferred`
+
+**Deferral reason:**
+Awaiting approved authoritative device/acquisition-profile contract.
 
 The task file is the executable delivery contract.
 
