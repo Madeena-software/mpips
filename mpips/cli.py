@@ -95,3 +95,12 @@ def run_worker() -> None:
 
     args.extend(sys.argv[1:])
     os.execvp("celery", args)
+
+
+def run_grabber(argv: list[str] | None = None) -> None:
+    """Run the MHCS Core Grabber round-trip workflow CLI."""
+    from mpips.integrations.mhcs_core.cli import main
+
+    code = main(argv if argv is not None else sys.argv[1:])
+    if code != 0:
+        sys.exit(code)

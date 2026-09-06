@@ -41,6 +41,35 @@ logger = logging.getLogger(__name__)
 # Skip condition: require local MHCS Core stack to be configured
 # ---------------------------------------------------------------------------
 
+_DEFAULT_ENV_FILE = Path("/var/www/mhcs-core/mpips-grabber.env")
+if _DEFAULT_ENV_FILE.is_file():
+    from mpips.integrations.mhcs_core.cli import load_protected_environment
+
+    load_protected_environment(env_file=_DEFAULT_ENV_FILE)
+
+# Set synthetic test defaults if present
+if (
+    not os.environ.get("MHCS_GRABBER_REHEARSAL_RAD_NPZ")
+    and Path("/tmp/rehearsal-roundtrip/rad.npz").is_file()
+):
+    os.environ["MHCS_GRABBER_REHEARSAL_RAD_NPZ"] = "/tmp/rehearsal-roundtrip/rad.npz"
+if (
+    not os.environ.get("MHCS_GRABBER_REHEARSAL_GAIN_NPZ")
+    and Path("/tmp/rehearsal-roundtrip/gain.npz").is_file()
+):
+    os.environ["MHCS_GRABBER_REHEARSAL_GAIN_NPZ"] = "/tmp/rehearsal-roundtrip/gain.npz"
+if not os.environ.get("MHCS_GRABBER_REHEARSAL_OUTPUT_DIR"):
+    os.environ["MHCS_GRABBER_REHEARSAL_OUTPUT_DIR"] = (
+        "/tmp/rehearsal-roundtrip/rehearsal-output"
+    )
+if (
+    not os.environ.get("MHCS_GRABBER_REHEARSAL_CALIBRATION_DIR")
+    and Path("/tmp/rehearsal-roundtrip/cal").is_dir()
+):
+    os.environ["MHCS_GRABBER_REHEARSAL_CALIBRATION_DIR"] = (
+        "/tmp/rehearsal-roundtrip/cal"
+    )
+
 _REQUIRED_REHEARSAL_VARS = [
     "MHCS_GRABBER_BASE_URL",
     "MHCS_GRABBER_TOKEN",
@@ -108,6 +137,37 @@ def rehearsal_output_dir(tmp_path: Path) -> Path:
     return tmp_path / "rehearsal-output"
 
 
+@pytest.fixture()
+def rehearsal_locator() -> str:
+    """Provide a fresh active rehearsal session locator code if artisan is available,
+    otherwise use MHCS_GRABBER_REHEARSAL_LOCATOR from environment.
+    """
+    artisan = Path("/var/www/mhcs-core/artisan")
+    if artisan.is_file():
+        import subprocess
+
+        token_file = "/var/www/mhcs-core/storage/framework/grabber.token"
+        env_file = "/var/www/mhcs-core/mpips-grabber.env"
+        subprocess.run(
+            [
+                "php",
+                str(artisan),
+                "mhcs:provision-grabber-rehearsal",
+                f"--token-file={token_file}",
+                f"--env-out={env_file}",
+            ],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            check=False,
+        )
+        if Path(env_file).is_file():
+            load_protected_environment(
+                env_file=env_file, token_file=token_file, override=True
+            )
+            return os.environ.get("MHCS_GRABBER_REHEARSAL_LOCATOR", "")
+    return os.environ.get("MHCS_GRABBER_REHEARSAL_LOCATOR", "")
+
+
 # ---------------------------------------------------------------------------
 # Rehearsal tests
 # ---------------------------------------------------------------------------
@@ -119,7 +179,9 @@ class TestGrabberRoundtripRehearsal:
     Uses synthetic/deidentified fixtures only.  No real patient data.
     """
 
-    def test_full_roundtrip_initial(self, rehearsal_output_dir: Path) -> None:
+    def test_full_roundtrip_initial(
+        self, rehearsal_output_dir: Path, rehearsal_locator: str
+    ) -> None:
         """Initial upload: manifest retrieved → DICOM generated → 201 Created."""
         from mpips.integrations.mhcs_core.client import MHCSGrabberClient
         from mpips.integrations.mhcs_core.workflow import (
@@ -133,10 +195,13 @@ class TestGrabberRoundtripRehearsal:
         if not _check_mhcs_core_reachable(base_url):
             pytest.skip(f"MHCS Core not reachable at {base_url}")
 
-        locator_code = os.environ["MHCS_GRABBER_REHEARSAL_LOCATOR"]
+        locator_code = rehearsal_locator
         rad_npz = os.environ["MHCS_GRABBER_REHEARSAL_RAD_NPZ"]
         gain_npz = os.environ["MHCS_GRABBER_REHEARSAL_GAIN_NPZ"]
         work_dir = rehearsal_output_dir / "work"
+        cal_dir = os.environ.get(
+            "MHCS_GRABBER_REHEARSAL_CALIBRATION_DIR"
+        ) or os.environ.get("MPIPS_CALIBRATION_ARTIFACT_DIR")
 
         # Remove any pre-existing DICOM/sidecar to force a fresh initial upload
         dicom_path = rehearsal_output_dir / f"{locator_code}.dcm"
@@ -154,6 +219,7 @@ class TestGrabberRoundtripRehearsal:
             output_dicom_dir=rehearsal_output_dir,
             client=client,
             work_dir=work_dir,
+            calibration_dir=cal_dir,
         )
 
         assert isinstance(result, GrabberWorkflowResult)
@@ -171,7 +237,9 @@ class TestGrabberRoundtripRehearsal:
             result.display_reference,
         )
 
-    def test_exact_retry_replayed(self, rehearsal_output_dir: Path) -> None:
+    def test_exact_retry_replayed(
+        self, rehearsal_output_dir: Path, rehearsal_locator: str
+    ) -> None:
         """Exact retry: same DICOM bytes + same submission ID → 200 replayed:true."""
         from mpips.integrations.mhcs_core.client import MHCSGrabberClient
         from mpips.integrations.mhcs_core.workflow import run_grabber_roundtrip
@@ -182,10 +250,13 @@ class TestGrabberRoundtripRehearsal:
         if not _check_mhcs_core_reachable(base_url):
             pytest.skip(f"MHCS Core not reachable at {base_url}")
 
-        locator_code = os.environ["MHCS_GRABBER_REHEARSAL_LOCATOR"]
+        locator_code = rehearsal_locator
         rad_npz = os.environ["MHCS_GRABBER_REHEARSAL_RAD_NPZ"]
         gain_npz = os.environ["MHCS_GRABBER_REHEARSAL_GAIN_NPZ"]
         work_dir = rehearsal_output_dir / "work"
+        cal_dir = os.environ.get(
+            "MHCS_GRABBER_REHEARSAL_CALIBRATION_DIR"
+        ) or os.environ.get("MPIPS_CALIBRATION_ARTIFACT_DIR")
         client = MHCSGrabberClient.from_env()
 
         # Remove pre-existing DICOM/sidecar to guarantee fresh initial call
@@ -203,6 +274,7 @@ class TestGrabberRoundtripRehearsal:
             output_dicom_dir=rehearsal_output_dir,
             client=client,
             work_dir=work_dir,
+            calibration_dir=cal_dir,
         )
         assert (
             initial_result.replayed is False
@@ -217,6 +289,7 @@ class TestGrabberRoundtripRehearsal:
             output_dicom_dir=rehearsal_output_dir,
             client=client,
             work_dir=work_dir,
+            calibration_dir=cal_dir,
         )
 
         assert (
@@ -233,7 +306,10 @@ class TestGrabberRoundtripRehearsal:
         )
 
     def test_no_credentials_or_patient_data_in_logs(
-        self, rehearsal_output_dir: Path, caplog: pytest.LogCaptureFixture
+        self,
+        rehearsal_output_dir: Path,
+        rehearsal_locator: str,
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         """Credentials and patient data must not appear in MPIPS log output."""
         from mpips.integrations.mhcs_core.client import MHCSGrabberClient
@@ -246,10 +322,13 @@ class TestGrabberRoundtripRehearsal:
             pytest.skip(f"MHCS Core not reachable at {base_url}")
 
         token = os.environ["MHCS_GRABBER_TOKEN"]
-        locator_code = os.environ["MHCS_GRABBER_REHEARSAL_LOCATOR"]
+        locator_code = rehearsal_locator
         rad_npz = os.environ["MHCS_GRABBER_REHEARSAL_RAD_NPZ"]
         gain_npz = os.environ["MHCS_GRABBER_REHEARSAL_GAIN_NPZ"]
         work_dir = rehearsal_output_dir / "work"
+        cal_dir = os.environ.get(
+            "MHCS_GRABBER_REHEARSAL_CALIBRATION_DIR"
+        ) or os.environ.get("MPIPS_CALIBRATION_ARTIFACT_DIR")
         client = MHCSGrabberClient.from_env()
 
         with caplog.at_level(logging.DEBUG):
@@ -260,6 +339,7 @@ class TestGrabberRoundtripRehearsal:
                 output_dicom_dir=rehearsal_output_dir,
                 client=client,
                 work_dir=work_dir,
+                calibration_dir=cal_dir,
             )
 
         assert token not in caplog.text, "Bearer token must not appear in logs"
