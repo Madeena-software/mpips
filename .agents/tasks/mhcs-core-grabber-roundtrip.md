@@ -391,8 +391,22 @@ availability or credentials.
 ### Dependencies
 
 - Implementation baseline `084639395e7ecada982be72f46a2b8aff8ef79ac` on
-  `main` is the starting point. The Executor MUST verify HEAD matches this
-  SHA before beginning material mutations.
+  `main` is the required ancestor, not the expected HEAD. Before beginning
+  material mutations, the Executor MUST:
+  1. Start from the Reviewer-accepted published task revision on
+     `task/mhcs-core-grabber-roundtrip`.
+  2. Confirm a clean working tree (`git status --porcelain` is empty).
+  3. Record `git rev-parse HEAD` as the actual execution-start SHA.
+  4. Verify `084639395e7ecada982be72f46a2b8aff8ef79ac` is an ancestor of
+     the execution-start revision
+     (`git merge-base --is-ancestor 084639395e7ecada982be72f46a2b8aff8ef79ac HEAD`).
+  5. Verify `git diff 084639395e7ecada982be72f46a2b8aff8ef79ac HEAD --name-only`
+     lists only approved task-authoring and remediation artifacts
+     (i.e., files under `.agents/tasks/` and `.agents/` governance paths;
+     no product source, test, configuration, or dependency changes).
+  6. Stop if the task revision is not the one accepted by Planner/Reviewer
+     or if unrelated commits are detected between the baseline and
+     execution-start.
 - Python 3.12 and declared dependencies (including `httpx>=0.28.1` available
   in `service`/`dev` extras and `uv.lock`).
 - MHCS Core at `5a3626b1d5e2624ec7818ca88545e36d320f0294` is the governing
@@ -571,12 +585,28 @@ availability or credentials.
 
 Run in this order. All must pass before the Executor reports Review Required.
 
-1. **Drift check**:
+1. **Execution-start verification** (before any material mutations):
    ```bash
+   # 1. Confirm clean working tree
+   git status --porcelain
+   # 2. Record execution-start SHA
    git rev-parse HEAD
+   # 3. Verify implementation baseline is an ancestor of execution-start
+   git merge-base --is-ancestor 084639395e7ecada982be72f46a2b8aff8ef79ac HEAD
+   # 4. Inspect diff between baseline and execution-start
+   git diff 084639395e7ecada982be72f46a2b8aff8ef79ac HEAD --name-only
    ```
-   Confirm HEAD is `084639395e7ecada982be72f46a2b8aff8ef79ac` before
-   beginning material mutations.
+   Required conditions before proceeding:
+   - Working tree MUST be clean (no uncommitted changes).
+   - Execution-start HEAD MUST be the Reviewer-accepted published task
+     revision on `task/mhcs-core-grabber-roundtrip` (not necessarily
+     equal to `084639395e7ecada982be72f46a2b8aff8ef79ac`).
+   - `084639395e7ecada982be72f46a2b8aff8ef79ac` MUST be an ancestor of
+     the execution-start revision.
+   - The diff between the implementation baseline and the execution-start
+     revision MUST contain ONLY approved task-authoring and remediation
+     artifacts (files under `.agents/tasks/` and `.agents/` governance
+     paths). Any unrelated commits MUST trigger a stop.
 
 2. **Protected converter hash**:
    ```bash
@@ -670,7 +700,10 @@ Run in this order. All must pass before the Executor reports Review Required.
 
 Upon completing implementation, the Executor MUST report:
 
-- Execution-start SHA (verify against baseline `084639395e7ecada982be72f46a2b8aff8ef79ac`).
+- Execution-start SHA (the HEAD of the Reviewer-accepted published task
+  revision; confirmed as a descendant of baseline
+  `084639395e7ecada982be72f46a2b8aff8ef79ac` with only approved
+  task-authoring/remediation artifacts in the intervening diff).
 - Resulting implementation commit SHA on `task/mhcs-core-grabber-roundtrip`.
 - Changed files list (`git diff --stat --name-only` against baseline).
 - Confirmation that only the new integration module(s), new tests, and
@@ -697,8 +730,12 @@ Upon completing implementation, the Executor MUST report:
 
 The Executor MUST stop implementation and return the issue to planning if:
 
-1. HEAD at execution start does not match
-   `084639395e7ecada982be72f46a2b8aff8ef79ac`.
+1. The execution-start HEAD is not the Reviewer-accepted published task
+   revision on `task/mhcs-core-grabber-roundtrip`; OR
+   `084639395e7ecada982be72f46a2b8aff8ef79ac` is not an ancestor of the
+   execution-start revision; OR the diff between the implementation
+   baseline and execution-start contains commits that are not approved
+   task-authoring or remediation artifacts.
 2. The MHCS Core manifest response schema is materially incompatible with
    `MHCSManifest` (new required fields not present in the manifest output,
    or MHCS Core manifest requires schema changes in MPIPS).
