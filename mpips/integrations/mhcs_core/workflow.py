@@ -284,35 +284,6 @@ def _sha256_hex(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
-def _normalize_minimal_manifest(raw_manifest: dict[str, Any]) -> dict[str, Any]:
-    """Enrich a minimal manifest with canonical DICOM and physical spacing defaults
-    if missing from server response.
-    """
-    if isinstance(raw_manifest, dict):
-        if not raw_manifest.get("dicom"):
-            raw_manifest["dicom"] = {
-                "pixel_source": "CANONICAL_PRE_PRESENTATION",
-                "pixel_intensity_relationship": "LIN",
-                "pixel_intensity_relationship_sign": 1,
-            }
-        capture = raw_manifest.get("capture")
-        if isinstance(capture, dict):
-            if not capture.get("detector_spacing"):
-                capture["detector_spacing"] = {
-                    "row_mm": 0.150,
-                    "column_mm": 0.160,
-                }
-            if not capture.get("view_code_sequence"):
-                capture["view_code_sequence"] = [
-                    {
-                        "code_value": "272479007",
-                        "coding_scheme_designator": "SCT",
-                        "code_meaning": "postero-anterior",
-                    }
-                ]
-    return raw_manifest
-
-
 # ---------------------------------------------------------------------------
 # Public workflow
 # ---------------------------------------------------------------------------
@@ -421,7 +392,6 @@ def run_grabber_roundtrip(
         # ------------------------------------------------------------------
         logger.info("Step 1: manifest lookup for locator %s", locator_code)
         raw_manifest = client.get_manifest(locator_code)
-        _normalize_minimal_manifest(raw_manifest)
 
         try:
             manifest = MHCSManifest.model_validate(raw_manifest)
