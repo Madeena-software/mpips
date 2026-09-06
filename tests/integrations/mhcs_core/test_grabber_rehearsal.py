@@ -188,8 +188,15 @@ class TestGrabberRoundtripRehearsal:
         work_dir = rehearsal_output_dir / "work"
         client = MHCSGrabberClient.from_env()
 
-        # First call (or reuse from test_full_roundtrip_initial if same fixture)
-        run_grabber_roundtrip(
+        # Remove pre-existing DICOM/sidecar to guarantee fresh initial call
+        dicom_path = rehearsal_output_dir / f"{locator_code}.dcm"
+        sidecar = work_dir / f"submission-{locator_code}.json"
+        for p in (dicom_path, sidecar):
+            if p.exists():
+                p.unlink()
+
+        # First call: initial upload (replayed: false)
+        initial_result = run_grabber_roundtrip(
             locator_code=locator_code,
             radiograph_npz_path=rad_npz,
             gain_npz_path=gain_npz,
@@ -197,9 +204,13 @@ class TestGrabberRoundtripRehearsal:
             client=client,
             work_dir=work_dir,
         )
+        assert (
+            initial_result.replayed is False
+        ), f"Expected initial replayed=False; got {initial_result.replayed}"
+        assert initial_result.terminal_state == "awaiting_ai"
 
-        # Second call with the same DICOM bytes and submission ID
-        result = run_grabber_roundtrip(
+        # Second call: exact retry (replayed: true), without manifest lookup
+        retry_result = run_grabber_roundtrip(
             locator_code=locator_code,
             radiograph_npz_path=rad_npz,
             gain_npz_path=gain_npz,
@@ -209,11 +220,17 @@ class TestGrabberRoundtripRehearsal:
         )
 
         assert (
-            result.replayed is True
-        ), f"Expected replayed=True on exact retry; got replayed={result.replayed}"
-        assert result.terminal_state == "awaiting_ai"
+            retry_result.replayed is True
+        ), f"Expected replayed=True on retry; got {retry_result.replayed}"
+        assert retry_result.terminal_state == "awaiting_ai"
+        assert retry_result.study_id == initial_result.study_id
+        assert retry_result.checksum == initial_result.checksum
 
-        logger.info("Rehearsal exact retry result: replayed=%s", result.replayed)
+        logger.info(
+            "Rehearsal exact retry result: replayed=%s study_id=%s",
+            retry_result.replayed,
+            retry_result.study_id,
+        )
 
     def test_no_credentials_or_patient_data_in_logs(
         self, rehearsal_output_dir: Path, caplog: pytest.LogCaptureFixture

@@ -27,12 +27,18 @@ import pytest
 
 from mpips.integrations.mhcs_core.client import (
     GrabberClientError,
+    GrabberConnectionError,
     GrabberIdempotencyConflictError,
+    GrabberLocatorNotFoundError,
+    GrabberResponseValidationError,
     GrabberServerError,
+    GrabberSessionStateError,
+    GrabberTimeoutError,
     MHCSGrabberClient,
 )
 from mpips.integrations.mhcs_core.workflow import (
     GrabberWorkflowResult,
+    _compute_input_fingerprint,
     _load_or_create_submission_id,
     _sha256_hex,
     run_grabber_roundtrip,
@@ -79,7 +85,7 @@ _UPLOAD_RESPONSE_200_REPLAYED = {
 def _make_mock_client(
     manifest: dict[str, Any] = MINIMAL_MANIFEST_DICT,
     upload_return: dict[str, Any] = _UPLOAD_RESPONSE_201,
-    upload_side_effect: Exception | None = None,
+    upload_side_effect: Exception | list[Any] | None = None,
 ) -> MagicMock:
     client = MagicMock(spec=MHCSGrabberClient)
     client.get_manifest.return_value = manifest
@@ -165,7 +171,11 @@ class TestRunGrabberRoundtrip:
         dicom_path = out_dir / f"{_LOCATOR}.dcm"
         dicom_path.write_bytes(_DICOM_BYTES)
 
-        # Pre-write the sidecar with matching checksum
+        rad_path = tmp_path / "rad.npz"
+        gain_path = tmp_path / "gain.npz"
+        fp = _compute_input_fingerprint(rad_path, gain_path)
+
+        # Pre-write the sidecar with matching checksum and input fingerprint
         sub_id = "pre-existing-submission-id"
         sidecar = work_dir / f"submission-{_LOCATOR}.json"
         sidecar.write_text(
@@ -175,28 +185,35 @@ class TestRunGrabberRoundtrip:
                     "locator_code": _LOCATOR,
                     "submission_id": sub_id,
                     "checksum": _CHECKSUM,
+                    "input_fingerprint": fp,
                 }
             ),
             encoding="utf-8",
         )
 
         client = _make_mock_client(upload_return=_UPLOAD_RESPONSE_200_REPLAYED)
+        # Even if get_manifest raises locator invalidated, exact retry must succeed
+        client.get_manifest.side_effect = GrabberLocatorNotFoundError(
+            "Locator invalidated"
+        )
 
         with patch(
             "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
         ) as mock_convert:
             result = run_grabber_roundtrip(
                 locator_code=_LOCATOR,
-                radiograph_npz_path=tmp_path / "rad.npz",
-                gain_npz_path=tmp_path / "gain.npz",
+                radiograph_npz_path=rad_path,
+                gain_npz_path=gain_path,
                 output_dicom_dir=out_dir,
                 client=client,
                 work_dir=work_dir,
             )
 
-        # convert_npz_to_dicom must NOT be called when DICOM already exists
+        # Manifest lookup and conversion must NOT be called when resuming
+        client.get_manifest.assert_not_called()
         mock_convert.assert_not_called()
         assert result.replayed is True
+        assert result.terminal_state == "awaiting_ai"
         # Same submission ID reused
         client.upload_dicom.assert_called_once_with(
             locator_code=_LOCATOR,
@@ -382,6 +399,457 @@ class TestRunGrabberRoundtrip:
 
         # Should have been called twice (initial + 1 retry)
         assert client.upload_dicom.call_count == 2
+
+    def test_exact_retry_after_initial_upload_with_locator_invalidation(
+        self, tmp_path: Path
+    ) -> None:
+        """Initial 201 Created followed by exact retry 200 replayed: true
+        succeeds even when server invalidates the locator after ingestion."""
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        work_dir = tmp_path / "work"
+        work_dir.mkdir()
+
+        client = MagicMock(spec=MHCSGrabberClient)
+        client.get_manifest.side_effect = [
+            MINIMAL_MANIFEST_DICT,
+            GrabberLocatorNotFoundError("Locator invalidated after ingestion"),
+        ]
+        client.upload_dicom.side_effect = [
+            _UPLOAD_RESPONSE_201,
+            _UPLOAD_RESPONSE_200_REPLAYED,
+        ]
+
+        with patch(
+            "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+        ) as mock_convert:
+            mock_convert.side_effect = _fake_convert_side_effect
+
+            # Initial upload
+            res1 = run_grabber_roundtrip(
+                locator_code=_LOCATOR,
+                radiograph_npz_path=tmp_path / "rad.npz",
+                gain_npz_path=tmp_path / "gain.npz",
+                output_dicom_dir=out_dir,
+                client=client,
+                work_dir=work_dir,
+            )
+            assert res1.replayed is False
+            assert res1.terminal_state == "awaiting_ai"
+
+            # Exact retry with same locator and inputs
+            res2 = run_grabber_roundtrip(
+                locator_code=_LOCATOR,
+                radiograph_npz_path=tmp_path / "rad.npz",
+                gain_npz_path=tmp_path / "gain.npz",
+                output_dicom_dir=out_dir,
+                client=client,
+                work_dir=work_dir,
+            )
+            assert res2.replayed is True
+            assert res2.terminal_state == "awaiting_ai"
+            assert res2.study_id == res1.study_id
+            assert res2.checksum == res1.checksum
+
+        # get_manifest was called ONLY once (during initial); skipped on exact retry
+        client.get_manifest.assert_called_once()
+        # convert was called ONLY once
+        mock_convert.assert_called_once()
+        # upload was called twice, both with the same submission ID
+        assert client.upload_dicom.call_count == 2
+        call1_args = client.upload_dicom.call_args_list[0].kwargs
+        call2_args = client.upload_dicom.call_args_list[1].kwargs
+        assert call1_args["submission_id"] == call2_args["submission_id"]
+        assert call1_args["checksum_sha256"] == call2_args["checksum_sha256"]
+
+    def test_different_inputs_do_not_reuse_stale_dicom(self, tmp_path: Path) -> None:
+        """When locator is reused with different inputs, stale DICOM is not reused."""
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        work_dir = tmp_path / "work"
+        work_dir.mkdir()
+
+        # Write existing DICOM and sidecar for an earlier session
+        old_dicom = out_dir / f"{_LOCATOR}.dcm"
+        old_dicom.write_bytes(_DICOM_BYTES)
+        sidecar = work_dir / f"submission-{_LOCATOR}.json"
+        sidecar.write_text(
+            json.dumps(
+                {
+                    "version": "1",
+                    "locator_code": _LOCATOR,
+                    "submission_id": "old-sub-id",
+                    "checksum": _CHECKSUM,
+                    "input_fingerprint": "completely-different-fingerprint",
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        client = _make_mock_client(upload_return=_UPLOAD_RESPONSE_201)
+
+        with patch(
+            "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+        ) as mock_convert:
+            mock_convert.side_effect = _fake_convert_side_effect
+
+            result = run_grabber_roundtrip(
+                locator_code=_LOCATOR,
+                radiograph_npz_path=tmp_path / "new_rad.npz",
+                gain_npz_path=tmp_path / "new_gain.npz",
+                output_dicom_dir=out_dir,
+                client=client,
+                work_dir=work_dir,
+            )
+
+        # Must have fetched fresh manifest and reconverted
+        client.get_manifest.assert_called_once_with(_LOCATOR)
+        mock_convert.assert_called_once()
+        assert result.replayed is False
+        # Old submission ID must NOT be reused
+        upload_sub_id = client.upload_dicom.call_args.kwargs["submission_id"]
+        assert upload_sub_id != "old-sub-id"
+
+    def test_upload_timeout_retried_and_succeeds(self, tmp_path: Path) -> None:
+        """Timeout on upload is retried and succeeds on subsequent attempt."""
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        client = _make_mock_client(
+            upload_side_effect=[
+                GrabberTimeoutError("Upload timed out"),
+                _UPLOAD_RESPONSE_201,
+            ]
+        )
+
+        with (
+            patch(
+                "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+            ) as mock_convert,
+            patch("mpips.integrations.mhcs_core.workflow.time.sleep"),
+        ):
+            mock_convert.side_effect = _fake_convert_side_effect
+            result = run_grabber_roundtrip(
+                locator_code=_LOCATOR,
+                radiograph_npz_path=tmp_path / "rad.npz",
+                gain_npz_path=tmp_path / "gain.npz",
+                output_dicom_dir=out_dir,
+                client=client,
+                work_dir=tmp_path / "work",
+                max_upload_attempts=2,
+            )
+
+        assert result.terminal_state == "awaiting_ai"
+        assert client.upload_dicom.call_count == 2
+
+    def test_upload_timeout_exhaustion_retains_dicom_and_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """When timeouts exhaust all attempts, GrabberTimeoutError is raised
+        and DICOM retained.
+        """
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        client = _make_mock_client(upload_side_effect=GrabberTimeoutError("Timeout"))
+
+        with (
+            patch(
+                "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+            ) as mock_convert,
+            patch("mpips.integrations.mhcs_core.workflow.time.sleep"),
+        ):
+            mock_convert.side_effect = _fake_convert_side_effect
+            with pytest.raises(GrabberTimeoutError):
+                run_grabber_roundtrip(
+                    locator_code=_LOCATOR,
+                    radiograph_npz_path=tmp_path / "rad.npz",
+                    gain_npz_path=tmp_path / "gain.npz",
+                    output_dicom_dir=out_dir,
+                    client=client,
+                    work_dir=tmp_path / "work",
+                    max_upload_attempts=2,
+                )
+
+        assert (out_dir / f"{_LOCATOR}.dcm").is_file(), "DICOM must be retained on disk"
+        assert client.upload_dicom.call_count == 2
+
+    def test_upload_connection_error_retried_and_succeeds(self, tmp_path: Path) -> None:
+        """Connection loss on upload is retried and succeeds on subsequent attempt."""
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        client = _make_mock_client(
+            upload_side_effect=[
+                GrabberConnectionError("Connection lost"),
+                _UPLOAD_RESPONSE_201,
+            ]
+        )
+
+        with (
+            patch(
+                "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+            ) as mock_convert,
+            patch("mpips.integrations.mhcs_core.workflow.time.sleep"),
+        ):
+            mock_convert.side_effect = _fake_convert_side_effect
+            result = run_grabber_roundtrip(
+                locator_code=_LOCATOR,
+                radiograph_npz_path=tmp_path / "rad.npz",
+                gain_npz_path=tmp_path / "gain.npz",
+                output_dicom_dir=out_dir,
+                client=client,
+                work_dir=tmp_path / "work",
+                max_upload_attempts=2,
+            )
+
+        assert result.terminal_state == "awaiting_ai"
+        assert client.upload_dicom.call_count == 2
+
+    def test_upload_connection_error_exhaustion_retains_dicom_and_raises(
+        self, tmp_path: Path
+    ) -> None:
+        """When connection errors exhaust all attempts, GrabberConnectionError
+        is raised and DICOM retained.
+        """
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        client = _make_mock_client(
+            upload_side_effect=GrabberConnectionError("Conn error")
+        )
+
+        with (
+            patch(
+                "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+            ) as mock_convert,
+            patch("mpips.integrations.mhcs_core.workflow.time.sleep"),
+        ):
+            mock_convert.side_effect = _fake_convert_side_effect
+            with pytest.raises(GrabberConnectionError):
+                run_grabber_roundtrip(
+                    locator_code=_LOCATOR,
+                    radiograph_npz_path=tmp_path / "rad.npz",
+                    gain_npz_path=tmp_path / "gain.npz",
+                    output_dicom_dir=out_dir,
+                    client=client,
+                    work_dir=tmp_path / "work",
+                    max_upload_attempts=2,
+                )
+
+        assert (out_dir / f"{_LOCATOR}.dcm").is_file(), "DICOM must be retained on disk"
+        assert client.upload_dicom.call_count == 2
+
+    def test_upload_session_ineligible_raises_immediately(self, tmp_path: Path) -> None:
+        """409 session ineligible raises GrabberSessionStateError immediately
+        without retry.
+        """
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        client = _make_mock_client(
+            upload_side_effect=GrabberSessionStateError("Session is not active")
+        )
+
+        with patch(
+            "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+        ) as mock_convert:
+            mock_convert.side_effect = _fake_convert_side_effect
+            with pytest.raises(GrabberSessionStateError):
+                run_grabber_roundtrip(
+                    locator_code=_LOCATOR,
+                    radiograph_npz_path=tmp_path / "rad.npz",
+                    gain_npz_path=tmp_path / "gain.npz",
+                    output_dicom_dir=out_dir,
+                    client=client,
+                    work_dir=tmp_path / "work",
+                    max_upload_attempts=3,
+                )
+
+        assert (out_dir / f"{_LOCATOR}.dcm").is_file()
+        assert client.upload_dicom.call_count == 1
+
+    def test_workflow_rejects_missing_study_id(self, tmp_path: Path) -> None:
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        bad_response = {**_UPLOAD_RESPONSE_201, "study_id": ""}
+        client = _make_mock_client(upload_return=bad_response)
+
+        with patch(
+            "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+        ) as mock_convert:
+            mock_convert.side_effect = _fake_convert_side_effect
+            with pytest.raises(GrabberResponseValidationError, match="study_id"):
+                run_grabber_roundtrip(
+                    locator_code=_LOCATOR,
+                    radiograph_npz_path=tmp_path / "rad.npz",
+                    gain_npz_path=tmp_path / "gain.npz",
+                    output_dicom_dir=out_dir,
+                    client=client,
+                    work_dir=tmp_path / "work",
+                )
+
+    def test_workflow_rejects_missing_display_reference(self, tmp_path: Path) -> None:
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        bad_response = {**_UPLOAD_RESPONSE_201, "display_reference": None}
+        client = _make_mock_client(upload_return=bad_response)
+
+        with patch(
+            "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+        ) as mock_convert:
+            mock_convert.side_effect = _fake_convert_side_effect
+            with pytest.raises(
+                GrabberResponseValidationError, match="display_reference"
+            ):
+                run_grabber_roundtrip(
+                    locator_code=_LOCATOR,
+                    radiograph_npz_path=tmp_path / "rad.npz",
+                    gain_npz_path=tmp_path / "gain.npz",
+                    output_dicom_dir=out_dir,
+                    client=client,
+                    work_dir=tmp_path / "work",
+                )
+
+    def test_workflow_rejects_completed_terminal_state(self, tmp_path: Path) -> None:
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        bad_response = {**_UPLOAD_RESPONSE_201, "terminal_state": "completed"}
+        client = _make_mock_client(upload_return=bad_response)
+
+        with patch(
+            "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+        ) as mock_convert:
+            mock_convert.side_effect = _fake_convert_side_effect
+            with pytest.raises(GrabberResponseValidationError, match="terminal_state"):
+                run_grabber_roundtrip(
+                    locator_code=_LOCATOR,
+                    radiograph_npz_path=tmp_path / "rad.npz",
+                    gain_npz_path=tmp_path / "gain.npz",
+                    output_dicom_dir=out_dir,
+                    client=client,
+                    work_dir=tmp_path / "work",
+                )
+
+    def test_workflow_rejects_arbitrary_terminal_state(self, tmp_path: Path) -> None:
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        bad_response = {**_UPLOAD_RESPONSE_201, "terminal_state": "unknown_state"}
+        client = _make_mock_client(upload_return=bad_response)
+
+        with patch(
+            "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+        ) as mock_convert:
+            mock_convert.side_effect = _fake_convert_side_effect
+            with pytest.raises(GrabberResponseValidationError, match="terminal_state"):
+                run_grabber_roundtrip(
+                    locator_code=_LOCATOR,
+                    radiograph_npz_path=tmp_path / "rad.npz",
+                    gain_npz_path=tmp_path / "gain.npz",
+                    output_dicom_dir=out_dir,
+                    client=client,
+                    work_dir=tmp_path / "work",
+                )
+
+    def test_workflow_rejects_200_without_replayed_true(self, tmp_path: Path) -> None:
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        bad_response = {**_UPLOAD_RESPONSE_201, "replayed": False, "_http_status": 200}
+        client = _make_mock_client(upload_return=bad_response)
+
+        with patch(
+            "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+        ) as mock_convert:
+            mock_convert.side_effect = _fake_convert_side_effect
+            with pytest.raises(GrabberResponseValidationError, match="replayed=True"):
+                run_grabber_roundtrip(
+                    locator_code=_LOCATOR,
+                    radiograph_npz_path=tmp_path / "rad.npz",
+                    gain_npz_path=tmp_path / "gain.npz",
+                    output_dicom_dir=out_dir,
+                    client=client,
+                    work_dir=tmp_path / "work",
+                )
+
+    def test_workflow_rejects_201_with_replayed_true(self, tmp_path: Path) -> None:
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        bad_response = {**_UPLOAD_RESPONSE_201, "replayed": True, "_http_status": 201}
+        client = _make_mock_client(upload_return=bad_response)
+
+        with patch(
+            "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+        ) as mock_convert:
+            mock_convert.side_effect = _fake_convert_side_effect
+            with pytest.raises(GrabberResponseValidationError, match="replayed=True"):
+                run_grabber_roundtrip(
+                    locator_code=_LOCATOR,
+                    radiograph_npz_path=tmp_path / "rad.npz",
+                    gain_npz_path=tmp_path / "gain.npz",
+                    output_dicom_dir=out_dir,
+                    client=client,
+                    work_dir=tmp_path / "work",
+                )
+
+    def test_explicit_resume_true_fails_if_no_verified_artifact(
+        self, tmp_path: Path
+    ) -> None:
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        client = _make_mock_client()
+        with pytest.raises(GrabberClientError, match="Explicit resume requested"):
+            run_grabber_roundtrip(
+                locator_code=_LOCATOR,
+                radiograph_npz_path=tmp_path / "rad.npz",
+                gain_npz_path=tmp_path / "gain.npz",
+                output_dicom_dir=out_dir,
+                client=client,
+                work_dir=tmp_path / "work",
+                resume=True,
+            )
+
+    def test_explicit_resume_false_forces_fresh_conversion(
+        self, tmp_path: Path
+    ) -> None:
+        out_dir = tmp_path / "output"
+        out_dir.mkdir()
+        work_dir = tmp_path / "work"
+        work_dir.mkdir()
+
+        # Existing DICOM and sidecar
+        dicom_path = out_dir / f"{_LOCATOR}.dcm"
+        dicom_path.write_bytes(_DICOM_BYTES)
+        rad_path = tmp_path / "rad.npz"
+        gain_path = tmp_path / "gain.npz"
+        fp = _compute_input_fingerprint(rad_path, gain_path)
+        sidecar = work_dir / f"submission-{_LOCATOR}.json"
+        sidecar.write_text(
+            json.dumps(
+                {
+                    "version": "1",
+                    "locator_code": _LOCATOR,
+                    "submission_id": "existing-sub-id",
+                    "checksum": _CHECKSUM,
+                    "input_fingerprint": fp,
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        client = _make_mock_client(upload_return=_UPLOAD_RESPONSE_201)
+
+        with patch(
+            "mpips.integrations.mhcs_core.workflow.convert_npz_to_dicom"
+        ) as mock_convert:
+            mock_convert.side_effect = _fake_convert_side_effect
+            run_grabber_roundtrip(
+                locator_code=_LOCATOR,
+                radiograph_npz_path=rad_path,
+                gain_npz_path=gain_path,
+                output_dicom_dir=out_dir,
+                client=client,
+                work_dir=work_dir,
+                resume=False,
+            )
+
+        # Forced fresh: get_manifest and convert MUST be called
+        client.get_manifest.assert_called_once()
+        mock_convert.assert_called_once()
 
 
 # ---------------------------------------------------------------------------

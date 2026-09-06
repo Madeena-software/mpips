@@ -70,6 +70,34 @@ class GrabberServerError(GrabberClientError):
     """Raised for 5xx server errors."""
 
 
+class GrabberTransientNetworkError(GrabberClientError):
+    """Base class for transient network errors (timeouts, connection failures)."""
+
+
+class GrabberTimeoutError(GrabberTransientNetworkError):
+    """Raised when an HTTP request times out."""
+
+
+class GrabberConnectionError(GrabberTransientNetworkError):
+    """Raised when an HTTP connection cannot be established or is lost."""
+
+
+class GrabberSessionStateError(GrabberUploadError):
+    """Raised when server returns 409 for session-ineligible state
+    (not an idempotency conflict).
+    """
+
+
+class GrabberSessionIneligibleError(GrabberSessionStateError):
+    """Alias for session-ineligible 409 responses."""
+
+
+class GrabberResponseValidationError(GrabberClientError):
+    """Raised when server response payload, replay semantics, or terminal
+    state is invalid.
+    """
+
+
 # ---------------------------------------------------------------------------
 # Configuration
 # ---------------------------------------------------------------------------
@@ -232,8 +260,12 @@ class MHCSGrabberClient:
         try:
             with httpx.Client(timeout=self._timeout) as client:
                 response = client.get(url, headers=self._auth_headers())
-        except (httpx.TimeoutException, httpx.ConnectError) as exc:
-            raise GrabberClientError(
+        except httpx.TimeoutException as exc:
+            raise GrabberTimeoutError(
+                f"Timeout fetching manifest for locator {locator_code}"
+            ) from exc
+        except (httpx.ConnectError, httpx.NetworkError) as exc:
+            raise GrabberConnectionError(
                 f"Connection error fetching manifest for locator {locator_code}: "
                 f"{type(exc).__name__}"
             ) from exc
@@ -363,8 +395,12 @@ class MHCSGrabberClient:
                     headers=upload_headers,
                     files={"file": ("image.dcm", dicom_bytes, "application/dicom")},
                 )
-        except (httpx.TimeoutException, httpx.ConnectError) as exc:
-            raise GrabberClientError(
+        except httpx.TimeoutException as exc:
+            raise GrabberTimeoutError(
+                f"Timeout uploading DICOM for locator {locator_code}"
+            ) from exc
+        except (httpx.ConnectError, httpx.NetworkError) as exc:
+            raise GrabberConnectionError(
                 f"Connection error uploading DICOM for locator {locator_code}: "
                 f"{type(exc).__name__}"
             ) from exc
@@ -386,18 +422,83 @@ class MHCSGrabberClient:
             try:
                 result: dict[str, Any] = response.json()
             except Exception as exc:
-                raise GrabberClientError(
+                raise GrabberResponseValidationError(
                     f"Upload response for locator {locator_code} is not valid JSON"
                 ) from exc
+            if not isinstance(result, dict):
+                raise GrabberResponseValidationError(
+                    f"Upload response for locator {locator_code} is not a JSON object"
+                )
+
+            # Validate replay semantics
+            is_replayed = result.get("replayed")
+            if code == 201 and is_replayed is True:
+                raise GrabberResponseValidationError(
+                    f"Invalid response: HTTP 201 received with replayed=True "
+                    f"for locator {locator_code}"
+                )
+            if code == 200 and is_replayed is not True:
+                raise GrabberResponseValidationError(
+                    f"Invalid response: HTTP 200 received without replayed: true "
+                    f"for locator {locator_code}"
+                )
+
+            # Validate terminal_state is exactly 'awaiting_ai'
+            terminal_state = result.get("terminal_state")
+            if terminal_state != "awaiting_ai":
+                raise GrabberResponseValidationError(
+                    f"Invalid response: terminal_state must be 'awaiting_ai', "
+                    f"got {terminal_state!r} for locator {locator_code}"
+                )
+
+            # Validate required non-sensitive identifiers
+            study_id = result.get("study_id")
+            if not study_id or not isinstance(study_id, str):
+                raise GrabberResponseValidationError(
+                    f"Invalid response: missing or invalid study_id "
+                    f"for locator {locator_code}"
+                )
+            display_ref = result.get("display_reference")
+            if not display_ref or not isinstance(display_ref, str):
+                raise GrabberResponseValidationError(
+                    f"Invalid response: missing or invalid display_reference "
+                    f"for locator {locator_code}"
+                )
+
+            result["_http_status"] = code
             return result
+
         if code == 401:
             raise GrabberAuthError(
                 "MHCS Core rejected Grabber credentials on upload (401)"
             )
         if code == 409:
-            raise GrabberIdempotencyConflictError(
-                f"Submission-ID conflict on upload for locator {locator_code} (409); "
-                "this submission ID was used with different DICOM bytes"
+            is_idempotency = False
+            try:
+                err_data = response.json()
+                if isinstance(err_data, dict):
+                    code_str = str(
+                        err_data.get("code") or err_data.get("error") or ""
+                    ).lower()
+                    msg_str = str(
+                        err_data.get("message") or err_data.get("detail") or ""
+                    ).lower()
+                    combined = f"{code_str} {msg_str}"
+                    if "idempotenc" in combined or (
+                        "submission" in combined and "conflict" in combined
+                    ):
+                        is_idempotency = True
+            except Exception:
+                pass
+
+            if is_idempotency:
+                raise GrabberIdempotencyConflictError(
+                    f"Submission-ID conflict on upload for locator {locator_code} "
+                    f"(409); this submission ID was used with different DICOM bytes"
+                )
+            raise GrabberSessionIneligibleError(
+                f"Radiography session is ineligible for DICOM upload "
+                f"for locator {locator_code} (409)"
             )
         if code == 429:
             retry_after_str = response.headers.get("Retry-After", "")
@@ -419,3 +520,22 @@ class MHCSGrabberClient:
         raise GrabberUploadError(
             f"Unexpected HTTP {code} on DICOM upload for locator {locator_code}"
         )
+
+
+__all__: list[str] = [
+    "GrabberClientError",
+    "GrabberAuthError",
+    "GrabberLocatorNotFoundError",
+    "GrabberRateLimitError",
+    "GrabberIdempotencyConflictError",
+    "GrabberManifestError",
+    "GrabberUploadError",
+    "GrabberServerError",
+    "GrabberTransientNetworkError",
+    "GrabberTimeoutError",
+    "GrabberConnectionError",
+    "GrabberSessionStateError",
+    "GrabberSessionIneligibleError",
+    "GrabberResponseValidationError",
+    "MHCSGrabberClient",
+]

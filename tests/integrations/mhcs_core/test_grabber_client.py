@@ -24,11 +24,17 @@ import pytest
 from mpips.integrations.mhcs_core.client import (
     GrabberAuthError,
     GrabberClientError,
+    GrabberConnectionError,
     GrabberIdempotencyConflictError,
     GrabberLocatorNotFoundError,
     GrabberManifestError,
     GrabberRateLimitError,
+    GrabberResponseValidationError,
     GrabberServerError,
+    GrabberSessionIneligibleError,
+    GrabberSessionStateError,
+    GrabberTimeoutError,
+    GrabberTransientNetworkError,
     GrabberUploadError,
     MHCSGrabberClient,
 )
@@ -185,7 +191,7 @@ class TestGetManifest:
             MockClient.return_value.__enter__.return_value.get.side_effect = (
                 httpx.TimeoutException("timed out")
             )
-            with pytest.raises(GrabberClientError, match="Connection error"):
+            with pytest.raises(GrabberTimeoutError, match="Timeout fetching"):
                 _client().get_manifest(_LOCATOR)
 
     def test_manifest_connect_error_raises_grabber_client_error(self) -> None:
@@ -193,7 +199,7 @@ class TestGetManifest:
             MockClient.return_value.__enter__.return_value.get.side_effect = (
                 httpx.ConnectError("refused")
             )
-            with pytest.raises(GrabberClientError, match="Connection error"):
+            with pytest.raises(GrabberConnectionError, match="Connection error"):
                 _client().get_manifest(_LOCATOR)
 
     def test_manifest_unexpected_status_raises_client_error(self) -> None:
@@ -245,10 +251,41 @@ class TestUploadDicom:
                 )
 
     def test_upload_409_raises_idempotency_conflict(self) -> None:
-        resp = _mock_response(409)
+        resp = _mock_response(
+            409,
+            json_body={
+                "error": "idempotency_conflict",
+                "message": "Submission conflict",
+            },
+        )
         with patch("httpx.Client") as MockClient:
             MockClient.return_value.__enter__.return_value.post.return_value = resp
             with pytest.raises(GrabberIdempotencyConflictError):
+                _client().upload_dicom(
+                    _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
+                )
+
+    def test_upload_409_session_ineligible_raises_session_state_error(self) -> None:
+        resp = _mock_response(
+            409,
+            json_body={"error": "session_ineligible", "message": "Session completed"},
+        )
+        with patch("httpx.Client") as MockClient:
+            MockClient.return_value.__enter__.return_value.post.return_value = resp
+            with pytest.raises(GrabberSessionStateError) as exc_info:
+                _client().upload_dicom(
+                    _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
+                )
+        assert isinstance(exc_info.value, GrabberSessionIneligibleError)
+        assert "Session completed" not in str(
+            exc_info.value
+        )  # unsanitized body not exposed
+
+    def test_upload_409_generic_raises_session_state_error(self) -> None:
+        resp = _mock_response(409, json_body=None)
+        with patch("httpx.Client") as MockClient:
+            MockClient.return_value.__enter__.return_value.post.return_value = resp
+            with pytest.raises(GrabberSessionStateError):
                 _client().upload_dicom(
                     _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
                 )
@@ -278,20 +315,22 @@ class TestUploadDicom:
             MockClient.return_value.__enter__.return_value.post.side_effect = (
                 httpx.TimeoutException("timed out")
             )
-            with pytest.raises(GrabberClientError, match="Connection error"):
+            with pytest.raises(GrabberTimeoutError) as exc_info:
                 _client().upload_dicom(
                     _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
                 )
+        assert isinstance(exc_info.value, GrabberTransientNetworkError)
 
     def test_upload_connect_error_raises_client_error(self) -> None:
         with patch("httpx.Client") as MockClient:
             MockClient.return_value.__enter__.return_value.post.side_effect = (
                 httpx.ConnectError("refused")
             )
-            with pytest.raises(GrabberClientError, match="Connection error"):
+            with pytest.raises(GrabberConnectionError) as exc_info:
                 _client().upload_dicom(
                     _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
                 )
+        assert isinstance(exc_info.value, GrabberTransientNetworkError)
 
     def test_upload_4xx_other_raises_upload_error(self) -> None:
         resp = _mock_response(422)
@@ -306,7 +345,82 @@ class TestUploadDicom:
         resp = _mock_response(201, json_body=None)
         with patch("httpx.Client") as MockClient:
             MockClient.return_value.__enter__.return_value.post.return_value = resp
-            with pytest.raises(GrabberClientError, match="not valid JSON"):
+            with pytest.raises(GrabberResponseValidationError, match="not valid JSON"):
+                _client().upload_dicom(
+                    _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
+                )
+
+    def test_upload_response_non_dict_raises_validation_error(self) -> None:
+        resp = _mock_response(201, json_body=["not", "a", "dict"])
+        with patch("httpx.Client") as MockClient:
+            MockClient.return_value.__enter__.return_value.post.return_value = resp
+            with pytest.raises(
+                GrabberResponseValidationError, match="not a JSON object"
+            ):
+                _client().upload_dicom(
+                    _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
+                )
+
+    def test_upload_201_with_replayed_true_raises_validation_error(self) -> None:
+        bad_payload = {**UPLOAD_RESPONSE_201, "replayed": True}
+        resp = _mock_response(201, json_body=bad_payload)
+        with patch("httpx.Client") as MockClient:
+            MockClient.return_value.__enter__.return_value.post.return_value = resp
+            with pytest.raises(GrabberResponseValidationError, match="replayed=True"):
+                _client().upload_dicom(
+                    _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
+                )
+
+    def test_upload_200_without_replayed_true_raises_validation_error(self) -> None:
+        bad_payload = {**UPLOAD_RESPONSE_201, "replayed": False}
+        resp = _mock_response(200, json_body=bad_payload)
+        with patch("httpx.Client") as MockClient:
+            MockClient.return_value.__enter__.return_value.post.return_value = resp
+            with pytest.raises(
+                GrabberResponseValidationError, match="without replayed: true"
+            ):
+                _client().upload_dicom(
+                    _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
+                )
+
+    def test_upload_terminal_state_completed_raises_validation_error(self) -> None:
+        bad_payload = {**UPLOAD_RESPONSE_201, "terminal_state": "completed"}
+        resp = _mock_response(201, json_body=bad_payload)
+        with patch("httpx.Client") as MockClient:
+            MockClient.return_value.__enter__.return_value.post.return_value = resp
+            with pytest.raises(GrabberResponseValidationError, match="terminal_state"):
+                _client().upload_dicom(
+                    _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
+                )
+
+    def test_upload_terminal_state_arbitrary_raises_validation_error(self) -> None:
+        bad_payload = {**UPLOAD_RESPONSE_201, "terminal_state": "failed"}
+        resp = _mock_response(201, json_body=bad_payload)
+        with patch("httpx.Client") as MockClient:
+            MockClient.return_value.__enter__.return_value.post.return_value = resp
+            with pytest.raises(GrabberResponseValidationError, match="terminal_state"):
+                _client().upload_dicom(
+                    _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
+                )
+
+    def test_upload_missing_study_id_raises_validation_error(self) -> None:
+        bad_payload = {**UPLOAD_RESPONSE_201, "study_id": ""}
+        resp = _mock_response(201, json_body=bad_payload)
+        with patch("httpx.Client") as MockClient:
+            MockClient.return_value.__enter__.return_value.post.return_value = resp
+            with pytest.raises(GrabberResponseValidationError, match="study_id"):
+                _client().upload_dicom(
+                    _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
+                )
+
+    def test_upload_missing_display_reference_raises_validation_error(self) -> None:
+        bad_payload = {**UPLOAD_RESPONSE_201, "display_reference": None}
+        resp = _mock_response(201, json_body=bad_payload)
+        with patch("httpx.Client") as MockClient:
+            MockClient.return_value.__enter__.return_value.post.return_value = resp
+            with pytest.raises(
+                GrabberResponseValidationError, match="display_reference"
+            ):
                 _client().upload_dicom(
                     _LOCATOR, _DICOM_BYTES, _CHECKSUM, _SUBMISSION_ID
                 )
