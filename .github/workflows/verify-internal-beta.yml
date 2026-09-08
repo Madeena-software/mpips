@@ -43,6 +43,23 @@ jobs:
             echo "MPIPS_VERSION=$(cat /var/www/mpips-runtime/.mpips-version)" >> "$GITHUB_ENV"
           fi
 
+      - name: Verify deployment identity
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${MPIPS_VERSION:-}" ]; then
+            echo "Error: Deployed MPIPS_VERSION is missing or empty in /var/www/mpips-runtime/.mpips-version" >&2
+            exit 1
+          fi
+          test -n "${MPIPS_VERSION:-}"
+          if [ "$MPIPS_VERSION" != "$GITHUB_SHA" ]; then
+            echo "Error: Deployment identity mismatch: deployed MPIPS_VERSION does not match verification GITHUB_SHA" >&2
+            echo "Expected GITHUB_SHA: $GITHUB_SHA" >&2
+            echo "Observed MPIPS_VERSION: $MPIPS_VERSION" >&2
+            exit 1
+          fi
+          test "$MPIPS_VERSION" = "$GITHUB_SHA"
+          echo "Deployment identity verified: $MPIPS_VERSION == $GITHUB_SHA"
+
       - name: Verify conversion readiness
         run: |
           set -Eeuo pipefail

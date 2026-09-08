@@ -263,11 +263,20 @@ def test_deploy_workflow_rollback_verifies_launcher() -> None:
 
 
 def test_verify_workflow_enforces_conversion_readiness_and_version_match() -> None:
-    """Verify workflow must assert launcher supervision, /v1/readiness, and worker image match."""
+    """Verify workflow must assert launcher supervision, /v1/readiness, worker image match, and deployment SHA identity."""
     workflow_path = (
         Path(__file__).parent.parent / ".github" / "workflows" / "verify-internal-beta.yml"
     )
     content = workflow_path.read_text(encoding="utf-8")
+
+    # Deployed version extraction from runtime marker
+    assert '/var/www/mpips-runtime/.mpips-version' in content
+    assert 'MPIPS_VERSION=$(cat /var/www/mpips-runtime/.mpips-version)' in content
+
+    # Deployment-identity guard: non-empty check and exact GITHUB_SHA match
+    assert 'test -n "${MPIPS_VERSION:-}"' in content
+    assert 'test "$MPIPS_VERSION" = "$GITHUB_SHA"' in content
+    assert 'Deployment identity verified' in content
 
     assert "systemctl is-active --quiet mpips-launcher.service" in content
     assert "/v1/readiness" in content
