@@ -2,9 +2,6 @@ name: Verify MPIPS Internal Beta
 
 on:
   workflow_dispatch:
-  workflow_run:
-    workflows: ["Deploy MPIPS Internal Beta"]
-    types: [completed]
 
 concurrency:
   group: mpips-internal-beta
@@ -19,9 +16,7 @@ jobs:
     name: Functional Verification
     runs-on: [self-hosted, production]
     timeout-minutes: 30
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.event.workflow_run.conclusion == 'success'
+    if: github.event_name == 'workflow_dispatch'
     steps:
       - name: Checkout
         uses: actions/checkout@v4

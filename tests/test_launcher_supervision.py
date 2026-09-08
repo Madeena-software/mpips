@@ -199,15 +199,29 @@ def test_readiness_endpoint_ready_returns_200(
 
 
 def test_workflow_yaml_parsing() -> None:
-    """Both deployment and verification workflows must parse validly as YAML."""
+    """Both deployment and verification workflows must parse validly as YAML and preserve release isolation."""
     repo_root = Path(__file__).parent.parent
     deploy_path = repo_root / ".github" / "workflows" / "deploy-internal-beta.yml"
     verify_path = repo_root / ".github" / "workflows" / "verify-internal-beta.yml"
 
-    for path in (deploy_path, verify_path):
-        parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
-        assert parsed is not None
-        assert "jobs" in parsed
+    parsed_deploy = yaml.safe_load(deploy_path.read_text(encoding="utf-8"))
+    assert parsed_deploy is not None
+    assert "jobs" in parsed_deploy
+    # Hotfix deploy workflow name must be distinct from default-branch "Deploy MPIPS Internal Beta"
+    # to avoid triggering default-branch workflow_run verification watchers.
+    assert parsed_deploy.get("name") != "Deploy MPIPS Internal Beta"
+    assert "Deploy MPIPS Internal Beta — Launcher Recovery" in parsed_deploy.get("name", "")
+
+    parsed_verify = yaml.safe_load(verify_path.read_text(encoding="utf-8"))
+    assert parsed_verify is not None
+    assert "jobs" in parsed_verify
+    # Hotfix verify workflow must be explicit manual dispatch only, without workflow_run chaining
+    verify_triggers = parsed_verify.get("on") or parsed_verify.get(True)
+    if isinstance(verify_triggers, dict):
+        assert "workflow_dispatch" in verify_triggers
+        assert "workflow_run" not in verify_triggers
+    else:
+        assert verify_triggers == "workflow_dispatch"
 
 
 def test_deploy_workflow_has_no_nohup_and_enforces_supervision() -> None:

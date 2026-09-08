@@ -1,4 +1,4 @@
-name: Deploy MPIPS Internal Beta
+name: Deploy MPIPS Internal Beta — Launcher Recovery
 
 on:
   workflow_dispatch:
