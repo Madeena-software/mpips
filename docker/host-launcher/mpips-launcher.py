@@ -26,7 +26,7 @@ logging.basicConfig(
 logger = logging.getLogger("mpips-host-launcher")
 
 SOCKET_PATH = Path(
-    os.getenv("MPIPS_LAUNCHER_SOCKET_PATH", "/var/run/mpips-launcher.sock")
+    os.getenv("MPIPS_LAUNCHER_SOCKET_PATH", "/var/www/mpips-runtime/launcher/launcher.sock")
 )
 WORKSPACE_ROOT = Path(
     os.getenv("MPIPS_WORKSPACE_ROOT", "/tmp/mpips-workspaces")
@@ -36,6 +36,8 @@ WORKER_USER = os.getenv("MPIPS_WORKER_USER", "10001:10001")
 WORKER_MEMORY = os.getenv("MPIPS_WORKER_MEMORY", "4g")
 WORKER_TMPFS_SIZE = os.getenv("MPIPS_WORKER_TMPFS_SIZE", "512m")
 TIMEOUT_SECONDS = int(os.getenv("MPIPS_WORKER_TIMEOUT_SECONDS", "300"))
+LAUNCHER_UID = int(os.getenv("MPIPS_LAUNCHER_UID", "-1"))
+LAUNCHER_GID = int(os.getenv("MPIPS_LAUNCHER_GID", "-1"))
 JOB_ID_REGEX = re.compile(r"^[a-zA-Z0-9_-]{1,128}$")
 
 
@@ -118,6 +120,17 @@ async def handle_client(
             return
 
         payload: Dict[str, Any] = json.loads(raw_data.decode("utf-8").strip())
+        action = payload.get("action")
+        if action == "ping" or payload.get("ping") is True:
+            response = {
+                "status": "success",
+                "action": "pong",
+                "worker_image": WORKER_IMAGE,
+            }
+            writer.write(json.dumps(response).encode("utf-8") + b"\n")
+            await writer.drain()
+            return
+
         job_id = str(payload.get("job_id", "unknown"))
 
         if not JOB_ID_REGEX.match(job_id):
@@ -230,6 +243,11 @@ async def run_server() -> None:
 
     server = await asyncio.start_unix_server(handle_client, path=str(SOCKET_PATH))
     os.chmod(str(SOCKET_PATH), 0o660)
+    if LAUNCHER_UID >= 0 or LAUNCHER_GID >= 0:
+        try:
+            os.chown(str(SOCKET_PATH), LAUNCHER_UID, LAUNCHER_GID)
+        except OSError as exc:
+            logger.warning("Failed to chown socket %s to %d:%d: %s", SOCKET_PATH, LAUNCHER_UID, LAUNCHER_GID, exc)
 
     logger.info("MPIPS host worker launcher daemon listening on %s", SOCKET_PATH)
     async with server:

@@ -28,6 +28,7 @@ def test_dicom_and_dag_routes_are_registered() -> None:
     assert {
         ("POST", "/v1/radiographs/dicom"),
         ("GET", "/health"),
+        ("GET", "/v1/readiness"),
         ("GET", "/v1/nodes"),
         ("POST", "/v1/jobs"),
         ("GET", "/v1/jobs"),

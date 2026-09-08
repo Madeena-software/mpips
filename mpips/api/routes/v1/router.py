@@ -330,3 +330,24 @@ def list_jobs(
         reverse=True,
     )
     return jobs
+
+
+@router.get(
+    "/readiness",
+    summary="Conversion readiness check",
+    description=(
+        "Verifies that mandatory conversion dependencies, including the "
+        "host worker launcher socket, are reachable and responsive."
+    ),
+    tags=["Health"],
+)
+def get_conversion_readiness() -> dict[str, Any]:
+    from mpips.conversion.service import check_launcher_readiness
+
+    res = check_launcher_readiness()
+    if res.get("status") != "ready":
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=res,
+        )
+    return res

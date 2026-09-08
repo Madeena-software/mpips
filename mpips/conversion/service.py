@@ -359,7 +359,7 @@ def run_isolated_dicom_conversion(
         if env_mode == "production":
             # Production host supervisor container launcher via narrow Unix socket
             launcher_sock_path = os.getenv(
-                "MPIPS_LAUNCHER_SOCKET_PATH", "/var/run/mpips-launcher.sock"
+                "MPIPS_LAUNCHER_SOCKET_PATH", "/var/run/mpips/launcher.sock"
             )
             launcher_sock = Path(launcher_sock_path)
             if not launcher_sock.exists():
@@ -555,3 +555,60 @@ def run_isolated_dicom_conversion(
     finally:
         if workspace_dir.exists():
             _cleanup_workspace(workspace_dir)
+
+
+def check_launcher_readiness(timeout_seconds: float = 3.0) -> dict[str, Any]:
+    """Probes the host launcher via Unix domain socket for conversion readiness."""
+    sock_path_str = os.getenv("MPIPS_LAUNCHER_SOCKET_PATH", "/var/run/mpips/launcher.sock")
+    sock_path = Path(sock_path_str)
+
+    if not sock_path.exists():
+        return {
+            "status": "unready",
+            "error_code": "LAUNCHER_SOCKET_NOT_FOUND",
+            "socket_path": str(sock_path),
+        }
+
+    try:
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+            sock.settimeout(timeout_seconds)
+            sock.connect(str(sock_path))
+            probe_payload = json.dumps({"action": "ping"}).encode("utf-8") + b"\n"
+            sock.sendall(probe_payload)
+            sock.shutdown(socket.SHUT_WR)
+
+            resp_bytes = bytearray()
+            while True:
+                chunk = sock.recv(4096)
+                if not chunk:
+                    break
+                resp_bytes.extend(chunk)
+
+        if not resp_bytes:
+            return {
+                "status": "unready",
+                "error_code": "LAUNCHER_EMPTY_RESPONSE",
+                "socket_path": str(sock_path),
+            }
+
+        data = json.loads(resp_bytes.decode("utf-8"))
+        if data.get("status") == "success" and data.get("action") == "pong":
+            return {
+                "status": "ready",
+                "service": "mpips-host-launcher",
+                "worker_image": data.get("worker_image"),
+                "socket_path": str(sock_path),
+            }
+        return {
+            "status": "unready",
+            "error_code": "LAUNCHER_INVALID_RESPONSE",
+            "socket_path": str(sock_path),
+            "details": data,
+        }
+    except Exception as exc:
+        return {
+            "status": "unready",
+            "error_code": "LAUNCHER_CONNECTION_FAILED",
+            "socket_path": str(sock_path),
+            "details": str(exc),
+        }

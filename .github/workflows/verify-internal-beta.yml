@@ -45,6 +45,22 @@ jobs:
           echo "COMPOSE_PROJECT_NAME=mpips-internal-beta" >> "$GITHUB_ENV"
           echo "MPIPS_API_KEY=${MPIPS_API_KEY_SECRET}" >> "$GITHUB_ENV"
 
+      - name: Verify conversion readiness
+        run: |
+          set -Eeuo pipefail
+          # Check supervisor unit status
+          sudo systemctl is-active --quiet mpips-launcher.service
+          test -S "$MPIPS_LAUNCHER_SOCKET_PATH"
+
+          # Verify /v1/readiness endpoint
+          for _ in $(seq 1 30); do
+            if [ "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8014/v1/readiness)" = "200" ]; then
+              break
+            fi
+            sleep 1
+          done
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8014/v1/readiness)" = "200"
+
       - name: Run burn-in verification
         run: |
           set -Eeuo pipefail
@@ -75,4 +91,5 @@ jobs:
           docker compose --project-name "$COMPOSE_PROJECT_NAME" \
             --env-file /dev/null -f "$REMOTE_PATH/docker-compose.prod.yml" \
             logs --no-color --tail=200 || true
+          sudo journalctl -u mpips-launcher.service --no-pager -n 200 || true
           test ! -f "$REMOTE_PATH/launcher.log" || tail -200 "$REMOTE_PATH/launcher.log"
