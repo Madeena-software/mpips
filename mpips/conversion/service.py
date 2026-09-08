@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import uuid
 
 from pathlib import Path
 from typing import Any, Dict
@@ -557,8 +558,47 @@ def run_isolated_dicom_conversion(
             _cleanup_workspace(workspace_dir)
 
 
+def check_workspace_readiness() -> dict[str, Any]:
+    """Verifies that configured MPIPS_WORKSPACE_ROOT is usable by the running process."""
+    root_str = os.getenv("MPIPS_WORKSPACE_ROOT", "/tmp/mpips-workspaces")
+    workspace_base = Path(root_str)
+
+    try:
+        workspace_base.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        return {
+            "status": "unready",
+            "service": "mpips-workspace",
+            "error_code": "WORKSPACE_UNAVAILABLE",
+        }
+
+    probe_path = workspace_base / f".readiness-probe-{uuid.uuid4().hex}"
+    try:
+        probe_path.mkdir(mode=0o700, exist_ok=False)
+        probe_path.rmdir()
+    except OSError:
+        if probe_path.exists():
+            try:
+                probe_path.rmdir()
+            except OSError:
+                pass
+        return {
+            "status": "unready",
+            "service": "mpips-workspace",
+            "error_code": "WORKSPACE_UNAVAILABLE",
+        }
+
+    return {"status": "ready"}
+
+
 def check_launcher_readiness(timeout_seconds: float = 3.0) -> dict[str, Any]:
-    """Probes the host launcher via Unix domain socket for conversion readiness."""
+    """Probes the host launcher via Unix domain socket and workspace root for conversion readiness."""
+    # 1. Probe configured workspace root usability for the running API identity
+    ws_res = check_workspace_readiness()
+    if ws_res.get("status") != "ready":
+        return ws_res
+
+    # 2. Probe host worker launcher via Unix domain socket
     sock_path_str = os.getenv("MPIPS_LAUNCHER_SOCKET_PATH", "/var/run/mpips/launcher.sock")
     sock_path = Path(sock_path_str)
     expected_image = os.getenv("MPIPS_WORKER_IMAGE")

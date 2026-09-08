@@ -13,7 +13,10 @@ import yaml
 from fastapi.testclient import TestClient
 
 from mpips.api.application import app
-from mpips.conversion.service import check_launcher_readiness
+from mpips.conversion.service import (
+    check_launcher_readiness,
+    check_workspace_readiness,
+)
 
 # Dynamically import mpips-launcher.py
 launcher_file_path = (
@@ -178,24 +181,84 @@ def test_readiness_endpoint_image_mismatch_returns_503(
     assert data["detail"]["error_code"] == "LAUNCHER_WORKER_IMAGE_MISMATCH"
 
 
-def test_readiness_endpoint_ready_returns_200(
-    monkeypatch: pytest.MonkeyPatch
+def test_check_workspace_readiness_fails_when_unwritable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """GET /v1/readiness returns HTTP 200 when launcher is ready."""
-    monkeypatch.setattr(
-        "mpips.conversion.service.check_launcher_readiness",
-        lambda timeout_seconds=3.0: {
-            "status": "ready",
-            "service": "mpips-host-launcher",
-            "worker_image": "mpips-npz-worker:prod-v1",
-        },
-    )
+    """When workspace root cannot be created or written to, check_workspace_readiness reports unready."""
+    def _failing_mkdir(self, *args, **kwargs):
+        raise PermissionError(13, "Permission denied")
+
+    monkeypatch.setattr(Path, "mkdir", _failing_mkdir)
+
+    res = check_workspace_readiness()
+    assert res["status"] == "unready"
+    assert res["service"] == "mpips-workspace"
+    assert res["error_code"] == "WORKSPACE_UNAVAILABLE"
+
+
+def test_check_workspace_readiness_succeeds_when_writable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When workspace root is writable, probe directory is created, verified, and removed."""
+    writable_root = tmp_path / "writable-root"
+    monkeypatch.setenv("MPIPS_WORKSPACE_ROOT", str(writable_root))
+
+    res = check_workspace_readiness()
+    assert res["status"] == "ready"
+    assert not any(writable_root.glob(".readiness-probe-*"))
+
+
+def test_launcher_ready_but_workspace_unusable_returns_503(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When launcher daemon and worker image are ready but workspace is unwritable, /v1/readiness returns 503."""
+    def _mock_check_workspace():
+        return {
+            "status": "unready",
+            "service": "mpips-workspace",
+            "error_code": "WORKSPACE_UNAVAILABLE",
+        }
+
+    monkeypatch.setattr("mpips.conversion.service.check_workspace_readiness", _mock_check_workspace)
+
+    sock_path = tmp_path / "ready.sock"
+    monkeypatch.setenv("MPIPS_LAUNCHER_SOCKET_PATH", str(sock_path))
+    monkeypatch.setenv("MPIPS_WORKER_IMAGE", "mpips-npz-worker:v1")
+
     client = TestClient(app)
     response = client.get("/v1/readiness")
-    assert response.status_code == 200
+    assert response.status_code == 503
     data = response.json()
-    assert data["status"] == "ready"
-    assert data["worker_image"] == "mpips-npz-worker:prod-v1"
+    assert data["detail"]["status"] == "unready"
+    assert data["detail"]["service"] == "mpips-workspace"
+    assert data["detail"]["error_code"] == "WORKSPACE_UNAVAILABLE"
+
+
+def test_composite_readiness_succeeds_when_launcher_and_workspace_ready(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When both launcher socket and workspace root are ready, check_launcher_readiness returns ready."""
+    import concurrent.futures
+
+    async def _test_body() -> None:
+        sock_path = tmp_path / "ready.sock"
+        writable_root = tmp_path / "writable-workspaces"
+        monkeypatch.setattr(mpips_launcher, "WORKER_IMAGE", "mpips-npz-worker:candidate-sha")
+        monkeypatch.setenv("MPIPS_LAUNCHER_SOCKET_PATH", str(sock_path))
+        monkeypatch.setenv("MPIPS_WORKER_IMAGE", "mpips-npz-worker:candidate-sha")
+        monkeypatch.setenv("MPIPS_WORKSPACE_ROOT", str(writable_root))
+
+        server = await asyncio.start_unix_server(handle_client, path=str(sock_path))
+        async with server:
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                res = await asyncio.get_running_loop().run_in_executor(
+                    pool, check_launcher_readiness, 2.0
+                )
+                assert res["status"] == "ready"
+                assert res["service"] == "mpips-host-launcher"
+                assert res["worker_image"] == "mpips-npz-worker:candidate-sha"
+
+    asyncio.run(_test_body())
 
 
 def test_workflow_yaml_parsing() -> None:
@@ -236,6 +299,25 @@ def test_deploy_workflow_has_no_nohup_and_enforces_supervision() -> None:
     assert "systemctl is-active --quiet mpips-launcher.service" in content
     assert "/v1/readiness" in content
     assert "mpips-npz-worker:$MPIPS_VERSION" in content
+
+
+def test_deploy_workflow_provisions_workspace_and_verifies_in_container() -> None:
+    """Deploy workflow must deterministically provision workspace ownership/mode and probe usability inside container."""
+    workflow_path = (
+        Path(__file__).parent.parent / ".github" / "workflows" / "deploy-internal-beta.yml"
+    )
+    content = workflow_path.read_text(encoding="utf-8")
+
+    # Deterministic provisioning with install -d, restrictive mode, no 0777 base
+    assert 'sudo install -d -m 0770 -o "$MPIPS_RUNTIME_UID" -g "$MPIPS_RUNTIME_GID" /tmp/mpips-workspaces' in content
+    assert "chmod 0777 /tmp/mpips-workspaces" not in content
+    assert "chmod 777 /tmp/mpips-workspaces" not in content
+
+    # In-container verification of identity and workspace mount/usability
+    assert 'test "$api_user" = "${MPIPS_RUNTIME_UID}:${MPIPS_RUNTIME_GID}"' in content
+    assert 'Destination "/tmp/mpips-workspaces"' in content
+    assert 'docker exec "$API_CONTAINER" sh -c' in content
+    assert 'mkdir -m 0700 "$probe" && rmdir "$probe"' in content
 
 
 def test_deploy_workflow_no_heredocs_or_internal_beta_fallback() -> None:

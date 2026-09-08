@@ -198,7 +198,8 @@ jobs:
             sudo mkdir -p "$REMOTE_PATH"
             sudo chown -R "$(id -u):$(id -g)" "$REMOTE_PATH"
           fi
-          mkdir -p "$REMOTE_PATH/calibration" "$REMOTE_PATH/launcher" /tmp/mpips-workspaces
+          mkdir -p "$REMOTE_PATH/calibration" "$REMOTE_PATH/launcher"
+          sudo install -d -m 0770 -o "$MPIPS_RUNTIME_UID" -g "$MPIPS_RUNTIME_GID" /tmp/mpips-workspaces
           uv run python scripts/validate_calibration_layout.py "$REMOTE_PATH/calibration"
           uv run python scripts/local_dicom_burn_in.py \
             --base-dir "$REMOTE_PATH/burn-in" prepare
@@ -291,6 +292,17 @@ jobs:
           live_checks() {
             wait_for_health
             test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8014/health)" = "200"
+
+            # Verify container runtime identity and workspace usability from inside mpips-api
+            local api_user
+            api_user="$(docker exec "$API_CONTAINER" id -u):$(docker exec "$API_CONTAINER" id -g)"
+            test "$api_user" = "${MPIPS_RUNTIME_UID}:${MPIPS_RUNTIME_GID}"
+
+            # Verify /tmp/mpips-workspaces is mounted as expected
+            docker inspect "$API_CONTAINER" --format '{{range .Mounts}}{{if eq .Destination "/tmp/mpips-workspaces"}}{{.Source}}{{end}}{{end}}' | grep -q '^/tmp/mpips-workspaces$'
+
+            # Verify the API container identity can create and delete a bounded probe under /tmp/mpips-workspaces
+            docker exec "$API_CONTAINER" sh -c 'probe="/tmp/mpips-workspaces/.live-probe-$$"; mkdir -m 0700 "$probe" && rmdir "$probe"'
 
             # Strict launcher supervision and conversion-readiness check
             sudo systemctl is-active --quiet mpips-launcher.service
