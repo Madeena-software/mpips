@@ -561,12 +561,13 @@ def check_launcher_readiness(timeout_seconds: float = 3.0) -> dict[str, Any]:
     """Probes the host launcher via Unix domain socket for conversion readiness."""
     sock_path_str = os.getenv("MPIPS_LAUNCHER_SOCKET_PATH", "/var/run/mpips/launcher.sock")
     sock_path = Path(sock_path_str)
+    expected_image = os.getenv("MPIPS_WORKER_IMAGE")
 
     if not sock_path.exists():
         return {
             "status": "unready",
+            "service": "mpips-host-launcher",
             "error_code": "LAUNCHER_SOCKET_NOT_FOUND",
-            "socket_path": str(sock_path),
         }
 
     try:
@@ -587,28 +588,34 @@ def check_launcher_readiness(timeout_seconds: float = 3.0) -> dict[str, Any]:
         if not resp_bytes:
             return {
                 "status": "unready",
+                "service": "mpips-host-launcher",
                 "error_code": "LAUNCHER_EMPTY_RESPONSE",
-                "socket_path": str(sock_path),
             }
 
         data = json.loads(resp_bytes.decode("utf-8"))
         if data.get("status") == "success" and data.get("action") == "pong":
+            actual_image = data.get("worker_image")
+            if expected_image and actual_image != expected_image:
+                return {
+                    "status": "unready",
+                    "service": "mpips-host-launcher",
+                    "error_code": "LAUNCHER_WORKER_IMAGE_MISMATCH",
+                    "worker_image": actual_image,
+                    "expected_worker_image": expected_image,
+                }
             return {
                 "status": "ready",
                 "service": "mpips-host-launcher",
-                "worker_image": data.get("worker_image"),
-                "socket_path": str(sock_path),
+                "worker_image": actual_image,
             }
         return {
             "status": "unready",
+            "service": "mpips-host-launcher",
             "error_code": "LAUNCHER_INVALID_RESPONSE",
-            "socket_path": str(sock_path),
-            "details": data,
         }
-    except Exception as exc:
+    except Exception:
         return {
             "status": "unready",
+            "service": "mpips-host-launcher",
             "error_code": "LAUNCHER_CONNECTION_FAILED",
-            "socket_path": str(sock_path),
-            "details": str(exc),
         }

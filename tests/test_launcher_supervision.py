@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch, AsyncMock
 
 import pytest
+import yaml
 from fastapi.testclient import TestClient
 
 from mpips.api.application import app
@@ -64,7 +65,7 @@ def test_check_launcher_readiness_socket_missing(
     res = check_launcher_readiness(timeout_seconds=0.5)
     assert res["status"] == "unready"
     assert res["error_code"] == "LAUNCHER_SOCKET_NOT_FOUND"
-    assert res["socket_path"] == str(missing_sock)
+    assert "socket_path" not in res  # Sanitized
 
 
 def test_check_launcher_readiness_connection_failed(
@@ -85,16 +86,17 @@ def test_check_launcher_readiness_connection_failed(
     assert res["error_code"] == "LAUNCHER_CONNECTION_FAILED"
 
 
-def test_check_launcher_readiness_success(
+def test_check_launcher_readiness_success_image_matches(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """When launcher daemon is listening and returns pong, readiness succeeds."""
+    """When launcher daemon is listening and expected image matches, readiness succeeds."""
     import concurrent.futures
 
     async def _test_body() -> None:
         sock_path = tmp_path / "ready.sock"
         monkeypatch.setattr(mpips_launcher, "WORKER_IMAGE", "mpips-npz-worker:sha-abcdef123456")
         monkeypatch.setenv("MPIPS_LAUNCHER_SOCKET_PATH", str(sock_path))
+        monkeypatch.setenv("MPIPS_WORKER_IMAGE", "mpips-npz-worker:sha-abcdef123456")
 
         server = await asyncio.start_unix_server(handle_client, path=str(sock_path))
         async with server:
@@ -105,7 +107,32 @@ def test_check_launcher_readiness_success(
                 assert res["status"] == "ready"
                 assert res["service"] == "mpips-host-launcher"
                 assert res["worker_image"] == "mpips-npz-worker:sha-abcdef123456"
-                assert res["socket_path"] == str(sock_path)
+
+    asyncio.run(_test_body())
+
+
+def test_check_launcher_readiness_fails_on_worker_image_mismatch(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """When launcher reports worker_image different from MPIPS_WORKER_IMAGE, readiness fails."""
+    import concurrent.futures
+
+    async def _test_body() -> None:
+        sock_path = tmp_path / "mismatch.sock"
+        monkeypatch.setattr(mpips_launcher, "WORKER_IMAGE", "mpips-npz-worker:old-version")
+        monkeypatch.setenv("MPIPS_LAUNCHER_SOCKET_PATH", str(sock_path))
+        monkeypatch.setenv("MPIPS_WORKER_IMAGE", "mpips-npz-worker:new-version")
+
+        server = await asyncio.start_unix_server(handle_client, path=str(sock_path))
+        async with server:
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                res = await asyncio.get_running_loop().run_in_executor(
+                    pool, check_launcher_readiness, 2.0
+                )
+                assert res["status"] == "unready"
+                assert res["error_code"] == "LAUNCHER_WORKER_IMAGE_MISMATCH"
+                assert res["worker_image"] == "mpips-npz-worker:old-version"
+                assert res["expected_worker_image"] == "mpips-npz-worker:new-version"
 
     asyncio.run(_test_body())
 
@@ -118,8 +145,8 @@ def test_readiness_endpoint_unready_returns_503(
         "mpips.conversion.service.check_launcher_readiness",
         lambda timeout_seconds=3.0: {
             "status": "unready",
+            "service": "mpips-host-launcher",
             "error_code": "LAUNCHER_SOCKET_NOT_FOUND",
-            "socket_path": "/var/run/mpips/launcher.sock",
         },
     )
     client = TestClient(app)
@@ -128,6 +155,27 @@ def test_readiness_endpoint_unready_returns_503(
     data = response.json()
     assert data["detail"]["status"] == "unready"
     assert data["detail"]["error_code"] == "LAUNCHER_SOCKET_NOT_FOUND"
+
+
+def test_readiness_endpoint_image_mismatch_returns_503(
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """GET /v1/readiness returns HTTP 503 on worker image mismatch."""
+    monkeypatch.setattr(
+        "mpips.conversion.service.check_launcher_readiness",
+        lambda timeout_seconds=3.0: {
+            "status": "unready",
+            "service": "mpips-host-launcher",
+            "error_code": "LAUNCHER_WORKER_IMAGE_MISMATCH",
+            "worker_image": "mpips-npz-worker:v1",
+            "expected_worker_image": "mpips-npz-worker:v2",
+        },
+    )
+    client = TestClient(app)
+    response = client.get("/v1/readiness")
+    assert response.status_code == 503
+    data = response.json()
+    assert data["detail"]["error_code"] == "LAUNCHER_WORKER_IMAGE_MISMATCH"
 
 
 def test_readiness_endpoint_ready_returns_200(
@@ -140,7 +188,6 @@ def test_readiness_endpoint_ready_returns_200(
             "status": "ready",
             "service": "mpips-host-launcher",
             "worker_image": "mpips-npz-worker:prod-v1",
-            "socket_path": "/var/run/mpips/launcher.sock",
         },
     )
     client = TestClient(app)
@@ -149,6 +196,18 @@ def test_readiness_endpoint_ready_returns_200(
     data = response.json()
     assert data["status"] == "ready"
     assert data["worker_image"] == "mpips-npz-worker:prod-v1"
+
+
+def test_workflow_yaml_parsing() -> None:
+    """Both deployment and verification workflows must parse validly as YAML."""
+    repo_root = Path(__file__).parent.parent
+    deploy_path = repo_root / ".github" / "workflows" / "deploy-internal-beta.yml"
+    verify_path = repo_root / ".github" / "workflows" / "verify-internal-beta.yml"
+
+    for path in (deploy_path, verify_path):
+        parsed = yaml.safe_load(path.read_text(encoding="utf-8"))
+        assert parsed is not None
+        assert "jobs" in parsed
 
 
 def test_deploy_workflow_has_no_nohup_and_enforces_supervision() -> None:
@@ -165,8 +224,32 @@ def test_deploy_workflow_has_no_nohup_and_enforces_supervision() -> None:
     assert "mpips-npz-worker:$MPIPS_VERSION" in content
 
 
-def test_verify_workflow_enforces_conversion_readiness() -> None:
-    """Verify workflow must assert launcher supervision and /v1/readiness."""
+def test_deploy_workflow_no_heredocs_or_internal_beta_fallback() -> None:
+    """Deploy workflow must not use EOF heredocs for launcher.env or fallback to internal-beta."""
+    workflow_path = (
+        Path(__file__).parent.parent / ".github" / "workflows" / "deploy-internal-beta.yml"
+    )
+    content = workflow_path.read_text(encoding="utf-8")
+
+    assert "cat <<EOF >" not in content, "heredoc detected in deploy-internal-beta.yml"
+    assert "cat <<'EOF' >" not in content
+    assert "MPIPS_PREVIOUS_WORKER_IMAGE=mpips-npz-worker:internal-beta" not in content
+
+
+def test_deploy_workflow_rollback_verifies_launcher() -> None:
+    """Rollback routine must explicitly verify restored launcher probe."""
+    workflow_path = (
+        Path(__file__).parent.parent / ".github" / "workflows" / "deploy-internal-beta.yml"
+    )
+    content = workflow_path.read_text(encoding="utf-8")
+
+    assert "restart mpips-launcher.service || true" not in content, "Silent restart ignore detected"
+    assert "python3 scripts/probe_launcher.py" in content
+    assert "rollback_launcher_restored=true" in content
+
+
+def test_verify_workflow_enforces_conversion_readiness_and_version_match() -> None:
+    """Verify workflow must assert launcher supervision, /v1/readiness, and worker image match."""
     workflow_path = (
         Path(__file__).parent.parent / ".github" / "workflows" / "verify-internal-beta.yml"
     )
@@ -175,6 +258,8 @@ def test_verify_workflow_enforces_conversion_readiness() -> None:
     assert "systemctl is-active --quiet mpips-launcher.service" in content
     assert "/v1/readiness" in content
     assert "MPIPS_LAUNCHER_SOCKET_PATH" in content
+    assert "scripts/probe_launcher.py" in content
+    assert "mpips-npz-worker:${MPIPS_VERSION}" in content
 
 
 def test_compose_prod_preserves_container_isolation() -> None:
@@ -187,10 +272,11 @@ def test_compose_prod_preserves_container_isolation() -> None:
     assert "MPIPS_LAUNCHER_SOCKET_PATH: /var/run/mpips/launcher.sock" in content
 
 
-def test_systemd_unit_configuration() -> None:
-    """Validate systemd service and socket units."""
+def test_systemd_unit_configuration_and_socket_unit_retired() -> None:
+    """Validate systemd service requires mandatory launcher.env and has no internal-beta fallback."""
+    repo_root = Path(__file__).parent.parent
     service_path = (
-        Path(__file__).parent.parent
+        repo_root
         / "docker"
         / "host-launcher"
         / "mpips-launcher.service"
@@ -198,13 +284,17 @@ def test_systemd_unit_configuration() -> None:
     service_content = service_path.read_text(encoding="utf-8")
     assert "Restart=always" in service_content
     assert "RestartSec=5s" in service_content
-    assert "EnvironmentFile=-/var/www/mpips-runtime/launcher.env" in service_content
+    # Mandatory EnvironmentFile (no leading -)
+    assert "EnvironmentFile=/var/www/mpips-runtime/launcher.env" in service_content
+    assert "EnvironmentFile=-" not in service_content
+    # No mutable static internal-beta worker image fallback
+    assert "mpips-npz-worker:internal-beta" not in service_content
 
+    # Unused socket unit removed from active production contract
     socket_path = (
-        Path(__file__).parent.parent
+        repo_root
         / "docker"
         / "host-launcher"
         / "mpips-launcher.socket"
     )
-    socket_content = socket_path.read_text(encoding="utf-8")
-    assert "/var/www/mpips-runtime/launcher/launcher.sock" in socket_content
+    assert not socket_path.exists(), "docker/host-launcher/mpips-launcher.socket must be retired"
