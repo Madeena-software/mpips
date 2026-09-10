@@ -62,6 +62,8 @@ def test_check_launcher_readiness_socket_missing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """When launcher socket does not exist, check_launcher_readiness reports unready."""
+    workspace_root = tmp_path / "workspaces"
+    monkeypatch.setenv("MPIPS_WORKSPACE_ROOT", str(workspace_root))
     missing_sock = tmp_path / "absent.sock"
     monkeypatch.setenv("MPIPS_LAUNCHER_SOCKET_PATH", str(missing_sock))
 
@@ -75,6 +77,8 @@ def test_check_launcher_readiness_connection_failed(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """When socket file exists but nothing is listening, check_launcher_readiness reports error."""
+    workspace_root = tmp_path / "workspaces"
+    monkeypatch.setenv("MPIPS_WORKSPACE_ROOT", str(workspace_root))
     dead_sock = tmp_path / "dead.sock"
     # Create dead socket
     import socket
@@ -96,6 +100,8 @@ def test_check_launcher_readiness_success_image_matches(
     import concurrent.futures
 
     async def _test_body() -> None:
+        workspace_root = tmp_path / "workspaces"
+        monkeypatch.setenv("MPIPS_WORKSPACE_ROOT", str(workspace_root))
         sock_path = tmp_path / "ready.sock"
         monkeypatch.setattr(mpips_launcher, "WORKER_IMAGE", "mpips-npz-worker:sha-abcdef123456")
         monkeypatch.setenv("MPIPS_LAUNCHER_SOCKET_PATH", str(sock_path))
@@ -121,6 +127,8 @@ def test_check_launcher_readiness_fails_on_worker_image_mismatch(
     import concurrent.futures
 
     async def _test_body() -> None:
+        workspace_root = tmp_path / "workspaces"
+        monkeypatch.setenv("MPIPS_WORKSPACE_ROOT", str(workspace_root))
         sock_path = tmp_path / "mismatch.sock"
         monkeypatch.setattr(mpips_launcher, "WORKER_IMAGE", "mpips-npz-worker:old-version")
         monkeypatch.setenv("MPIPS_LAUNCHER_SOCKET_PATH", str(sock_path))
