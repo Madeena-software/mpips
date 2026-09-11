@@ -47,6 +47,7 @@ def _npz_bytes(
     radiograph: bool,
     shape: tuple[int, int] = SHAPE,
     camera: str = CAMERA,
+    detector_mode: str = "TRX",
     missing: Iterable[str] = (),
 ) -> bytes:
     raw = np.full(shape, 1000, dtype=np.uint16)
@@ -56,7 +57,7 @@ def _npz_bytes(
             "id": np.array("SYNTH-RAD-001"),
             "gainid": np.array(GAIN_ID),
             "rawimage": raw,
-            "xrayparams": np.array({"detectorMode": "BED"}, dtype=object),
+            "xrayparams": np.array({"detectorMode": detector_mode}, dtype=object),
             "cameraparams": np.array({"serialNumber": camera}, dtype=object),
         }
     else:
@@ -64,7 +65,7 @@ def _npz_bytes(
             "id": np.array(GAIN_ID),
             "rawimage": np.full(shape, 2000, dtype=np.uint16),
             "darkimage": np.full(shape, 50, dtype=np.uint16),
-            "xrayparams": np.array({"detectorMode": "BED"}, dtype=object),
+            "xrayparams": np.array({"detectorMode": detector_mode}, dtype=object),
             "cameraparams": np.array({"serialNumber": camera}, dtype=object),
         }
     for key in missing:
@@ -74,7 +75,7 @@ def _npz_bytes(
     return output.getvalue()
 
 
-def _manifest_template() -> dict[str, Any]:
+def _manifest_template(*, detector_type: str = "TRX") -> dict[str, Any]:
     return {
         "manifest_version": "1.0",
         "conversion_job_id": BASE_JOB_ID,
@@ -113,6 +114,7 @@ def _manifest_template() -> dict[str, Any]:
         "capture": {
             "capture_id": "SYNTH-CAPTURE-001",
             "protocol_version": "SYNTH-V1",
+            "detector_type": detector_type,
             "body_part_examined": "CHEST",
             "laterality": "U",
             "projection": "PA",
@@ -174,47 +176,166 @@ def _files(
     return [(key, values[key]) for key in include]
 
 
-def prepare(base: Path) -> None:
+
+def resolve_fixture_calibration_dir(
+    calibration_root: Path | None,
+    detector_mode: str = "TRX",
+) -> tuple[tuple[int, int], str, tuple[int, int]]:
+    """Resolves calibration artifact properties using worker selection semantics.
+
+    Returns:
+        (input_shape, camera_serial, output_shape)
+
+    Fails closed if calibration_root exists but has an invalid or unresolvable layout.
+    Falls back to synthetic defaults only when calibration_root does not exist.
+    """
+    if calibration_root is None or not calibration_root.exists():
+        return SHAPE, CAMERA, SHAPE
+
+    if not calibration_root.is_dir():
+        raise RuntimeError(f"Calibration root is not a directory: {calibration_root}")
+
+    # A. Legacy layout: root/metadata.json exists
+    selected_cal_dir: Path | None = None
+    if (calibration_root / "metadata.json").is_file():
+        selected_cal_dir = calibration_root
+    else:
+        # B. Multi-mode layout: root metadata does not exist, inspect sorted child dirs
+        mode_dirs = [p for p in sorted(calibration_root.iterdir()) if p.is_dir()]
+        for sub in mode_dirs:
+            meta_path = sub / "metadata.json"
+            if meta_path.is_file():
+                try:
+                    sub_meta = json.loads(meta_path.read_text("utf-8"))
+                except Exception as exc:
+                    raise RuntimeError(
+                        f"Malformed metadata JSON in multi-mode calibration directory {sub.name}: {exc}"
+                    ) from exc
+                if not isinstance(sub_meta, dict):
+                    raise RuntimeError(
+                        f"Metadata in {sub.name} is not a valid JSON object"
+                    )
+                src_meta = sub_meta.get("source_metadata", {})
+                if (
+                    isinstance(src_meta, dict)
+                    and src_meta.get("detector_mode") == detector_mode
+                ):
+                    selected_cal_dir = sub
+                    break
+
+        if selected_cal_dir is None:
+            raise RuntimeError(
+                f"Multi-mode calibration root contains no matching artifact for detector mode {detector_mode}"
+            )
+
+    cal_meta_file = selected_cal_dir / "metadata.json"
+    remap_file = selected_cal_dir / "remap.npz"
+
+    if not cal_meta_file.is_file():
+        raise RuntimeError(
+            f"Selected calibration directory {selected_cal_dir.name} missing metadata.json"
+        )
+    if not remap_file.is_file():
+        raise RuntimeError(
+            f"Selected calibration directory {selected_cal_dir.name} missing remap.npz"
+        )
+
+    try:
+        meta = json.loads(cal_meta_file.read_text("utf-8"))
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to load metadata.json from {selected_cal_dir.name}: {exc}"
+        ) from exc
+
+    if not isinstance(meta, dict):
+        raise RuntimeError(
+            f"Metadata in {selected_cal_dir.name} is not a valid JSON object"
+        )
+
+    if meta.get("validated") is not True:
+        raise RuntimeError(
+            f"Calibration artifact {selected_cal_dir.name} is not validated"
+        )
+
+    fingerprint = meta.get("fingerprint")
+    if not fingerprint or not isinstance(fingerprint, str):
+        raise RuntimeError(
+            f"Calibration artifact {selected_cal_dir.name} missing valid fingerprint"
+        )
+
+    src_meta = meta.get("source_metadata")
+    if not isinstance(src_meta, dict):
+        raise RuntimeError(
+            f"Calibration artifact {selected_cal_dir.name} missing source_metadata dict"
+        )
+    cal_mode = src_meta.get("detector_mode")
+    if cal_mode and cal_mode != detector_mode:
+        raise RuntimeError(
+            f"Calibration artifact {selected_cal_dir.name} detector_mode {cal_mode!r} does not match {detector_mode!r}"
+        )
+
+    image_shape_raw = meta.get("image_shape")
+    if not isinstance(image_shape_raw, (list, tuple)) or len(image_shape_raw) != 2:
+        raise RuntimeError(
+            f"Calibration artifact {selected_cal_dir.name} missing valid image_shape"
+        )
+    input_shape = (int(image_shape_raw[0]), int(image_shape_raw[1]))
+
+    target_camera = CAMERA
+    cam_params = src_meta.get("camera_params", {})
+    if isinstance(cam_params, dict):
+        cam_sn = cam_params.get("serialNumber") or cam_params.get("cameraSerial")
+        if cam_sn:
+            target_camera = str(cam_sn)
+
+    try:
+        with np.load(remap_file) as remap_data:
+            if "map_x" not in remap_data:
+                raise RuntimeError(
+                    f"remap.npz in {selected_cal_dir.name} missing map_x array"
+                )
+            output_shape = tuple(remap_data["map_x"].shape)
+    except Exception as exc:
+        raise RuntimeError(
+            f"Failed to load remap.npz from {selected_cal_dir.name}: {exc}"
+        ) from exc
+
+    return input_shape, target_camera, output_shape
+
+
+def prepare(base: Path, *, detector_mode: str = "TRX") -> None:
     base.mkdir(parents=True, exist_ok=True)
     for name in ("fixtures", "calibration", "results"):
         (base / name).mkdir(exist_ok=True)
 
-    input_shape = SHAPE
-    target_camera = CAMERA
-    cal_meta_file = base.parent / "calibration" / "metadata.json"
-    remap_file = base.parent / "calibration" / "remap.npz"
+    cal_root = base.parent / "calibration"
+    input_shape, target_camera, output_shape = resolve_fixture_calibration_dir(
+        cal_root if cal_root.exists() else None,
+        detector_mode=detector_mode,
+    )
 
-    if cal_meta_file.is_file():
-        try:
-            meta = json.loads(cal_meta_file.read_text("utf-8"))
-            if "image_shape" in meta and len(meta["image_shape"]) == 2:
-                input_shape = tuple(meta["image_shape"])
-            cam_params = meta.get("source_metadata", {}).get("camera_params", {})
-            if isinstance(cam_params, dict):
-                cam_sn = cam_params.get("serialNumber") or cam_params.get(
-                    "cameraSerial"
-                )
-                if cam_sn:
-                    target_camera = str(cam_sn)
-        except Exception:
-            pass
-
-    output_shape = input_shape
-    if remap_file.is_file():
-        try:
-            with np.load(remap_file) as remap_data:
-                if "map_x" in remap_data:
-                    output_shape = tuple(remap_data["map_x"].shape)
-        except Exception:
-            pass
-
-    radiograph = _npz_bytes(radiograph=True, shape=input_shape, camera=target_camera)
-    gain = _npz_bytes(radiograph=False, shape=input_shape, camera=target_camera)
+    radiograph = _npz_bytes(
+        radiograph=True,
+        shape=input_shape,
+        camera=target_camera,
+        detector_mode=detector_mode,
+    )
+    gain = _npz_bytes(
+        radiograph=False,
+        shape=input_shape,
+        camera=target_camera,
+        detector_mode=detector_mode,
+    )
     fixture_dir = base / "fixtures"
     (fixture_dir / "radiograph.npz").write_bytes(radiograph)
     (fixture_dir / "gain.npz").write_bytes(gain)
     (fixture_dir / "manifest.json").write_bytes(
-        _with_files(_manifest_template(), radiograph, gain, job_id=BASE_JOB_ID)
+        _with_files(
+            _manifest_template(detector_type=detector_mode),
+            radiograph,
+            gain,
+            job_id=BASE_JOB_ID,
+        )
     )
 
     y_values, x_values = np.indices(output_shape, dtype=np.float32)
@@ -228,7 +349,7 @@ def prepare(base: Path) -> None:
                 "fingerprint": "synthetic-local-calibration-v1",
                 "image_shape": list(input_shape),
                 "source_metadata": {
-                    "detector_mode": "BED",
+                    "detector_mode": detector_mode,
                     "camera_params": {"serialNumber": target_camera},
                 },
             }
@@ -238,10 +359,11 @@ def prepare(base: Path) -> None:
 
 
 class BurnIn:
-    def __init__(self, base: Path, url: str) -> None:
+    def __init__(self, base: Path, url: str, *, detector_mode: str = "TRX") -> None:
         self.base = base
         self.url = url.rstrip("/")
-        self.template = _manifest_template()
+        self.detector_mode = detector_mode
+        self.template = _manifest_template(detector_type=detector_mode)
         self.radiograph = (base / "fixtures" / "radiograph.npz").read_bytes()
         self.gain = (base / "fixtures" / "gain.npz").read_bytes()
         self.raw_manifest = _with_files(
@@ -259,35 +381,14 @@ class BurnIn:
             if path.is_dir()
         }
         self.api_key = os.getenv("MPIPS_API_KEY") or os.getenv("API_KEY") or ""
-        self.target_shape = SHAPE
-        parent_remap = base.parent / "calibration" / "remap.npz"
-        parent_meta = base.parent / "calibration" / "metadata.json"
-        remap_file = (
-            parent_remap
-            if parent_remap.is_file()
-            else base / "calibration" / "remap.npz"
-        )
-        cal_meta_file = (
-            parent_meta
-            if parent_meta.is_file()
-            else base / "calibration" / "metadata.json"
-        )
 
-        if remap_file.is_file():
-            try:
-                with np.load(remap_file) as remap_data:
-                    if "map_x" in remap_data:
-                        self.target_shape = tuple(remap_data["map_x"].shape)
-            except Exception:
-                pass
-
-        if self.target_shape == SHAPE and cal_meta_file.is_file():
-            try:
-                meta = json.loads(cal_meta_file.read_text("utf-8"))
-                if "image_shape" in meta and len(meta["image_shape"]) == 2:
-                    self.target_shape = tuple(meta["image_shape"])
-            except Exception:
-                pass
+        parent_cal = base.parent / "calibration"
+        base_cal = base / "calibration"
+        cal_root = parent_cal if parent_cal.exists() else (base_cal if base_cal.exists() else None)
+        _, _, output_shape = resolve_fixture_calibration_dir(
+            cal_root, detector_mode=detector_mode
+        )
+        self.target_shape = output_shape
 
     def close(self) -> None:
         self.client.close()
@@ -597,13 +698,18 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base-dir", type=Path, required=True)
     parser.add_argument("--url", default="http://127.0.0.1:8014")
+    parser.add_argument(
+        "--detector-mode",
+        default="TRX",
+        help="Target detector mode for calibration-aware burn-in (default: TRX)",
+    )
     parser.add_argument("command", choices=("prepare", "run"))
     args = parser.parse_args()
     if args.command == "prepare":
-        prepare(args.base_dir)
-        print("synthetic local fixtures prepared")
+        prepare(args.base_dir, detector_mode=args.detector_mode)
+        print(f"synthetic local fixtures prepared ({args.detector_mode})")
         return 0
-    burn_in = BurnIn(args.base_dir, args.url)
+    burn_in = BurnIn(args.base_dir, args.url, detector_mode=args.detector_mode)
     try:
         burn_in.run()
     finally:
