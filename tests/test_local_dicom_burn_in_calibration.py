@@ -12,6 +12,8 @@ from scripts.local_dicom_burn_in import (
     BurnIn,
     _manifest_template,
     _npz_bytes,
+    _with_files,
+    expected_dicom_shape,
     prepare,
     resolve_fixture_calibration_dir,
 )
@@ -41,6 +43,24 @@ def _create_cal_artifact(
     y_map, x_map = np.indices(remap_shape, dtype=np.float32)
     np.savez_compressed(directory / "remap.npz", map_x=x_map, map_y=y_map)
     return directory
+
+
+def test_expected_dicom_shape_trx_rotates_90_cw() -> None:
+    # 1. TRX geometry: remap_shape=(140, 120) -> expected final DICOM target_shape=(120, 140)
+    assert expected_dicom_shape("TRX", (140, 120)) == (120, 140)
+    assert expected_dicom_shape("thorax", (140, 120)) == (120, 140)
+
+
+def test_expected_dicom_shape_bed_remains_unchanged() -> None:
+    # 2. BED geometry: remap_shape=(140, 120) -> expected final target_shape=(140, 120)
+    assert expected_dicom_shape("BED", (140, 120)) == (140, 120)
+    assert expected_dicom_shape("bed", (140, 120)) == (140, 120)
+
+
+def test_expected_dicom_shape_production_contract_sentinel() -> None:
+    # 3. Production contract sentinel: remap_shape=(3045, 4114) -> TRX expected final=(4114, 3045)
+    assert expected_dicom_shape("TRX", (3045, 4114)) == (4114, 3045)
+    assert expected_dicom_shape("BED", (3045, 4114)) == (3045, 4114)
 
 
 def test_resolve_calibration_missing_root_returns_defaults(tmp_path: Path) -> None:
@@ -184,7 +204,7 @@ def test_prepare_and_burn_in_init_trx(tmp_path: Path) -> None:
         cal_root / "TRX",
         detector_mode="TRX",
         shape=(150, 150),
-        remap_shape=(140, 140),
+        remap_shape=(140, 120),
         camera_sn="SN-TRX-CAM",
     )
 
@@ -212,5 +232,59 @@ def test_prepare_and_burn_in_init_trx(tmp_path: Path) -> None:
 
     burn_in = BurnIn(burn_dir, "http://127.0.0.1:8014", detector_mode="TRX")
     assert burn_in.detector_mode == "TRX"
-    assert burn_in.target_shape == (140, 140)
+    assert burn_in.remap_shape == (140, 120)
+    assert burn_in.target_shape == (120, 140)
+    burn_in.close()
+
+
+def test_validate_dicom_with_asymmetric_trx_geometry(tmp_path: Path) -> None:
+    # 5. DICOM validation test with an asymmetric synthetic DICOM proving
+    # Rows/Columns expected after TRX rotation.
+    import pydicom
+    from pydicom.dataset import FileDataset, FileMetaDataset
+    from pydicom.uid import ExplicitVRLittleEndian, generate_uid
+    from mpips.conversion.dicom_enrichment import enrich_dicom_file
+    from mpips.api.schemas.dicom import MHCSManifest
+
+    cal_root = tmp_path / "calibration"
+    _create_cal_artifact(
+        cal_root / "TRX",
+        detector_mode="TRX",
+        shape=(150, 150),
+        remap_shape=(140, 120),
+        camera_sn="SN-TRX-CAM",
+    )
+
+    burn_dir = tmp_path / "burn-in"
+    prepare(burn_dir, detector_mode="TRX")
+    burn_in = BurnIn(burn_dir, "http://127.0.0.1:8014", detector_mode="TRX")
+    assert burn_in.target_shape == (120, 140)
+
+    # Create synthetic DICOM with final rotated shape (120, 140)
+    manifest = MHCSManifest.model_validate_json(burn_in.raw_manifest)
+    dcm_path = tmp_path / "test_trx.dcm"
+
+    file_meta = FileMetaDataset()
+    file_meta.MediaStorageSOPClassUID = "1.2.840.10008.5.1.4.1.1.1.1.1"
+    file_meta.MediaStorageSOPInstanceUID = manifest.dicom.sop_instance_uid
+    file_meta.TransferSyntaxUID = ExplicitVRLittleEndian
+
+    ds = FileDataset(str(dcm_path), {}, file_meta=file_meta, preamble=b"\0" * 128)
+    ds.SOPClassUID = file_meta.MediaStorageSOPClassUID
+    ds.SOPInstanceUID = file_meta.MediaStorageSOPInstanceUID
+    ds.Rows = 120
+    ds.Columns = 140
+    ds.BitsAllocated = 16
+    ds.BitsStored = 16
+    ds.HighBit = 15
+    ds.PixelRepresentation = 0
+    ds.SamplesPerPixel = 1
+    ds.PhotometricInterpretation = "MONOCHROME2"
+    ds.PixelData = np.full((120, 140), 1000, dtype=np.uint16).tobytes()
+
+    ds.save_as(str(dcm_path), enforce_file_format=True)
+    enrich_dicom_file(dcm_path, manifest)
+
+    # validate_dicom must pass with burn_in.target_shape == (120, 140)
+    burn_in.validate_dicom(dcm_path, burn_in.raw_manifest)
     burn_in.close()

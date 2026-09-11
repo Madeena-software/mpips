@@ -303,6 +303,20 @@ def resolve_fixture_calibration_dir(
     return input_shape, target_camera, output_shape
 
 
+def expected_dicom_shape(
+    detector_mode: str, remap_shape: tuple[int, int]
+) -> tuple[int, int]:
+    """Return the expected final DICOM (Rows, Columns) geometry after detector processing.
+
+    TRX applies a canonical 90-degree clockwise rotation (swapping rows and columns).
+    BED leaves remap geometry unchanged.
+    """
+    mode = str(detector_mode).strip().upper()
+    if mode in ("TRX", "THORAX"):
+        return (remap_shape[1], remap_shape[0])
+    return remap_shape
+
+
 def prepare(base: Path, *, detector_mode: str = "TRX") -> None:
     base.mkdir(parents=True, exist_ok=True)
     for name in ("fixtures", "calibration", "results"):
@@ -388,7 +402,8 @@ class BurnIn:
         _, _, output_shape = resolve_fixture_calibration_dir(
             cal_root, detector_mode=detector_mode
         )
-        self.target_shape = output_shape
+        self.remap_shape = output_shape
+        self.target_shape = expected_dicom_shape(detector_mode, output_shape)
 
     def close(self) -> None:
         self.client.close()
