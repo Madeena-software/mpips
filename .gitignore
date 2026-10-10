@@ -45,6 +45,7 @@ artifacts/camera-calibration-dotgrid/output/**
 artifacts/camera-calibration-dotgrid/references/*.pdf
 artifacts/imager-pipeline/archive/*.ipynb
 research/kambing-260714/*.ipynb
+research/TRX Production Calibration Carrier - 606db560-20261010T015729Z-1-001
 
 # Python packaging / build artifacts
 *.egg-info/
