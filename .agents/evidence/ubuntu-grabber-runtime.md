@@ -235,7 +235,12 @@ task's review/acceptance boundary is preserved.
 | `git diff --check`; protected converter SHA-256 | Passed; unchanged exact hash `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0` |
 
 The new candidate was built from the merge commit and is not a released or
-published binary. GitHub PR checks for the reconciliation must be recorded after
-the existing branch is pushed; local checks above are not CI evidence. No
-production deployment, merge of PR #6, or release occurred. Independent review
-owns acceptance.
+published binary. On pushed head `ce6b4376867f2c6449a74267ae3268ed81edfa37`,
+GitHub MPIPS CI [run 38235209269](https://github.com/Madeena-software/mpips/actions/runs/38235209269)
+completed successfully in 8m36s, including all three dependency audits, protected
+converter hash, format/lint/type gates, full pytest suite, API and worker image
+builds, and production-lifespan container smoke. GitHub Ubuntu qualification
+[run 38235209297](https://github.com/Madeena-software/mpips/actions/runs/38235209297)
+also completed successfully, including its dependency audit and installed
+synthetic BED/TRX DICOM qualification on Ubuntu 24.04. No production deployment,
+merge of PR #6, or release occurred. Independent review owns acceptance.
