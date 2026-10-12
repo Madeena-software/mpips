@@ -267,7 +267,10 @@ def collect() -> list[tuple[str, str]]:
                     "docker",
                     "inspect",
                     "--format",
-                    "{{if .State.Health}}{{.State.Health.Status}}{{else}}unavailable{{end}}",
+                    (
+                        "{{if .State.Health}}{{.State.Health.Status}}"
+                        "{{else}}unavailable{{end}}"
+                    ),
                     entry[0],
                 ]
             )
