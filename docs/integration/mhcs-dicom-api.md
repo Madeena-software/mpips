@@ -495,3 +495,4 @@ The **MHCS Image Gateway Worker** (`mhcs_core_image-worker`) and **MPIPS API** (
   * Local Compose: `127.0.0.1:8000` $\rightarrow$ container `8000`
   * Prod Compose: `127.0.0.1:8014` $\rightarrow$ container `8000`
 * **Worker Egress Isolation**: Child conversion workers (`mpips-npz-worker`) execute with strict network isolation (`--network=none`). They do not possess egress network access to external networks or sibling containers.
+

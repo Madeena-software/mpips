@@ -15,7 +15,7 @@ use or release.
 | Offline wheelhouse builder and installed BED/TRX smoke | Implemented; qualification evidence is in `.agents/evidence/ubuntu-grabber-runtime.md` |
 | Ed25519 signing, exact-byte verification, target/hash/expiry/sequence checks | Implemented local tooling; test keys only |
 | Authenticated publication preparation | Implemented local plan generation; no uploader/server or production keys |
-| Ubuntu 24.04 x86_64 qualification | Dedicated GitHub-hosted CI candidate; inspect actual CI results before claiming support |
+| Ubuntu 24.04 x86_64 qualification | Synthetic CI qualification passed at `2e5441f`; exact evidence in `.agents/evidence/ubuntu-grabber-runtime.md`; clinical/hardware approval remains open |
 | Madeena update endpoints, promotion, activation and rollback | Proposed contracts for infrastructure owner / Grabber developer; not deployed or implemented by MPIPS |
 | RSKIA SIMRS endpoint and field names | Human-supplied observed evidence; address/auth/errors/types/date and sex semantics unverified |
 | Clinical/hardware qualification and binary redistribution | Pending separate approval, including ImageJ-style licensing review |
@@ -388,6 +388,12 @@ The additive `qualify-ubuntu-runtime.yml` workflow uses a GitHub-hosted Ubuntu
 builds the candidate and performs the offline installed smoke. It neither uploads
 binary artifacts nor uses production credentials, self-hosted production runners,
 deployment dispatch or promotion. The existing CI/API deployment remains intact.
+
+Observed target evidence: [Ubuntu 24.04 x86_64 CI qualification](https://github.com/Madeena-software/mpips/actions/runs/38225063938)
+passed the runtime audit, all 915 tests (2 skipped), offline bundle build and
+installed BED/TRX smoke. Local Ubuntu 26.04 x86_64 / Python 3.12.14 / glibc 2.43
+also passed archive verification and offline installed smoke. These are synthetic
+qualification results; they do not establish clinical or detector-fleet readiness.
 
 ## Privacy and approvals still required
 
