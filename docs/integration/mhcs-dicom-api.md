@@ -1,5 +1,8 @@
 # MHCS INTEGRATION CONTRACT & IMPLEMENTATION GUIDE
 
+For the hospital-local Ubuntu Grabber workflow, local executable and software
+distribution handoff, see [the Ubuntu Grabber integration guide](ubuntu-grabber.md).
+
 **Repository:** [MPIPS](https://github.com/Madeena-software/mpips)  
 **Target Consumer:** `mhcs-core` (Madeena Health Care Services)  
 **API Surface:** Synchronous DICOM Conversion Endpoint (`POST /v1/radiographs/dicom`)  
@@ -492,4 +495,3 @@ The **MHCS Image Gateway Worker** (`mhcs_core_image-worker`) and **MPIPS API** (
   * Local Compose: `127.0.0.1:8000` $\rightarrow$ container `8000`
   * Prod Compose: `127.0.0.1:8014` $\rightarrow$ container `8000`
 * **Worker Egress Isolation**: Child conversion workers (`mpips-npz-worker`) execute with strict network isolation (`--network=none`). They do not possess egress network access to external networks or sibling containers.
-

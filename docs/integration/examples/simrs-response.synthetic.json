@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "data": {
+    "no_rawat": "SYNTHETIC-VISIT-2026-0001",
+    "no_rkm_medis": "SYNTHETIC-001",
+    "nm_pasien": "SYNTHETIC PATIENT",
+    "jk": "UNCONFIRMED",
+    "tgl_lahir": "2000-01-02",
+    "tgl_daftar": "2026-10-11"
+  }
+}
