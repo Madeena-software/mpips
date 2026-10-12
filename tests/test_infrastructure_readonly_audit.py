@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import shutil
 import subprocess
 from pathlib import Path
 from types import SimpleNamespace
@@ -27,7 +29,7 @@ def test_disk_category_boundaries() -> None:
         (51, ("sufficient", False)),
     ):
         usage = SimpleNamespace(total=100 * 1024**3, free=free_gib * 1024**3)
-        with patch.object(audit.shutil, "disk_usage", return_value=usage):
+        with patch.object(shutil, "disk_usage", return_value=usage):
             assert audit.disk("/unused") == expected
 
 
@@ -37,7 +39,8 @@ def completed(args: list[str], output: str = "") -> subprocess.CompletedProcess[
 
 def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[str]:
     assert kwargs["capture_output"] is True
-    assert kwargs["timeout"] <= 3
+    timeout = kwargs["timeout"]
+    assert isinstance(timeout, int) and timeout <= 3
     assert kwargs["env"] == {
         "PATH": "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
         "HOME": "/nonexistent",
@@ -68,7 +71,7 @@ def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[s
 
 
 def test_collector_emits_only_sanitized_categories() -> None:
-    with patch.object(audit.subprocess, "run", side_effect=fake_run):
+    with patch.object(subprocess, "run", side_effect=fake_run):
         output = "\n".join(f"{label}: {value}" for label, value in audit.collect())
 
     assert "Running containers: 1–5" in output
@@ -89,7 +92,7 @@ def test_collector_emits_only_sanitized_categories() -> None:
 
 
 def test_missing_inspection_commands_fail_closed() -> None:
-    with patch.object(audit.subprocess, "run", side_effect=FileNotFoundError):
+    with patch.object(subprocess, "run", side_effect=FileNotFoundError):
         output = dict(audit.collect())
 
     assert output["Docker daemon"] == "unknown"
@@ -105,8 +108,8 @@ def test_missing_os_measurements_fail_closed() -> None:
         patch.object(audit, "memory_gib", return_value=None),
         patch.object(audit, "os_classification", return_value="unknown"),
         patch.object(audit, "disk", return_value=("unknown", None)),
-        patch.object(audit.os, "cpu_count", return_value=None),
-        patch.object(audit.os, "getloadavg", side_effect=OSError),
+        patch.object(os, "cpu_count", return_value=None),
+        patch.object(os, "getloadavg", side_effect=OSError),
         patch.object(audit, "command", return_value=None),
     ):
         output = dict(audit.collect())
