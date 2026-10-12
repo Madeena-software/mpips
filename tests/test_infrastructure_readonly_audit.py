@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -172,6 +173,122 @@ def test_service_health_classifications(
     assert audit.service_health(state, output) == expected
 
 
+def inspection(
+    state: str = "exited",
+    exit_code: str = "137",
+    oom: str = "true",
+    restarts: str = "6",
+    finished: str = "2026-10-12T11:00:00Z",
+    policy: str = "unless-stopped",
+    image: str = "mpips-api:" + "a" * 40,
+    network: str = "yes",
+) -> str:
+    return "|".join(
+        (state, exit_code, oom, restarts, finished, policy, image, network)
+    )
+
+
+@pytest.mark.parametrize(
+    ("output", "version", "expected"),
+    (
+        (
+            inspection(),
+            "a" * 40,
+            audit.ContainerDiagnostics(
+                "nonzero", "yes", "many", "recent", "unless-stopped", "yes", "yes"
+            ),
+        ),
+        (
+            inspection(
+                exit_code="0",
+                oom="false",
+                restarts="5",
+                finished="2026-10-11T12:00:00Z",
+                policy="always",
+                image="mpips-api:" + "b" * 40,
+                network="no",
+            ),
+            "a" * 40,
+            audit.ContainerDiagnostics(
+                "zero", "no", "few", "historical", "other", "no", "no"
+            ),
+        ),
+        (
+            inspection(
+                state="running", exit_code="0", oom="false", restarts="0"
+            ),
+            "a" * 40,
+            audit.ContainerDiagnostics(
+                "not_applicable",
+                "no",
+                "none",
+                "not_applicable",
+                "unless-stopped",
+                "yes",
+                "yes",
+            ),
+        ),
+        (None, "a" * 40, audit.UNKNOWN_DIAGNOSTICS),
+        ("malformed", "a" * 40, audit.UNKNOWN_DIAGNOSTICS),
+        (inspection(exit_code="bad"), "a" * 40, audit.ContainerDiagnostics(
+            "unknown", "yes", "many", "recent", "unless-stopped", "yes", "yes"
+        )),
+        (inspection(exit_code="999"), "a" * 40, audit.ContainerDiagnostics(
+            "unknown", "yes", "many", "recent", "unless-stopped", "yes", "yes"
+        )),
+        (inspection(oom="maybe"), "a" * 40, audit.ContainerDiagnostics(
+            "nonzero", "unknown", "many", "recent", "unless-stopped", "yes", "yes"
+        )),
+        (inspection(restarts="bad"), "a" * 40, audit.ContainerDiagnostics(
+            "nonzero", "yes", "unknown", "recent", "unless-stopped", "yes", "yes"
+        )),
+        (inspection(finished="invalid"), "a" * 40, audit.ContainerDiagnostics(
+            "nonzero", "yes", "many", "unknown", "unless-stopped", "yes", "yes"
+        )),
+        (inspection(), None, audit.ContainerDiagnostics(
+            "nonzero", "yes", "many", "recent", "unless-stopped", "unknown", "yes"
+        )),
+    ),
+    ids=(
+        "stopped-oom-restarted-recent-match",
+        "zero-exit-historical-mismatch",
+        "running-not-applicable",
+        "missing-inspection",
+        "malformed-inspection",
+        "malformed-exit",
+        "out-of-range-exit",
+        "malformed-oom",
+        "malformed-restart-count",
+        "malformed-finish-time",
+        "missing-deployment-marker",
+    ),
+)
+def test_container_diagnostics_are_fixed_categories(
+    output: str | None,
+    version: str | None,
+    expected: audit.ContainerDiagnostics,
+) -> None:
+    now = datetime(2026, 10, 12, 12, 0, tzinfo=timezone.utc)
+    assert (
+        audit.container_diagnostics(output, "mpips-api", version, now=now) == expected
+    )
+
+
+def test_container_diagnostics_fail_closed_on_state_race() -> None:
+    assert audit.container_diagnostics(
+        inspection(state="running"), "mpips-api", "a" * 40, "stopped"
+    ) == audit.UNKNOWN_DIAGNOSTICS
+
+
+def test_deployment_version_marker_is_validated_and_private(tmp_path: Path) -> None:
+    marker = tmp_path / "marker"
+    marker.write_text("a" * 40 + "\n")
+    assert audit.deployment_version(marker) == "a" * 40
+    marker.write_text("not-a-version")
+    assert audit.deployment_version(marker) is None
+    assert audit.deployment_version(tmp_path / "missing") is None
+
+
 def completed(args: list[str], output: str = "") -> subprocess.CompletedProcess[str]:
     return subprocess.CompletedProcess(args, 0, output, "sensitive stderr")
 
@@ -200,6 +317,22 @@ def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[s
             "aaaaaaaaaaaa|mpips-api|running\nbbbbbbbbbbbb|redis|running\n",
         )
     if args[:2] == ["docker", "inspect"]:
+        if args[2:4] == ["--format", audit.INSPECT_FORMAT]:
+            return completed(
+                args,
+                inspection(
+                    state="running",
+                    exit_code="0",
+                    oom="false",
+                    restarts="0",
+                    finished="0001-01-01T00:00:00Z",
+                    image=(
+                        "mpips-api:" + "a" * 40
+                        if args[-1] == "aaaaaaaaaaaa"
+                        else "redis:7.4.10"
+                    ),
+                ),
+            )
         return completed(
             args,
             "unhealthy\n" if args[-1] == "aaaaaaaaaaaa" else "healthy\n",
@@ -220,12 +353,19 @@ def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[s
 
 
 def test_collector_emits_only_sanitized_categories() -> None:
-    with patch.object(subprocess, "run", side_effect=fake_run):
+    with (
+        patch.object(subprocess, "run", side_effect=fake_run),
+        patch.object(audit, "deployment_version", return_value="a" * 40),
+    ):
         output = "\n".join(f"{label}: {value}" for label, value in audit.collect())
 
     assert "Running containers: 1–5" in output
     assert "MPIPS API container: running" in output
     assert "MPIPS API health: unhealthy" in output
+    assert "MPIPS API exit code: not_applicable" in output
+    assert "MPIPS API restart policy: unless-stopped" in output
+    assert "MPIPS API image matches deployment marker: yes" in output
+    assert "API and Redis share expected network: yes" in output
     assert "Redis health: healthy" in output
     assert "Expected Compose project complete: yes" in output
     assert "Aggregate MPIPS health" not in output
@@ -244,8 +384,62 @@ def test_collector_emits_only_sanitized_categories() -> None:
         "[::1]",
         "10.10.20.30",
         "sensitive stderr",
+        "mpips-api:" + "a" * 40,
+        "redis:7.4.10",
     ):
         assert sensitive not in output
+
+
+def test_stopped_api_diagnostics_remain_independent_from_healthy_redis() -> None:
+    finished = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+    finished = finished.replace("+00:00", "Z")
+
+    def stopped_api_run(
+        args: list[str], **kwargs: object
+    ) -> subprocess.CompletedProcess[str]:
+        if "com.docker.compose.service" in " ".join(args):
+            return completed(
+                args,
+                "aaaaaaaaaaaa|mpips-api|exited\nbbbbbbbbbbbb|redis|running\n",
+            )
+        if args[:2] == ["docker", "inspect"] and args[2:4] == [
+            "--format",
+            audit.INSPECT_FORMAT,
+        ]:
+            return completed(
+                args,
+                inspection(
+                    state="exited" if args[-1] == "aaaaaaaaaaaa" else "running",
+                    exit_code="137",
+                    oom="true" if args[-1] == "aaaaaaaaaaaa" else "false",
+                    restarts="6" if args[-1] == "aaaaaaaaaaaa" else "0",
+                    finished=finished,
+                    image="mpips-api:" + "a" * 40,
+                ),
+            )
+        if args[:2] == ["docker", "inspect"]:
+            return completed(args, "healthy\n")
+        return fake_run(args, **kwargs)
+
+    with (
+        patch.object(subprocess, "run", side_effect=stopped_api_run),
+        patch.object(audit, "deployment_version", return_value="a" * 40),
+    ):
+        output = dict(audit.collect())
+
+    assert output["MPIPS API container"] == "stopped"
+    assert output["MPIPS API health"] == "unavailable"
+    assert output["MPIPS API exit code"] == "nonzero"
+    assert output["MPIPS API OOM-killed"] == "yes"
+    assert output["MPIPS API restart count"] == "many"
+    assert output["MPIPS API stop age"] == "recent"
+    assert output["MPIPS API restart policy"] == "unless-stopped"
+    assert output["MPIPS API image matches deployment marker"] == "yes"
+    assert output["Redis container"] == "running"
+    assert output["Redis health"] == "healthy"
+    assert output["API and Redis share expected network"] == "yes"
+    assert "137" not in output.values()
+    assert "mpips-api:" + "a" * 40 not in output.values()
 
 
 def test_missing_inspection_commands_fail_closed() -> None:
