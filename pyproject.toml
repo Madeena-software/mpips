@@ -85,6 +85,7 @@ dev = [
 ]
 
 [project.scripts]
+mpips-runtime = "mpips.runtime:main"
 mpips-api = "mpips.cli:run_api"
 mpips-dotgrid = "mpips.calibration.dotgrid.neural_model.run_pipeline:cli"
 mpips-imager = "mpips.cli:run_imager"

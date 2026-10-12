@@ -1,0 +1,35 @@
+{
+  "manifest_version": "1.0",
+  "patient": {
+    "medical_record_number": "SYNTHETIC-001",
+    "name": "SYNTHETIC PATIENT",
+    "sex": "unknown",
+    "birth_date": "2000-01-02"
+  },
+  "examination": {
+    "encounter_id": "SYNTHETIC-VISIT-2026-0001",
+    "performed_at": "2026-10-12T10:00:00+07:00"
+  },
+  "capture": {
+    "detector_type": "BED",
+    "body_part_examined": "CHEST",
+    "projection": "PA",
+    "view_code_sequence": [
+      {
+        "code_value": "272479007",
+        "coding_scheme_designator": "SCT",
+        "code_meaning": "postero-anterior"
+      }
+    ],
+    "captured_at": "2026-10-12T10:00:00+07:00",
+    "detector_spacing": {
+      "row_mm": 0.15,
+      "column_mm": 0.16
+    }
+  },
+  "dicom": {
+    "pixel_source": "CANONICAL_PRE_PRESENTATION",
+    "pixel_intensity_relationship": "LIN",
+    "pixel_intensity_relationship_sign": 1
+  }
+}

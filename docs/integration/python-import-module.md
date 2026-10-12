@@ -1,5 +1,8 @@
 # MPIPS NPZ-to-DICOM Python Library Integration Guide
 
+For the Ubuntu Grabber executable, offline packaging, SIMRS mapping and updates,
+start with [the Ubuntu Grabber integration guide](ubuntu-grabber.md).
+
 **Repository:** [MPIPS](https://github.com/Madeena-software/mpips)  
 **Target Consumer:** Python library consumers, data processing scripts, automated pipelines  
 **Public Surface:** `convert_npz_to_dicom`  

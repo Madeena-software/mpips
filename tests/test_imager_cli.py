@@ -56,6 +56,7 @@ def test_project_scripts_keep_existing_ownership_except_imager() -> None:
         "mpips-api": "mpips.cli:run_api",
         "mpips-dotgrid": "mpips.calibration.dotgrid.neural_model.run_pipeline:cli",
         "mpips-imager": "mpips.cli:run_imager",
+        "mpips-runtime": "mpips.runtime:main",
         "mpips-worker": "mpips.cli:run_worker",
     }
 

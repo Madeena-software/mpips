@@ -1,5 +1,8 @@
 # MHCS INTEGRATION CONTRACT & IMPLEMENTATION GUIDE
 
+For the hospital-local Ubuntu Grabber workflow, local executable and software
+distribution handoff, see [the Ubuntu Grabber integration guide](ubuntu-grabber.md).
+
 **Repository:** [MPIPS](https://github.com/Madeena-software/mpips)  
 **Target Consumer:** `mhcs-core` (Madeena Health Care Services)  
 **API Surface:** Synchronous DICOM Conversion Endpoint (`POST /v1/radiographs/dicom`)  
