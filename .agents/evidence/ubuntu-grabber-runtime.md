@@ -199,3 +199,43 @@ The final evidence/guide-only commit will naturally start PR checks again. Its
 runtime/build code is identical to the successfully qualified immutable revision
 above; inspect PR checks for the current-head status. Independent review owns
 acceptance, and no merge or release authorization has been asserted.
+
+## PR #7 main reconciliation (2026-10-12)
+
+Status: Review Required; the governing task above remains unchanged at
+`d574d8561de7ae6abd428eddb4a0ce1b645c1ebe`. PR #6 remains a Draft. The published
+task's review/acceptance boundary is preserved.
+
+- Fetched `origin`; `origin/main` was `44c0370af0a15fda52d5b95b76b2e7477635c567`
+  (merge of dependency remediation PR #7). Its common base with this branch was
+  `d645662cd9368c7ba59d9e89a7b033fc3da535b9`.
+- Merged `origin/main` using a regular `--no-ff` merge. Git auto-merged all files;
+  there were no textual conflicts. The dependency remediation task, constrained
+  PyJWT minima, transitive patched-version constraints, lock changes, and main CI
+  audit gates were retained together with the Ubuntu runtime entry, packaging and
+  release tools, SIMRS documentation, qualification workflow, and tests.
+- Reconciliation files from the PR #7 merge: `.agents/tasks/dependency-security-remediation.md`,
+  `pyproject.toml`, and `uv.lock`. This evidence record is the only follow-up
+  documentation change. `.agents/tasks/ubuntu-grabber-runtime.md` was not edited.
+- Merged commit before the review-record commit: `a3581d41588db8f6f617c9be2e6a84a8b37d71a2`;
+  parents: PR #6 head `258a3246fb2c0eeb7827f6bd5b9830d7ab234cb6` and main
+  `44c0370af0a15fda52d5b95b76b2e7477635c567`.
+
+### Verification on the merge
+
+| Check | Observed result |
+|---|---|
+| `uv lock --check` | Passed; 116 packages resolved |
+| Existing API, NPZ worker, and CI/test hash-locked `pip-audit --require-hashes` closures | All three passed; no known vulnerabilities |
+| `.venv/bin/python -m pytest -q` | 913 passed, 2 skipped, 2 failed (302 warnings); only `test_engine_calibration_surfaces_are_retired` and `test_engine_package_is_physically_retired`, the same ignored legacy-directory failures documented above and reproduced against baseline |
+| Black over `mpips`, `tests`, and the four runtime scripts | Passed; 159 files unchanged |
+| Flake8 over the same scope | Passed; no diagnostics |
+| `scripts/check_mypy_regressions.py --base-ref origin/main --candidate-ref HEAD` | 198 baseline / 198 candidate / 0 new / 0 reduced diagnostics |
+| Ubuntu runtime qualification: `uv run --with pip==26.2.1 python scripts/build_runtime.py --commit HEAD --sequence 4 --output /tmp/mpips-grabber-reconcile` | Passed on Ubuntu 26.04 x86_64 / Python 3.12.14; fresh offline installation and installed synthetic BED/TRX DICOM smoke passed; candidate remained local-only |
+| `git diff --check`; protected converter SHA-256 | Passed; unchanged exact hash `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0` |
+
+The new candidate was built from the merge commit and is not a released or
+published binary. GitHub PR checks for the reconciliation must be recorded after
+the existing branch is pushed; local checks above are not CI evidence. No
+production deployment, merge of PR #6, or release occurred. Independent review
+owns acceptance.
