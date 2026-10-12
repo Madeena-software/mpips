@@ -141,9 +141,14 @@ immutable validated task at revision `945680560694413d70b8897b0315dee6678e29f6`.
   Ubuntu 26.04 / CPython 3.12.14 / x86_64 / glibc 2.43, installed from the
   offline wheelhouse, and passed installed synthetic BED and TRX DICOM smoke
   tests. Output stayed in `/tmp`; no binary was published.
-- PR #8 GitHub checks for remediation commit `96c8432` are pending publication.
-  No production deployment, external binary publication, PR merge, or
-  self-approval occurred.
+- GitHub checks passed on PR #8 head `13405bff0111aad16255f386618b7c46a7281cde`:
+  [MPIPS CI run 38248835521](https://github.com/Madeena-software/mpips/actions/runs/38248835521)
+  passed all locked audits, source/converter checks, mypy, full pytest
+  (`930 passed, 2 skipped`), both Docker builds and container smoke;
+  [Ubuntu qualification run 38248835520](https://github.com/Madeena-software/mpips/actions/runs/38248835520)
+  passed audit, source checks, full pytest, offline install and installed
+  synthetic BED/TRX DICOM smoke. No production deployment, external binary
+  publication, PR merge, or self-approval occurred.
 
 Files changed for this remediation: `scripts/runtime_release.py`,
 `scripts/release_reference_server.py`, `tests/test_release_distribution.py`,
