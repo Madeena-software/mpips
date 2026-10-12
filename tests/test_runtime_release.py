@@ -232,3 +232,34 @@ def test_only_authenticated_snapshot_is_parsed(
     monkeypatch.setattr(runtime_release, "openssl", mutate_after_verification)
     value = runtime_release.verify(metadata, signature, public, package, 42)
     assert value["sequence"] == 42
+
+
+def test_target_specific_release_id_prevents_publication_collision(
+    tmp_path: Path,
+) -> None:
+    from scripts.runtime_release import (
+        create_metadata,
+        host_compatibility,
+        publication_plan,
+    )
+
+    package = tmp_path / "candidate.tar.gz"
+    package.write_bytes(b"synthetic")
+    target = host_compatibility()
+    values = []
+    for os_version in ("24.04", "26.04"):
+        target = {**target, "os_version": os_version}
+        metadata = tmp_path / f"{os_version}.json"
+        create_metadata(
+            package,
+            metadata,
+            "0.1.0",
+            "a" * 40,
+            42,
+            target,
+            datetime.now(timezone.utc) + timedelta(days=1),
+        )
+        values.append(json.loads(metadata.read_text()))
+    first = publication_plan(values[0], "https://example.invalid", "LEGAL", "INFRA")
+    second = publication_plan(values[1], "https://example.invalid", "LEGAL", "INFRA")
+    assert first["immutable_prefix"] != second["immutable_prefix"]

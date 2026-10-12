@@ -71,7 +71,11 @@ def create_metadata(
         {
             "schema_version": 1,
             "runtime_version": version,
-            "release_id": f"{version}-{commit}",
+            "release_id": (
+                f"{version}-{commit}-{compatibility['os']}"
+                f"{compatibility['os_version']}-"
+                f"{compatibility['architecture']}-py{compatibility['python']}"
+            ),
             "commit_sha": commit,
             "sequence": sequence,
             "expires_at": expires.isoformat(),

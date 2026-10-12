@@ -80,3 +80,15 @@ def test_documented_manifest_schema_rejects_bad_fields(
     data.setdefault(section, {})[field] = value
     with pytest.raises(ValidationError):
         MHCSManifest.model_validate(data)
+
+
+def test_reference_error_does_not_disclose_simrs_values() -> None:
+    from scripts.simrs_manifest_example import build_manifest
+
+    value = json.loads((EXAMPLES / "simrs-response.synthetic.json").read_text())
+    value["data"]["no_rkm_medis"] = "SYNTHETIC_PRIVATE_IDENTIFIER" * 4
+    with pytest.raises(ValueError) as error:
+        build_manifest(
+            value, "SYNTHETIC-VISIT-2026-0001", {}, "2026-10-12T10:00:00+07:00"
+        )
+    assert "SYNTHETIC_PRIVATE" not in str(error.value)

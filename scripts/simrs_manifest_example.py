@@ -28,8 +28,11 @@ def build_manifest(
     birth = data["tgl_lahir"]
     if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", birth):
         raise ValueError("Confirmed ISO birth date format required")
-    birth_date = date.fromisoformat(birth)
-    capture_time = datetime.fromisoformat(captured_at)
+    try:
+        birth_date = date.fromisoformat(birth)
+        capture_time = datetime.fromisoformat(captured_at)
+    except (ValueError, TypeError):
+        raise ValueError("Invalid clinical dates") from None
     if capture_time.tzinfo is None or birth_date > capture_time.date():
         raise ValueError("Invalid clinical dates")
     sex = "unknown"
@@ -40,16 +43,19 @@ def build_manifest(
         sex = confirmed_sex_codes.get(code, "")
         if sex not in ("male", "female", "other", "unknown"):
             raise ValueError("Unrecognized hospital sex code")
-    manifest = MHCSManifest.model_validate(
-        {
-            "patient": {
-                "medical_record_number": data["no_rkm_medis"].strip(),
-                "name": data["nm_pasien"].strip(),
-                "sex": sex,
-                "birth_date": birth,
-            },
-            "examination": {"encounter_id": requested_visit},
-            "capture": {"captured_at": captured_at},
-        }
-    )
+    try:
+        manifest = MHCSManifest.model_validate(
+            {
+                "patient": {
+                    "medical_record_number": data["no_rkm_medis"].strip(),
+                    "name": data["nm_pasien"].strip(),
+                    "sex": sex,
+                    "birth_date": birth,
+                },
+                "examination": {"encounter_id": requested_visit},
+                "capture": {"captured_at": captured_at},
+            }
+        )
+    except ValueError:
+        raise ValueError("SIMRS identity schema rejected") from None
     return manifest.model_dump(mode="json", exclude_none=True)

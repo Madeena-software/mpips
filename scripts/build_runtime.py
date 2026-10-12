@@ -23,6 +23,8 @@ def run(command: list[str], cwd: Path) -> None:
 
 
 def build(output: Path, commit: str, sequence: int) -> Path:
+    if sequence <= 0:
+        raise ValueError("Positive candidate sequence required")
     target = host_compatibility()
     if target["python"] != "3.12":
         raise ValueError("Build with Python 3.12")

@@ -256,7 +256,7 @@ full-resolution memory/performance and detector/hardware qualification remain op
 ## Release metadata and authenticity
 
 The adjacent `<package-stem>.release.json` describes schema version 1, runtime
-version, full SHA, release ID, sequence, expiry, interface/manifest versions, package
+version, full SHA, target-specific release ID, sequence, expiry, interface/manifest versions, package
 filename/hash/size/format, compatibility and synthetic-only candidate status.
 Metadata expires after seven days in the preparation tooling; the infrastructure
 owner must approve channel validity/refresh policy. Re-signing refreshed metadata
