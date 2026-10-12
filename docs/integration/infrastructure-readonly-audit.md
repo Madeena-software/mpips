@@ -14,6 +14,19 @@ completeness and networks, and listener occupancy for ports 8014, 80 and 443.
 Port 8014 also reports whether every observed TCP listener is exclusively
 loopback-bound. The collector inspects each target port separately.
 
+For the expected API container, it also reports fixed categories for exit
+status (`zero`, `nonzero`, `not_applicable`, `unknown`), Docker OOM state,
+restart count (`none`, `few` for 1–5, `many` for 6+, `unknown`), time since a
+stopped state (`recent` under 24 hours, `historical`, `not_applicable`,
+`unknown`), configured restart policy, and whether the configured image tag
+matches the deployment version marker. It reports whether both API and Redis
+are attached to the expected internal network. These are diagnostic signals;
+they do not establish why a container stopped or whether the stop was
+intentional. A zero/nonzero exit status and OOM state do not prove operator
+intent. A deployment-marker match compares local metadata and image tag only;
+it is not a cryptographic image attestation. Shared network attachment does
+not prove application-level Redis connectivity.
+
 It does not inspect complete host, process, network, container, or filesystem
 inventories. It does not inspect environment or credential files, Docker logs,
 patient data, or clinical workspaces. It makes no external network requests,
@@ -37,6 +50,15 @@ addresses, IDs, usernames, command lines, raw output, detailed exceptions,
 credentials, or exact filesystem inventories. Docker commands run with a
 minimal environment that excludes host Docker context and credential-path
 overrides. Do not add raw debug output or artifacts.
+
+The Actions platform also emits setup metadata independently of the
+collector. The production audit run's public setup log includes a runner-name
+field; its value is not repeated here. Repository owners must assess whether
+the configured runner name is suitable for public logs before another
+production dispatch. The deployment and verification workflows separately
+print Docker Compose and launcher logs on failure; those raw failure logs are
+outside this collector's output allowlist and must not be used as a substitute
+for sanitized diagnostics.
 
 ## Review and dispatch
 
@@ -69,6 +91,13 @@ dispatch UI. A dispatch against another ref is skipped by the job condition.
 | Port 8014 exclusively loopback-bound | `yes` only when every observed listener uses a recognized loopback address; `no` if any listener is wildcard-bound or non-loopback; `unknown` if inspection output is missing or malformed |
 | MPIPS API container / Redis container | `running`, `stopped`, `not_found`, `unknown` |
 | MPIPS API health / Redis health | `healthy`, `unhealthy`, `unavailable`, `unknown` |
+| MPIPS API exit code | `zero`, `nonzero`, `not_applicable`, `unknown` |
+| MPIPS API OOM-killed | `yes`, `no`, `unknown` |
+| MPIPS API restart count | `none` (0), `few` (1–5), `many` (6+), `unknown` |
+| MPIPS API stop age | `recent` (<24 hours), `historical`, `not_applicable`, `unknown` |
+| MPIPS API restart policy | `unless-stopped`, `other`, `unknown` |
+| MPIPS API image matches deployment marker | `yes`, `no`, `unknown` |
+| API and Redis share expected network | `yes`, `no`, `unknown` |
 | Expected Compose project complete | `yes`, `no`, `unknown`; duplicates or invalid inspection are unknown |
 | Docker, Compose, port occupancy, and networks | `yes`/`no`, `present`/`missing`, or `unknown` as labeled |
 | Network conflict / approved HTTPS ingress | `unknown` until owner-approved candidate ranges and ingress authority are established |

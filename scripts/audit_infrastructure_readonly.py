@@ -8,8 +8,9 @@ import platform
 import re
 import shutil
 import subprocess
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Sequence
+from typing import NamedTuple, Sequence
 
 
 def command(args: Sequence[str]) -> str | None:
@@ -131,6 +132,124 @@ def port_state(output: str | None, port: int) -> tuple[bool | None, bool | None]
 
 SERVICES = ("mpips-api", "redis")
 DOCKER_STATES = {"running", "created", "restarting", "paused", "exited", "dead"}
+INSPECT_FORMAT = (
+    "{{.State.Status}}|{{.State.ExitCode}}|{{.State.OOMKilled}}|"
+    "{{.RestartCount}}|{{.State.FinishedAt}}|"
+    "{{.HostConfig.RestartPolicy.Name}}|{{.Config.Image}}|"
+    '{{if index .NetworkSettings.Networks "mpips-internal-beta-v1"}}yes'
+    "{{else}}no{{end}}"
+)
+
+
+class ContainerDiagnostics(NamedTuple):
+    exit_code: str
+    oom_killed: str
+    restart_count: str
+    stopped_age: str
+    restart_policy: str
+    deployment_image_match: str
+    expected_network: str
+
+
+UNKNOWN_DIAGNOSTICS = ContainerDiagnostics(
+    "unknown", "unknown", "unknown", "unknown", "unknown", "unknown", "unknown"
+)
+
+
+def deployment_version(
+    path: Path = Path("/var/www/mpips-runtime/.mpips-version"),
+) -> str | None:
+    try:
+        value = path.read_text().strip()
+    except (OSError, UnicodeError):
+        return None
+    return value if re.fullmatch(r"[0-9a-f]{40}", value) else None
+
+
+def container_diagnostics(
+    output: str | None,
+    expected_image: str,
+    deployed_version: str | None,
+    expected_state: str | None = None,
+    now: datetime | None = None,
+) -> ContainerDiagnostics:
+    if output is None:
+        return UNKNOWN_DIAGNOSTICS
+    fields = output.strip().split("|")
+    if len(fields) != 8:
+        return UNKNOWN_DIAGNOSTICS
+    state, exit_code, oom, restart_count, finished_at, policy, image, network = fields
+    if state not in DOCKER_STATES or network not in {"yes", "no"}:
+        return UNKNOWN_DIAGNOSTICS
+    if expected_state == "unknown" or (
+        expected_state in {"running", "stopped"}
+        and (state == "running") != (expected_state == "running")
+    ):
+        return UNKNOWN_DIAGNOSTICS
+
+    exit_category = "not_applicable"
+    oom_category = "yes" if oom == "true" else "no" if oom == "false" else "unknown"
+    restart_category = "unknown"
+    age_category = "not_applicable"
+    if state in {"exited", "dead"}:
+        age_category = "unknown"
+    if policy == "unless-stopped":
+        policy_category = "unless-stopped"
+    elif policy in {"no", "always", "on-failure"}:
+        policy_category = "other"
+    else:
+        policy_category = "unknown"
+    image_match = "unknown"
+    if (
+        deployed_version is not None
+        and re.fullmatch(r"[0-9a-f]{40}", deployed_version) is not None
+        and image
+    ):
+        if image == f"{expected_image}:{deployed_version}":
+            image_match = "yes"
+        else:
+            image_match = "no"
+
+    if state in {"exited", "dead"}:
+        exit_category = "unknown"
+        if exit_code.isdigit() and len(exit_code) <= 3:
+            value = int(exit_code)
+            if value <= 255:
+                exit_category = "zero" if value == 0 else "nonzero"
+        try:
+            finished = datetime.fromisoformat(finished_at.replace("Z", "+00:00"))
+            current = now or datetime.now(timezone.utc)
+            if (
+                finished.tzinfo is not None
+                and current.tzinfo is not None
+                and finished <= current
+            ):
+                age_category = (
+                    "recent"
+                    if current - finished < timedelta(hours=24)
+                    else "historical"
+                )
+        except (TypeError, ValueError):
+            pass
+
+    if restart_count.isdigit() and len(restart_count) <= 9:
+        count = int(restart_count)
+        if count == 0:
+            restart_category = "none"
+        elif count <= 5:
+            restart_category = "few"
+        else:
+            restart_category = "many"
+
+    return ContainerDiagnostics(
+        exit_category,
+        oom_category,
+        restart_category,
+        age_category,
+        policy_category,
+        image_match,
+        network,
+    )
 
 
 def service_inventory(output: str | None) -> tuple[dict[str, tuple[str, str]], str]:
@@ -258,6 +377,29 @@ def collect() -> list[tuple[str, str]]:
         name: service_state(service_entries.get(name), project_complete)
         for name in SERVICES
     }
+    diagnostics: dict[str, ContainerDiagnostics] = {}
+    marker = deployment_version() if "mpips-api" in service_entries else None
+    for name in SERVICES:
+        entry = service_entries.get(name)
+        inspected = (
+            command(["docker", "inspect", "--format", INSPECT_FORMAT, entry[0]])
+            if entry is not None
+            else None
+        )
+        diagnostics[name] = container_diagnostics(
+            inspected,
+            "mpips-api" if name == "mpips-api" else "redis",
+            marker if name == "mpips-api" else None,
+            states[name],
+        )
+
+    api_network = diagnostics["mpips-api"].expected_network
+    redis_network = diagnostics["redis"].expected_network
+    shared_expected_network = (
+        "unknown"
+        if api_network == "unknown" or redis_network == "unknown"
+        else "yes" if api_network == redis_network == "yes" else "no"
+    )
     healths: dict[str, str] = {}
     for name in SERVICES:
         entry = service_entries.get(name)
@@ -311,8 +453,18 @@ def collect() -> list[tuple[str, str]]:
         ("Running containers", container_count),
         ("MPIPS API container", states["mpips-api"]),
         ("MPIPS API health", healths["mpips-api"]),
+        ("MPIPS API exit code", diagnostics["mpips-api"].exit_code),
+        ("MPIPS API OOM-killed", diagnostics["mpips-api"].oom_killed),
+        ("MPIPS API restart count", diagnostics["mpips-api"].restart_count),
+        ("MPIPS API stop age", diagnostics["mpips-api"].stopped_age),
+        ("MPIPS API restart policy", diagnostics["mpips-api"].restart_policy),
+        (
+            "MPIPS API image matches deployment marker",
+            diagnostics["mpips-api"].deployment_image_match,
+        ),
         ("Redis container", states["redis"]),
         ("Redis health", healths["redis"]),
+        ("API and Redis share expected network", shared_expected_network),
         ("Expected Compose project complete", project_complete),
         ("Expected Docker networks", networks),
         ("Candidate network conflict", "unknown"),
