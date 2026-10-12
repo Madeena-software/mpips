@@ -11,13 +11,17 @@ import threading
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 from urllib.parse import urlsplit
 
-if __package__:
+if TYPE_CHECKING:
     from . import runtime_release
-else:  # Script invocation from this directory.
-    import runtime_release
+else:
+    from importlib import import_module
+
+    runtime_release = import_module(
+        f"{__package__}.runtime_release" if __package__ else "runtime_release"
+    )
 
 CONTROL_LIMIT = 64 * 1024
 PACKAGE_LIMIT = 2 * 1024 * 1024 * 1024

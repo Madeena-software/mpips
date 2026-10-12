@@ -9,13 +9,17 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
-if __package__:
+if TYPE_CHECKING:
     from . import runtime_release
-else:  # Script invocation from this directory.
-    import runtime_release
+else:
+    from importlib import import_module
+
+    runtime_release = import_module(
+        f"{__package__}.runtime_release" if __package__ else "runtime_release"
+    )
 
 
 def _loopback(endpoint: str) -> tuple[str, int]:
