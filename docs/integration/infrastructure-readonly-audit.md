@@ -9,7 +9,8 @@ MPIPS Release Service; it is not an approval to build or deploy one.
 It classifies Linux compatibility, CPU capacity and current load, total and
 available RAM, free space on the root and MPIPS runtime filesystems, Docker and
 Compose availability, a coarse running-container count, expected MPIPS
-services and networks, local listener status for ports 8014, 80 and 443, and
+services and networks, listener occupancy for ports 8014, 80 and 443, whether
+every observed port 8014 listener is exclusively loopback-bound, and
 aggregate container health when available.
 
 It does not inspect complete host, process, network, container, or filesystem
@@ -64,13 +65,20 @@ dispatch UI. A dispatch against another ref is skipped by the job condition.
 | Approaching capacity | `yes` when free space is under 10 GiB or under 10% of the filesystem; otherwise `no`, or `unknown` if either required measurement is unavailable |
 | Current CPU/load | `low` (load/core below 0.7), `moderate` (0.7 to under 1.5), `high` (1.5 or more), `unknown` |
 | Running containers | `none`, `1–5`, `6–15`, `above 15`, `unknown` |
-| Docker, Compose, ports, services and networks | `yes`/`no`, `present`/`missing`, or `unknown` as labeled |
+| Port 8014 exclusively loopback-bound | `yes` only when every observed listener uses a recognized loopback address; `no` if any listener is wildcard-bound or non-loopback; `unknown` if inspection output is missing or malformed |
+| Docker, Compose, port occupancy, services and networks | `yes`/`no`, `present`/`missing`, or `unknown` as labeled |
 | Network conflict / approved HTTPS ingress | `unknown` until owner-approved candidate ranges and ingress authority are established |
 
 Free-space labels describe current availability only, not total volume size or
 future demand. Load is a short snapshot. Missing commands, permission errors,
 timeouts, and unavailable paths produce `unknown` or a non-success
 classification; they do not fail open as a positive capacity claim.
+
+Port occupancy is independent of binding classification. The port 8014
+exclusive-loopback result is `yes` only if all observed listeners bind to
+recognized loopback addresses such as `127.0.0.1` or `[::1]`; a wildcard such
+as `0.0.0.0`, `[::]`, or `*`, or any non-loopback address makes it `no`. The
+collector processes addresses only to classify them and never prints them.
 
 The separate Compose Release Service remains a proposed architecture. This
 inventory does not select its topology, network range, storage, ingress,

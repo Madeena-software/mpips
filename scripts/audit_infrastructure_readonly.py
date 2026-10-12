@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import platform
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -95,18 +95,38 @@ def port_state(output: str | None, port: int) -> tuple[bool | None, bool | None]
     if output is None:
         return None, None
     occupied = False
-    loopback = False
+    listeners: list[bool] = []
     for line in output.splitlines():
         fields = line.split()
-        if len(fields) < 4:
-            continue
-        address = fields[3]
-        if re.search(rf":{port}$", address):
+        if (
+            len(fields) != 5
+            or fields[0] != "LISTEN"
+            or not fields[1].isdigit()
+            or not fields[2].isdigit()
+        ):
+            return None, None
+        endpoint = fields[3]
+        if endpoint.startswith("["):
+            address, separator, raw_port = endpoint[1:].partition("]:")
+            if not separator:
+                return None, None
+        else:
+            address, separator, raw_port = endpoint.rpartition(":")
+            if not separator or ":" in address:
+                return None, None
+        if not raw_port.isdigit() or not address:
+            return None, None
+        try:
+            ip = None if address == "*" else ipaddress.ip_address(address)
+        except ValueError:
+            return None, None
+        listener_port = int(raw_port)
+        if listener_port > 65535:
+            return None, None
+        if listener_port == port:
             occupied = True
-            loopback |= address.endswith(f"127.0.0.1:{port}") or address.endswith(
-                f"[::1]:{port}"
-            )
-    return occupied, loopback
+            listeners.append(ip is not None and ip.is_loopback)
+    return occupied, bool(listeners) and all(listeners)
 
 
 def yn(value: bool | None) -> str:
@@ -158,7 +178,7 @@ def collect() -> list[tuple[str, str]]:
         ]
     )
     port_output = command(["ss", "-H", "-ltn"])
-    port_8014, loopback_8014 = port_state(port_output, 8014)
+    port_8014, exclusive_loopback_8014 = port_state(port_output, 8014)
     port_80, _ = port_state(port_output, 80)
     port_443, _ = port_state(port_output, 443)
     compose_available = (
@@ -258,7 +278,7 @@ def collect() -> list[tuple[str, str]]:
         ("Expected Docker networks", networks),
         ("Candidate network conflict", "unknown"),
         ("Port 8014 occupied", yn(port_8014)),
-        ("Port 8014 bound to loopback", yn(loopback_8014)),
+        ("Port 8014 exclusively loopback-bound", yn(exclusive_loopback_8014)),
         ("Port 80 occupied", yn(port_80)),
         ("Port 443 occupied", yn(port_443)),
         ("Approved HTTPS ingress identifiable", "unknown"),

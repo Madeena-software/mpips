@@ -7,6 +7,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+import pytest
+
 from scripts import audit_infrastructure_readonly as audit
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -31,6 +33,50 @@ def test_disk_category_boundaries() -> None:
         usage = SimpleNamespace(total=100 * 1024**3, free=free_gib * 1024**3)
         with patch.object(shutil, "disk_usage", return_value=usage):
             assert audit.disk("/unused") == expected
+
+
+@pytest.mark.parametrize(
+    ("output", "expected"),
+    (
+        ("LISTEN 0 10 127.0.0.1:8014 0.0.0.0:*", (True, True)),
+        ("LISTEN 0 10 [::1]:8014 [::]:*", (True, True)),
+        (
+            "LISTEN 0 10 127.0.0.1:8014 0.0.0.0:*\n" "LISTEN 0 10 [::1]:8014 [::]:*",
+            (True, True),
+        ),
+        (
+            "LISTEN 0 10 127.0.0.1:8014 0.0.0.0:*\n"
+            "LISTEN 0 10 0.0.0.0:8014 0.0.0.0:*",
+            (True, False),
+        ),
+        ("LISTEN 0 10 10.10.20.30:8014 0.0.0.0:*", (True, False)),
+        ("LISTEN 0 10 *:8014 *:*", (True, False)),
+        ("LISTEN 0 10 [::]:8014 [::]:*", (True, False)),
+        ("", (False, False)),
+        ("LISTEN 0 10 127.0.0.1:80 0.0.0.0:*", (False, False)),
+        (None, (None, None)),
+        ("not an ss listener row", (None, None)),
+        ("LISTEN 0 10 not-an-address:8014 *:*", (None, None)),
+    ),
+    ids=(
+        "ipv4-loopback-only",
+        "ipv6-loopback-only",
+        "dual-stack-loopback-only",
+        "loopback-plus-ipv4-wildcard",
+        "non-loopback-only",
+        "wildcard-only",
+        "ipv6-wildcard-only",
+        "empty-output-no-match",
+        "no-matching-listener",
+        "missing-output",
+        "malformed-output",
+        "malformed-address",
+    ),
+)
+def test_port_state_requires_exclusive_recognized_loopback(
+    output: str | None, expected: tuple[bool | None, bool | None]
+) -> None:
+    assert audit.port_state(output, 8014) == expected
 
 
 def completed(args: list[str], output: str = "") -> subprocess.CompletedProcess[str]:
@@ -65,6 +111,7 @@ def fake_run(args: list[str], **kwargs: object) -> subprocess.CompletedProcess[s
         return completed(
             args,
             "LISTEN 0 10 127.0.0.1:8014 0.0.0.0:*\n"
+            "LISTEN 0 10 [::1]:8014 [::]:*\n"
             "LISTEN 0 10 10.10.20.30:443 0.0.0.0:*\n",
         )
     raise AssertionError(f"Unexpected inspection command: {args[0]}")
@@ -76,7 +123,7 @@ def test_collector_emits_only_sanitized_categories() -> None:
 
     assert "Running containers: 1–5" in output
     assert "MPIPS expected services: present" in output
-    assert "Port 8014 bound to loopback: yes" in output
+    assert "Port 8014 exclusively loopback-bound: yes" in output
     assert "Port 443 occupied: yes" in output
     assert "Candidate network conflict: unknown" in output
     assert "Approved HTTPS ingress identifiable: unknown" in output
@@ -85,6 +132,8 @@ def test_collector_emits_only_sanitized_categories() -> None:
         "compose-version-sensitive",
         "container-id-sensitive",
         "private-network-sensitive",
+        "127.0.0.1",
+        "[::1]",
         "10.10.20.30",
         "sensitive stderr",
     ):
