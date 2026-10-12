@@ -14,6 +14,7 @@ date: 2026-10-12
 - Production audit evidence: [run 38272117045](https://github.com/Madeena-software/mpips/actions/runs/38272117045).
 - The implementation branch is `feat/mpips-api-stopped-diagnostics`; no
   production workflow was dispatched during this task.
+- Draft PR: [#11](https://github.com/Madeena-software/mpips/pull/11).
 
 ## Repository intent
 
@@ -110,8 +111,9 @@ check that no deployment or verification job is active or pending.
 
 ## Delivery status
 
-- Draft PR: pending creation.
-- GitHub-hosted CI: pending.
+- GitHub-hosted CI: use the checks attached to the exact current head of
+  [Draft PR #11](https://github.com/Madeena-software/mpips/pull/11); no local
+  test, format, lint, or mypy commands were run.
 - Independent review: required before merge.
 - Production diagnostic and service recovery: not authorized by this task.
 - Separate Compose Release Service: still an unapproved proposal.
