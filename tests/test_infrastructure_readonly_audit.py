@@ -299,7 +299,10 @@ def test_workflow_is_manual_main_only_and_non_canceling() -> None:
     assert "workflow_run:" not in workflow
     assert "pull_request:" not in workflow
     assert "push:" not in workflow
-    assert QUALIFICATION.read_text().count("scripts/audit_infrastructure_readonly.py") == 2
+    assert (
+        QUALIFICATION.read_text().count("scripts/audit_infrastructure_readonly.py")
+        == 2
+    )
 
 
 def test_inspector_has_no_mutation_or_external_probe_commands() -> None:

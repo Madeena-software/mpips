@@ -151,9 +151,8 @@ def service_inventory(output: str | None) -> tuple[dict[str, tuple[str, str]], s
     if any(len(services[name]) > 1 for name in SERVICES):
         return {}, "unknown"
     complete = "yes" if all(services[name] for name in SERVICES) else "no"
-    return {
-        name: entries[0] for name, entries in services.items() if entries
-    }, complete
+    identified = {name: entries[0] for name, entries in services.items() if entries}
+    return identified, complete
 
 
 def service_state(entry: tuple[str, str] | None, inventory: str) -> str:
