@@ -45,5 +45,5 @@ jobs:
           uv run pytest -q
       - name: Build, offline install, and execute synthetic BED/TRX DICOM
         run: |
-          uv run python scripts/build_runtime.py --commit HEAD --sequence 1 --output "$RUNNER_TEMP/mpips-candidate"
+          uv run --with pip==26.2.1 python scripts/build_runtime.py --commit HEAD --sequence 1 --output "$RUNNER_TEMP/mpips-candidate"
       # No upload, signing secrets, publication or promotion. Licensing review is open.

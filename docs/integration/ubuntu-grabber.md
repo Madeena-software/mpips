@@ -217,10 +217,12 @@ Build from an immutable committed source revision inside the authorized developm
 or GitHub-hosted environment:
 
 ```bash
-uv run python scripts/build_runtime.py --commit <full-commit-sha> \
+uv run --with pip==26.2.1 python scripts/build_runtime.py --commit <full-commit-sha> \
   --sequence 1 --output /tmp/mpips-candidates
 ```
 
+The build command supplies pip explicitly because uv-created environments may
+omit it; pip is a build tool, not a new runtime dependency.
 The builder checks the lock, downloads only hash-checked binary dependencies,
 builds the MPIPS wheel, creates a clean venv and runs installed BED/TRX DICOM smoke
 outside the source tree before writing package/metadata. `--sequence 1` is a local
@@ -330,6 +332,10 @@ Approval-reference strings are traceability inputs, not an automated approval
 system. A plan is not authorization to upload. No live publication implementation
 or production signing workflow is supplied while licensing/infrastructure gates
 remain open. Existing API deployment workflows are unchanged.
+
+For a future approved uploader, stage the builder's `<package-stem>.release.json`
+as `release.json` and its detached signature as `release.sig` under the target's
+immutable release prefix. Renaming files does not change the signed bytes.
 
 ## Grabber update activation, rollback and offline behavior (developer responsibility)
 
