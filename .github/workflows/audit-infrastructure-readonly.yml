@@ -1,0 +1,25 @@
+name: Audit Production Infrastructure (Read Only)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mpips-infrastructure-audit
+  queue: max
+
+jobs:
+  audit:
+    if: github.ref == 'refs/heads/main'
+    runs-on: [self-hosted, production]
+    timeout-minutes: 5
+    steps:
+      - name: Check out reviewed source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Emit sanitized infrastructure classifications
+        run: python3 scripts/audit_infrastructure_readonly.py
