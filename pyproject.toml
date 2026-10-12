@@ -40,7 +40,7 @@ colab = [
 api = [
     "cryptography>=50.0.0",
     "fastapi>=0.136.3",
-    "pyjwt>=2.13.0",
+    "pyjwt>=2.15.0",
     "uvicorn>=0.49.0",
 ]
 worker = [
@@ -57,7 +57,7 @@ service = [
     "cryptography>=50.0.0",
     "fastapi>=0.136.3",
     "httpx>=0.28.1",
-    "pyjwt>=2.13.0",
+    "pyjwt>=2.15.0",
     "redis>=8.0.0",
     "uvicorn>=0.49.0",
 ]
@@ -78,7 +78,7 @@ dev = [
     "httpx>=0.28.1",
     "moto>=5.2.2",
     "mypy>=2.1.0",
-    "pyjwt>=2.13.0",
+    "pyjwt>=2.15.0",
     "pytest>=9.0.3",
     "redis>=8.0.0",
     "uvicorn>=0.49.0",
@@ -101,7 +101,7 @@ dev = [
     "httpx>=0.28.1",
     "moto>=5.2.2",
     "mypy>=2.1.0",
-    "pyjwt>=2.13.0",
+    "pyjwt>=2.15.0",
     "pytest>=9.0.3",
     "redis>=8.0.0",
     "uvicorn>=0.49.0",
@@ -114,6 +114,13 @@ include = [
 ]
 exclude = [
     "tests*",
+]
+
+[tool.uv]
+constraint-dependencies = [
+    "anyio>=4.14.2",
+    "urllib3>=2.8.0",
+    "werkzeug>=3.1.9",
 ]
 
 [tool.setuptools.package-data]
