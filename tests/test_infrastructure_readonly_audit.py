@@ -331,9 +331,12 @@ def test_container_diagnostics_are_fixed_categories(
 
 
 def test_container_diagnostics_fail_closed_on_state_race() -> None:
-    assert audit.container_diagnostics(
-        inspection(state="running"), "mpips-api", "a" * 40, "stopped"
-    ) == audit.UNKNOWN_DIAGNOSTICS
+    assert (
+        audit.container_diagnostics(
+            inspection(state="running"), "mpips-api", "a" * 40, "stopped"
+        )
+        == audit.UNKNOWN_DIAGNOSTICS
+    )
 
 
 def test_deployment_version_marker_is_validated_and_private(tmp_path: Path) -> None:
