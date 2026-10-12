@@ -111,9 +111,37 @@ check that no deployment or verification job is active or pending.
 
 ## Delivery status
 
-- GitHub-hosted CI: use the checks attached to the exact current head of
-  [Draft PR #11](https://github.com/Madeena-software/mpips/pull/11); no local
-  test, format, lint, or mypy commands were run.
+- Formatting gate remediation: the original PR checks
+  [38274794963](https://github.com/Madeena-software/mpips/actions/runs/38274794963)
+  and
+  [38274794953](https://github.com/Madeena-software/mpips/actions/runs/38274794953)
+  both failed at Black. After Planner authorization, local `black --diff` was
+  used only to obtain the requested formatting diff; it did not write files or
+  run tests. The formatting-only assertion layout correction was committed as
+  `cda9beafdae6da24fbf67270089eff6a4e1a1714`.
+- The first hosted run on that formatting revision,
+  [38308958186](https://github.com/Madeena-software/mpips/actions/runs/38308958186),
+  passed Black, Flake8, and mypy but found two failing synthetic cases:
+  malformed and out-of-range exit codes were classified `not_applicable`
+  rather than `unknown`. It reported 985 passed, 2 failed, and 2 skipped.
+- The bounded correction initializes exit classification to `unknown` for
+  exited/dead containers before validating the inspected value. Valid exit
+  codes retain their existing categories; running containers remain
+  `not_applicable`. This behavior correction is in
+  `ce04810045540da4ee28a1c1fe5b2ba1d762b036` and does not infer intent.
+- On that implementation revision,
+  [MPIPS CI run 38309503796](https://github.com/Madeena-software/mpips/actions/runs/38309503796)
+  succeeded. Black, Flake8, the mypy regression gate, full pytest, API and
+  worker image builds, and the hosted lifespan smoke test all passed. Pytest
+  reported 987 passed, 2 skipped, and 302 warnings. The focused collector
+  suite passed, including its sanitized-output and no-mutation checks.
+- [Ubuntu qualification run 38309503828](https://github.com/Madeena-software/mpips/actions/runs/38309503828)
+  also succeeded, including source/protection checks and its synthetic DICOM
+  qualification. Both successful runs were GitHub-hosted PR workflows on
+  `ce04810045540da4ee28a1c1fe5b2ba1d762b036`.
+- No local tests, lint, or mypy commands were run. The PR remains Draft and
+  requires independent review. No production workflow was dispatched or
+  production runner contacted during remediation.
 - Independent review: required before merge.
 - Production diagnostic and service recovery: not authorized by this task.
 - Separate Compose Release Service: still an unapproved proposal.
