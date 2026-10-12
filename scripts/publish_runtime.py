@@ -12,10 +12,10 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
 
-try:
-    from .runtime_release import verify
-except ImportError:  # Script invocation from this directory.
-    from runtime_release import verify
+if __package__:
+    from . import runtime_release
+else:  # Script invocation from this directory.
+    import runtime_release
 
 
 def _loopback(endpoint: str) -> tuple[str, int]:
@@ -82,7 +82,9 @@ def _upload(endpoint: str, path: str, token: str, filename: Path) -> None:
 
 
 def _release_args(args: argparse.Namespace) -> dict[str, Any]:
-    return verify(args.metadata, args.signature, args.key, args.package, 1)
+    return runtime_release.verify(
+        args.metadata, args.signature, args.key, args.package, 1
+    )
 
 
 def main(argv: list[str] | None = None) -> int:

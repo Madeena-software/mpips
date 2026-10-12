@@ -11,13 +11,13 @@ import threading
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlsplit
 
-try:
-    from .runtime_release import verify
-except ImportError:  # Script invocation from this directory.
-    from runtime_release import verify
+if __package__:
+    from . import runtime_release
+else:  # Script invocation from this directory.
+    import runtime_release
 
 CONTROL_LIMIT = 64 * 1024
 PACKAGE_LIMIT = 2 * 1024 * 1024 * 1024
@@ -181,6 +181,7 @@ def _handler() -> type[BaseHTTPRequestHandler]:
                             409, "conflict", "Immutable release component exists"
                         )
                         return
+                Path(temporary).unlink(missing_ok=True)
                 self._send(201, {"schema_version": 1, "mode": "local-reference-only"})
             finally:
                 Path(temporary).unlink(missing_ok=True)
@@ -260,7 +261,7 @@ def _handler() -> type[BaseHTTPRequestHandler]:
             ) as scratch:
                 candidate = Path(scratch) / filename
                 os.link(package_path, candidate)
-                value = verify(
+                value = runtime_release.verify(
                     metadata_path,
                     signature_path,
                     self.server.public_key,
@@ -298,7 +299,7 @@ def _handler() -> type[BaseHTTPRequestHandler]:
             state_file = path / "state.json"
             if not state_file.exists():
                 return {"state": "candidate", "simulated": False}
-            return json.loads(state_file.read_text())
+            return cast(dict[str, Any], json.loads(state_file.read_text()))
 
         def _set_state(self, path: Path, value: dict[str, Any]) -> None:
             fd, temporary = tempfile.mkstemp(prefix=".state-", dir=path)
