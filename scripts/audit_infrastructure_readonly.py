@@ -190,22 +190,25 @@ def container_diagnostics(
     exit_category = "not_applicable"
     oom_category = "yes" if oom == "true" else "no" if oom == "false" else "unknown"
     restart_category = "unknown"
-    age_category = (
-        "not_applicable" if state in {"running", "created", "restarting", "paused"}
-        else "unknown"
-    )
-    policy_category = (
-        policy if policy == "unless-stopped" else "other"
-        if policy in {"no", "always", "on-failure"}
-        else "unknown"
-    )
+    age_category = "not_applicable"
+    if state in {"exited", "dead"}:
+        age_category = "unknown"
+    if policy == "unless-stopped":
+        policy_category = "unless-stopped"
+    elif policy in {"no", "always", "on-failure"}:
+        policy_category = "other"
+    else:
+        policy_category = "unknown"
     image_match = "unknown"
     if (
         deployed_version is not None
         and re.fullmatch(r"[0-9a-f]{40}", deployed_version) is not None
         and image
     ):
-        image_match = "yes" if image == f"{expected_image}:{deployed_version}" else "no"
+        if image == f"{expected_image}:{deployed_version}":
+            image_match = "yes"
+        else:
+            image_match = "no"
 
     if state in {"exited", "dead"}:
         if exit_code.isdigit() and len(exit_code) <= 3:
@@ -230,7 +233,12 @@ def container_diagnostics(
 
     if restart_count.isdigit() and len(restart_count) <= 9:
         count = int(restart_count)
-        restart_category = "none" if count == 0 else "few" if count <= 5 else "many"
+        if count == 0:
+            restart_category = "none"
+        elif count <= 5:
+            restart_category = "few"
+        else:
+            restart_category = "many"
 
     return ContainerDiagnostics(
         exit_category,

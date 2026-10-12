@@ -230,24 +230,84 @@ def inspection(
         ),
         (None, "a" * 40, audit.UNKNOWN_DIAGNOSTICS),
         ("malformed", "a" * 40, audit.UNKNOWN_DIAGNOSTICS),
-        (inspection(exit_code="bad"), "a" * 40, audit.ContainerDiagnostics(
-            "unknown", "yes", "many", "recent", "unless-stopped", "yes", "yes"
-        )),
-        (inspection(exit_code="999"), "a" * 40, audit.ContainerDiagnostics(
-            "unknown", "yes", "many", "recent", "unless-stopped", "yes", "yes"
-        )),
-        (inspection(oom="maybe"), "a" * 40, audit.ContainerDiagnostics(
-            "nonzero", "unknown", "many", "recent", "unless-stopped", "yes", "yes"
-        )),
-        (inspection(restarts="bad"), "a" * 40, audit.ContainerDiagnostics(
-            "nonzero", "yes", "unknown", "recent", "unless-stopped", "yes", "yes"
-        )),
-        (inspection(finished="invalid"), "a" * 40, audit.ContainerDiagnostics(
-            "nonzero", "yes", "many", "unknown", "unless-stopped", "yes", "yes"
-        )),
-        (inspection(), None, audit.ContainerDiagnostics(
-            "nonzero", "yes", "many", "recent", "unless-stopped", "unknown", "yes"
-        )),
+        (
+            inspection(exit_code="bad"),
+            "a" * 40,
+            audit.ContainerDiagnostics(
+                "unknown",
+                "yes",
+                "many",
+                "recent",
+                "unless-stopped",
+                "yes",
+                "yes",
+            ),
+        ),
+        (
+            inspection(exit_code="999"),
+            "a" * 40,
+            audit.ContainerDiagnostics(
+                "unknown",
+                "yes",
+                "many",
+                "recent",
+                "unless-stopped",
+                "yes",
+                "yes",
+            ),
+        ),
+        (
+            inspection(oom="maybe"),
+            "a" * 40,
+            audit.ContainerDiagnostics(
+                "nonzero",
+                "unknown",
+                "many",
+                "recent",
+                "unless-stopped",
+                "yes",
+                "yes",
+            ),
+        ),
+        (
+            inspection(restarts="bad"),
+            "a" * 40,
+            audit.ContainerDiagnostics(
+                "nonzero",
+                "yes",
+                "unknown",
+                "recent",
+                "unless-stopped",
+                "yes",
+                "yes",
+            ),
+        ),
+        (
+            inspection(finished="invalid"),
+            "a" * 40,
+            audit.ContainerDiagnostics(
+                "nonzero",
+                "yes",
+                "many",
+                "unknown",
+                "unless-stopped",
+                "yes",
+                "yes",
+            ),
+        ),
+        (
+            inspection(),
+            None,
+            audit.ContainerDiagnostics(
+                "nonzero",
+                "yes",
+                "many",
+                "recent",
+                "unless-stopped",
+                "unknown",
+                "yes",
+            ),
+        ),
     ),
     ids=(
         "stopped-oom-restarted-recent-match",
