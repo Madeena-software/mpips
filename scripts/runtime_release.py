@@ -38,6 +38,7 @@ def host_compatibility() -> dict[str, str]:
 
 
 def validate_compatibility(target: dict[str, str]) -> None:
+    validate_compatibility_fields(target)
     host = host_compatibility()
     for key in ("os", "os_version", "architecture", "python"):
         if target[key] != host[key]:
@@ -46,6 +47,29 @@ def validate_compatibility(target: dict[str, str]) -> None:
     available = tuple(int(v) for v in host["glibc_min"].split("."))
     if not minimum or minimum > available:
         raise ValueError("Incompatible glibc")
+
+
+def validate_compatibility_fields(target: Any) -> None:
+    if not isinstance(target, dict) or set(target) != {
+        "os",
+        "os_version",
+        "architecture",
+        "python",
+        "glibc_min",
+    }:
+        raise ValueError("Invalid runtime compatibility metadata")
+    if (
+        target["os"] != "ubuntu"
+        or not isinstance(target["os_version"], str)
+        or not re.fullmatch(r"[0-9]+\.[0-9]+", target["os_version"])
+        or not isinstance(target["architecture"], str)
+        or not re.fullmatch(r"[A-Za-z0-9_]+", target["architecture"])
+        or not isinstance(target["python"], str)
+        or not re.fullmatch(r"[0-9]+\.[0-9]+", target["python"])
+        or not isinstance(target["glibc_min"], str)
+        or not re.fullmatch(r"[0-9]+(?:\.[0-9]+)+", target["glibc_min"])
+    ):
+        raise ValueError("Invalid runtime compatibility metadata")
 
 
 def write_json(path: Path, value: dict[str, Any]) -> None:
@@ -133,6 +157,8 @@ def verify(
     key: Path,
     package: Path,
     minimum_sequence: int,
+    *,
+    enforce_host_compatibility: bool = True,
 ) -> dict[str, Any]:
     check_key(key, public=True)
     # Parse the same snapshot we authenticated, even if the caller replaces files.
@@ -166,7 +192,10 @@ def verify(
         raise ValueError("Metadata expired")
     if not re.fullmatch(r"[0-9a-f]{40}", value["commit_sha"]):
         raise ValueError("Invalid commit identity")
-    validate_compatibility(value["compatibility"])
+    if enforce_host_compatibility:
+        validate_compatibility(value["compatibility"])
+    else:
+        validate_compatibility_fields(value["compatibility"])
     descriptor = value["package"]
     if descriptor["format"] != "offline-wheelhouse-tar-gzip":
         raise ValueError("Unsupported package format")

@@ -15,6 +15,7 @@ use or release.
 | Offline wheelhouse builder and installed BED/TRX smoke | Implemented; qualification evidence is in `.agents/evidence/ubuntu-grabber-runtime.md` |
 | Ed25519 signing, exact-byte verification, target/hash/expiry/sequence checks | Implemented local tooling; test keys only |
 | Authenticated publication preparation | Implemented local plan generation; no uploader/server or production keys |
+| Versioned release distribution reference | Implemented as a loopback-only synthetic fixture; no Madeena service, real approval or external publisher |
 | Ubuntu 24.04 x86_64 qualification | Synthetic CI qualification passed at `2e5441f`; exact evidence in `.agents/evidence/ubuntu-grabber-runtime.md`; clinical/hardware approval remains open |
 | Madeena update endpoints, promotion, activation and rollback | Proposed contracts for infrastructure owner / Grabber developer; not deployed or implemented by MPIPS |
 | RSKIA SIMRS endpoint and field names | Human-supplied observed evidence; address/auth/errors/types/date and sex semantics unverified |
@@ -291,6 +292,146 @@ identity, not distribution approval. Local candidate metadata explicitly says
 owner-approved release/channel status and detector profile; do not auto-activate a
 candidate simply because this verification succeeds. Require a reliable clock;
 clock errors must fail update checks while leaving the installed runtime available.
+
+## Phase B1 local release distribution reference (not a production service)
+
+`scripts/release_reference_server.py` and `scripts/publish_runtime.py` implement
+the testable `v1` contract below. The server is standard-library only, binds
+literally to `127.0.0.1`, stores immutable release files in a local directory,
+and accepts only in-memory role tokens supplied when the test server is created.
+It has no remote mode, configurable bind address, TLS identity, production
+credential support or patient-data route. Its qualifier, approver and promoter
+roles are synthetic fixtures; their state is never production evidence. The
+reference contract does not change Phase A signed metadata.
+
+The test fixture starts and stops the server itself. Run the integration tests
+with synthetic signed bytes and fresh temporary storage:
+
+```bash
+uv run pytest -q tests/test_release_distribution.py tests/test_runtime_release.py
+```
+
+For a manual local exercise, start the reference server from a Python process
+with temporary tokens and an independently trusted public key. It prints only
+its loopback URL; stop it with Ctrl-C:
+
+```python
+import os
+from pathlib import Path
+from scripts.release_reference_server import ReferenceServer
+
+roles = ("reader", "publisher", "qualifier", "approver", "promoter")
+tokens = {
+    os.environ[f"MPIPS_REFERENCE_{role.upper()}_TOKEN"]: role for role in roles
+}
+server = ReferenceServer(
+    Path("/tmp/mpips-release-reference"),
+    Path("/trusted-config/release-public.pem"),
+    tokens,
+)
+print(server.base_url, flush=True)
+try:
+    server.serve_forever()
+finally:
+    server.server_close()
+```
+
+The authenticated reference routes are:
+
+| Method and path | Role | Request/result |
+|---|---|---|
+| `PUT /v1/staging/{release_id}/{sequence}/metadata` | publisher | Exact signed JSON bytes, create-only; `201` |
+| `PUT /v1/staging/{release_id}/{sequence}/signature` | publisher | Exactly 64 detached signature bytes, create-only; `201` |
+| `PUT /v1/staging/{release_id}/{sequence}/package` | publisher | Raw package bytes, create-only; max 2 GiB; `201` |
+| `POST /v1/staging/{release_id}/{sequence}/qualify` | synthetic qualifier | Empty body; verify complete signed package; `200` |
+| `POST /v1/staging/{release_id}/{sequence}/approve` | synthetic approver | Empty body; records simulated approval only; `200` |
+| `POST /v1/staging/{release_id}/{sequence}/publish` | publisher | Empty body; atomically publishes the approved immutable record; `200` |
+| `GET /v1/releases/{release_id}/{sequence}` | reader | Lifecycle state and exact metadata/signature snapshot, base64 encoded; `200` |
+| `GET /v1/releases/{release_id}/{sequence}/package` | reader | Verified package bytes, streamed; `200` |
+| `GET /v1/channels/{channel}/{target}` | reader | Current pointer and matching exact-byte metadata/signature snapshot; `200` |
+| `GET /v1/channels/{channel}/{target}/history` | reader | Append-only promotion history; `200` |
+| `POST /v1/channels/{channel}/{target}/promote` | synthetic promoter | `{"expected_current_sequence":0}` for empty channel, otherwise its observed sequence; `200` |
+
+For the defined promotion body (which carries only the compare-and-swap value),
+the reference implementation selects the lowest published sequence greater than
+the current channel sequence whose signed Ubuntu/Python/architecture target
+matches. One atomic JSON pointer contains both the current entry and history, so
+concurrent callers cannot split the pointer update from its audit history. A
+stale expected sequence, replay, or downgrade returns `409`. A simulated rollback
+is a separately signed higher-sequence record that reuses the known-good package
+bytes; sequence never moves backward. No overwrite, delete, sequence reset or
+production rollback authorization is represented.
+
+Reference-server verification authenticates the exact Ed25519-signed metadata,
+expiry, sequence and immutable package identity, checks package size/hash, and
+validates the Ubuntu/Python/architecture/glibc compatibility fields and channel
+target. It does not compare those declarations with the server's own OS, Python,
+CPU or glibc. The consuming Grabber still uses the default host-enforcing
+`runtime_release.verify` path before installation, so a valid release for a
+different target can be distributed but cannot be installed on an incompatible
+host.
+
+Each control success includes `schema_version: 1` and
+`mode: "local-reference-only"`. Release/channel snapshots preserve the original
+metadata and signature bytes together; metadata is never parsed and reserialized
+for discovery. Channel history entries contain `release_id`, `sequence`,
+`previous_sequence` and `promoted_at`. Paths accept only safe ASCII identifiers,
+sequences are positive decimal integers without leading zeroes, and target names
+follow `ubuntu-{os_version}-{architecture}-py{python}`.
+
+Errors use the fixed envelope
+`{"schema_version":1,"error":{"code":"...","message":"..."}}` and do not
+echo authorization, request bytes or filesystem paths:
+
+| Status | Code | Meaning |
+|---|---|---|
+| `400` | `bad_request` | Malformed path/body, missing content length or unsupported transfer encoding |
+| `401` | `unauthorized` | Missing or invalid in-memory token |
+| `403` | `forbidden` | Valid token lacks the required role |
+| `404` | `not_found` | Unknown published release, package or channel |
+| `409` | `conflict` | Immutable collision, incomplete/invalid transition, stale or replayed promotion |
+| `413` | `too_large` | Metadata/control body over 64 KiB or package over 2 GiB |
+| `422` | `invalid_release` | Signature, expiry, package hash/size or target verification failed |
+
+`publish_runtime.py dry-run` runs the existing `runtime_release.verify` checks
+locally and has no server option or network call. `stage` revalidates the same
+inputs, requires `MPIPS_REFERENCE_PUBLISHER_TOKEN`, and uploads to an explicit
+`http://127.0.0.1:<port>` server only. It stages the three immutable components;
+it does not qualify, approve, publish or promote them. `promote` is a separate
+command, requires `MPIPS_REFERENCE_PROMOTER_TOKEN` and an explicit loopback URL,
+channel, target and expected sequence. Tokens are read from the environment,
+never command arguments or output. Only the literal IPv4 loopback address is
+accepted; hostnames, other IPs and HTTPS URLs are rejected by this local-only
+client. The standalone phase does not implement TLS or any remote adapter.
+
+Example artifact validation and explicit local staging:
+
+```bash
+python scripts/publish_runtime.py dry-run \
+  --package /candidate/<exact-package-name> \
+  --metadata /candidate/release.json --signature /candidate/release.sig \
+  --key /trusted-config/release-public.pem
+
+MPIPS_REFERENCE_PUBLISHER_TOKEN=<synthetic-local-token> \
+  python scripts/publish_runtime.py stage \
+  --package /candidate/<exact-package-name> \
+  --metadata /candidate/release.json --signature /candidate/release.sig \
+  --key /trusted-config/release-public.pem \
+  --server http://127.0.0.1:<port>
+
+MPIPS_REFERENCE_PROMOTER_TOKEN=<synthetic-local-token> \
+  python scripts/publish_runtime.py promote \
+  --server http://127.0.0.1:<port> --channel stable \
+  --target ubuntu-24.04-x86_64-py3.12 --expected-current-sequence 0
+```
+
+The test suite starts the server with separately injected reader, publisher,
+qualifier, approver and promoter tokens, runs the complete lifecycle, and shuts it
+down. These synthetic tokens and approvals must never be reused for a real system.
+The CI qualification adds the tests and lint checks on GitHub-hosted Ubuntu while
+retaining the existing lock check, dependency audit, regression, full pytest,
+offline install and installed BED/TRX DICOM smoke gates. It does not publish test
+packages or connect to any service.
 
 ## Proposed Madeena HTTPS protocol (not a deployed service)
 
