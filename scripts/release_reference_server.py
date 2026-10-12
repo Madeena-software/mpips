@@ -247,7 +247,9 @@ def _handler() -> type[BaseHTTPRequestHandler]:
                     return True
             return False
 
-        def _verify(self, directory: Path) -> dict[str, Any]:
+        def _verify(
+            self, directory: Path, requested_target: str | None = None
+        ) -> dict[str, Any]:
             metadata_path = directory / "metadata"
             signature_path = directory / "signature"
             package_path = directory / "package"
@@ -271,6 +273,7 @@ def _handler() -> type[BaseHTTPRequestHandler]:
                     self.server.public_key,
                     candidate,
                     metadata["sequence"],
+                    enforce_host_compatibility=False,
                 )
             if value["release_id"] != directory.parent.name or value["sequence"] != int(
                 directory.name
@@ -283,6 +286,8 @@ def _handler() -> type[BaseHTTPRequestHandler]:
             )
             if compatibility["os"] != "ubuntu" or not TARGET.fullmatch(expected_target):
                 raise ValueError("Release target rejected")
+            if requested_target is not None and expected_target != requested_target:
+                raise ValueError("Release target mismatch")
             return value
 
         def _record_path(
@@ -476,7 +481,7 @@ def _handler() -> type[BaseHTTPRequestHandler]:
                     return
                 sequence, release_id, directory = min(eligible)
                 try:
-                    value = self._verify(directory)
+                    value = self._verify(directory, target)
                 except (OSError, ValueError, KeyError, TypeError, json.JSONDecodeError):
                     self._error(
                         422, "invalid_release", "Signed release verification failed"

@@ -362,6 +362,15 @@ is a separately signed higher-sequence record that reuses the known-good package
 bytes; sequence never moves backward. No overwrite, delete, sequence reset or
 production rollback authorization is represented.
 
+Reference-server verification authenticates the exact Ed25519-signed metadata,
+expiry, sequence and immutable package identity, checks package size/hash, and
+validates the Ubuntu/Python/architecture/glibc compatibility fields and channel
+target. It does not compare those declarations with the server's own OS, Python,
+CPU or glibc. The consuming Grabber still uses the default host-enforcing
+`runtime_release.verify` path before installation, so a valid release for a
+different target can be distributed but cannot be installed on an incompatible
+host.
+
 Each control success includes `schema_version: 1` and
 `mode: "local-reference-only"`. Release/channel snapshots preserve the original
 metadata and signature bytes together; metadata is never parsed and reserialized

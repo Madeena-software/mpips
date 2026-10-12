@@ -36,6 +36,53 @@ def request(
         return error.code, error.read()
 
 
+def signed_metadata(
+    distribution: Any, tmp_path: Path, value: dict[str, Any]
+) -> tuple[bytes, bytes]:
+    metadata = tmp_path / "variant.json"
+    signature = tmp_path / "variant.sig"
+    metadata.write_text(json.dumps(value, sort_keys=True, separators=(",", ":")) + "\n")
+    subprocess.run(
+        [
+            "openssl",
+            "pkeyutl",
+            "-sign",
+            "-rawin",
+            "-inkey",
+            str(distribution["private_key"]),
+            "-in",
+            str(metadata),
+            "-out",
+            str(signature),
+        ],
+        check=True,
+        capture_output=True,
+    )
+    return metadata.read_bytes(), signature.read_bytes()
+
+
+def stage_release(
+    distribution: Any, release_id: str, metadata: bytes, signature: bytes
+) -> str:
+    path = f"/v1/staging/{release_id}/1"
+    for component, data in (
+        ("metadata", metadata),
+        ("signature", signature),
+        ("package", distribution["package"]),
+    ):
+        assert (
+            request(
+                distribution["base"],
+                f"{path}/{component}",
+                "publisher-token",
+                "PUT",
+                data,
+            )[0]
+            == 201
+        )
+    return path
+
+
 @pytest.fixture
 def distribution(tmp_path: Path) -> Any:
     from scripts.release_reference_server import ReferenceServer
@@ -241,6 +288,112 @@ def test_tampered_metadata_fails_qualification_with_sanitized_error(
     assert status == 422
     assert b"aaaaaaaa" not in body
     assert b"test-private" not in body
+
+
+def test_tampered_package_fails_signed_integrity_check(distribution: Any) -> None:
+    value = json.loads(distribution["metadata"])
+    path = f"/v1/staging/{value['release_id']}/1"
+    for component, data in (
+        ("metadata", distribution["metadata"]),
+        ("signature", distribution["signature"]),
+        ("package", b"tampered package"),
+    ):
+        assert (
+            request(
+                distribution["base"],
+                f"{path}/{component}",
+                "publisher-token",
+                "PUT",
+                data,
+            )[0]
+            == 201
+        )
+    assert (
+        request(distribution["base"], f"{path}/qualify", "qualifier-token", "POST")[0]
+        == 422
+    )
+
+
+def test_server_qualifies_cross_target_but_client_enforces_host(
+    distribution: Any, tmp_path: Path
+) -> None:
+    from scripts.runtime_release import host_compatibility, verify
+
+    compatibility = host_compatibility()
+    compatibility["os_version"] = (
+        "26.04" if compatibility["os_version"] != "26.04" else "24.04"
+    )
+    value = json.loads(distribution["metadata"])
+    value["compatibility"] = compatibility
+    value["release_id"] = (
+        f"{value['runtime_version']}-{value['commit_sha']}-ubuntu"
+        f"{compatibility['os_version']}-{compatibility['architecture']}"
+        f"-py{compatibility['python']}"
+    )
+    metadata, signature = signed_metadata(distribution, tmp_path, value)
+    path = stage_release(distribution, value["release_id"], metadata, signature)
+    base = distribution["base"]
+    assert request(base, f"{path}/qualify", "qualifier-token", "POST")[0] == 200
+    assert request(base, f"{path}/approve", "approver-token", "POST")[0] == 200
+    assert request(base, f"{path}/publish", "publisher-token", "POST")[0] == 200
+    target = (
+        f"ubuntu-{compatibility['os_version']}-{compatibility['architecture']}"
+        f"-py{compatibility['python']}"
+    )
+    wrong_target = (
+        f"ubuntu-{host_compatibility()['os_version']}-"
+        f"{compatibility['architecture']}-py{compatibility['python']}"
+    )
+    assert (
+        request(
+            base,
+            f"/v1/channels/stable/{wrong_target}/promote",
+            "promoter-token",
+            "POST",
+            b'{"expected_current_sequence":0}',
+        )[0]
+        == 404
+    )
+    assert (
+        request(
+            base,
+            f"/v1/channels/stable/{target}/promote",
+            "promoter-token",
+            "POST",
+            b'{"expected_current_sequence":0}',
+        )[0]
+        == 200
+    )
+    local_package = tmp_path / "runtime.tar.gz"
+    local_package.write_bytes(distribution["package"])
+    with pytest.raises(ValueError, match="Incompatible runtime target"):
+        verify(
+            tmp_path / "variant.json",
+            tmp_path / "variant.sig",
+            distribution["public_key"],
+            local_package,
+            1,
+        )
+
+
+@pytest.mark.parametrize("change", ["malformed_target", "expired"])
+def test_signed_invalid_compatibility_or_expiry_is_rejected(
+    distribution: Any, tmp_path: Path, change: str
+) -> None:
+    value = json.loads(distribution["metadata"])
+    if change == "malformed_target":
+        value["compatibility"]["os_version"] = "../../24.04"
+        value["release_id"] = "invalid-target"
+    else:
+        value["expires_at"] = (
+            datetime.now(timezone.utc) - timedelta(days=1)
+        ).isoformat()
+    metadata, signature = signed_metadata(distribution, tmp_path, value)
+    path = stage_release(distribution, value["release_id"], metadata, signature)
+    assert (
+        request(distribution["base"], f"{path}/qualify", "qualifier-token", "POST")[0]
+        == 422
+    )
 
 
 def test_declared_oversize_and_traversal_are_rejected(
