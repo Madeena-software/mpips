@@ -5,6 +5,7 @@ from __future__ import annotations
 import ipaddress
 import os
 import platform
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -98,12 +99,7 @@ def port_state(output: str | None, port: int) -> tuple[bool | None, bool | None]
     listeners: list[bool] = []
     for line in output.splitlines():
         fields = line.split()
-        if (
-            len(fields) != 5
-            or fields[0] != "LISTEN"
-            or not fields[1].isdigit()
-            or not fields[2].isdigit()
-        ):
+        if len(fields) < 4:
             return None, None
         endpoint = fields[3]
         if endpoint.startswith("["):
@@ -114,19 +110,70 @@ def port_state(output: str | None, port: int) -> tuple[bool | None, bool | None]
             address, separator, raw_port = endpoint.rpartition(":")
             if not separator or ":" in address:
                 return None, None
-        if not raw_port.isdigit() or not address:
+        if not raw_port.isdigit():
+            return None, None
+        if int(raw_port) != port:
+            continue
+        if len(fields) != 5 or fields[0] != "LISTEN" or not address:
+            return None, None
+        if not fields[1].isdigit() or not fields[2].isdigit():
             return None, None
         try:
             ip = None if address == "*" else ipaddress.ip_address(address)
         except ValueError:
             return None, None
-        listener_port = int(raw_port)
-        if listener_port > 65535:
+        if int(raw_port) > 65535:
             return None, None
-        if listener_port == port:
-            occupied = True
-            listeners.append(ip is not None and ip.is_loopback)
+        occupied = True
+        listeners.append(ip is not None and ip.is_loopback)
     return occupied, bool(listeners) and all(listeners)
+
+
+SERVICES = ("mpips-api", "redis")
+DOCKER_STATES = {"running", "created", "restarting", "paused", "exited", "dead"}
+
+
+def service_inventory(output: str | None) -> tuple[dict[str, tuple[str, str]], str]:
+    if output is None:
+        return {}, "unknown"
+    services: dict[str, list[tuple[str, str]]] = {name: [] for name in SERVICES}
+    for line in output.splitlines():
+        fields = line.split("|")
+        if (
+            len(fields) != 3
+            or re.fullmatch(r"[0-9a-fA-F]{12,64}", fields[0]) is None
+            or re.fullmatch(r"[A-Za-z0-9_.-]+", fields[1]) is None
+            or fields[2] not in DOCKER_STATES
+        ):
+            return {}, "unknown"
+        if fields[1] in services:
+            services[fields[1]].append((fields[0], fields[2]))
+    if any(len(services[name]) > 1 for name in SERVICES):
+        return {}, "unknown"
+    complete = "yes" if all(services[name] for name in SERVICES) else "no"
+    identified = {name: entries[0] for name, entries in services.items() if entries}
+    return identified, complete
+
+
+def service_state(entry: tuple[str, str] | None, inventory: str) -> str:
+    if inventory == "unknown":
+        return "unknown"
+    if entry is None:
+        return "not_found"
+    if entry[1] == "running":
+        return "running"
+    return "stopped"
+
+
+def service_health(state: str, output: str | None) -> str:
+    if state in {"not_found", "stopped"}:
+        return "unavailable"
+    if state == "unknown" or output is None:
+        return "unknown"
+    health = output.strip()
+    if health in {"healthy", "unhealthy", "unavailable"}:
+        return health
+    return "unknown"
 
 
 def yn(value: bool | None) -> str:
@@ -158,29 +205,19 @@ def collect() -> list[tuple[str, str]]:
         [
             "docker",
             "ps",
+            "--all",
             "--filter",
             "label=com.docker.compose.project=mpips-internal-beta",
-            "--filter",
-            "status=running",
             "--format",
-            '{{.Label "com.docker.compose.service"}}',
+            '{{.ID}}|{{.Label "com.docker.compose.service"}}|{{.State}}',
         ]
     )
-    stack_ids = command(
-        [
-            "docker",
-            "ps",
-            "-q",
-            "--filter",
-            "label=com.docker.compose.project=mpips-internal-beta",
-            "--filter",
-            "status=running",
-        ]
+    service_entries, project_complete = service_inventory(stack)
+    port_8014, exclusive_loopback_8014 = port_state(
+        command(["ss", "-H", "-ltn", "sport = :8014"]), 8014
     )
-    port_output = command(["ss", "-H", "-ltn"])
-    port_8014, exclusive_loopback_8014 = port_state(port_output, 8014)
-    port_80, _ = port_state(port_output, 80)
-    port_443, _ = port_state(port_output, 443)
+    port_80, _ = port_state(command(["ss", "-H", "-ltn", "sport = :80"]), 80)
+    port_443, _ = port_state(command(["ss", "-H", "-ltn", "sport = :443"]), 443)
     compose_available = (
         "unknown"
         if compose is None and docker_info is None
@@ -189,9 +226,9 @@ def collect() -> list[tuple[str, str]]:
 
     if not docker:
         container_count = "unknown"
-        active_stack = "unknown"
+        project_complete = "unknown"
         networks = "unknown"
-        health = "unknown"
+        service_entries = {}
     else:
         if count is None:
             container_count = "unknown"
@@ -206,12 +243,6 @@ def collect() -> list[tuple[str, str]]:
                     else "6–15" if running_count <= 15 else "above 15"
                 )
             )
-        services = set(stack.splitlines()) if stack is not None else set()
-        active_stack = (
-            "unknown"
-            if stack is None
-            else "present" if {"mpips-api", "redis"} <= services else "missing"
-        )
         names = set(network_names.splitlines()) if network_names is not None else set()
         networks = (
             "unknown"
@@ -222,27 +253,31 @@ def collect() -> list[tuple[str, str]]:
                 else "missing"
             )
         )
-        health_states: list[str] = []
-        for container_id in stack_ids.splitlines() if stack_ids is not None else []:
-            result = command(
+
+    states = {
+        name: service_state(service_entries.get(name), project_complete)
+        for name in SERVICES
+    }
+    healths: dict[str, str] = {}
+    for name in SERVICES:
+        entry = service_entries.get(name)
+        result = (
+            command(
                 [
                     "docker",
                     "inspect",
                     "--format",
-                    "{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}",
-                    container_id,
+                    (
+                        "{{if .State.Health}}{{.State.Health.Status}}"
+                        "{{else}}unavailable{{end}}"
+                    ),
+                    entry[0],
                 ]
             )
-            health_states.append(result.strip() if result is not None else "unknown")
-        health = (
-            "unknown"
-            if stack_ids is None or not health_states
-            else (
-                "healthy"
-                if all(state == "healthy" for state in health_states)
-                else "unhealthy or unavailable"
-            )
+            if entry is not None and states[name] == "running"
+            else None
         )
+        healths[name] = service_health(states[name], result)
 
     rows = [
         ("OS compatibility", os_classification()),
@@ -274,7 +309,11 @@ def collect() -> list[tuple[str, str]]:
         ),
         ("Docker Compose", compose_available),
         ("Running containers", container_count),
-        ("MPIPS expected services", active_stack),
+        ("MPIPS API container", states["mpips-api"]),
+        ("MPIPS API health", healths["mpips-api"]),
+        ("Redis container", states["redis"]),
+        ("Redis health", healths["redis"]),
+        ("Expected Compose project complete", project_complete),
         ("Expected Docker networks", networks),
         ("Candidate network conflict", "unknown"),
         ("Port 8014 occupied", yn(port_8014)),
@@ -282,7 +321,6 @@ def collect() -> list[tuple[str, str]]:
         ("Port 80 occupied", yn(port_80)),
         ("Port 443 occupied", yn(port_443)),
         ("Approved HTTPS ingress identifiable", "unknown"),
-        ("Aggregate MPIPS health", health),
     ]
     return rows
 

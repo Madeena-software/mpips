@@ -39,8 +39,8 @@ jobs:
           pip-audit --require-hashes -r "$RUNNER_TEMP/runtime-deps.txt"
       - name: Source checks and converter protection
         run: |
-          uv run black --check mpips tests scripts/build_runtime.py scripts/runtime_release.py scripts/release_reference_server.py scripts/publish_runtime.py scripts/grabber_smoke.py scripts/simrs_manifest_example.py
-          uv run flake8 mpips tests scripts/build_runtime.py scripts/runtime_release.py scripts/release_reference_server.py scripts/publish_runtime.py scripts/grabber_smoke.py scripts/simrs_manifest_example.py
+          uv run black --check mpips tests scripts/audit_infrastructure_readonly.py scripts/build_runtime.py scripts/runtime_release.py scripts/release_reference_server.py scripts/publish_runtime.py scripts/grabber_smoke.py scripts/simrs_manifest_example.py
+          uv run flake8 mpips tests scripts/audit_infrastructure_readonly.py scripts/build_runtime.py scripts/runtime_release.py scripts/release_reference_server.py scripts/publish_runtime.py scripts/grabber_smoke.py scripts/simrs_manifest_example.py
           uv run python scripts/check_mypy_regressions.py --base-ref '${{ github.event.pull_request.base.sha }}' --candidate-ref HEAD
           uv run pytest -q
       - name: Build, offline install, and execute synthetic BED/TRX DICOM
