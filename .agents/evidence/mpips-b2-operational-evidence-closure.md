@@ -11,7 +11,8 @@ execution evidence only; it is not independent acceptance or release approval.
 - Immutable validated task revision: `2ce1b91cdee682dc36dbdfd9763378bad3eb5cb6`
 - Implementation baseline: `bfe5237f86a4a535c76c9368099a65e0b1fad653`
 - Feature branch: `feat/mpips-b2-operational-evidence-closure`
-- Draft PR and final implementation SHA: pending publication and CI.
+- Draft PR: [#10](https://github.com/Madeena-software/mpips/pull/10)
+- Implementation revision verified by CI: `c06ac51b509f0cfd3fda2cabbd178adca9784906`
 
 ## Initial audit analysis
 
@@ -39,9 +40,30 @@ malformed target evidence remains unknown.
 
 ## Implementation and verification
 
-Details are pending final PR publication and GitHub-hosted CI. No local tests,
-formatters, lint, or mypy checks are run for this task. Only GitHub-hosted PR
-checks are permitted by the governing task.
+Implementation is in Draft PR #10 at code revision
+`c06ac51b509f0cfd3fda2cabbd178adca9784906`. No local tests, lint, or mypy
+checks were run. The installed Black formatter was used to format the changed
+Python files; formatter validity was established only by GitHub-hosted CI.
+
+Changed files:
+
+- `.agents/tasks/mpips-b2-operational-evidence-closure.md`
+- `.agents/architecture/adr-mpips-b2-operational-questions.md`
+- `.agents/evidence/mpips-b2-operational-evidence-closure.md`
+- `.github/workflows/qualify-ubuntu-runtime.yml`
+- `docs/integration/infrastructure-readonly-audit.md`
+- `scripts/audit_infrastructure_readonly.py`
+- `tests/test_infrastructure_readonly_audit.py`
+
+Final checks on implementation revision `c06ac51b509f0cfd3fda2cabbd178adca9784906`:
+
+- [MPIPS CI run 38268382206](https://github.com/Madeena-software/mpips/actions/runs/38268382206): passed dependency audits, protected converter hash, Black, Flake8, mypy regression, full pytest (`973 passed, 2 skipped, 302 warnings`), both Docker builds, and the CI container smoke test.
+- [Ubuntu qualification run 38268382232](https://github.com/Madeena-software/mpips/actions/runs/38268382232): passed dependency audit, Black, Flake8, mypy regression, offline package installation, and installed synthetic BED/TRX DICOM smoke.
+- Earlier hosted attempts caught Black formatting and one Flake8 line-length issue; these were corrected before the passing runs above.
+
+The PR evidence-only update may produce a newer head SHA; its CI status is
+reported from the current Draft PR checks separately. No local test suite or
+local lint/type-check command was run.
 
 ## Production and side-effect status
 
@@ -51,6 +73,10 @@ checks are permitted by the governing task.
   changed.
 - The one-time authorization for prior run `38265842527` was not reused.
 - No merge or self-approval occurred.
+- Read-only Actions metadata after this task began showed no new audit,
+  deployment, or verification workflow run. The only listed audit dispatch is
+  the earlier run `38265842527`; the latest listed deployment/verification
+  runs predate this task.
 
 ## Remaining live questions
 
