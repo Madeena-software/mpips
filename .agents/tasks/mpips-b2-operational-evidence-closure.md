@@ -62,6 +62,7 @@ production audit.
 - `docs/integration/infrastructure-readonly-audit.md`: updated output labels and interpretation.
 - `.agents/architecture/adr-mpips-b2-operational-questions.md`: Draft ADR recording unresolved service-state, ingress, and listener questions and preserving the separate Compose Release Service as a proposal.
 - `.agents/evidence/mpips-b2-operational-evidence-closure.md`: execution, CI, and side-effect evidence for this task.
+- `.github/workflows/qualify-ubuntu-runtime.yml`: include the changed collector in the existing GitHub-hosted Black and Flake8 source checks.
 
 ### Out of scope
 
@@ -109,6 +110,7 @@ production audit.
 - Keep command outputs private; use fixed commands and arguments; do not print raw Docker or `ss` output or sensitive values.
 - Do not alter `.github/workflows/deploy-internal-beta.yml`, `.github/workflows/verify-internal-beta.yml`, `.github/workflows/audit-infrastructure-readonly.yml`, or `docker-compose.prod.yml`.
 - Preserve the current audit trigger, `main` guard, production runner, concurrency, permissions, timeout, and no-upload/no-secret boundaries.
+- Do not change deployment, verification, or infrastructure-audit workflow behavior. The Ubuntu qualification workflow may only add the collector source path to its existing formatting/lint commands.
 - The Draft ADR records questions and options only; it MUST NOT state an unapproved architecture decision. The separate single-server Compose Release Service stays a preferred proposal, not approved deployment.
 
 ## Acceptance criteria
@@ -123,6 +125,7 @@ production audit.
 - [ ] Documentation and a Draft ADR accurately explain results and open questions without deciding service recovery or ingress architecture.
 - [ ] GitHub-hosted PR CI passes focused tests, formatting, lint, mypy regression checks, and relevant CI. No local verification commands are run.
 - [ ] Existing deployment, verification, and audit workflow files and Compose configuration are unchanged; no production workflow is run or production runner contacted.
+- [ ] The Ubuntu qualification workflow change only adds the collector to existing GitHub-hosted source checks.
 - [ ] A new feature branch and Draft PR are published for independent review. No merge occurs.
 
 ## Verification requirements
