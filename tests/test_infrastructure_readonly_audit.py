@@ -183,9 +183,7 @@ def inspection(
     image: str = "mpips-api:" + "a" * 40,
     network: str = "yes",
 ) -> str:
-    return "|".join(
-        (state, exit_code, oom, restarts, finished, policy, image, network)
-    )
+    return "|".join((state, exit_code, oom, restarts, finished, policy, image, network))
 
 
 @pytest.mark.parametrize(
@@ -214,9 +212,7 @@ def inspection(
             ),
         ),
         (
-            inspection(
-                state="running", exit_code="0", oom="false", restarts="0"
-            ),
+            inspection(state="running", exit_code="0", oom="false", restarts="0"),
             "a" * 40,
             audit.ContainerDiagnostics(
                 "not_applicable",
