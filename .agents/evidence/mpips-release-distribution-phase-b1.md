@@ -153,3 +153,19 @@ immutable validated task at revision `945680560694413d70b8897b0315dee6678e29f6`.
 Files changed for this remediation: `scripts/runtime_release.py`,
 `scripts/release_reference_server.py`, `tests/test_release_distribution.py`,
 `docs/integration/ubuntu-grabber.md`, and this evidence file.
+
+## Post-merge acceptance-record reconciliation
+
+The repository owner supplied the following acceptance history in the Phase B2
+planning request: an independent ChatGPT review accepted PR #8 at head
+`916f19d6415820110116eb5910cbe55a366d5753`. This statement is the acceptance
+source for Phase B1; it is not represented as a formal GitHub review.
+
+Observed GitHub state on 2026-10-12: PR #8 is merged at
+`0805fd974d19b07553a784923c457ff4c6b4a703`, its head is the reported review
+revision, both required checks succeeded, and the GitHub review list is empty.
+The historical `Review Required` labels above describe the pre-merge Executor
+evidence and are stale as a current lifecycle status. The immutable B1 task was
+not changed. This reconciliation records the owner-reported independent review
+separately from the observable PR merge and check history; it does not invent a
+GitHub approval event.
