@@ -104,3 +104,47 @@ smoke. The output remained under `/tmp`; no binary artifact was published.
 - Production infrastructure, licensing, signing-key, clinical and detector
   approvals remain out of scope and unresolved as explicitly deferred by the
   governing task.
+
+## PR #8 P1 cross-target verification remediation
+
+**Review status: Review Required.** This bounded remediation does not modify the
+immutable validated task at revision `945680560694413d70b8897b0315dee6678e29f6`.
+
+- Remediation commit: `96c84320df37c2d5442b8534d5bca47fa2ab8459` on
+  `feat/mpips-release-distribution-b1`.
+- The shared verifier now separates structural compatibility-field validation
+  from host matching. Its default still enforces the local Ubuntu, Python, CPU
+  and glibc contract for consuming Grabbers. The reference server opts out of
+  host matching only; signature, schema/interface, expiry, sequence, immutable
+  identity, and package filename/size/hash checks remain in the shared verifier.
+- Qualification rejects signed malformed compatibility and expired metadata;
+  tampered metadata/signatures and package bytes are rejected. Promotion checks
+  the authenticated declared target against the requested channel target.
+- Cross-target regression: on Ubuntu 26.04, the local reference server
+  qualified, approved, published and promoted a signed Ubuntu 24.04 release;
+  promotion under the server's Ubuntu 26.04 target returned `404`, and the
+  default consumer verifier rejected installation with
+  `Incompatible runtime target`.
+- Focused release verifier/distribution tests: `33 passed`.
+- Full local `uv run pytest -q`: `927 passed, 2 skipped, 2 failed`. Both failures
+  are the existing `test_engine_calibration_surfaces_are_retired` and
+  `test_engine_package_is_physically_retired` checks, which detect ignored stale
+  `.pyc` files under `mpips/engine`; no such tracked source was added or changed.
+  The new test was separately included in the 33 passing focused tests.
+- `uv lock --check`: passed (116 packages). API runtime, NPZ worker runtime,
+  CI/test, and Ubuntu runtime `pip-audit --require-hashes` closures: all passed
+  with no known vulnerabilities. No lock or dependency floor changed.
+- Black, Flake8, `git diff --check`, and the mypy regression check passed;
+  mypy reported 0 new diagnostics and 2 reduced. Protected converter SHA-256
+  remains `a4a308661ebe8e418bbecd6f30af1b59eae3ee019fc4256b03b323be3c6706e0`.
+- Installed runtime qualification built from the committed remediation SHA on
+  Ubuntu 26.04 / CPython 3.12.14 / x86_64 / glibc 2.43, installed from the
+  offline wheelhouse, and passed installed synthetic BED and TRX DICOM smoke
+  tests. Output stayed in `/tmp`; no binary was published.
+- PR #8 GitHub checks for remediation commit `96c8432` are pending publication.
+  No production deployment, external binary publication, PR merge, or
+  self-approval occurred.
+
+Files changed for this remediation: `scripts/runtime_release.py`,
+`scripts/release_reference_server.py`, `tests/test_release_distribution.py`,
+`docs/integration/ubuntu-grabber.md`, and this evidence file.
