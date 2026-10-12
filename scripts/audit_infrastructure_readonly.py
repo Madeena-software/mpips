@@ -211,6 +211,7 @@ def container_diagnostics(
             image_match = "no"
 
     if state in {"exited", "dead"}:
+        exit_category = "unknown"
         if exit_code.isdigit() and len(exit_code) <= 3:
             value = int(exit_code)
             if value <= 255:
