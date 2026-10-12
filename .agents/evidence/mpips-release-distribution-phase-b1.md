@@ -56,7 +56,7 @@ Environment: Ubuntu 26.04 LTS, CPython 3.12.14, x86_64, glibc 2.43.
 | Main CI CI/test locked audit closure | Passed: no known vulnerabilities |
 | Ubuntu runtime locked audit closure | Passed: no known vulnerabilities |
 | Focused distribution and release verifier tests | Passed: 29 passed |
-| Full `uv run pytest -q` | 924 passed, 2 skipped, 2 failed; both failures are existing retired-package boundary tests affected by ignored stale `.pyc` files beneath `mpips/engine` in this workspace. No tracked source exists there. Those unrelated ignored files were preserved. GitHub clean-checkout results are pending. |
+| Full `uv run pytest -q` | Local workspace: 924 passed, 2 skipped, 2 retired-package boundary tests failed because ignored stale `.pyc` files remain beneath `mpips/engine`; no tracked source exists there, and those unrelated ignored files were preserved. The clean GitHub checkout passed the full suite. |
 | Ubuntu runtime Black check | Passed; 162 files unchanged |
 | Ubuntu runtime Flake8 check | Passed |
 | Mypy regression gate vs baseline | Passed: 0 new diagnostics, 2 reduced (`200` baseline, `198` candidate) |
@@ -84,9 +84,15 @@ smoke. The output remained under `/tmp`; no binary artifact was published.
 
 ## GitHub and side-effect status
 
-- Draft PR: pending creation after pushing the verified branch.
-- GitHub CI: pending; the full clean-checkout main CI and Ubuntu runtime
-  qualification results will be recorded after PR checks complete.
+- Draft PR: [#8](https://github.com/Madeena-software/mpips/pull/8), based on
+  feature revision `371e7529352344f70f72899d8ffc24ac14c31153`.
+- GitHub CI: both required workflows passed on the clean PR checkout. Main CI
+  run [38245110865](https://github.com/Madeena-software/mpips/actions/runs/38245110865)
+  passed all three dependency audits, converter hash, Black, Flake8, mypy,
+  full pytest, both Docker builds, and its container smoke. Ubuntu qualification
+  run [38245110837](https://github.com/Madeena-software/mpips/actions/runs/38245110837)
+  passed dependency audit, source checks, mypy, full pytest, offline package
+  install and installed synthetic BED/TRX DICOM smoke.
 - Production deployment, production service mutation, external binary upload,
   merge to `main`, and self-approval: none performed.
 
