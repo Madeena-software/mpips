@@ -1,6 +1,6 @@
 ---
 title: MPIPS synthetic Grabber end-to-end simulation
-version: 0.2
+version: 0.3
 status: Draft
 language: en-US
 ---
@@ -140,6 +140,7 @@ for BED and TRX, plus end-to-end negative cases, with sanitized deterministic ev
 - `convert_npz_to_dicom` accepts a manifest file and an external calibration dir (`mpips/runtime.py`).
 - The existing identity-remap calibration converts BED and TRX (observed).
 - TRX output shape is transposed relative to BED for the same input (existing `verify_output`).
+- Process boundary (observed in `mpips/conversion/service.py`): the CLI process launches a second Python process (`python -m mpips.conversion.worker`) with `env=dict(os.environ)` plus overrides, so environment variables set for the CLI are inherited by that worker. A pytest-process socket monkeypatch does **not** reach either child.
 
 ### Remaining approval requirements
 
@@ -154,8 +155,9 @@ for BED and TRX, plus end-to-end negative cases, with sanitized deterministic ev
 ## Execution constraints
 
 - Test files must be deterministic: fixed seeds/values, no wall-clock or random UIDs in assertions (compare pixel arrays and stable fields; do not hash whole DICOM files because UIDs/dates may vary, unless observed stable).
-- A socket-blocking guard in the test must make accidental network use fail.
-- Every identifier written or asserted must start with `SYNTHETIC`; a helper must fail if any other patient identifier appears in inputs or evidence.
+- **Network prohibition across the subprocess boundary** (stdlib only, test-only, no dependency): the Executor MUST NOT rely on a pytest-process socket patch for child processes. Instead the test supplies the child environment with a temporary directory prepended to `PYTHONPATH` containing a test-generated `sitecustomize.py` that (a) installs `sys.addaudithook` rejecting `socket.connect`, `socket.bind`, `socket.sendto`, `socket.getaddrinfo` and `socket.gethostbyname` events for non-`AF_UNIX` targets (raising an exception), and (b) appends one line per rejected attempt, plus a one-line load sentinel, to a temp log file. Verification the guard really applies: (1) a canary child run with the same environment, `python -c` attempting a loopback TCP connect, must fail and log; (2) after each real CLI run the sentinel must show the guard loaded in the CLI process and in the worker process (the worker inherits the environment; if it does not, record this as a limitation and stop condition review rather than claiming coverage); (3) the rejection log must contain no entries. Also keep a pytest-process socket guard for the in-process pre-CLI code (mapper/manifest build) and label it as in-process only.
+- **Stated limitation (must be recorded verbatim in evidence and docs):** this is Python-level, test-enforced verification, not kernel network isolation. It does not stop non-Python code, `ctypes`/C-extension raw sockets that bypass audit events, or interpreters started without the inherited environment. If the Executor finds a stronger dependency-free option that works unprivileged on the CI runner (for example `unshare -rn`), it MAY add it as an optional extra only when guarded by a capability probe that skips with a recorded reason; it MUST NOT make the task depend on it, and MUST NOT claim a guarantee the probe has not demonstrated.
+- **SYNTHETIC identifier scope:** every test-controlled patient identifier (MRN, name), visit/encounter identifier, accession-like value and acquisition/gain/camera identifier written or asserted MUST start with `SYNTHETIC`. A helper fails if any other test-controlled identifier of those kinds appears in inputs or evidence. This does NOT apply to standards-defined or generated DICOM UIDs (SOP Class, Study/Series/SOP Instance UIDs, transfer syntax), which must be validated by DICOM UID syntax (and, for SOP Class, the expected value) instead.
 - Subprocess runs use the real `python -m mpips.runtime convert`; mocks of the converter are not acceptable in the E2E positive/negative paths.
 - Evidence output contains only synthetic values, statuses, shapes and pixel digests; no paths outside temp, no hostnames.
 - Black/flake8 (line length 88) and mypy per repository policy.
@@ -164,12 +166,14 @@ for BED and TRX, plus end-to-end negative cases, with sanitized deterministic ev
 
 - [ ] Positive BED and TRX: mock SIMRS response → confirmed selection → mapper → merged manifest validates with `MHCSManifest` → real CLI exit 0, `status: ok`, empty stderr.
 - [ ] DICOM: PatientID, PatientName, BirthDate match the SIMRS-derived values; StudyInstanceUID etc. present; Modality DX; SOP class `1.2.840.10008.5.1.4.1.1.1.1.1`; 16-bit unsigned MONOCHROME2; shape (BED 48×64, TRX 64×48); no private tags; mode `0600`.
-- [ ] Pixels and integrity: re-readable by pydicom; `DICM` preamble; pixel array dtype uint16, non-constant, equal to a fixed expected digest, and identical across two runs.
+- [ ] Pixels and integrity: re-readable by pydicom; `DICM` preamble; pixel array dtype uint16 and non-constant. Pixel correctness MUST be checked against an oracle that is **not produced by the output under test**, in one of these ranked forms: (a) expected pixel data independently derived in the test from the fixed synthetic inputs by a separately written NumPy reference of the documented processing (gain/dark correction, identity remap, TRX orientation relation to BED), with the derivation justified in a comment; or (b) if (a) is infeasible, a hard-coded SHA-256 of the pixel bytes, recorded once with provenance (baseline/revision, exact command, Python/NumPy/OpenCV versions, platform) and a written justification that it is a regression pin rather than a correctness proof, plus the independent structural invariants of (a) as far as they can be derived (shape, dtype, BED/TRX geometric relation, monotonic relation to the synthetic input gradient). The digest MUST be shown stable locally and on CI before acceptance; if it is not, use invariants only. The digest MUST NOT be computed at test time from the produced DICOM, and a repeat-run equality check is a separate determinism check, not the oracle.
 - [ ] Identity chain: examination encounter ID in manifest equals the requested synthetic visit; any other visit yields no DICOM.
-- [ ] Negative (each: expected exit code observed and asserted, `status: error`, no output file, no `.mpips-*` residue, no synthetic identifier text in stdout/stderr): malformed SIMRS (non-dict, `success` not true, missing identity) rejected before the CLI; visit mismatch; unconfirmed selection; invalid manifest JSON; schema-invalid manifest; gain id/shape/detector-mode mismatch with the radiograph; missing calibration directory; calibration not validated or wrong shape. Cases already identical to existing CLI tests are not duplicated.
-- [ ] Offline/synthetic: the test fails if a socket connection is attempted; provenance helper rejects non-`SYNTHETIC` identifiers.
+- [ ] **Pre-CLI rejection tests** (SIMRS/selection/manifest-composition stage; the runtime is never invoked): malformed SIMRS (non-dict, `success` not true, missing identity), visit mismatch, unconfirmed selection, and manifest that fails `MHCSManifest` validation before any CLI call. Each asserts: the error is raised by the mapper/helper/schema (expected exception type), the CLI/`convert_npz_to_dicom` was **not** invoked (verified by a sentinel such as the command runner not being called and no subprocess/guard-log activity), no DICOM or output path exists, and the exception text and any evidence do not contain sensitive SIMRS values. No runtime exit code or JSON runtime status is asserted for these cases.
+- [ ] **CLI failure tests** (runtime actually invoked as a subprocess): invalid manifest JSON file, schema-invalid manifest file, gain id/shape/detector-mode mismatch with the radiograph, missing calibration directory, calibration not validated or wrong shape. Each asserts: the exit code **observed** from `mpips/runtime.py` (one of 2–7, asserted exactly), the JSON stdout `status: error` with the matching `code`, no output DICOM at the destination, no `.mpips-*` residue, and sanitized stdout/stderr (no test-controlled identifiers, paths or exception text). Cases already identical to existing CLI tests are not duplicated.
+- [ ] Offline verification as defined in Execution constraints: canary proves the child guard blocks loopback TCP, sentinels show the guard loaded in CLI and worker processes, rejection log is empty after every run; the limitation statement is present in evidence and documentation. No claim of kernel-level isolation.
+- [ ] Provenance: the test-controlled-identifier helper rejects non-`SYNTHETIC` patient/visit/acquisition identifiers; DICOM UIDs are validated by UID syntax, not by prefix.
 - [ ] Deterministic evidence: a JSON summary generated twice in one session is byte-identical and contains only the allowed fields.
-- [ ] Documentation addition is factual and states limitations (identity calibration, no real data, not clinical qualification).
+- [ ] Documentation addition is factual and states limitations (identity calibration, no real data, not clinical qualification, Python-level network verification only).
 - [ ] Preservation: all pre-existing tests pass unchanged; only the files in scope changed.
 
 ## Verification requirements
@@ -177,10 +181,10 @@ for BED and TRX, plus end-to-end negative cases, with sanitized deterministic ev
 ### Required checks
 
 - `.venv/bin/python -m pytest -q tests/test_grabber_e2e_synthetic.py tests/test_local_runtime.py tests/test_simrs_reference.py`
-- `.venv/bin/python -m pytest -q` (full suite; compare failures with baseline; two pre-existing legacy-directory failures are documented in `ubuntu-grabber-runtime` evidence)
+- `.venv/bin/python -m pytest -q` (full suite). **Current CI baseline:** PR #15 CI run 38693246116 on `d89f97b` (task-file-only change over implementation baseline `1a25609`) passed `uv run pytest -v` with **987 passed, 2 skipped**; the expected post-change CI result is therefore 987 + the new tests passed, 2 skipped, and any deviation must be explained. The two local failures recorded in `ubuntu-grabber-runtime` evidence (legacy empty-directory tests, observed at an older baseline `d645662`) are **historical local-environment results**, not the current baseline; do not assume they are expected. Any failure in a local run must be diagnosed and reported as environmental/pre-existing only with evidence (for example reproducing it on the untouched baseline).
 - `black --check`, `flake8`, `mypy` on the new test, per `pyproject.toml`
 - `git diff --name-only <baseline>...HEAD` limited to scope; converter SHA-256 unchanged.
-- Observe PR CI (`uv run pytest -v`) if available; report local and CI separately.
+- Observe PR CI (`uv run pytest -v`) if available; report local and CI separately, and report the pixel-oracle stability evidence (local and CI) when form (b) is used.
 
 ### Required evidence
 
@@ -188,7 +192,7 @@ The Executor MUST report implementation revision, commands run and exact results
 
 ## Stop conditions
 
-Stop and return to planning if: any change under `mpips/` seems necessary; the mapper and CLI cannot produce a valid DICOM without changing production behaviour; a fixture would need non-synthetic data; a negative case reveals a converter defect (record, do not fix); the baseline is no longer safely applicable; or an unapproved side effect is required.
+Stop and return to planning if: any change under `mpips/` seems necessary; the mapper and CLI cannot produce a valid DICOM without changing production behaviour; a fixture would need non-synthetic data; a negative case reveals a converter defect (record, do not fix); the baseline is no longer safely applicable; an unapproved side effect is required; or the child-process network guard cannot be shown to load in the CLI process (a worker-process gap must be recorded as a limitation and returned to planning rather than claimed as covered).
 
 ## Side-effect authorization
 
@@ -200,3 +204,19 @@ Stop and return to planning if: any change under `mpips/` seems necessary; the m
 ## Expected terminal outcome
 
 Review Required with a reviewable revision and truthful evidence, or Planning Required on a stop condition. The Executor does not self-accept; implementation acceptance is not release.
+
+## Remediation
+
+**Review basis:** PR #15 at `d89f97b56eb95651bc0380b6a721805a6c980a03`, independent verdict CHANGES REQUESTED. The original objective, scope and baseline are unchanged; the task remains Draft and T5 is pending.
+
+### Required corrections
+
+- Pre-CLI rejection tests and CLI failure tests are separated; runtime exit codes are required only where the runtime is invoked.
+- Network prohibition across the subprocess boundary is defined (child-environment audit-hook guard with canary, sentinels and an explicit Python-level limitation) instead of a pytest-process socket patch.
+- The `SYNTHETIC` prefix applies to test-controlled patient, visit and acquisition identifiers only, not to DICOM UIDs.
+- Verification distinguishes historical local failures from the current CI baseline (987 passed, 2 skipped).
+- The pixel regression oracle must be independently derived, or a justified provenance-recorded pin, never generated from the output being checked.
+
+### Additional verification
+
+- Renewed independent review of this revision before publication.
