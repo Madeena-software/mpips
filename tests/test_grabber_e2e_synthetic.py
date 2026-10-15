@@ -15,6 +15,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 from dataclasses import dataclass, field
@@ -93,6 +94,7 @@ class GuardRecords:
     roles: dict[str, int] = field(default_factory=dict)
     pids: dict[str, set[str]] = field(default_factory=dict)
     rejections: int = 0
+    rejected_events: list[str] = field(default_factory=list)
 
     def labels(self) -> list[str]:
         return sorted(f"guard_loaded:{role}" for role in self.roles)
@@ -106,7 +108,11 @@ def read_guard(record_dir: Path) -> GuardRecords:
             records.roles[role] = records.roles.get(role, 0) + 1
             records.pids.setdefault(role, set()).add(pid)
         else:
-            records.rejections += len(entry.read_text().splitlines())
+            lines = [
+                line.strip() for line in entry.read_text().splitlines() if line.strip()
+            ]
+            records.rejections += len(lines)
+            records.rejected_events.extend(lines)
     return records
 
 
@@ -120,17 +126,39 @@ def guard_dirs(root: Path) -> tuple[Path, Path]:
 
 
 def run_guarded(
-    argv: list[str], code_dir: Path, record_dir: Path
+    argv: list[str],
+    code_dir: Path,
+    record_dir: Path,
+    timeout: float = 60.0,
 ) -> subprocess.CompletedProcess[str]:
     env = {**os.environ, "MPIPS_E2E_GUARD_DIR": str(record_dir)}
     existing = env.get("PYTHONPATH")
     env["PYTHONPATH"] = str(code_dir) + (os.pathsep + existing if existing else "")
-    return subprocess.run(
+    proc = subprocess.Popen(
         [sys.executable, *argv],
-        capture_output=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
         env=env,
         cwd=REPO_ROOT,
+        start_new_session=True,
+    )
+    try:
+        stdout, stderr = proc.communicate(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        except OSError:
+            pass
+        proc.communicate()
+        raise TimeoutError(
+            f"guarded subprocess timed out after {timeout}s (sanitized)"
+        ) from None
+    return subprocess.CompletedProcess(
+        args=[sys.executable, *argv],
+        returncode=proc.returncode,
+        stdout=stdout,
+        stderr=stderr,
     )
 
 
@@ -608,15 +636,21 @@ def test_guard_canary_observes_rejected_tcp_attempt(tmp_path: Path) -> None:
     result = run_guarded(
         [
             "-c",
-            "import socket; socket.create_connection(('127.0.0.1', 9), timeout=1)",
+            (
+                "import socket; "
+                "s = socket.socket(socket.AF_INET, socket.SOCK_STREAM); "
+                "s.connect(('127.0.0.1', 9))"
+            ),
         ],
         code,
         records,
+        timeout=10.0,
     )
     assert result.returncode != 0
     guard = read_guard(records)
     assert guard.labels() == ["guard_loaded:canary"]
     assert guard.rejections >= 1
+    assert "socket.connect" in guard.rejected_events
     # Canary records live in their own directory and are never reused elsewhere.
     assert tmp_path.joinpath("guard-records") == records
 
@@ -694,6 +728,6 @@ def test_evidence_is_deterministic_and_sanitized(
     assert "/" not in first and "\\" not in first
     assert "SYNTHETIC" not in first
     assert "kernel network isolation" in first
-    target = os.environ.get("MPIPS_E2E_EVIDENCE")
-    if target:
-        Path(target).write_text(first + "\n")
+    evidence_path = tmp_path / "evidence.json"
+    evidence_path.write_text(first + "\n")
+    assert json.loads(evidence_path.read_text()) == data
