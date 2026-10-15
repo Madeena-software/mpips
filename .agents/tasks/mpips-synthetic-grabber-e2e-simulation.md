@@ -1,7 +1,7 @@
 ---
 title: MPIPS synthetic Grabber end-to-end simulation
 version: 0.3
-status: Draft
+status: Validated/Published
 language: en-US
 ---
 
@@ -13,9 +13,9 @@ language: en-US
 
 **Task path:** `.agents/tasks/mpips-synthetic-grabber-e2e-simulation.md`
 
-**Task contract state:** Draft. Semantic readiness is assessed below as satisfied,
-but the task is **not** Validated/Published: T5 requires independent review/approval of
-this Draft PR and a resolvable immutable governing revision (see Task revision).
+**Task contract state:** Validated/Published. Semantic readiness is satisfied and T5 is
+satisfied by the independent conversational PASS (see Publication record) and a
+resolvable immutable governing revision (see Task revision).
 
 **Delivery objective:** Work-Package-oriented maintenance slice: a standalone
 functional-test workstream independent of Phase B2 production infrastructure and the
@@ -43,11 +43,10 @@ fully synthetic, deterministic, offline test, and nothing else.
 (`.venv/bin/python -m pytest -q`, local, not CI).
 
 **Task revision:**
-resolved when published. Draft placeholder only; **not sufficient for T5**. The Draft
-PR commit is a review artifact, not the governing revision. On approval the Reviewer
-publishes by committing the status change to `Validated/Published`; the governing
-identity is then `<task path> @ <that full commit SHA>`, resolved from Git history.
-The Executor MUST NOT begin until that revision is communicated.
+the governing identity is `<task path> @ <full SHA of the commit that set status to
+Validated/Published>`, resolved from Git history (a task body cannot embed the SHA of
+its own commit). That SHA is recorded in the PR #15 publication comment and in the
+Executor handoff. Draft-stage commits are review artifacts, not the governing revision.
 
 ## Objective
 
@@ -97,7 +96,7 @@ for BED and TRX, plus end-to-end negative cases, with sanitized deterministic ev
 - **R2 passes:** table above gives stable IDs, human source, owner (MPIPS tests), verification.
 - **A3 passes:** ownership is already documented: Grabber owns SIMRS access/capture/site fields; MPIPS owns the local converter. Test-only change; no module boundary or trust boundary moves; the mapper intentionally emits identity-only fields (verified in `scripts/simrs_manifest_example.py`).
 - **D4 passes:** single coherent objective, no unresolved dependency; independent of B2/API incident (no shared write surface: new test file and a doc section only).
-- **T5 is NOT passed:** (a) no immutable governing task revision exists; (b) independent review of this Draft is pending. These are process gates, not content blockers.
+- **T5 passed at publication:** independent conversational review PASS on reviewed HEAD `224e60b` (not a formal GitHub review approval) and an immutable governing revision resolved at publication. (Historical Draft-stage text: T5 was previously pending on those two process gates.)
 - Pending-state: no pending execution/review on this line. Discrepancy recorded, not rewritten: `ubuntu-grabber-runtime` evidence records its PR as candidate/review-dependent with no formal A9 record observed; `.agents/context/project.md` (verified 2026-08-05) predates the Grabber runtime and says not to recreate a root `docs/` while `docs/integration/` exists. This task relies only on the code at the baseline (observed and test-passing), reuses existing `docs/integration/` convention, and does not depend on those records for authority.
 
 ### Planner resolutions of technical questions (verified, not owner decisions)
@@ -205,7 +204,7 @@ Stop and return to planning if: any change under `mpips/` seems necessary; the m
 
 ### Explicitly authorized side effects
 
-- None by this Draft. After publication, execution authority is limited to creating a feature branch and local changes; commit/push/PR for the execution require the human's or repository policy's explicit authorization at handoff.
+- Execution authority is limited to creating a feature branch and local changes. Handoff authorization by the human (2026-10-15): commit and push on a dedicated feature branch and open a **Draft** implementation PR; running local tests.
 - Not authorized: merge, deploy, release, dependency changes, production or external access, real-data handling.
 
 ## Expected terminal outcome
@@ -230,4 +229,11 @@ Review Required with a reviewable revision and truthful evidence, or Planning Re
 
 ### Final bounded remediation
 
-**Review basis:** PR #15 at `a69e4a45a62666be2b7e377839b35506a8f93eb5`, verdict CHANGES REQUESTED for one network-guard contradiction. Corrected: guard expectations are now scoped by case class (pre-CLI, CLI preflight, worker-reaching); worker sentinels are required only where a worker is spawned; successful BED and TRX conversions must each show both process-attributable sentinels; canary and system-under-test use separate record directories; records are not emitted to CI logs beyond sanitized classifications; the Python-level (not kernel-level) limitation is preserved. Task remains Draft; T5 pending renewed review and publication.
+**Review basis:** PR #15 at `a69e4a45a62666be2b7e377839b35506a8f93eb5`, verdict CHANGES REQUESTED for one network-guard contradiction. Corrected: guard expectations are now scoped by case class (pre-CLI, CLI preflight, worker-reaching); worker sentinels are required only where a worker is spawned; successful BED and TRX conversions must each show both process-attributable sentinels; canary and system-under-test use separate record directories; records are not emitted to CI logs beyond sanitized classifications; the Python-level (not kernel-level) limitation is preserved. Task remains Draft; T5 pending renewed review and publication. (Historical record; superseded by the Publication record below.)
+
+## Publication record
+
+- Independent review: ChatGPT conversational verdict PASS, no blocking findings, on PR #15 HEAD `224e60b69f65b58ab5d6941a5e160e63f777fdcb`. This is **not** a formal GitHub review approval.
+- CI on reviewed HEAD: MPIPS CI run 38695676607, `test-and-verify` completed SUCCESS.
+- Publication change is mechanical (status and readiness text only); scope, acceptance criteria, technical requirements, baseline `1a25609` and safety boundaries are unchanged. Earlier remediation records above are preserved as history.
+
