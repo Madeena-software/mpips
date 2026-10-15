@@ -145,11 +145,74 @@ def is_process_running(pid: int) -> bool:
     return True
 
 
-def terminate_guarded_processes(record_dir: Path, cli_pid: int) -> list[int]:
+def open_and_verify_process(pid: int, record_dir: Path, current_uid: int) -> int | None:
+    """Safely verify pid belongs to this run and return an open pidfd, or None."""
+    if pid <= 1 or pid == os.getpid() or pid == os.getppid():
+        return None
+    try:
+        pidfd = os.pidfd_open(pid)
+    except (OSError, ProcessLookupError, PermissionError):
+        return None
+
+    try:
+        with open(f"/proc/self/fdinfo/{pidfd}") as f:
+            fd_pid = -1
+            for line in f:
+                if line.startswith("Pid:"):
+                    fd_pid = int(line.split()[-1])
+                    break
+        if fd_pid != pid:
+            os.close(pidfd)
+            return None
+
+        p_stat = os.stat(f"/proc/{pid}")
+        if p_stat.st_uid != current_uid:
+            os.close(pidfd)
+            return None
+
+        target_entry = b"MPIPS_E2E_GUARD_DIR=" + os.fsencode(str(record_dir.resolve()))
+        with open(f"/proc/{pid}/environ", "rb") as f:
+            env_data = f.read()
+        entries = env_data.split(b"\x00")
+        if target_entry not in entries:
+            os.close(pidfd)
+            return None
+
+        return pidfd
+    except (OSError, PermissionError, ValueError):
+        try:
+            os.close(pidfd)
+        except OSError:
+            pass
+        return None
+
+
+def is_pidfd_alive(pidfd: int, pid: int) -> bool:
+    try:
+        os.waitpid(pid, os.WNOHANG)
+    except (OSError, ChildProcessError):
+        pass
+    try:
+        signal.pidfd_send_signal(pidfd, 0)
+    except (ProcessLookupError, OSError):
+        return False
+    try:
+        with open(f"/proc/{pid}/status") as f:
+            for line in f:
+                if line.startswith("State:"):
+                    return "Z" not in line
+    except (OSError, PermissionError):
+        return False
+    return True
+
+
+def terminate_guarded_processes(
+    record_dir: Path, cli_pid: int, timeout: float = 2.0
+) -> list[int]:
     """Safely terminate CLI and any separately sessioned descendants for this run."""
     current_uid = os.getuid()
     my_pid = os.getpid()
-    target_env = f"MPIPS_E2E_GUARD_DIR={record_dir}".encode()
+    target_entry = b"MPIPS_E2E_GUARD_DIR=" + os.fsencode(str(record_dir.resolve()))
     candidate_pids: set[int] = {cli_pid}
 
     if record_dir.exists():
@@ -163,60 +226,61 @@ def terminate_guarded_processes(record_dir: Path, cli_pid: int) -> list[int]:
         for entry in proc_dir.iterdir():
             if entry.name.isdigit():
                 pid = int(entry.name)
-                if pid == my_pid:
+                if pid <= 1 or pid == my_pid:
                     continue
                 try:
-                    env_file = entry / "environ"
-                    if os.stat(env_file).st_uid != current_uid:
+                    if entry.stat().st_uid != current_uid:
                         continue
-                    if target_env in env_file.read_bytes():
+                    env_file = entry / "environ"
+                    data = env_file.read_bytes()
+                    if target_entry in data.split(b"\x00"):
                         candidate_pids.add(pid)
                 except (OSError, PermissionError):
                     continue
 
-    verified_pids: list[int] = []
-    for pid in candidate_pids:
-        if pid == my_pid:
-            continue
-        try:
-            p_stat = os.stat(f"/proc/{pid}")
-            if p_stat.st_uid != current_uid:
-                continue
-            with open(f"/proc/{pid}/environ", "rb") as f:
-                env_data = f.read()
-            if target_env not in env_data:
-                continue
-            verified_pids.append(pid)
-        except (OSError, PermissionError):
-            continue
+    verified_targets: dict[int, int] = {}
+    for pid in sorted(candidate_pids):
+        pidfd = open_and_verify_process(pid, record_dir, current_uid)
+        if pidfd is not None:
+            verified_targets[pid] = pidfd
 
-    for pid in verified_pids:
+    # Phase 1: Signal only verified processes individually via SIGTERM
+    for pid, pidfd in verified_targets.items():
         try:
-            pgid = os.getpgid(pid)
-            os.killpg(pgid, signal.SIGTERM)
-        except OSError:
-            try:
-                os.kill(pid, signal.SIGTERM)
-            except OSError:
-                pass
+            signal.pidfd_send_signal(pidfd, signal.SIGTERM)
+        except (ProcessLookupError, OSError):
+            pass
 
-    deadline = time.monotonic() + 1.5
-    for pid in verified_pids:
-        while time.monotonic() < deadline:
-            if not is_process_running(pid):
+    # Phase 2: Bounded wait for polite termination
+    term_deadline = time.monotonic() + min(timeout, 1.0)
+    for pid, pidfd in verified_targets.items():
+        while time.monotonic() < term_deadline:
+            if not is_pidfd_alive(pidfd, pid):
                 break
             time.sleep(0.05)
-        if is_process_running(pid):
+        # Phase 3: Escalate to SIGKILL for any verified process still alive
+        if is_pidfd_alive(pidfd, pid):
             try:
-                pgid = os.getpgid(pid)
-                os.killpg(pgid, signal.SIGKILL)
-            except OSError:
-                try:
-                    os.kill(pid, signal.SIGKILL)
-                except OSError:
-                    pass
+                signal.pidfd_send_signal(pidfd, signal.SIGKILL)
+            except (ProcessLookupError, OSError):
+                pass
 
-    return verified_pids
+    # Final bounded reap wait
+    kill_deadline = time.monotonic() + 0.5
+    for pid, pidfd in verified_targets.items():
+        while time.monotonic() < kill_deadline:
+            if not is_pidfd_alive(pidfd, pid):
+                break
+            time.sleep(0.05)
+
+    # Cleanup open pidfds
+    for pid, pidfd in verified_targets.items():
+        try:
+            os.close(pidfd)
+        except OSError:
+            pass
+
+    return list(verified_targets.keys())
 
 
 def run_guarded(
@@ -225,7 +289,7 @@ def run_guarded(
     record_dir: Path,
     timeout: float = 60.0,
 ) -> subprocess.CompletedProcess[str]:
-    env = {**os.environ, "MPIPS_E2E_GUARD_DIR": str(record_dir)}
+    env = {**os.environ, "MPIPS_E2E_GUARD_DIR": str(record_dir.resolve())}
     existing = env.get("PYTHONPATH")
     env["PYTHONPATH"] = str(code_dir) + (os.pathsep + existing if existing else "")
     proc = subprocess.Popen(
@@ -758,9 +822,18 @@ def test_timeout_cleanup_terminates_cli_and_detached_worker(
     unrelated_guard.mkdir()
     unrelated = subprocess.Popen(
         [sys.executable, "-c", "import time; time.sleep(30)"],
-        env={**os.environ, "MPIPS_E2E_GUARD_DIR": str(unrelated_guard)},
+        env={**os.environ, "MPIPS_E2E_GUARD_DIR": str(unrelated_guard.resolve())},
     )
     unrelated_pid = unrelated.pid
+
+    # Process sharing guard path prefix MUST NOT be selected
+    prefix_guard = tmp_path / "guarded-prefix-extended"
+    prefix_guard.mkdir()
+    prefix_proc = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        env={**os.environ, "MPIPS_E2E_GUARD_DIR": str(prefix_guard.resolve())},
+    )
+    prefix_pid = prefix_proc.pid
 
     cli_script = (
         "import os, subprocess, sys, time\n"
@@ -774,8 +847,12 @@ def test_timeout_cleanup_terminates_cli_and_detached_worker(
         "worker.communicate()\n"
     )
 
+    t0 = time.monotonic()
     with pytest.raises(TimeoutError) as exc_info:
         run_guarded(["-c", cli_script], code, records, timeout=1.0)
+    elapsed = time.monotonic() - t0
+
+    assert elapsed < 3.5, "cleanup exceeded bounded deadline"
 
     error_msg = str(exc_info.value)
     assert error_msg == "guarded subprocess timed out after 1.0s (sanitized)"
@@ -790,10 +867,157 @@ def test_timeout_cleanup_terminates_cli_and_detached_worker(
     assert not is_process_running(worker_pid), "detached worker remained alive"
 
     assert is_process_running(unrelated_pid), "unrelated process was killed"
+    assert is_process_running(prefix_pid), "prefix-sharing process was killed"
+
     unrelated.kill()
     unrelated.communicate()
+    prefix_proc.kill()
+    prefix_proc.communicate()
 
     assert tmp_path.exists()
+
+
+def test_timeout_cleanup_does_not_signal_unverified_process_group_members(
+    tmp_path: Path,
+) -> None:
+    code, records = guard_dirs(tmp_path / "guarded")
+    other_guard = tmp_path / "other-guard"
+    other_guard.mkdir()
+
+    sync_file = tmp_path / "child_pid.txt"
+
+    leader = subprocess.Popen(
+        [
+            sys.executable,
+            "-u",
+            "-c",
+            (
+                "import os, subprocess, sys, time\n"
+                "child = subprocess.Popen(\n"
+                "    [sys.executable, '-c', 'import time; time.sleep(30)'],\n"
+                "    env=dict(os.environ, MPIPS_E2E_GUARD_DIR=sys.argv[1]),\n"
+                ")\n"
+                "with open(sys.argv[2], 'w') as f:\n"
+                "    f.write(str(child.pid))\n"
+                "time.sleep(30)\n"
+            ),
+            str(other_guard.resolve()),
+            str(sync_file),
+        ],
+        start_new_session=True,
+        env={**os.environ, "MPIPS_E2E_GUARD_DIR": str(records.resolve())},
+    )
+
+    for _ in range(50):
+        if sync_file.exists():
+            break
+        time.sleep(0.05)
+    assert sync_file.exists(), "child PID sync file was not created"
+    child_pid = int(sync_file.read_text().strip())
+
+    assert os.getpgid(leader.pid) == os.getpgid(child_pid)
+
+    terminated = terminate_guarded_processes(records, leader.pid)
+    assert leader.pid in terminated
+    assert child_pid not in terminated
+
+    time.sleep(0.1)
+    assert not is_process_running(leader.pid), "leader remained alive"
+    assert is_process_running(child_pid), "unrelated group member was killed"
+
+    try:
+        os.kill(child_pid, signal.SIGKILL)
+    except OSError:
+        pass
+    leader.kill()
+    leader.communicate()
+
+
+def test_process_identity_verification_rejects_mismatch_and_stale_pid(
+    tmp_path: Path,
+) -> None:
+    code, records = guard_dirs(tmp_path / "guarded")
+    current_uid = os.getuid()
+
+    # 1. Non-existent/stale PID
+    assert open_and_verify_process(999999, records, current_uid) is None
+
+    # 2. Self and parent PID
+    assert open_and_verify_process(os.getpid(), records, current_uid) is None
+    assert open_and_verify_process(os.getppid(), records, current_uid) is None
+
+    # 3. Unrelated process with distinct guard directory
+    other_dir = tmp_path / "distinct-dir"
+    other_dir.mkdir()
+    unrelated = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        env={**os.environ, "MPIPS_E2E_GUARD_DIR": str(other_dir.resolve())},
+    )
+    try:
+        assert open_and_verify_process(unrelated.pid, records, current_uid) is None
+
+        # 4. Process sharing prefix but not exact KEY=VALUE match
+        prefix_dir = tmp_path / "guarded-prefix-test"
+        prefix_dir.mkdir()
+        prefix_proc = subprocess.Popen(
+            [sys.executable, "-c", "import time; time.sleep(30)"],
+            env={**os.environ, "MPIPS_E2E_GUARD_DIR": str(prefix_dir.resolve())},
+        )
+        try:
+            assert (
+                open_and_verify_process(prefix_proc.pid, records, current_uid) is None
+            )
+
+            # 5. Injection via marker file in record_dir with unrelated PID
+            fake_marker = records / f"loaded.worker.{unrelated.pid}"
+            fake_marker.write_text("")
+            terminated = terminate_guarded_processes(records, cli_pid=999998)
+            assert unrelated.pid not in terminated
+            assert is_process_running(unrelated.pid)
+
+            # 6. Valid process returns valid pidfd
+            valid_proc = subprocess.Popen(
+                [sys.executable, "-c", "import time; time.sleep(30)"],
+                env={**os.environ, "MPIPS_E2E_GUARD_DIR": str(records.resolve())},
+            )
+            try:
+                pidfd = open_and_verify_process(valid_proc.pid, records, current_uid)
+                assert pidfd is not None
+                os.close(pidfd)
+            finally:
+                valid_proc.kill()
+                valid_proc.communicate()
+        finally:
+            prefix_proc.kill()
+            prefix_proc.communicate()
+    finally:
+        unrelated.kill()
+        unrelated.communicate()
+
+
+def test_timeout_cleanup_terminates_uncooperative_within_bounded_deadline(
+    tmp_path: Path,
+) -> None:
+    code, records = guard_dirs(tmp_path / "guarded")
+
+    uncoop = subprocess.Popen(
+        [
+            sys.executable,
+            "-c",
+            "import signal, time; "
+            "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+            "time.sleep(30)",
+        ],
+        env={**os.environ, "MPIPS_E2E_GUARD_DIR": str(records.resolve())},
+    )
+
+    t0 = time.monotonic()
+    terminated = terminate_guarded_processes(records, uncoop.pid, timeout=1.0)
+    duration = time.monotonic() - t0
+
+    assert uncoop.pid in terminated
+    assert duration < 2.5, f"cleanup exceeded bounded deadline: {duration}s"
+    assert not is_process_running(uncoop.pid), "uncooperative process survived SIGKILL"
 
 
 def test_identifier_helper_rejects_non_synthetic() -> None:
