@@ -18,6 +18,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -125,6 +126,99 @@ def guard_dirs(root: Path) -> tuple[Path, Path]:
     return code, records
 
 
+def is_process_running(pid: int) -> bool:
+    try:
+        os.waitpid(pid, os.WNOHANG)
+    except (OSError, ChildProcessError):
+        pass
+    try:
+        os.kill(pid, 0)
+    except OSError:
+        return False
+    try:
+        with open(f"/proc/{pid}/status") as f:
+            for line in f:
+                if line.startswith("State:"):
+                    return "Z" not in line
+    except OSError:
+        return False
+    return True
+
+
+def terminate_guarded_processes(record_dir: Path, cli_pid: int) -> list[int]:
+    """Safely terminate CLI and any separately sessioned descendants for this run."""
+    current_uid = os.getuid()
+    my_pid = os.getpid()
+    target_env = f"MPIPS_E2E_GUARD_DIR={record_dir}".encode()
+    candidate_pids: set[int] = {cli_pid}
+
+    if record_dir.exists():
+        for entry in record_dir.iterdir():
+            parts = entry.name.split(".")
+            if len(parts) >= 3 and parts[-1].isdigit():
+                candidate_pids.add(int(parts[-1]))
+
+    proc_dir = Path("/proc")
+    if proc_dir.exists():
+        for entry in proc_dir.iterdir():
+            if entry.name.isdigit():
+                pid = int(entry.name)
+                if pid == my_pid:
+                    continue
+                try:
+                    env_file = entry / "environ"
+                    if os.stat(env_file).st_uid != current_uid:
+                        continue
+                    if target_env in env_file.read_bytes():
+                        candidate_pids.add(pid)
+                except (OSError, PermissionError):
+                    continue
+
+    verified_pids: list[int] = []
+    for pid in candidate_pids:
+        if pid == my_pid:
+            continue
+        try:
+            p_stat = os.stat(f"/proc/{pid}")
+            if p_stat.st_uid != current_uid:
+                continue
+            with open(f"/proc/{pid}/environ", "rb") as f:
+                env_data = f.read()
+            if target_env not in env_data:
+                continue
+            verified_pids.append(pid)
+        except (OSError, PermissionError):
+            continue
+
+    for pid in verified_pids:
+        try:
+            pgid = os.getpgid(pid)
+            os.killpg(pgid, signal.SIGTERM)
+        except OSError:
+            try:
+                os.kill(pid, signal.SIGTERM)
+            except OSError:
+                pass
+
+    deadline = time.monotonic() + 1.5
+    for pid in verified_pids:
+        while time.monotonic() < deadline:
+            if not is_process_running(pid):
+                break
+            time.sleep(0.05)
+        if is_process_running(pid):
+            try:
+                pgid = os.getpgid(pid)
+                os.killpg(pgid, signal.SIGKILL)
+            except OSError:
+                try:
+                    os.kill(pid, signal.SIGKILL)
+                except OSError:
+                    pass
+
+    return verified_pids
+
+
 def run_guarded(
     argv: list[str],
     code_dir: Path,
@@ -146,11 +240,11 @@ def run_guarded(
     try:
         stdout, stderr = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        terminate_guarded_processes(record_dir, proc.pid)
         try:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        except OSError:
-            pass
-        proc.communicate()
+            stdout, stderr = proc.communicate(timeout=1.0)
+        except (subprocess.TimeoutExpired, OSError):
+            stdout, stderr = "", ""
         raise TimeoutError(
             f"guarded subprocess timed out after {timeout}s (sanitized)"
         ) from None
@@ -653,6 +747,53 @@ def test_guard_canary_observes_rejected_tcp_attempt(tmp_path: Path) -> None:
     assert "socket.connect" in guard.rejected_events
     # Canary records live in their own directory and are never reused elsewhere.
     assert tmp_path.joinpath("guard-records") == records
+
+
+def test_timeout_cleanup_terminates_cli_and_detached_worker(
+    tmp_path: Path,
+) -> None:
+    code, records = guard_dirs(tmp_path / "guarded")
+
+    unrelated_guard = tmp_path / "unrelated-guard"
+    unrelated_guard.mkdir()
+    unrelated = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(30)"],
+        env={**os.environ, "MPIPS_E2E_GUARD_DIR": str(unrelated_guard)},
+    )
+    unrelated_pid = unrelated.pid
+
+    cli_script = (
+        "import os, subprocess, sys, time\n"
+        "worker = subprocess.Popen(\n"
+        "    [sys.executable, '-c', 'import time; time.sleep(30)'],\n"
+        "    start_new_session=True,\n"
+        ")\n"
+        "guard_dir = os.environ['MPIPS_E2E_GUARD_DIR']\n"
+        "with open(os.path.join(guard_dir, f'loaded.worker.{worker.pid}'), 'w') as f:\n"
+        "    f.write('')\n"
+        "worker.communicate()\n"
+    )
+
+    with pytest.raises(TimeoutError) as exc_info:
+        run_guarded(["-c", cli_script], code, records, timeout=1.0)
+
+    error_msg = str(exc_info.value)
+    assert error_msg == "guarded subprocess timed out after 1.0s (sanitized)"
+    assert "/" not in error_msg and "\\" not in error_msg
+    assert "PID" not in error_msg
+
+    worker_entries = [
+        e for e in records.iterdir() if e.name.startswith("loaded.worker.")
+    ]
+    assert worker_entries, "worker PID was not recorded"
+    worker_pid = int(worker_entries[0].name.split(".")[-1])
+    assert not is_process_running(worker_pid), "detached worker remained alive"
+
+    assert is_process_running(unrelated_pid), "unrelated process was killed"
+    unrelated.kill()
+    unrelated.communicate()
+
+    assert tmp_path.exists()
 
 
 def test_identifier_helper_rejects_non_synthetic() -> None:
