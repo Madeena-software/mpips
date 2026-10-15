@@ -171,8 +171,17 @@ def open_and_verify_process(pid: int, record_dir: Path, current_uid: int) -> int
             return None
 
         target_entry = b"MPIPS_E2E_GUARD_DIR=" + os.fsencode(str(record_dir.resolve()))
-        with open(f"/proc/{pid}/environ", "rb") as f:
-            env_data = f.read()
+        env_data = b""
+        for _ in range(5):
+            try:
+                with open(f"/proc/{pid}/environ", "rb") as f:
+                    env_data = f.read()
+                if env_data:
+                    break
+            except (OSError, PermissionError):
+                pass
+            time.sleep(0.04)
+
         entries = env_data.split(b"\x00")
         if target_entry not in entries:
             os.close(pidfd)
@@ -1011,13 +1020,23 @@ def test_timeout_cleanup_terminates_uncooperative_within_bounded_deadline(
         env={**os.environ, "MPIPS_E2E_GUARD_DIR": str(records.resolve())},
     )
 
-    t0 = time.monotonic()
-    terminated = terminate_guarded_processes(records, uncoop.pid, timeout=1.0)
-    duration = time.monotonic() - t0
+    try:
+        time.sleep(0.05)
+        t0 = time.monotonic()
+        terminated = terminate_guarded_processes(records, uncoop.pid, timeout=1.0)
+        duration = time.monotonic() - t0
 
-    assert uncoop.pid in terminated
-    assert duration < 2.5, f"cleanup exceeded bounded deadline: {duration}s"
-    assert not is_process_running(uncoop.pid), "uncooperative process survived SIGKILL"
+        assert uncoop.pid in terminated
+        assert duration < 2.5, f"cleanup exceeded bounded deadline: {duration}s"
+        assert not is_process_running(
+            uncoop.pid
+        ), "uncooperative process survived SIGKILL"
+    finally:
+        try:
+            uncoop.kill()
+            uncoop.wait()
+        except OSError:
+            pass
 
 
 def test_identifier_helper_rejects_non_synthetic() -> None:
