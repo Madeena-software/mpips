@@ -15,6 +15,7 @@ Proves:
    - Pixel determinism, orientation, permissions (0600), DICOM metadata.
 5. Exercises negative and security integration cases:
    - Unconfirmed operator selection.
+   - Encounter/visit identifier mismatch in SIMRS response.
    - Invalid manifest schema.
    - Identifier / gain mismatch.
    - Missing input NPZ.
@@ -28,6 +29,7 @@ from __future__ import annotations
 import copy
 import hashlib
 import json
+import os
 import subprocess
 import sys
 import tarfile
@@ -51,7 +53,14 @@ from scripts.simrs_manifest_example import build_manifest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES_DIR = REPO_ROOT / "docs" / "integration" / "examples"
-WINDOWS_HANDOFF_DIR = Path("/mnt/c/Users/faliq/Desktop/mpips-candidate-handoff")
+
+# Configurable candidate handoff directory (defaults to standard local path if set,
+# or MPIPS_CANDIDATE_DIR environment variable)
+DEFAULT_CANDIDATE_DIR = Path("/mnt/c/Users/faliq/Desktop/mpips-candidate-handoff")
+CANDIDATE_DIR = Path(os.environ.get("MPIPS_CANDIDATE_DIR", str(DEFAULT_CANDIDATE_DIR)))
+STRICT_QUALIFICATION = os.environ.get(
+    "MPIPS_STRICT_QUALIFICATION", ""
+).strip().lower() in ("1", "true", "yes")
 
 EXPECTED_COMMIT_SHA = "ebda70638a64294b6b794d6c3e862ce10b909d4d"
 EXPECTED_PACKAGE_SHA256 = (
@@ -69,6 +78,9 @@ VISIT = "SYNTHETIC-VISIT-2026-0001"
 CAPTURED_AT = "2026-10-12T10:00:00+07:00"
 SOP_CLASS_UID = "1.2.840.10008.5.1.4.1.1.1.1.1"
 
+# Regression pins for synthetic pipeline output.
+# These serve as exact regression anchors for this pipeline version and synthetic
+# inputs, not an independent proof of clinical numerical correctness.
 PIXEL_SHA256 = {
     "BED": "13a9a56a28e1cb6d0a6daf887cc3bf98fc9b85f17995935e6b933ead836510ca",
     "TRX": "24d4be23a354de71302a9d6bed77b29acef049f05863dcf86da1d7da835439c1",
@@ -91,12 +103,17 @@ def installed_runtime(tmp_path_factory: pytest.TempPathFactory) -> InstalledRunt
     """Fixture that verifies the candidate TAR package and installs it offline
     into a fresh venv.
     """
-    pkg_path = WINDOWS_HANDOFF_DIR / EXPECTED_PACKAGE_NAME
-    meta_path = WINDOWS_HANDOFF_DIR / EXPECTED_METADATA_NAME
+    pkg_path = CANDIDATE_DIR / EXPECTED_PACKAGE_NAME
+    meta_path = CANDIDATE_DIR / EXPECTED_METADATA_NAME
 
     if not pkg_path.is_file() or not meta_path.is_file():
+        if STRICT_QUALIFICATION:
+            pytest.fail(
+                f"STRICT QUALIFICATION FAILURE: Candidate package or metadata not "
+                f"found at {CANDIDATE_DIR}. Expected: {pkg_path} and {meta_path}."
+            )
         pytest.skip(
-            f"Candidate package or metadata not found at {WINDOWS_HANDOFF_DIR}. "
+            f"Candidate package or metadata not found at {CANDIDATE_DIR}. "
             "Requires offline candidate handoff directory."
         )
 
@@ -151,6 +168,25 @@ def installed_runtime(tmp_path_factory: pytest.TempPathFactory) -> InstalledRunt
     )
 
     assert runtime_bin.is_file()
+
+    # Verify runtime execution isolation from repository source tree
+    # Check that python in this venv imports mpips from its site-packages,
+    # NOT from /var/www/mpips or any repository path.
+    verify_cmd = [
+        str(python_bin),
+        "-c",
+        "import mpips, os; "
+        "p = os.path.abspath(mpips.__file__); "
+        "assert 'site-packages' in p, f'Expected site-packages import, got {p}'; "
+        "print('ISOLATED_OK:' + p)",
+    ]
+    env_clean = dict(os.environ)
+    env_clean.pop("PYTHONPATH", None)
+    out = subprocess.check_output(
+        verify_cmd, text=True, env=env_clean, cwd=str(work_dir)
+    )
+    assert "ISOLATED_OK:" in out
+
     return InstalledRuntime(
         venv_dir=venv_dir,
         python_bin=python_bin,
@@ -218,7 +254,7 @@ def test_packaged_runtime_version_and_interface(
     installed_runtime: InstalledRuntime,
 ) -> None:
     """Verify the installed candidate runtime reports the expected interface
-    and version via adapter.
+    and version via adapter check_version().
     """
     adapter = MPIPSSubprocessAdapter(installed_runtime.runtime_bin)
     info = adapter.check_version()
@@ -302,6 +338,15 @@ def test_negative_unconfirmed_patient_selection(tmp_path: Path) -> None:
     simrs_data = mock_simrs_response()
     with pytest.raises(ValueError, match="Operator did not confirm"):
         compose_synthetic_manifest(simrs_data, VISIT, "BED", confirmed=False)
+
+
+def test_negative_simrs_visit_mismatch(tmp_path: Path) -> None:
+    """Ensure visit identifier mismatch in SIMRS response halts before
+    manifest composition.
+    """
+    simrs_data = mock_simrs_response()
+    with pytest.raises(ValueError, match="Encounter ID mismatch"):
+        compose_synthetic_manifest(simrs_data, "WRONG-VISIT-ID", "BED", confirmed=True)
 
 
 def test_negative_invalid_manifest_schema(
@@ -399,6 +444,32 @@ def test_negative_output_dangling_symlink(
         )
     assert exc_info.value.exit_code == 4
     assert not target_dcm.exists()
+
+
+def test_negative_radiograph_gain_identifier_mismatch(
+    installed_runtime: InstalledRuntime, tmp_path: Path
+) -> None:
+    """Ensure radiograph referencing a mismatched gain id is rejected by the runtime."""
+    exam_dir = tmp_path / "gain_mismatch_exam"
+    rad_path, gain_path, manifest_file, cal_dir = make_inputs(exam_dir, "BED")
+    # Rewrite rad with non-matching gain id
+    rad_data = dict(np.load(rad_path, allow_pickle=True))
+    rad_data["gainid"] = np.array("SYNTHETIC-OTHER-GAIN")
+    np.savez_compressed(rad_path, **rad_data)
+
+    output_dcm = exam_dir / "result.dcm"
+
+    adapter = MPIPSSubprocessAdapter(installed_runtime.runtime_bin)
+    with pytest.raises(MPIPSInvalidInputError) as exc_info:
+        adapter.convert(
+            radiograph=rad_path,
+            gain=gain_path,
+            manifest=manifest_file,
+            calibration=cal_dir,
+            output=output_dcm,
+        )
+    assert exc_info.value.exit_code == 2
+    assert not output_dcm.exists()
 
 
 def test_negative_malicious_response_shielding(tmp_path: Path) -> None:
