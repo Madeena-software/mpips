@@ -536,6 +536,18 @@ installed BED/TRX smoke. Local Ubuntu 26.04 x86_64 / Python 3.12.14 / glibc 2.43
 also passed archive verification and offline installed smoke. These are synthetic
 qualification results; they do not establish clinical or detector-fleet readiness.
 
+The standalone synthetic end-to-end simulation suite (`tests/test_grabber_e2e_synthetic.py`)
+verifies the complete pipeline from mock SIMRS response, operator selection confirmation,
+and manifest composition to Grabber-owned capture metadata merge, synthetic radiograph/gain
+inputs with identity-remap calibration, and the real CLI subprocess (`python -m mpips.runtime convert`)
+producing a verified DICOM for both BED and TRX modes. It also tests pre-CLI rejections and
+CLI failure code mappings. Network prohibition across the subprocess boundary is test-enforced
+via child-process Python audit hooks. Real clinical data, hospital networks, SIMRS endpoints,
+and Google Drive collections are strictly excluded. Because this qualification uses synthetic
+inputs, identity-remap calibration, and Python-level (not kernel-level) network verification,
+it proves pipeline plumbing only and does not establish geometric-correction accuracy,
+clinical readiness, or fleet qualification.
+
 ## Privacy and approvals still required
 
 Run MPIPS as an unprivileged account. Restrict examination directories and backups,
