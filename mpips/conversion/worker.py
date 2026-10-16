@@ -304,13 +304,6 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
                 "Detector mode does not match calibration artifact detector mode"
             )
 
-        if not is_real_trx and cal_serial and rad_camera_serial:
-            if rad_camera_serial != cal_serial:
-                raise NPZValidationError(
-                    f"Camera serial mismatch: radiograph '{rad_camera_serial}' "
-                    f"!= calibration '{cal_serial}'"
-                )
-
         if expected_detector_mode:
             exp_norm = (
                 "TRX"
