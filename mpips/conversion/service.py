@@ -206,12 +206,29 @@ def _is_valid_calibration_dir(p: Path) -> bool:
 
 def resolve_calibration_artifact_dir() -> Path:
     """Resolves the pre-generated, validated calibration artifact directory."""
+    # 1. In PyInstaller frozen environments, sys._MEIPASS holds embedded calibration assets
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        bundle_cal = Path(meipass) / "mpips" / "resources" / "calibration"
+        if _is_valid_calibration_dir(bundle_cal):
+            return bundle_cal
+        bundle_cal_alt = Path(meipass) / "resources" / "calibration"
+        if _is_valid_calibration_dir(bundle_cal_alt):
+            return bundle_cal_alt
+
+    # 2. Check bundled/packaged resources relative to module
+    embedded_dir = Path(__file__).resolve().parent.parent / "resources" / "calibration"
+    if _is_valid_calibration_dir(embedded_dir):
+        return embedded_dir
+
+    # 3. Explicit environment override for testing or external deployment
     env_dir = os.getenv("MPIPS_CALIBRATION_ARTIFACT_DIR")
     if env_dir:
         p = Path(env_dir).expanduser().resolve()
         if _is_valid_calibration_dir(p):
             return p
 
+    # 4. Artifact root fallback (development only)
     artifact_root_env = os.getenv("MPIPS_ARTIFACT_ROOT")
     if artifact_root_env:
         root = Path(artifact_root_env).expanduser().resolve()
@@ -229,21 +246,6 @@ def resolve_calibration_artifact_dir() -> Path:
     )
     if _is_valid_calibration_dir(default_dir):
         return default_dir
-
-    # Check bundled/packaged resources (for frozen binary or installed package)
-    embedded_dir = Path(__file__).resolve().parent.parent / "resources" / "calibration"
-    if _is_valid_calibration_dir(embedded_dir):
-        return embedded_dir
-
-    # In PyInstaller frozen environments, sys._MEIPASS holds bundled data
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass:
-        bundle_cal = Path(meipass) / "mpips" / "resources" / "calibration"
-        if _is_valid_calibration_dir(bundle_cal):
-            return bundle_cal
-        bundle_cal_alt = Path(meipass) / "resources" / "calibration"
-        if _is_valid_calibration_dir(bundle_cal_alt):
-            return bundle_cal_alt
 
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,

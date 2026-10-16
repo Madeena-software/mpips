@@ -281,3 +281,55 @@ def test_adapter_validates_all_supported_exit_code_mappings(
     with pytest.raises(MPIPSRuntimeError) as exc:
         adapter.check_version()
     assert "Inconsistent response for exit" in str(exc.value)
+
+
+def test_adapter_accepts_experimental_interface_version(tmp_path: Path) -> None:
+    json_str = (
+        '{"status": "ok", "code": "OK", "interface_version": "2-experimental", '
+        '"runtime_version": "0.1.0"}'
+    )
+    script = _create_mock_script(tmp_path, f"echo '{json_str}'")
+    adapter = MPIPSSubprocessAdapter(script)
+    info = adapter.check_version()
+    assert info.interface_version == "2-experimental"
+    assert info.status == "ok"
+    assert info.code == "OK"
+
+
+def test_adapter_convert_experimental_without_calibration_arg(tmp_path: Path) -> None:
+    # Verifies that convert() without calibration argument emits exactly 4 flags
+    # and handles 2-experimental response correctly
+    script_record = tmp_path / "cmd.txt"
+    json_resp = (
+        '{"status": "ok", "code": "OK", "interface_version": "2-experimental", '
+        '"runtime_version": "0.1.0", "output_byte_size": 1234}'
+    )
+    script = _create_mock_script(
+        tmp_path,
+        f'echo "$@" > "{script_record}"\n'
+        f'touch "${{@: -1}}"\n'
+        f"echo '{json_resp}'\n"
+    )
+    rad = tmp_path / "rad.npz"
+    gain = tmp_path / "gain.npz"
+    manifest = tmp_path / "man.json"
+    out = tmp_path / "out.dcm"
+    rad.write_bytes(b"dummy")
+    gain.write_bytes(b"dummy")
+    manifest.write_bytes(b"dummy")
+
+    adapter = MPIPSSubprocessAdapter(script)
+    res = adapter.convert(
+        radiograph=rad,
+        gain=gain,
+        manifest=manifest,
+        output=out,
+    )
+    assert res.status == "ok"
+    assert res.interface_version == "2-experimental"
+    recorded_args = script_record.read_text()
+    assert "--calibration" not in recorded_args
+    assert "--radiograph" in recorded_args
+    assert "--gain" in recorded_args
+    assert "--manifest" in recorded_args
+    assert "--output" in recorded_args

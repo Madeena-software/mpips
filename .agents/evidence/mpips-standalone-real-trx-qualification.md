@@ -41,8 +41,8 @@ This qualification report records the review and full qualification of the self-
 | **Embedded Real TRX Calibration Provenance** | **PASS** | Archive hash verified against `2871e78f...`. Embedded metadata and remap array loaded and validated directly by worker child process. Large assets excluded from Git. |
 | **Full-Resolution Synthetic TRX Conversion** | **PASS** | 3000 x 4096 synthetic inputs processed through real TRX geometry into valid DICOM with 4096 x 3000 rotated uint16 pixel array in ~53s (~24.5 MiB DICOM). |
 | **Synthetic BED Regression** | **PASS** | Small synthetic BED test fixtures continue to convert without `--calibration` and pass regression invariants. |
-| **Grabber Adapter Compatibility** | **PASS** | `MPIPSSubprocessAdapter` updated with version-aware strategy supporting both interface 1 and experimental interface without `--calibration`. 20/20 unit/adapter tests passed. |
-| **Clean-Host Operation Without Python** | **PASS** | Executed in pure `env -i PATH=/usr/bin:/bin` from `/tmp` with zero Python/repo environment variables. Full-res DICOM conversion passed. |
+| **Grabber Adapter Compatibility** | **PASS** | `MPIPSSubprocessAdapter` updated with version-aware strategy supporting both interface 1 and experimental interface without `--calibration`. 22/22 unit/adapter tests passed. |
+| **Clean-Host Environment Isolation** | **PASS (Env-Isolated) / PENDING (Physical Bare Host)** | Subprocess execution verified in pure stripped environment (`env -i PATH=/usr/bin:/bin` from `/tmp`) with zero Python or repo variables. True clean-host qualification (on a container/VM with no Python installed on disk) remains pending container qualification. |
 | **Negative & Security Cases** | **PASS** | Rejection of camera serial mismatch, detector mode mismatch, missing inputs, malformed manifest, existing output, and dangling symlinks. File mode `0600` enforced. |
 | **Repository Regression & CI** | **PASS** | Protected converter check passed; Packaged Grabber E2E passed (11/11 tests). |
 
@@ -64,13 +64,13 @@ This qualification report records the review and full qualification of the self-
 
 ## 4. Grabber Adapter Version-Aware Integration
 
-`scripts/grabber_subprocess_adapter.py` now defines:
+`scripts/grabber_subprocess_adapter.py` defines:
 ```python
 SUPPORTED_INTERFACE_VERSION = "1"
 EXPERIMENTAL_INTERFACE_VERSION = "2-experimental"
 SUPPORTED_INTERFACE_VERSIONS = {SUPPORTED_INTERFACE_VERSION, EXPERIMENTAL_INTERFACE_VERSION}
 ```
-When invoking `convert`, `calibration` is optional. When omitted, the adapter omits `--calibration` from the argument vector. Existing interface 1 invocations with `--calibration` remain 100% backward compatible and tested.
+When invoking `convert`, `calibration` is optional. When omitted, the adapter omits `--calibration` from the argument vector. Existing interface 1 invocations with `--calibration` remain 100% backward compatible and tested (22 tests passed).
 
 ---
 
@@ -105,7 +105,7 @@ tests/test_standalone_bin_qualification.py::test_bin_negative_detector_mode_mism
 ### Subprocess Adapter Suite
 Command: `.venv/bin/pytest tests/test_grabber_subprocess_adapter.py -v`
 ```text
-============================= 20 passed in 12.06s ==============================
+============================= 22 passed in 13.08s ==============================
 ```
 
 ### Packaged Grabber E2E Regression
