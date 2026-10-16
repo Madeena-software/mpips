@@ -217,17 +217,21 @@ def resolve_calibration_artifact_dir() -> Path:
         if _is_valid_calibration_dir(bundle_cal_alt):
             return bundle_cal_alt
 
-    # 2. Check bundled/packaged resources relative to module
-    embedded_dir = Path(__file__).resolve().parent.parent / "resources" / "calibration"
-    if _is_valid_calibration_dir(embedded_dir):
-        return embedded_dir
-
-    # 3. Explicit environment override for testing or external deployment
+    # 2. Explicit environment override for testing or external deployment
     env_dir = os.getenv("MPIPS_CALIBRATION_ARTIFACT_DIR")
     if env_dir:
         p = Path(env_dir).expanduser().resolve()
         if _is_valid_calibration_dir(p):
             return p
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CALIBRATION_ARTIFACT_MISSING",
+        )
+
+    # 3. Check bundled/packaged resources relative to module (installed package)
+    embedded_dir = Path(__file__).resolve().parent.parent / "resources" / "calibration"
+    if _is_valid_calibration_dir(embedded_dir):
+        return embedded_dir
 
     # 4. Artifact root fallback (development only)
     artifact_root_env = os.getenv("MPIPS_ARTIFACT_ROOT")

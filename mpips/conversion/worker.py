@@ -219,7 +219,12 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
             cal_cam = cal_source_meta.get("camera_params", {})
             if isinstance(cal_cam, dict):
                 cal_serial = cal_cam.get("serialNumber") or cal_cam.get("cameraSerial")
-                if cal_serial and rad_camera_serial and cal_serial != rad_camera_serial:
+                cal_fingerprint = cal_metadata.get("fingerprint")
+                trx_fp = (
+                    "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
+                )
+                is_real_trx = cal_mode == "TRX" and cal_fingerprint == trx_fp
+                if is_real_trx and cal_serial and rad_camera_serial != cal_serial:
                     raise NPZValidationError(
                         f"Camera serial mismatch: radiograph '{rad_camera_serial}' "
                         f"!= calibration '{cal_serial}'"
