@@ -19,7 +19,7 @@ This qualification report records the review, remediation, and qualification of 
 - **File Size:** `237,341,200` bytes (~226 MiB).
 - **Local Candidate SHA-256 Digest:**
   ```text
-  b9b9db3ee056b31f8a1e378a7c38e53bed0bbef9cb72ab5e38df0d6903e4e07f
+  f0651c6c49e2deec17133111fa826ceb3d5ed95071946f8ba387d894cf9508ec
   ```
   *(Note: Tied explicitly to validated local build; binary payload is not committed to git or uploaded to GitHub Actions).*
 - **Designated Real TRX Asset Provenance:**
