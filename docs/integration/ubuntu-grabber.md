@@ -19,6 +19,7 @@ use or release.
 | Ubuntu 24.04 x86_64 qualification | Synthetic CI qualification passed at `2e5441f`; exact evidence in `.agents/evidence/ubuntu-grabber-runtime.md`; clinical/hardware approval remains open |
 | Madeena update endpoints, promotion, activation and rollback | Proposed contracts for infrastructure owner / Grabber developer; not deployed or implemented by MPIPS |
 | RSKIA SIMRS endpoint and field names | Human-supplied observed evidence; address/auth/errors/types/date and sex semantics unverified |
+| Developer Integration Handoff Kit | [Ready in grabber-handoff-kit/README.md](grabber-handoff-kit/README.md); includes Python subprocess adapter and acceptance checklist |
 | Clinical/hardware qualification and binary redistribution | Pending separate approval, including ImageJ-style licensing review |
 
 ## Architecture and network boundaries
