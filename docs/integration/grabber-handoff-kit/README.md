@@ -5,12 +5,14 @@ Welcome to the MPIPS Grabber Developer Integration Handoff Kit. This documentati
 > **CRITICAL BOUNDARY NOTICE**
 > - The MPIPS offline runtime package is a **DEVELOPMENT CANDIDATE — NOT APPROVED FOR DISTRIBUTION**.
 > - Redistribution, clinical use, or deployment to hospital production requires separate regulatory and institutional authorization (**G10 Release Gate: NOT RELEASED**).
+> - Candidate `.release.json` metadata contains local development test sequence identifiers and is **unsigned**. Production releases require monotonic sequences signed with an approved Ed25519 key by the designated release owner.
+> - Note: The existing Milestone 3 candidate package (`mpips-0.1.0-ebda70638a64294b6b794d6c3e862ce10b909d4d-ubuntu24.04-x86_64-py312.tar.gz`) predates the Python subprocess adapter introduced in PR #18; the adapter script (`scripts/grabber_subprocess_adapter.py`) is delivered in the repository source tree and is designed to be copied directly into or vendored by the Grabber application.
 
 ---
 
 ## 1. Supported Platform & Runtime Prerequisites
 
-* **Operating System**: Ubuntu 24.04 LTS (`noble`) or higher, running natively or on validated target hardware.
+* **Operating System**: **Ubuntu 24.04 LTS (`noble`)** (specifically tested and qualified on Ubuntu 24.04.2 LTS). Other Linux distributions or Ubuntu versions are currently unverified.
 * **Architecture**: `x86_64`.
 * **System Python**: CPython **3.12** pre-installed from Ubuntu distribution packages (`python3.12`, `python3.12-venv`).
 * **glibc**: Minimum version **2.39**.
@@ -20,7 +22,7 @@ Welcome to the MPIPS Grabber Developer Integration Handoff Kit. This documentati
 
 ## 2. Offline Installation & Version Lifecycle
 
-The MPIPS runtime is delivered as an offline wheelhouse bundle (`.tar.gz`) accompanied by signed metadata (`.release.json`).
+The MPIPS runtime is delivered as an offline wheelhouse bundle (`.tar.gz`) accompanied by candidate metadata (`.release.json`).
 
 ### Recommended Directory Layout on Grabber Host
 
@@ -69,7 +71,7 @@ mpips-runtime convert \
 ```
 
 ### Standard Output & Status Semantics
-`mpips-runtime` emits **exactly one JSON line** on stdout.
+`mpips-runtime` emits **exactly one JSON object** on stdout.
 
 #### Successful Conversion
 ```json
@@ -88,7 +90,7 @@ mpips-runtime convert \
 | `0` | `OK` | Conversion succeeded. Consume and transfer output DICOM. |
 | `2` | `INVALID_INPUT` | Bad manifest schema, dimension mismatch, or missing required tags. Do not auto-retry. |
 | `3` | `INPUT_NOT_FOUND` | Specified input file or calibration folder does not exist. Verify filesystem paths. |
-| `4` | `OUTPUT_EXISTS` | Destination file already exists. MPIPS will not overwrite. Choose a new destination. |
+| `4` | `OUTPUT_EXISTS` | Destination file or symlink already exists. MPIPS will not overwrite. Choose a new destination. |
 | `5` | `CONVERSION_TIMEOUT` | Conversion exceeded timeout limit. Preserve inputs and notify operator. |
 | `6` | `IO_ERROR` | Permission denied or disk full. Check filesystem permissions. |
 | `7` | `CONVERSION_FAILED` | Internal conversion algorithm failure. Preserve inputs for engineering diagnosis. |
@@ -98,13 +100,22 @@ mpips-runtime convert \
 ## 4. Manifest & Input Contracts
 
 ### Manifest Schema (`MHCSManifest` v1.0)
-The manifest must be a UTF-8 JSON file conforming to the MHCS v1.0 schema:
-* `patient`: `medical_record_number`, `name`, `sex` (`"M"`, `"F"`, `"O"`, or `"unknown"`), `birth_date` (`"YYYY-MM-DD"`).
-* `examination`: `encounter_id` (string), `performed_at` (ISO 8601 string).
-* `capture`: `detector_type` (`"BED"` or `"TRX"`), `body_part_examined` (`"CHEST"`), `projection` (`"PA"` or `"AP"`), `detector_spacing` (`{"row_mm": float, "column_mm": float}`), `captured_at`.
+The manifest must be a UTF-8 JSON file conforming to the `MHCSManifest` schema (`mpips/api/schemas/dicom.py`):
+* `patient`:
+  * `medical_record_number`: string (1–64 characters).
+  * `name`: string or `{"full_name": "..."}`.
+  * `sex`: Allowed values are `"male"`, `"female"`, `"other"`, or `"unknown"` (case-insensitive in Pydantic schema).
+    * Mapping to DICOM `PatientSex`:
+      * `"male"` $\to$ `"M"`
+      * `"female"` $\to$ `"F"`
+      * `"other"` $\to$ `"O"`
+      * `"unknown"` $\to$ `""` (empty string)
+  * `birth_date`: Optional ISO date (`"YYYY-MM-DD"`).
+* `examination`: `encounter_id` (string), `performed_at` (ISO 8601 string with timezone offset).
+* `capture`: `detector_type` (`"BED"` or `"TRX"`), `body_part_examined` (`"CHEST"`), `projection` (`"PA"` or `"AP"`), `detector_spacing` (`{"row_mm": float, "column_mm": float}`), `captured_at` (ISO 8601 string with timezone offset).
 * `dicom`: `pixel_source` (`"CANONICAL_PRE_PRESENTATION"`), `pixel_intensity_relationship` (`"LIN"`), `pixel_intensity_relationship_sign` (`1`).
 
-See complete reference in [`docs/integration/examples/grabber-manifest.synthetic.json`](../examples/grabber-manifest.synthetic.json).
+See complete reference in [grabber-manifest.synthetic.json](../examples/grabber-manifest.synthetic.json).
 
 ### NPZ Array Contract
 * **Radiograph NPZ (`radiograph.npz`)**: Must contain `rawimage` (2D `uint16`), `id` (string), `gainid` (string matching gain NPZ), `cameraparams`, and `xrayparams` (`{"detectorMode": "BED"|"TRX"}`).
@@ -115,8 +126,17 @@ See complete reference in [`docs/integration/examples/grabber-manifest.synthetic
 
 ## 5. Ready-to-Use Python Subprocess Adapter
 
-For Python-based Grabber applications, a minimal, robust adapter is provided in the repository:
-[`scripts/grabber_subprocess_adapter.py`](file:///var/www/mpips/scripts/grabber_subprocess_adapter.py).
+For Python-based Grabber applications, an adapter is provided in the repository:
+[scripts/grabber_subprocess_adapter.py](../../../scripts/grabber_subprocess_adapter.py).
+
+### Safety Features
+1. **Existing Output & Symlink Rejection**: Rejects output paths if they exist or are symlinks (including dangling symlinks) *before* path resolution, preserving the runtime's strict no-overwrite guarantees.
+2. **Strict Response Verification**: Enforces single-line JSON output, verifies required keys (`interface_version`, `runtime_version`, `status`, `code`), checks `interface_version == "1"`, and ensures status/exit code consistency.
+3. **Information Shielding**: Exceptions sanitize error messages; they never leak raw stdout or patient metadata into exception strings or logs.
+4. **Subprocess Timeout & Termination**: Enforces timeout limits and terminates timed-out child processes cleanly via `proc.kill()` and `proc.wait()`.
+
+> **Process Lifecycle Limitation Note**:
+> While `MPIPSSubprocessAdapter` terminates the direct `mpips-runtime` process on timeout, `mpips-runtime` itself launches an internal worker script (`python -m mpips.workflows.imager_pipeline.file_runner`). In rare instances where the parent process is abruptly terminated, the detached descendant worker could temporarily persist until its own internal CPU/timeout limits expire (`MPIPS_DICOM_PROCESS_TIMEOUT_SECONDS`, default 300s). Callers running on Linux can use session groups (`os.setsid`) or `prctl(PR_SET_PDEATHSIG)` if aggressive descendant tree termination is required.
 
 ### Quick Usage Example
 ```python
@@ -125,6 +145,7 @@ from scripts.grabber_subprocess_adapter import (
     MPIPSSubprocessAdapter,
     MPIPSRuntimeError,
     MPIPSInvalidInputError,
+    MPIPSOutputExistsError,
 )
 
 # 1. Initialize adapter with runtime binary
@@ -144,7 +165,9 @@ try:
         output="/opt/madeena/clinical/exam-001/exam-001.dcm",
         timeout=300.0,
     )
-    print(f"DICOM generated successfully: {result.output_path}")
+    print(f"DICOM generated successfully: {result.output_path} ({result.output_byte_size} bytes)")
+except MPIPSOutputExistsError as exc:
+    print(f"Output path conflict (existing file or symlink): {exc}")
 except MPIPSInvalidInputError as exc:
     print(f"Input validation rejected by MPIPS: {exc.response.get('code')}")
 except MPIPSRuntimeError as exc:
@@ -174,6 +197,7 @@ Prior to requesting clinical integration testing or deployment review, external 
   - [ ] Verified clockwise 90-degree canonical TRX transformation in DICOM output.
 - [ ] **5. Error Handling & Edge Cases**:
   - [ ] Tested duplicate output path: Verified exit code `4` (`OUTPUT_EXISTS`) and preservation of existing file.
+  - [ ] Tested dangling symlink output path: Verified rejection with exit code `4` (`OUTPUT_EXISTS`) without following the link.
   - [ ] Tested missing gain NPZ: Verified exit code `3` (`INPUT_NOT_FOUND`).
   - [ ] Tested malformed manifest JSON: Verified exit code `2` (`INVALID_INPUT`).
   - [ ] Tested process timeout: Verified process termination and cleanup of temporary staging files.
