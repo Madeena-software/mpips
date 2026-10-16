@@ -206,7 +206,8 @@ def _is_valid_calibration_dir(p: Path) -> bool:
 
 def resolve_calibration_artifact_dir() -> Path:
     """Resolves the pre-generated, validated calibration artifact directory."""
-    # 1. In PyInstaller frozen environments, sys._MEIPASS holds embedded calibration assets
+    # 1. In PyInstaller frozen environments, sys._MEIPASS holds embedded
+    # calibration assets
     meipass = getattr(sys, "_MEIPASS", None)
     if meipass:
         bundle_cal = Path(meipass) / "mpips" / "resources" / "calibration"
@@ -493,8 +494,8 @@ def run_isolated_dicom_conversion(
             )
 
             if getattr(sys, "frozen", False):
-                # When frozen under PyInstaller, sys.executable is the standalone binary.
-                # Pass a special internal subcommand or flag to run the worker entrypoint.
+                # Under PyInstaller frozen mode, sys.executable is the binary.
+                # Pass a special internal subcommand to run worker entrypoint.
                 cmd = [
                     sys.executable,
                     "_internal_worker",
