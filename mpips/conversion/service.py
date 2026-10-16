@@ -230,6 +230,21 @@ def resolve_calibration_artifact_dir() -> Path:
     if _is_valid_calibration_dir(default_dir):
         return default_dir
 
+    # Check bundled/packaged resources (for frozen binary or installed package)
+    embedded_dir = Path(__file__).resolve().parent.parent / "resources" / "calibration"
+    if _is_valid_calibration_dir(embedded_dir):
+        return embedded_dir
+
+    # In PyInstaller frozen environments, sys._MEIPASS holds bundled data
+    meipass = getattr(sys, "_MEIPASS", None)
+    if meipass:
+        bundle_cal = Path(meipass) / "mpips" / "resources" / "calibration"
+        if _is_valid_calibration_dir(bundle_cal):
+            return bundle_cal
+        bundle_cal_alt = Path(meipass) / "resources" / "calibration"
+        if _is_valid_calibration_dir(bundle_cal_alt):
+            return bundle_cal_alt
+
     raise HTTPException(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         detail="CALIBRATION_ARTIFACT_MISSING",
@@ -475,16 +490,27 @@ def run_isolated_dicom_conversion(
                 }
             )
 
-            venv_python = Path(sys.prefix) / "bin" / "python"
-            python_bin = str(venv_python) if venv_python.exists() else sys.executable
-
-            cmd = [
-                python_bin,
-                "-m",
-                "mpips.conversion.worker",
-                str(args_path),
-                str(result_path),
-            ]
+            if getattr(sys, "frozen", False):
+                # When frozen under PyInstaller, sys.executable is the standalone binary.
+                # Pass a special internal subcommand or flag to run the worker entrypoint.
+                cmd = [
+                    sys.executable,
+                    "_internal_worker",
+                    str(args_path),
+                    str(result_path),
+                ]
+            else:
+                venv_python = Path(sys.prefix) / "bin" / "python"
+                python_bin = (
+                    str(venv_python) if venv_python.exists() else sys.executable
+                )
+                cmd = [
+                    python_bin,
+                    "-m",
+                    "mpips.conversion.worker",
+                    str(args_path),
+                    str(result_path),
+                ]
 
             try:
                 proc = subprocess.Popen(

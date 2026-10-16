@@ -1,0 +1,16 @@
+{
+  "validated": true,
+  "fingerprint": "SYNTHETIC-EMBEDDED-TRX-CALIBRATION-V1",
+  "image_shape": [
+    48,
+    64
+  ],
+  "source_metadata": {
+    "detector_mode": "TRX",
+    "camera_params": {
+      "serialNumber": "SYNTHETIC-CAMERA"
+    }
+  },
+  "classification": "SYNTHETIC_DEVELOPMENT_ONLY",
+  "notice": "Synthetic identity calibration profile for development and CI testing only. NOT FOR CLINICAL USE."
+}
