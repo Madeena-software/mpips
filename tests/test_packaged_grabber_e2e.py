@@ -33,7 +33,7 @@ import sys
 import tarfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import numpy as np
 import pydicom
@@ -162,7 +162,10 @@ def installed_runtime(tmp_path_factory: pytest.TempPathFactory) -> InstalledRunt
 
 
 def mock_simrs_response() -> dict[str, Any]:
-    return json.loads((EXAMPLES_DIR / "simrs-response.synthetic.json").read_text())
+    return cast(
+        dict[str, Any],
+        json.loads((EXAMPLES_DIR / "simrs-response.synthetic.json").read_text()),
+    )
 
 
 def confirm_patient_selection(response: Any, visit: str, confirmed: bool) -> None:
