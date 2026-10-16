@@ -6,7 +6,7 @@ block_cipher = None
 
 import os
 from pathlib import Path
-REPO_ROOT = Path('/var/www/mpips')
+REPO_ROOT = Path(SPECPATH).resolve().parent
 
 # Collect submodules and data files
 hiddenimports = [

@@ -1,16 +1,58 @@
 {
-  "validated": true,
-  "fingerprint": "SYNTHETIC-EMBEDDED-TRX-CALIBRATION-V1",
-  "image_shape": [
-    48,
-    64
-  ],
-  "source_metadata": {
-    "detector_mode": "TRX",
-    "camera_params": {
-      "serialNumber": "SYNTHETIC-CAMERA"
-    }
+  "source_sha256": "477b403b393f94a8ae821e63bd2c79c54ee1e7d3b21e36fbd6452f52be9ebcd1",
+  "config": {
+    "epochs": 5000,
+    "learning_rate": 0.001,
+    "target_loss": 5.0,
+    "hidden_dim": 64,
+    "seed": 42,
+    "smoothness_weight": 0.001,
+    "edge_balance_weight": 0.3,
+    "center_marker_min_ratio": 1.5,
+    "threshold": 128,
+    "minimum_contour_area": 10.0,
+    "row_tolerance": 50.0,
+    "remap_step": 4,
+    "inverse_iterations": 10,
+    "batch_size": 262144,
+    "device": "auto",
+    "canvas_mode": "fixed",
+    "expanded_bounds_step": 4,
+    "expanded_margin": 16,
+    "min_straightness_reduction": 50.0,
+    "min_reprojection_reduction": 50.0,
+    "min_spacing_reduction": 30.0,
+    "min_diameter_reduction": 0.0
   },
-  "classification": "SYNTHETIC_DEVELOPMENT_ONLY",
-  "notice": "Synthetic identity calibration profile for development and CI testing only. NOT FOR CLINICAL USE."
+  "image_shape": [
+    3000,
+    4096
+  ],
+  "mpips_version": "0.1.0",
+  "fingerprint": "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d",
+  "validated": true,
+  "source": "research/phantom-gotri-thorax/output/work/processed_trx_calibration.npz",
+  "source_metadata": {
+    "id": "GOTRI-TRX-001",
+    "gain_id": "GAIN-TRX-001",
+    "camera_params": {
+      "serialNumber": "DA5234480",
+      "cameraSerial": "DA5234480",
+      "cameraModel": "MV-CH120-10UM"
+    },
+    "detector_mode": "TRX"
+  },
+  "grid_shape": [
+    18,
+    25
+  ],
+  "diagnostic_only": false,
+  "validation_scope": "LOCAL_REAL_TRX_ACCEPTANCE",
+  "validation_cases": [
+    1,
+    2,
+    3
+  ],
+  "detector_mode": "TRX",
+  "transform_kind": "geometric_calibration"
 }

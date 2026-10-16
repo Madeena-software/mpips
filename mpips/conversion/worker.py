@@ -76,10 +76,17 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         rad_mode = rad_info["detector_mode"]
 
         # 2. Resolve calibration artifact directory (single-mode or multi-mode)
+        rad_camera_params = rad_info.get("camera_params") or {}
+        rad_camera_serial = (
+            rad_camera_params.get("serialNumber")
+            or rad_camera_params.get("cameraSerial")
+        )
+
         selected_cal_dir = None
         if (cal_dir / "metadata.json").is_file():
             selected_cal_dir = cal_dir
         else:
+            candidates = []
             for sub in sorted(cal_dir.iterdir()):
                 if sub.is_dir() and (sub / "metadata.json").is_file():
                     try:
@@ -88,18 +95,40 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
                         )
                         if isinstance(sub_meta, dict):
                             src_meta = sub_meta.get("source_metadata", {})
-                            if (
-                                isinstance(src_meta, dict)
-                                and src_meta.get("detector_mode") == rad_mode
-                            ):
-                                selected_cal_dir = sub
-                                break
+                            if isinstance(src_meta, dict):
+                                sub_mode = src_meta.get("detector_mode")
+                                if sub_mode == rad_mode:
+                                    # If camera serial is present in both, verify match
+                                    cal_cam = src_meta.get("camera_params", {})
+                                    cal_serial = (
+                                        cal_cam.get("serialNumber")
+                                        or cal_cam.get("cameraSerial")
+                                    )
+                                    # Match if serials agree, or if either is unspecified
+                                    if (
+                                        rad_camera_serial is None
+                                        or cal_serial is None
+                                        or rad_camera_serial == cal_serial
+                                    ):
+                                        candidates.append((sub, cal_serial == rad_camera_serial))
                     except Exception:
                         continue
 
+            if len(candidates) == 1:
+                selected_cal_dir = candidates[0][0]
+            elif len(candidates) > 1:
+                # Disambiguate by exact camera serial match
+                exact_matches = [p for p, exact in candidates if exact]
+                if len(exact_matches) == 1:
+                    selected_cal_dir = exact_matches[0]
+                else:
+                    raise NPZValidationError(
+                        f"Ambiguous calibration profiles found for mode {rad_mode}"
+                    )
+
         if not selected_cal_dir:
             raise NPZValidationError(
-                "Calibration artifact missing metadata.json or remap.npz"
+                f"No matching calibration artifact found for detector mode {rad_mode}"
             )
 
         cal_metadata_path = selected_cal_dir / "metadata.json"
@@ -186,6 +215,14 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
                 raise NPZValidationError(
                     "Detector mode does not match calibration artifact detector mode"
                 )
+            cal_cam = cal_source_meta.get("camera_params", {})
+            if isinstance(cal_cam, dict):
+                cal_serial = cal_cam.get("serialNumber") or cal_cam.get("cameraSerial")
+                if cal_serial and rad_camera_serial and cal_serial != rad_camera_serial:
+                    raise NPZValidationError(
+                        f"Camera serial mismatch: radiograph '{rad_camera_serial}' "
+                        f"!= calibration '{cal_serial}'"
+                    )
 
         if expected_detector_mode:
             exp_norm = (

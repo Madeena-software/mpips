@@ -1,10 +1,10 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 from PyInstaller.utils.hooks import collect_submodules, collect_data_files
+import os
 from pathlib import Path
-
 block_cipher = None
-REPO_ROOT = Path('/var/www/mpips')
+REPO_ROOT = Path(SPECPATH).resolve().parent
 
 # Collect submodules and data files
 hiddenimports = [

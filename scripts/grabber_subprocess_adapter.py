@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONVERT_TIMEOUT_SECONDS = 300.0
 SUPPORTED_INTERFACE_VERSION = "1"
+EXPERIMENTAL_INTERFACE_VERSION = "2-experimental"
+SUPPORTED_INTERFACE_VERSIONS = {SUPPORTED_INTERFACE_VERSION, EXPERIMENTAL_INTERFACE_VERSION}
 
 # Exact expected mapping between exit codes and JSON code strings
 EXIT_CODE_TO_EXPECTED_JSON_CODE: dict[int, str] = {
@@ -135,7 +137,7 @@ class MPIPSSubprocessAdapter:
                 response=data,
             )
 
-        if data.get("interface_version") != SUPPORTED_INTERFACE_VERSION:
+        if data.get("interface_version") not in SUPPORTED_INTERFACE_VERSIONS:
             raise MPIPSRuntimeError(
                 "Unsupported interface version: " f"{data.get('interface_version')}",
                 exit_code=proc.returncode,
@@ -155,7 +157,7 @@ class MPIPSSubprocessAdapter:
         radiograph: Path | str,
         gain: Path | str,
         manifest: Path | str,
-        calibration: Path | str,
+        calibration: Path | str | None = None,
         output: Path | str,
         timeout: float = DEFAULT_CONVERT_TIMEOUT_SECONDS,
     ) -> ConversionResult:
@@ -165,7 +167,8 @@ class MPIPSSubprocessAdapter:
             radiograph: Path to acquisition radiograph.npz
             gain: Path to matching gain.npz
             manifest: Path to MHCSManifest JSON file
-            calibration: Directory of validated detector calibration
+            calibration: Directory of validated detector calibration (optional
+                if runtime binary provides embedded calibration)
             output: Path where output DICOM should be created (must not exist or
                 be symlink)
             timeout: Subprocess timeout in seconds
@@ -183,7 +186,7 @@ class MPIPSSubprocessAdapter:
         rad_p = Path(radiograph).resolve()
         gain_p = Path(gain).resolve()
         man_p = Path(manifest).resolve()
-        cal_p = Path(calibration).resolve()
+        cal_p = Path(calibration).resolve() if calibration is not None else None
         out_p = raw_out.resolve()
 
         # Re-check resolved output path as well
@@ -200,7 +203,7 @@ class MPIPSSubprocessAdapter:
             raise MPIPSInputNotFoundError("Gain file does not exist", exit_code=3)
         if not man_p.is_file():
             raise MPIPSInputNotFoundError("Manifest file does not exist", exit_code=3)
-        if not cal_p.is_dir():
+        if cal_p is not None and not cal_p.is_dir():
             raise MPIPSInputNotFoundError(
                 "Calibration directory does not exist", exit_code=3
             )
@@ -214,11 +217,10 @@ class MPIPSSubprocessAdapter:
             str(gain_p),
             "--manifest",
             str(man_p),
-            "--calibration",
-            str(cal_p),
-            "--output",
-            str(out_p),
         ]
+        if cal_p is not None:
+            cmd.extend(["--calibration", str(cal_p)])
+        cmd.extend(["--output", str(out_p)])
 
         proc: subprocess.Popen[str] | None = None
         try:
@@ -321,7 +323,7 @@ class MPIPSSubprocessAdapter:
                 exit_code=expected_exit,
             )
 
-        if data.get("interface_version") != SUPPORTED_INTERFACE_VERSION:
+        if data.get("interface_version") not in SUPPORTED_INTERFACE_VERSIONS:
             raise MPIPSRuntimeError(
                 "Unsupported runtime interface version: "
                 f"{data.get('interface_version')}",

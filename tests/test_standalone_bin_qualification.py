@@ -99,11 +99,78 @@ def test_bin_convert_bed_synthetic_no_calibration(
     assert pixels[0, 0] == pixels.max()
 
 
-def test_bin_convert_trx_synthetic_no_calibration(
+def test_bin_convert_trx_full_resolution_no_calibration(
     runtime_bin: Path, tmp_path: Path
 ) -> None:
-    rad, gain, manifest, _ = make_inputs(tmp_path / "trx", "TRX")
-    output = tmp_path / "trx" / "result.dcm"
+    # Build 3000 x 4096 synthetic inputs matching real TRX calibration profile
+    shape = (3000, 4096)
+    root = tmp_path / "trx_full"
+    root.mkdir(parents=True)
+    rad = root / "radiograph.npz"
+    gain = root / "gain.npz"
+    manifest = root / "manifest.json"
+    output = root / "result.dcm"
+
+    camera = {
+        "serialNumber": "DA5234480",
+        "cameraSerial": "DA5234480",
+        "cameraModel": "MV-CH120-10UM",
+    }
+    xray = {"detectorMode": "TRX"}
+
+    raw_img = (np.linspace(1000, 30000, shape[0] * shape[1], dtype=np.uint16).reshape(shape))
+    np.savez_compressed(
+        rad,
+        id=np.array("REAL-TRX-RAD-001"),
+        gainid=np.array("GAIN-TRX-001"),
+        rawimage=raw_img,
+        cameraparams=np.array(camera),
+        xrayparams=np.array(xray),
+    )
+    np.savez_compressed(
+        gain,
+        id=np.array("GAIN-TRX-001"),
+        rawimage=np.full(shape, 35000, dtype=np.uint16),
+        darkimage=np.full(shape, 50, dtype=np.uint16),
+        cameraparams=np.array(camera),
+        xrayparams=np.array(xray),
+    )
+    manifest.write_text(
+        json.dumps(
+            {
+                "manifest_version": "1.0",
+                "patient": {
+                    "medical_record_number": "SYNTHETIC-REAL-TRX-001",
+                    "name": "SYNTHETIC REAL TRX PATIENT",
+                    "sex": "unknown",
+                    "birth_date": "1990-01-01",
+                },
+                "examination": {
+                    "encounter_id": "VISIT-REAL-TRX-001",
+                    "performed_at": "2026-10-16T10:00:00+07:00",
+                },
+                "capture": {
+                    "detector_type": "TRX",
+                    "body_part_examined": "CHEST",
+                    "projection": "PA",
+                    "view_code_sequence": [
+                        {
+                            "code_value": "272479007",
+                            "coding_scheme_designator": "SCT",
+                            "code_meaning": "postero-anterior",
+                        }
+                    ],
+                    "captured_at": "2026-10-16T10:00:00+07:00",
+                    "detector_spacing": {"row_mm": 0.15, "column_mm": 0.16},
+                },
+                "dicom": {
+                    "pixel_source": "CANONICAL_PRE_PRESENTATION",
+                    "pixel_intensity_relationship": "LIN",
+                    "pixel_intensity_relationship_sign": 1,
+                },
+            }
+        )
+    )
 
     env = dict(os.environ)
     env.pop("PYTHONPATH", None)
@@ -134,16 +201,129 @@ def test_bin_convert_trx_synthetic_no_calibration(
     assert output.stat().st_size == report["output_byte_size"]
     assert output.stat().st_mode & 0o777 == 0o600
 
-    verify_output(output, "TRX")
-
     ds = pydicom.dcmread(output)
-    pixels = ds.pixel_array
-    # TRX synthetic pipeline rotates clockwise 90 degrees -> (48, 64) becomes (64, 48)
-    assert pixels.shape == (64, 48)
-    assert pixels.dtype == np.uint16
-    # TRX row gradient monotonicity invariant
-    values = pixels.astype(np.int64)
-    assert np.all(np.diff(values, axis=1) >= 0)
+    assert ds.Modality == "DX"
+    assert ds.SOPClassUID == "1.2.840.10008.5.1.4.1.1.1.1.1"
+    # Full resolution TRX: 3000 x 4096 rotated 90-deg clockwise -> 4096 x 3000
+    assert ds.pixel_array.shape == (4096, 3000)
+    assert ds.pixel_array.dtype == np.uint16
+
+
+def test_bin_via_adapter_no_calibration(runtime_bin: Path, tmp_path: Path) -> None:
+    from scripts.grabber_subprocess_adapter import MPIPSSubprocessAdapter
+
+    adapter = MPIPSSubprocessAdapter(runtime_bin)
+    info = adapter.check_version()
+    assert info.interface_version == "2-experimental"
+    assert info.status == "ok"
+
+    rad, gain, manifest, _ = make_inputs(tmp_path / "bed_adapter", "BED")
+    output = tmp_path / "bed_adapter" / "result.dcm"
+
+    # Invoke without calibration keyword
+    res = adapter.convert(
+        radiograph=rad,
+        gain=gain,
+        manifest=manifest,
+        output=output,
+    )
+    assert res.status == "ok"
+    assert res.code == "OK"
+    assert res.interface_version == "2-experimental"
+    assert output.is_file()
+    assert output.stat().st_size == res.output_byte_size
+
+
+def test_bin_negative_camera_serial_mismatch(runtime_bin: Path, tmp_path: Path) -> None:
+    shape = (3000, 4096)
+    root = tmp_path / "trx_serial_mismatch"
+    root.mkdir(parents=True)
+    rad = root / "radiograph.npz"
+    gain = root / "gain.npz"
+    manifest = root / "manifest.json"
+    output = root / "result.dcm"
+
+    wrong_camera = {
+        "serialNumber": "WRONG-SERIAL-9999",
+        "cameraSerial": "WRONG-SERIAL-9999",
+        "cameraModel": "MV-CH120-10UM",
+    }
+    xray = {"detectorMode": "TRX"}
+
+    raw_img = (np.linspace(1000, 30000, shape[0] * shape[1], dtype=np.uint16).reshape(shape))
+    np.savez_compressed(
+        rad,
+        id=np.array("REAL-TRX-RAD-001"),
+        gainid=np.array("GAIN-TRX-001"),
+        rawimage=raw_img,
+        cameraparams=np.array(wrong_camera),
+        xrayparams=np.array(xray),
+    )
+    np.savez_compressed(
+        gain,
+        id=np.array("GAIN-TRX-001"),
+        rawimage=np.full(shape, 35000, dtype=np.uint16),
+        darkimage=np.full(shape, 50, dtype=np.uint16),
+        cameraparams=np.array(wrong_camera),
+        xrayparams=np.array(xray),
+    )
+    manifest.write_text(
+        json.dumps(
+            {
+                "manifest_version": "1.0",
+                "patient": {
+                    "medical_record_number": "SYNTHETIC-REAL-TRX-001",
+                    "name": "SYNTHETIC REAL TRX PATIENT",
+                    "sex": "unknown",
+                    "birth_date": "1990-01-01",
+                },
+                "examination": {
+                    "encounter_id": "VISIT-REAL-TRX-001",
+                    "performed_at": "2026-10-16T10:00:00+07:00",
+                },
+                "capture": {
+                    "detector_type": "TRX",
+                    "body_part_examined": "CHEST",
+                    "projection": "PA",
+                    "view_code_sequence": [
+                        {
+                            "code_value": "272479007",
+                            "coding_scheme_designator": "SCT",
+                            "code_meaning": "postero-anterior",
+                        }
+                    ],
+                    "captured_at": "2026-10-16T10:00:00+07:00",
+                    "detector_spacing": {"row_mm": 0.15, "column_mm": 0.16},
+                },
+                "dicom": {
+                    "pixel_source": "CANONICAL_PRE_PRESENTATION",
+                    "pixel_intensity_relationship": "LIN",
+                    "pixel_intensity_relationship_sign": 1,
+                },
+            }
+        )
+    )
+
+    proc = subprocess.run(
+        [
+            str(runtime_bin),
+            "convert",
+            "--radiograph",
+            str(rad),
+            "--gain",
+            str(gain),
+            "--manifest",
+            str(manifest),
+            "--output",
+            str(output),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode in (2, 7)
+    report = json.loads(proc.stdout)
+    assert report["status"] == "error"
+    assert not output.exists()
 
 
 def test_bin_negative_input_not_found(runtime_bin: Path, tmp_path: Path) -> None:
