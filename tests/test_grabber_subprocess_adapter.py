@@ -308,7 +308,7 @@ def test_adapter_convert_experimental_without_calibration_arg(tmp_path: Path) ->
         tmp_path,
         f'echo "$@" > "{script_record}"\n'
         f'touch "${{@: -1}}"\n'
-        f"echo '{json_resp}'\n"
+        f"echo '{json_resp}'\n",
     )
     rad = tmp_path / "rad.npz"
     gain = tmp_path / "gain.npz"

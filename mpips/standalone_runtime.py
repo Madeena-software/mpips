@@ -1,7 +1,8 @@
 """Entrypoint for standalone mpips-runtime ELF executable / frozen directory.
 
 Features:
-- Exposes `convert` without requiring `--calibration` (resolves embedded synthetic profile).
+- Exposes `convert` without requiring `--calibration` (resolves embedded
+  calibration profile).
 - Also supports `--calibration` if provided.
 - Dispatches `_internal_worker` sub-process invocation in frozen mode.
 - Preserves exact JSON status response format.
@@ -38,7 +39,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     if argv and argv[0] == "_internal_worker":
         if len(argv) != 3:
             return 1
-        from mpips.conversion.worker import _apply_startup_resource_limits, execute_conversion_worker
+        from mpips.conversion.worker import (
+            _apply_startup_resource_limits,
+            execute_conversion_worker,
+        )
+
         try:
             _apply_startup_resource_limits()
         except Exception:

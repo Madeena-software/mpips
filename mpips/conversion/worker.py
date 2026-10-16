@@ -77,10 +77,9 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
 
         # 2. Resolve calibration artifact directory (single-mode or multi-mode)
         rad_camera_params = rad_info.get("camera_params") or {}
-        rad_camera_serial = (
-            rad_camera_params.get("serialNumber")
-            or rad_camera_params.get("cameraSerial")
-        )
+        rad_camera_serial = rad_camera_params.get(
+            "serialNumber"
+        ) or rad_camera_params.get("cameraSerial")
 
         selected_cal_dir = None
         if (cal_dir / "metadata.json").is_file():
@@ -100,17 +99,19 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
                                 if sub_mode == rad_mode:
                                     # If camera serial is present in both, verify match
                                     cal_cam = src_meta.get("camera_params", {})
-                                    cal_serial = (
-                                        cal_cam.get("serialNumber")
-                                        or cal_cam.get("cameraSerial")
-                                    )
-                                    # Match if serials agree, or if either is unspecified
+                                    cal_serial = cal_cam.get(
+                                        "serialNumber"
+                                    ) or cal_cam.get("cameraSerial")
+                                    # Match if serials agree, or if either is
+                                    # unspecified
                                     if (
                                         rad_camera_serial is None
                                         or cal_serial is None
                                         or rad_camera_serial == cal_serial
                                     ):
-                                        candidates.append((sub, cal_serial == rad_camera_serial))
+                                        candidates.append(
+                                            (sub, cal_serial == rad_camera_serial)
+                                        )
                     except Exception:
                         continue
 

@@ -1,17 +1,21 @@
-"""Qualification test suite for experimental standalone ELF executable mpips-runtime.bin.
+"""Qualification test suite for experimental standalone ELF executable
+mpips-runtime.bin.
 
 Verifies:
 1. --version output contract (interface 2-experimental, ok, 0.1.0)
 2. Standalone BED synthetic conversion without --calibration
 3. Standalone TRX synthetic conversion without --calibration
-4. DICOM metadata verification (patient, study, SOPClassUID, TransferSyntax, PhotometricInterpretation)
-5. DICOM pixel verification and orientation (monotonic invariants and shape: (48, 64) for BED, (64, 48) for TRX)
+4. DICOM metadata verification (patient, study, SOPClassUID, TransferSyntax,
+   PhotometricInterpretation)
+5. DICOM pixel verification and orientation (monotonic invariants and shape:
+   (48, 64) for BED, (64, 48) for TRX)
 6. Negative case: missing radiograph input (INPUT_NOT_FOUND, exit 3)
 7. Negative case: missing gain input (INPUT_NOT_FOUND, exit 3)
 8. Negative case: invalid manifest JSON (INVALID_INPUT, exit 2)
 9. Negative case: destination output exists (OUTPUT_EXISTS, exit 4)
 10. Negative case: dangling symlink destination (OUTPUT_EXISTS, exit 4)
-11. Negative case: detector mode mismatch between radiograph and gain (CONVERSION_FAILED/INVALID_INPUT)
+11. Negative case: detector mode mismatch between radiograph and gain
+    (CONVERSION_FAILED/INVALID_INPUT)
 12. Output file permissions (0600) and temporary workspace cleanup
 13. Complete independence from PYTHONPATH and repository source
 """
@@ -118,7 +122,9 @@ def test_bin_convert_trx_full_resolution_no_calibration(
     }
     xray = {"detectorMode": "TRX"}
 
-    raw_img = (np.linspace(1000, 30000, shape[0] * shape[1], dtype=np.uint16).reshape(shape))
+    raw_img = np.linspace(1000, 30000, shape[0] * shape[1], dtype=np.uint16).reshape(
+        shape
+    )
     np.savez_compressed(
         rad,
         id=np.array("REAL-TRX-RAD-001"),
@@ -250,7 +256,9 @@ def test_bin_negative_camera_serial_mismatch(runtime_bin: Path, tmp_path: Path) 
     }
     xray = {"detectorMode": "TRX"}
 
-    raw_img = (np.linspace(1000, 30000, shape[0] * shape[1], dtype=np.uint16).reshape(shape))
+    raw_img = np.linspace(1000, 30000, shape[0] * shape[1], dtype=np.uint16).reshape(
+        shape
+    )
     np.savez_compressed(
         rad,
         id=np.array("REAL-TRX-RAD-001"),
