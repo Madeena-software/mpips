@@ -24,7 +24,12 @@ DEFAULT_CONVERT_TIMEOUT_SECONDS = 300.0
 class MPIPSRuntimeError(RuntimeError):
     """Base exception for mpips-runtime invocation failures."""
 
-    def __init__(self, message: str, exit_code: int | None = None, response: Mapping[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        message: str,
+        exit_code: int | None = None,
+        response: Mapping[str, Any] | None = None,
+    ) -> None:
         super().__init__(message)
         self.exit_code = exit_code
         self.response = response or {}
@@ -78,7 +83,9 @@ class MPIPSSubprocessAdapter:
     def __init__(self, runtime_executable: Path | str) -> None:
         self.runtime_executable = Path(runtime_executable).resolve()
         if not self.runtime_executable.is_file():
-            raise FileNotFoundError(f"Runtime executable not found: {self.runtime_executable}")
+            raise FileNotFoundError(
+                f"Runtime executable not found: {self.runtime_executable}"
+            )
 
     def check_version(self, timeout: float = 10.0) -> RuntimeInfo:
         """Query runtime interface and version without executing conversion."""
@@ -92,7 +99,9 @@ class MPIPSSubprocessAdapter:
                 check=False,
             )
         except subprocess.TimeoutExpired as exc:
-            raise MPIPSTimeoutError("Runtime check timed out", response={"error": str(exc)}) from exc
+            raise MPIPSTimeoutError(
+                "Runtime check timed out", response={"error": str(exc)}
+            ) from exc
 
         if res.returncode != 0:
             raise MPIPSRuntimeError(
@@ -103,7 +112,9 @@ class MPIPSSubprocessAdapter:
         try:
             data = json.loads(res.stdout.strip())
         except json.JSONDecodeError as exc:
-            raise MPIPSRuntimeError("Malformed JSON response from runtime", exit_code=res.returncode) from exc
+            raise MPIPSRuntimeError(
+                "Malformed JSON response from runtime", exit_code=res.returncode
+            ) from exc
 
         return RuntimeInfo(
             interface_version=str(data.get("interface_version", "")),
@@ -140,7 +151,9 @@ class MPIPSSubprocessAdapter:
 
         # Pre-flight sanity checks to fail fast without leaking private paths
         if out_p.exists():
-            raise MPIPSOutputExistsError(f"Destination DICOM output already exists: {out_p.name}", exit_code=4)
+            raise MPIPSOutputExistsError(
+                f"Destination DICOM output already exists: {out_p.name}", exit_code=4
+            )
         if not rad_p.is_file():
             raise MPIPSInputNotFoundError("Radiograph file does not exist", exit_code=3)
         if not gain_p.is_file():
@@ -148,7 +161,9 @@ class MPIPSSubprocessAdapter:
         if not man_p.is_file():
             raise MPIPSInputNotFoundError("Manifest file does not exist", exit_code=3)
         if not cal_p.is_dir():
-            raise MPIPSInputNotFoundError("Calibration directory does not exist", exit_code=3)
+            raise MPIPSInputNotFoundError(
+                "Calibration directory does not exist", exit_code=3
+            )
 
         cmd = [
             str(self.runtime_executable),
@@ -190,12 +205,15 @@ class MPIPSSubprocessAdapter:
         if res.returncode == 0:
             if parsed_json.get("status") != "ok":
                 raise MPIPSRuntimeError(
-                    f"Unexpected status in exit-0 response: {parsed_json.get('status')}",
+                    "Unexpected status in exit-0 response: "
+                    f"{parsed_json.get('status')}",
                     exit_code=0,
                     response=parsed_json,
                 )
             if not out_p.is_file():
-                raise MPIPSIOError("Runtime succeeded but output DICOM is not present", exit_code=6)
+                raise MPIPSIOError(
+                    "Runtime succeeded but output DICOM is not present", exit_code=6
+                )
 
             return ConversionResult(
                 status=str(parsed_json.get("status")),
