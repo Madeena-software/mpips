@@ -304,12 +304,15 @@ def test_adapter_convert_experimental_without_calibration_arg(tmp_path: Path) ->
         '{"status": "ok", "code": "OK", "interface_version": "2-experimental", '
         '"runtime_version": "0.1.0", "output_byte_size": 1234}'
     )
-    script = _create_mock_script(
-        tmp_path,
-        f'echo "$@" > "{script_record}"\n'
-        f'touch "${{@: -1}}"\n'
-        f"echo '{json_resp}'\n",
-    )
+    mock_body = f"""if [ "$1" = "--version" ]; then
+    echo '{json_resp}'
+else
+    echo "$@" > "{script_record}"
+    touch "${{@: -1}}"
+    echo '{json_resp}'
+fi
+"""
+    script = _create_mock_script(tmp_path, mock_body)
     rad = tmp_path / "rad.npz"
     gain = tmp_path / "gain.npz"
     manifest = tmp_path / "man.json"

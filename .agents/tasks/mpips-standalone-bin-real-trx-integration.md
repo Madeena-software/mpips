@@ -1,6 +1,6 @@
 ---
 title: Standalone Binary Review and Real TRX Calibration Integration
-version: 1.1
+version: 1.2
 status: Validated/Published
 language: en-US
 ---
@@ -9,35 +9,49 @@ language: en-US
 
 ## Task identity
 
-**Task title:** Standalone Binary Review and Real TRX Calibration Integration (Remediation Revision 1.1)
+**Task title:** Standalone Binary Review and Real TRX Calibration Integration (Targeted Remediation Revision 1.2)
 
 **Task path:** `.agents/tasks/mpips-standalone-bin-real-trx-integration.md`
 
-**Task contract state:** Validated/Published. Bounded review remediation contract published for execution.
+**Task contract state:** Validated/Published. Targeted review remediation contract published for execution.
 
-**Delivery objective:** Remediate review findings for PR #23:
-1. Implement pre-build calibration preparation and validation script (`prepare_calibration_bundle.py`) to verify source archive SHA-256 (`2871e78f...`), validate contents/metadata, generate manifest, and fail closed if calibration assets are missing/invalid before PyInstaller runs.
-2. Implement strict runtime calibration validation in `mpips/conversion/worker.py` (exact profile ID, serial `DA5234480`, detector mode `TRX`, image shape, remap array and hash integrity) while preserving interface 1 external calibration contract. Add negative tests.
-3. Update standalone qualification test suite with a strict qualification mode (`MPIPS_STRICT_QUALIFICATION=1`) that fails if `mpips-runtime.bin` is absent; cleanly distinguish test tiers.
-4. Harden `MPIPSSubprocessAdapter` to enforce invocation contract differences (interface 1 requires calibration), validate versions safely without string leakage, handle timeouts with child process cleanup, and ensure worker resource limits fail safely on Linux.
-5. Remediate qualification evidence doc (`mpips-standalone-real-trx-qualification.md`) and `.gitignore` (narrow `*.tar.gz`), maintaining G10 NOT RELEASED.
+**Delivery objective:** Remediate targeted review findings for PR #23:
+1. Close Real TRX Validation Bypass:
+   - In `mpips/conversion/worker.py`, ensure all TRX mode conversions use the designated approved embedded calibration (or enforce exact profile ID, serial `DA5234480`, detector mode `TRX`, image shape `(3000, 4096)`, fingerprint, and remap SHA-256 integrity).
+   - In `mpips/standalone_runtime.py`, reject external `--calibration` override for interface 2-experimental.
+   - Preserve legacy external calibration interface 1 contract.
+   - Add regression tests attempting substitute TRX profiles with altered metadata/remap failing before image processing.
+2. Reproducible Clean-Checkout Build:
+   - In `build-standalone/scripts/prepare_calibration_bundle.py`, generate and verify the synthetic BED fixture deterministically on demand if missing from a clean checkout.
+   - Strictly require authorized, hash-verified TRX archive (`2871e78f...`).
+   - Fail before PyInstaller if any asset is missing or invalid.
+   - Do not commit real calibration remap assets.
+3. Enforce Worker Resource Limits:
+   - Remove exception suppression around Linux RLIMIT_CPU initialization in `mpips/standalone_runtime.py` (`_internal_worker`) and `mpips/conversion/worker.py`.
+   - Worker must fail safely before processing data if required Linux CPU resource limit cannot be established.
+   - Add focused failure-path tests.
+4. Adapter Contract:
+   - In `scripts/grabber_subprocess_adapter.py`, enforce interface negotiation/pre-verification before conversion: interface 1 requires external calibration; interface 2-experimental uses embedded calibration contract (omits `--calibration`).
+   - Preserve sanitized JSON status/error reporting.
+5. Requalification:
+   - Run targeted negative tests, rebuild standalone binary, run strict binary qualification (`MPIPS_STRICT_QUALIFICATION=1`), test adapter, converter protection, and legacy TAR regression.
+   - Pass lint/mypy/CI, update evidence report with new SHA-256, push remediation commit to PR #23 without merging. Gate G10 remains NOT RELEASED.
 
-**Owner / designated planning authority:** PR #23 Review Remediation Directive of 2026-10-16.
+**Owner / designated planning authority:** PR #23 Targeted Review Remediation Directive of 2026-10-16.
 
 ## Delivery context
 
 1. Verify archive `trx-calibration-606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d.tar.gz` provenance and SHA-256 (`2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556`).
-2. Do not commit large binary calibration assets to Git. Narrow broad `*.tar.gz` rule to specific patterns.
-3. Pre-build validation gate extracts and verifies real TRX calibration profile (`metadata.json`, `remap.npz`) and writes manifest before PyInstaller packaging.
-4. Enhance calibration selection and validation in `mpips/conversion/worker.py` to enforce deterministic matching and array integrity.
-5. Ensure Grabber adapter (`scripts/grabber_subprocess_adapter.py`) rejects missing calibration on interface 1, sanitizes errors, and cleans up timeouts.
-6. Provide strict qualification mode for test suite when testing binary.
-7. Update evidence documentation with accurate test classifications (`env -i` vs clean-host, review pending).
+2. Synthetic BED fixture generated deterministically during pre-build preparation if absent.
+3. Fail-closed real TRX validation in worker regardless of metadata spoofing.
+4. Interface 2-experimental rejects external `--calibration` overrides.
+5. Worker CPU resource limits enforced strictly without exception suppression.
+6. Adapter explicitly negotiates/verifies expected interface contract before conversion.
 
 ## Baseline and task revision
 
 **Implementation baseline:**
-`c9d0f67c8bb981440a480f59050a894b7d3e10b3` (HEAD of PR #23).
+`db8eb9dcb904570aca698505ad53edc363b8d91d` (HEAD of PR #23).
 
 **Task revision:**
 The governing identity is `<task path> @ <full SHA of the commit publishing this task>`.
@@ -46,13 +60,13 @@ The governing identity is `<task path> @ <full SHA of the commit publishing this
 
 | ID | Obligation | Owner | Verification |
 |---|---|---|---|
-| REQ-CALIB-BUILD-INTEGRITY | Pre-build validation gate verifying archive SHA-256 `2871e78f...`, safe extraction, metadata/remap integrity, manifest generation | MPIPS | Build script pre-check & unit tests |
-| REQ-CALIB-RUNTIME-INTEGRITY | Scoped fail-closed validation for embedded real TRX profile (identity, serial `DA5234480`, mode, shape, remap arrays/hash), preserving interface 1 | MPIPS | Negative tests for missing/wrong serial, bad fingerprint, altered/missing remap |
-| REQ-QUAL-STRICT-ACCOUNTING | Strict qualification mode failing when binary missing; clear test tier accounting | MPIPS | Pytest with `MPIPS_STRICT_QUALIFICATION=1` |
-| REQ-ADAPTER-SAFETY | Enforce interface 1 vs 2-experimental invocation contract; sanitize error strings; verify timeout cleanup & Linux resource limits fallback | MPIPS | Adapter test suite covering negative cases & resource limit checks |
-| REQ-EVIDENCE-HYGIENE | Accurate evidence doc, narrowed `.gitignore`, G10 NOT RELEASED | MPIPS | File inspection, git status |
+| REQ-CLOSE-TRX-BYPASS | Scoped fail-closed enforcement for all TRX conversions in embedded mode; reject altered/substituted TRX metadata/remap; reject external `--calibration` in interface 2-experimental | MPIPS | Negative tests attempting substitute TRX profiles and `--calibration` overrides |
+| REQ-REPRODUCIBLE-BUILD | Deterministic generation and verification of synthetic BED fixture; require hash-verified TRX archive; fail before PyInstaller if any asset missing/invalid | MPIPS | Pre-build script run on clean checkout test |
+| REQ-ENFORCE-RESOURCE-LIMITS | Remove exception suppression on Linux worker RLIMIT_CPU initialization; fail safely before processing | MPIPS | Unit tests exercising Linux resource limit failure paths |
+| REQ-ADAPTER-NEGOTIATION | Explicit interface verification/negotiation in adapter before conversion; interface 1 requires calibration, interface 2 uses embedded | MPIPS | Adapter unit and integration test suite |
+| REQ-REQUALIFICATION-G10 | Rebuild binary, strict qualification pass, converter protection verified, CI green, G10 NOT RELEASED | MPIPS | Test suites, CI status, evidence doc |
 
 ## Scope and constraints
 
-- **In Scope:** Pre-build calibration validation, runtime integrity checks & negative tests, adapter contract hardening, strict test mode, evidence correction, gitignore narrowing.
+- **In Scope:** TRX validation bypass closure, reproducible synthetic BED fixture generation, resource limit enforcement, adapter interface verification, binary rebuild, strict qualification, evidence doc update.
 - **Out of Scope:** Clinical deployment, merging PR #23, committing large calibration assets, modifying `mpips/conversion/tiff_json_to_dcm.py`, releasing G10.

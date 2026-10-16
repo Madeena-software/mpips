@@ -155,6 +155,11 @@ class MPIPSSubprocessAdapter:
             code=str(data["code"]),
         )
 
+    def negotiate_interface(self, timeout: float = 10.0) -> str:
+        """Queries the runtime interface version and returns the negotiated version."""
+        info = self.check_version(timeout=timeout)
+        return info.interface_version
+
     def convert(
         self,
         *,
@@ -173,23 +178,43 @@ class MPIPSSubprocessAdapter:
             gain: Path to matching gain.npz
             manifest: Path to MHCSManifest JSON file
             calibration: Directory of validated detector calibration (required
-                for interface 1; optional for 2-experimental)
+                for interface 1; rejected for interface 2-experimental)
             output: Path where output DICOM should be created (must not exist or
                 be symlink)
             timeout: Subprocess timeout in seconds
-            expected_interface_version: Expected interface version (e.g. '1' or
-                '2-experimental'). If '1' is specified, calibration is strictly
-                required.
+            expected_interface_version: Explicitly verified or negotiated interface
+                version (e.g. '1' or '2-experimental'). If omitted, interface is
+                negotiated via check_version().
         """
-        if (
-            expected_interface_version == SUPPORTED_INTERFACE_VERSION
-            and calibration is None
-        ):
+        negotiated_interface = expected_interface_version
+        if negotiated_interface is None:
+            negotiated_interface = self.negotiate_interface(timeout=min(timeout, 10.0))
+
+        if negotiated_interface not in SUPPORTED_INTERFACE_VERSIONS:
+            raise MPIPSRuntimeError(
+                f"Unsupported interface version: {negotiated_interface}",
+                exit_code=2,
+                response={"code": "INVALID_INPUT"},
+            )
+
+        if negotiated_interface == SUPPORTED_INTERFACE_VERSION and calibration is None:
             raise MPIPSInvalidInputError(
                 "Interface 1 requires explicit calibration directory",
                 exit_code=2,
                 response={"code": "INVALID_INPUT"},
             )
+
+        if (
+            negotiated_interface == EXPERIMENTAL_INTERFACE_VERSION
+            and calibration is not None
+        ):
+            raise MPIPSInvalidInputError(
+                "Interface 2-experimental requires embedded calibration and rejects "
+                "external --calibration argument",
+                exit_code=2,
+                response={"code": "INVALID_INPUT"},
+            )
+
         raw_out = Path(output)
         # Check exists and is_symlink BEFORE resolving to prevent following
         # dangling symlinks

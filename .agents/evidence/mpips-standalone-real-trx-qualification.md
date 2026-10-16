@@ -19,7 +19,7 @@ This qualification report records the review, remediation, and qualification of 
 - **File Size:** `237,341,200` bytes (~226 MiB).
 - **Local Candidate SHA-256 Digest:**
   ```text
-  f0651c6c49e2deec17133111fa826ceb3d5ed95071946f8ba387d894cf9508ec
+  664906aa491b04735307f23c8a4cb821ef2f8c04c6cc33f8768c1e7ee7d6a115
   ```
   *(Note: Tied explicitly to validated local build; binary payload is not committed to git or uploaded to GitHub Actions).*
 - **Designated Real TRX Asset Provenance:**
@@ -41,10 +41,10 @@ This qualification report records the review, remediation, and qualification of 
 | **One-file Standalone ELF Build** | **PASS** | Dynamic PyInstaller specs (`SPECPATH`-relative) preceded by `prepare_calibration_bundle.py` validation gate successfully built 226 MiB stripped ELF binary into `dist-experimental/mpips-runtime.bin`. |
 | **Embedded Real TRX Calibration Provenance** | **PASS** | Source archive hash verified against `2871e78f...`. Embedded metadata and remap array validated with SHA-256 integrity checks directly by worker child process. Large assets excluded from Git. |
 | **Full-Resolution Synthetic TRX Conversion** | **PASS** | 3000 x 4096 synthetic inputs processed through real TRX geometry into valid DICOM with 4096 x 3000 rotated uint16 pixel array in ~53s (~24.5 MiB DICOM). |
-| **Synthetic BED Regression** | **PASS** | Small synthetic BED test fixtures continue to convert without `--calibration` and pass regression invariants. |
-| **Grabber Adapter Compatibility** | **PASS** | `MPIPSSubprocessAdapter` enforces contract differences between interface 1 (requires calibration) and 2-experimental (omits calibration). 25/25 adapter unit tests passed. |
+| **Synthetic BED Regression** | **PASS** | Small synthetic BED test fixtures continue to convert without `--calibration` and pass regression invariants. Deterministic synthetic BED coordinate grid generated cleanly. |
+| **Grabber Adapter Compatibility** | **PASS** | `MPIPSSubprocessAdapter` enforces contract differences: interface negotiation verifies version; interface 1 requires calibration; interface 2-experimental uses embedded calibration and strictly rejects external `--calibration`. 25/25 adapter unit tests passed. |
 | **Clean-Host Environment Isolation** | **PASS (Env-Isolated) / PENDING (Physical Clean Host)** | Subprocess execution verified under environment isolation (`env -i PATH=/usr/bin:/bin` from `/tmp`) with all Python/repo environment variables scrubbed. Physical or containerized execution without Python installed remains pending. |
-| **Negative & Security Cases** | **PASS** | Strict fail-closed verification of camera serial identity, detector mode, remap hash, and fingerprint. Negative tests for wrong/missing serial, bad fingerprint, altered remap, and missing remap all pass. File mode `0600` enforced. |
+| **Negative & Security Cases** | **PASS** | Strict fail-closed verification of camera serial identity, detector mode, remap hash, and fingerprint. Negative tests for wrong/missing serial, bad fingerprint, altered remap, missing remap, substitute TRX profile bypass attempts, external calibration override rejection in interface 2, and unhandled Linux RLIMIT_CPU failure all pass. File mode `0600` enforced. |
 | **Repository Regression & CI** | **PASS (CI Suite) / LOCAL ONLY (.bin Execution)** | Standard CI suite passes completely on GitHub Actions (Black, Flake8, Mypy regression gate, pytest, Docker builds, smoke tests). Standalone binary execution is qualified strictly locally with `MPIPS_STRICT_QUALIFICATION=1`. |
 
 ---
@@ -56,10 +56,11 @@ This qualification report records the review, remediation, and qualification of 
    - If radiograph specifies an incompatible serial (e.g., `WRONG-SERIAL-9999`), conversion fails with `NPZ_VALIDATION_ERROR` (exit code 2).
    - If radiograph input array dimensions do not match the calibration image shape (`3000 x 4096`), conversion fails immediately before processing.
    - Ambiguous profiles (multiple candidates with conflicting serials) fail closed.
+   - Any attempt to supply a substitute TRX profile with altered profile ID, wrong fingerprint, absent camera serial, or altered remap payload fails before image processing.
 2. **Gain Separation:**
    - Per-acquisition `gain.npz` remains an external requirement; its dark/flat shapes and detector mode are verified against the radiograph.
 3. **No External Fallback:**
-   - The frozen executable bundle checks `sys._MEIPASS` and does not fall back to local disk paths or identity remapping.
+   - The frozen executable bundle checks `sys._MEIPASS` and does not fall back to local disk paths or identity remapping. Interface 2-experimental strictly rejects explicit external `--calibration` arguments.
 
 ---
 
@@ -71,7 +72,7 @@ SUPPORTED_INTERFACE_VERSION = "1"
 EXPERIMENTAL_INTERFACE_VERSION = "2-experimental"
 SUPPORTED_INTERFACE_VERSIONS = {SUPPORTED_INTERFACE_VERSION, EXPERIMENTAL_INTERFACE_VERSION}
 ```
-When invoking `convert`, `calibration` is optional. When omitted, the adapter omits `--calibration` from the argument vector. Existing interface 1 invocations with `--calibration` remain 100% backward compatible and tested (22 tests passed).
+When invoking `convert`, interface negotiation occurs via `negotiate_interface()` or explicit `expected_interface_version`. Interface 1 requires an explicit external calibration directory. Interface 2-experimental requires embedded calibration and rejects external `--calibration`. Sanitized JSON responses and error translations are fully preserved.
 
 ---
 
@@ -90,24 +91,25 @@ When invoking `convert`, `calibration` is optional. When omitted, the adapter om
 ### Standalone Qualification Suite
 Command: `MPIPS_STRICT_QUALIFICATION=1 .venv/bin/pytest tests/test_standalone_bin_qualification.py -v`
 ```text
-tests/test_standalone_bin_qualification.py::test_bin_version PASSED                      [  9%]
-tests/test_standalone_bin_qualification.py::test_bin_convert_bed_synthetic_no_calibration PASSED [ 18%]
-tests/test_standalone_bin_qualification.py::test_bin_convert_trx_full_resolution_no_calibration PASSED [ 27%]
-tests/test_standalone_bin_qualification.py::test_bin_via_adapter_no_calibration PASSED [ 36%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_camera_serial_mismatch PASSED [ 45%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_input_not_found PASSED       [ 54%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_invalid_manifest PASSED      [ 63%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_output_exists PASSED        [ 72%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_dangling_symlink PASSED     [ 81%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_detector_mode_mismatch PASSED [ 90%]
-tests/test_standalone_bin_qualification.py::test_worker_negative_real_trx_validation_cases PASSED [100%]
-======================== 11 passed in 158.43s ========================
+tests/test_standalone_bin_qualification.py::test_bin_version PASSED                      [  8%]
+tests/test_standalone_bin_qualification.py::test_bin_convert_bed_synthetic_no_calibration PASSED [ 16%]
+tests/test_standalone_bin_qualification.py::test_bin_convert_trx_full_resolution_no_calibration PASSED [ 25%]
+tests/test_standalone_bin_qualification.py::test_bin_via_adapter_no_calibration PASSED [ 33%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_camera_serial_mismatch PASSED [ 41%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_input_not_found PASSED       [ 50%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_invalid_manifest PASSED      [ 58%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_output_exists PASSED        [ 66%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_dangling_symlink PASSED     [ 75%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_detector_mode_mismatch PASSED [ 83%]
+tests/test_standalone_bin_qualification.py::test_worker_negative_real_trx_validation_cases PASSED [ 91%]
+tests/test_standalone_bin_qualification.py::test_bin_rejects_explicit_calibration_override_in_interface_2 PASSED [100%]
+======================== 12 passed in 119.91s ========================
 ```
 
 ### Subprocess Adapter Suite
 Command: `.venv/bin/pytest tests/test_grabber_subprocess_adapter.py -v`
 ```text
-============================= 25 passed in 9.51s ==============================
+============================= 25 passed in 10.58s ==============================
 ```
 
 ### Packaged Grabber E2E Regression

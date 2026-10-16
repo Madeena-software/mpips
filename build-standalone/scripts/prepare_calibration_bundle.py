@@ -105,37 +105,40 @@ def prepare_and_validate_calibration(
     trx_remap_file = trx_dir / "remap.npz"
     trx_meta_file = trx_dir / "metadata.json"
 
-    # If remap.npz is missing or archive is provided, unpack from verified archive
-    if source_archive and source_archive.is_file():
-        archive_sha = compute_sha256(source_archive)
-        if archive_sha != EXPECTED_TRX_ARCHIVE_SHA256:
-            raise RuntimeError(
-                f"TRX calibration archive SHA-256 mismatch: {archive_sha} != "
-                f"{EXPECTED_TRX_ARCHIVE_SHA256}"
-            )
+    # Strictly require authorized, hash-verified TRX archive
+    if not source_archive or not source_archive.is_file():
+        raise RuntimeError(
+            "Authorized TRX calibration archive not found. "
+            "Please provide --archive or set MPIPS_TRX_CALIBRATION_ARCHIVE."
+        )
 
-        # Inspect and extract safely
-        with tarfile.open(source_archive, "r:gz") as tar:
-            members = tar.getmembers()
-            # Path traversal safety check
-            for m in members:
-                if m.name.startswith("/") or ".." in m.name or m.islnk() or m.issym():
-                    raise RuntimeError(f"Unsafe path in calibration tar: {m.name}")
+    archive_sha = compute_sha256(source_archive)
+    if archive_sha != EXPECTED_TRX_ARCHIVE_SHA256:
+        raise RuntimeError(
+            f"TRX calibration archive SHA-256 mismatch: {archive_sha} != "
+            f"{EXPECTED_TRX_ARCHIVE_SHA256}"
+        )
 
-            meta_member = tar.getmember("trx-calibration/metadata.json")
-            remap_member = tar.getmember("trx-calibration/remap.npz")
+    # Inspect and extract safely
+    with tarfile.open(source_archive, "r:gz") as tar:
+        members = tar.getmembers()
+        # Path traversal safety check
+        for m in members:
+            if m.name.startswith("/") or ".." in m.name or m.islnk() or m.issym():
+                raise RuntimeError(f"Unsafe path in calibration tar: {m.name}")
 
-            extracted_meta = tar.extractfile(meta_member)
-            if extracted_meta is None:
-                raise RuntimeError("Failed to extract trx-calibration/metadata.json")
-            trx_meta_file.write_bytes(extracted_meta.read())
+        meta_member = tar.getmember("trx-calibration/metadata.json")
+        remap_member = tar.getmember("trx-calibration/remap.npz")
 
-            extracted_remap = tar.extractfile(remap_member)
-            if extracted_remap is None:
-                raise RuntimeError("Failed to extract trx-calibration/remap.npz")
-            trx_remap_file.write_bytes(extracted_remap.read())
-    else:
-        archive_sha = "UNAVAILABLE_LOCAL_CHECKOUT"
+        extracted_meta = tar.extractfile(meta_member)
+        if extracted_meta is None:
+            raise RuntimeError("Failed to extract trx-calibration/metadata.json")
+        trx_meta_file.write_bytes(extracted_meta.read())
+
+        extracted_remap = tar.extractfile(remap_member)
+        if extracted_remap is None:
+            raise RuntimeError("Failed to extract trx-calibration/remap.npz")
+        trx_remap_file.write_bytes(extracted_remap.read())
 
     # 2. Verify TRX metadata
     if not trx_meta_file.is_file():
@@ -212,13 +215,32 @@ def prepare_and_validate_calibration(
     except Exception as exc:
         raise RuntimeError(f"Failed to inspect remap.npz: {exc}") from exc
 
-    # 4. Verify synthetic BED calibration fixture
+    # 4. Generate and verify synthetic BED calibration fixture deterministically
     bed_meta_file = bed_dir / "metadata.json"
     bed_remap_file = bed_dir / "remap.npz"
+
+    # Ensure metadata.json exists
     if not bed_meta_file.is_file():
-        raise RuntimeError(f"BED metadata fixture missing at {bed_meta_file}")
+        bed_meta_data = {
+            "validated": True,
+            "fingerprint": "SYNTHETIC-EMBEDDED-BED-CALIBRATION-V1",
+            "image_shape": [48, 64],
+            "source_metadata": {
+                "detector_mode": "BED",
+                "camera_params": {"serialNumber": "SYNTHETIC-CAMERA"},
+            },
+            "classification": "SYNTHETIC_DEVELOPMENT_ONLY",
+            "notice": (
+                "Synthetic identity calibration profile for development and CI "
+                "testing only. NOT FOR CLINICAL USE."
+            ),
+        }
+        bed_meta_file.write_text(json.dumps(bed_meta_data, indent=2), encoding="utf-8")
+
+    # Ensure remap.npz exists deterministically (identity coordinate grid)
     if not bed_remap_file.is_file():
-        raise RuntimeError(f"BED remap fixture missing at {bed_remap_file}")
+        y_grid, x_grid = np.indices((48, 64), dtype=np.float32)
+        np.savez_compressed(bed_remap_file, map_x=x_grid, map_y=y_grid)
 
     try:
         bed_meta = json.loads(bed_meta_file.read_text(encoding="utf-8"))
@@ -227,6 +249,10 @@ def prepare_and_validate_calibration(
         with np.load(bed_remap_file) as bed_data:
             if "map_x" not in bed_data or "map_y" not in bed_data:
                 raise RuntimeError("BED remap.npz missing map_x/map_y")
+            b_mx = bed_data["map_x"]
+            b_my = bed_data["map_y"]
+            if b_mx.shape != (48, 64) or b_my.shape != (48, 64):
+                raise RuntimeError(f"BED remap array shape mismatch: {b_mx.shape}")
     except Exception as exc:
         raise RuntimeError(f"Failed to validate BED fixture: {exc}") from exc
 

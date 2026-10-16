@@ -210,15 +210,32 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
             if isinstance(cal_cam, dict):
                 cal_serial = cal_cam.get("serialNumber") or cal_cam.get("cameraSerial")
 
-        # Scoped fail-closed integrity validation for designated real TRX profile
-        is_real_trx = (
-            cal_profile_id == REAL_TRX_PROFILE_ID
-            or cal_fingerprint == REAL_TRX_FINGERPRINT
+        # Determine if this conversion is operating under embedded calibration
+        # resources (e.g. standalone runtime interface 2-experimental or
+        # embedded bundle)
+        is_embedded_cal = (
+            selected_cal_dir.name == "trx_mode"
             or (
-                cal_serial == REAL_TRX_CAMERA_SERIAL
-                and rad_camera_serial == REAL_TRX_CAMERA_SERIAL
-                and rad_mode == "TRX"
-            )
+                selected_cal_dir / ".." / "embedded_calibration_manifest.json"
+            ).is_file()
+            or "resources/calibration" in str(selected_cal_dir)
+            or getattr(sys, "frozen", False)
+        )
+
+        # Scoped fail-closed integrity validation for designated real TRX profile:
+        # 1. Under embedded calibration, ALL TRX conversions MUST strictly use
+        #    the approved real TRX calibration.
+        # 2. For any TRX radiograph or profile matching real TRX characteristics:
+        #    - If camera serial matches real TRX or is absent in calibration or
+        #      profile claims TRX, it must validate against approved real TRX specs.
+        #    - Alternate substitute TRX profiles attempting to bypass fingerprint
+        #      or remap hash checks are rejected.
+        is_real_trx = (
+            (rad_mode == "TRX" and is_embedded_cal)
+            or cal_profile_id == REAL_TRX_PROFILE_ID
+            or cal_fingerprint == REAL_TRX_FINGERPRINT
+            or (rad_mode == "TRX" and rad_camera_serial == REAL_TRX_CAMERA_SERIAL)
+            or (rad_mode == "TRX" and expected_cal_shape == REAL_TRX_IMAGE_SHAPE)
         )
 
         if is_real_trx:
@@ -371,8 +388,5 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
 if __name__ == "__main__":
     if len(sys.argv) != 3:
         sys.exit(1)
-    try:
-        _apply_startup_resource_limits()
-    except Exception:
-        pass
+    _apply_startup_resource_limits()
     execute_conversion_worker(sys.argv[1], sys.argv[2])

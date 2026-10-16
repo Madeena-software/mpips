@@ -44,10 +44,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             execute_conversion_worker,
         )
 
-        try:
-            _apply_startup_resource_limits()
-        except Exception:
-            pass
+        _apply_startup_resource_limits()
         execute_conversion_worker(argv[1], argv[2])
         return 0
 
@@ -57,8 +54,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     convert = commands.add_parser("convert")
     for name in ("radiograph", "gain", "manifest", "output"):
         convert.add_argument(f"--{name}", required=True, type=Path)
-    # --calibration is OPTIONAL in standalone binary
-    convert.add_argument("--calibration", required=False, type=Path, default=None)
+    # Note: --calibration is explicitly rejected in interface 2-experimental.
+    # Embedded calibration is strictly required. Any --calibration argument
+    # will trigger INVALID_INPUT via RuntimeParser.
 
     report: dict[str, object] = {
         "interface_version": INTERFACE_VERSION,
@@ -80,8 +78,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             for path in (args.radiograph, args.gain, args.manifest):
                 if not path.is_file():
                     raise FileNotFoundError
-            if args.calibration is not None and not args.calibration.is_dir():
-                raise FileNotFoundError
 
             output.parent.mkdir(parents=True, exist_ok=True)
             with (
@@ -111,7 +107,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                             args.gain,
                             args.manifest,
                             Path(stage) / "result.dcm",
-                            calibration_dir=args.calibration,
+                            calibration_dir=None,
                         )
                     os.chmod(staged, 0o600)
                     os.link(staged, output)

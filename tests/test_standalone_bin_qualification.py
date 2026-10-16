@@ -618,5 +618,72 @@ def test_worker_negative_real_trx_validation_cases(tmp_path: Path) -> None:
         res = json.loads(result_json.read_text())
         assert res["status"] == "failed"
         assert "missing metadata.json or remap.npz" in res["error_detail"]
+
+        # 5. Negative test: Substitute TRX profile attempting bypass
+        # Changed profile ID, altered fingerprint, absent calibration serial,
+        # altered remap
+        cal_substitute = root / "cal_substitute"
+        cal_substitute.mkdir()
+        substitute_meta = {
+            "validated": True,
+            "fingerprint": "SUBSTITUTE_TRX_FP_ATTEMPTING_BYPASS",
+            "image_shape": [3000, 4096],
+            "source_metadata": {
+                "id": "UNAUTHORIZED_SUBSTITUTE_PROFILE",
+                "detector_mode": "TRX",
+                "camera_params": {},  # absent calibration serial
+            },
+        }
+        (cal_substitute / "metadata.json").write_text(json.dumps(substitute_meta))
+        np.savez_compressed(
+            cal_substitute / "remap.npz",
+            map_x=x + 42.0,
+            map_y=y + 42.0,
+        )
+
+        args["calibration_dir"] = str(cal_substitute)
+        args_json.write_text(json.dumps(args))
+        with pytest.raises(SystemExit):
+            execute_conversion_worker(str(args_json), str(result_json))
+        res = json.loads(result_json.read_text())
+        assert res["status"] == "failed"
+        assert res["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
+        # Must fail before image processing
+        assert not out_tiff.exists()
     finally:
         monkeypatch.undo()
+
+
+def test_bin_rejects_explicit_calibration_override_in_interface_2(
+    runtime_bin: Path, tmp_path: Path
+) -> None:
+    """Verifies that interface 2-experimental rejects an explicit external
+
+    --calibration argument with INVALID_INPUT (exit code 2).
+    """
+    rad, gain, manifest, cal = make_inputs(tmp_path / "reject_cal", "BED")
+    output = tmp_path / "reject_cal" / "result.dcm"
+
+    proc = subprocess.run(
+        [
+            str(runtime_bin),
+            "convert",
+            "--radiograph",
+            str(rad),
+            "--gain",
+            str(gain),
+            "--manifest",
+            str(manifest),
+            "--calibration",
+            str(cal),
+            "--output",
+            str(output),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert proc.returncode == 2
+    report = json.loads(proc.stdout)
+    assert report["status"] == "error"
+    assert report["code"] == "INVALID_INPUT"
+    assert not output.exists()
