@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import pickle
@@ -19,9 +20,23 @@ from mpips.workflows.imager_pipeline.npz_io import (
 )
 from mpips.workflows.imager_pipeline.pipeline import process_radiography_arrays
 
+REAL_TRX_PROFILE_ID = "GOTRI-TRX-001"
+REAL_TRX_CAMERA_SERIAL = "DA5234480"
+REAL_TRX_FINGERPRINT = (
+    "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
+)
+REAL_TRX_REMAP_SHA256 = (
+    "32796276833f7c6a8acb1ecc82aebe5f6dac1147073e6c49b4feaf34146da893"
+)
+REAL_TRX_IMAGE_SHAPE = (3000, 4096)
+
 
 def _apply_startup_resource_limits() -> None:
-    """Enforces Linux RLIMIT_CPU before opening NPZ files."""
+    """Enforces Linux RLIMIT_CPU before opening NPZ files.
+
+    Logs a diagnostic message to stderr if RLIMIT_CPU cannot be set on Linux,
+    and raises RuntimeError if running under Linux with RLIMIT_CPU unavailable.
+    """
     try:
         import resource
 
@@ -32,11 +47,18 @@ def _apply_startup_resource_limits() -> None:
                 resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit, cpu_limit + 5))
             except (ValueError, OSError) as exc:
                 if sys.platform.startswith("linux"):
+                    sys.stderr.write(
+                        f"Warning: Failed to set RLIMIT_CPU on Linux: {exc}\n"
+                    )
                     raise RuntimeError(
                         f"Failed to set RLIMIT_CPU on Linux: {exc}"
                     ) from exc
+        elif sys.platform.startswith("linux") and not hasattr(resource, "RLIMIT_CPU"):
+            sys.stderr.write("Warning: RLIMIT_CPU not supported on Linux platform\n")
+            raise RuntimeError("RLIMIT_CPU attribute missing on Linux")
     except ImportError:
         if sys.platform.startswith("linux"):
+            sys.stderr.write("Warning: resource module unavailable on Linux\n")
             raise RuntimeError("resource module unavailable on Linux")
 
 
@@ -163,6 +185,10 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         expected_cal_shape = (int(cal_shape_raw[0]), int(cal_shape_raw[1]))
 
         try:
+            with cal_remap_path.open("rb") as f_remap:
+                remap_bytes = f_remap.read()
+            remap_sha = hashlib.sha256(remap_bytes).hexdigest()
+
             with np.load(cal_remap_path) as remap_data:
                 if "map_x" not in remap_data or "map_y" not in remap_data:
                     raise NPZValidationError("remap.npz missing map_x or map_y arrays")
@@ -172,6 +198,70 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
             raise
         except Exception as exc:
             raise NPZValidationError(f"Failed to load remap.npz: {exc}") from exc
+
+        cal_source_meta = cal_metadata.get("source_metadata", {})
+        cal_mode = None
+        cal_serial = None
+        cal_profile_id = None
+        if isinstance(cal_source_meta, dict):
+            cal_mode = cal_source_meta.get("detector_mode")
+            cal_profile_id = cal_source_meta.get("id")
+            cal_cam = cal_source_meta.get("camera_params", {})
+            if isinstance(cal_cam, dict):
+                cal_serial = cal_cam.get("serialNumber") or cal_cam.get("cameraSerial")
+
+        # Scoped fail-closed integrity validation for designated real TRX profile
+        is_real_trx = (
+            cal_profile_id == REAL_TRX_PROFILE_ID
+            or cal_fingerprint == REAL_TRX_FINGERPRINT
+            or (
+                cal_serial == REAL_TRX_CAMERA_SERIAL
+                and rad_camera_serial == REAL_TRX_CAMERA_SERIAL
+                and rad_mode == "TRX"
+            )
+        )
+
+        if is_real_trx:
+            if cal_mode != "TRX":
+                raise NPZValidationError(
+                    f"Real TRX calibration invalid detector_mode: {cal_mode}"
+                )
+            if cal_profile_id != REAL_TRX_PROFILE_ID:
+                raise NPZValidationError(
+                    f"Real TRX calibration invalid profile id: {cal_profile_id}"
+                )
+            if cal_fingerprint != REAL_TRX_FINGERPRINT:
+                raise NPZValidationError(
+                    f"Real TRX calibration fingerprint mismatch: {cal_fingerprint}"
+                )
+            if cal_serial != REAL_TRX_CAMERA_SERIAL:
+                raise NPZValidationError(
+                    f"Real TRX calibration serial mismatch: {cal_serial}"
+                )
+            if expected_cal_shape != REAL_TRX_IMAGE_SHAPE:
+                raise NPZValidationError(
+                    f"Real TRX calibration shape mismatch: {expected_cal_shape}"
+                )
+            if remap_sha != REAL_TRX_REMAP_SHA256:
+                raise NPZValidationError(
+                    f"Real TRX remap payload hash altered: {remap_sha}"
+                )
+            if (
+                map_x.shape != REAL_TRX_IMAGE_SHAPE
+                or map_y.shape != REAL_TRX_IMAGE_SHAPE
+            ):
+                raise NPZValidationError(
+                    "Real TRX remap array shapes do not match expected image shape"
+                )
+            if not rad_camera_serial:
+                raise NPZValidationError(
+                    "Missing camera identity in radiograph for real TRX calibration"
+                )
+            if rad_camera_serial != REAL_TRX_CAMERA_SERIAL:
+                raise NPZValidationError(
+                    f"Camera serial mismatch: radiograph '{rad_camera_serial}' "
+                    f"!= calibration '{REAL_TRX_CAMERA_SERIAL}'"
+                )
 
         expected_gain_id = args.get("expected_gain_id") or rad_info["gain_id"]
         if rad_info["gain_id"] != expected_gain_id:
@@ -209,26 +299,17 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         if rad_mode != gain_record.detector_mode:
             raise NPZValidationError("Radiograph and gain detector modes differ")
 
-        cal_source_meta = cal_metadata.get("source_metadata", {})
-        if isinstance(cal_source_meta, dict):
-            cal_mode = cal_source_meta.get("detector_mode")
-            if cal_mode and rad_mode != cal_mode:
+        if cal_mode and rad_mode != cal_mode:
+            raise NPZValidationError(
+                "Detector mode does not match calibration artifact detector mode"
+            )
+
+        if not is_real_trx and cal_serial and rad_camera_serial:
+            if rad_camera_serial != cal_serial:
                 raise NPZValidationError(
-                    "Detector mode does not match calibration artifact detector mode"
+                    f"Camera serial mismatch: radiograph '{rad_camera_serial}' "
+                    f"!= calibration '{cal_serial}'"
                 )
-            cal_cam = cal_source_meta.get("camera_params", {})
-            if isinstance(cal_cam, dict):
-                cal_serial = cal_cam.get("serialNumber") or cal_cam.get("cameraSerial")
-                cal_fingerprint = cal_metadata.get("fingerprint")
-                trx_fp = (
-                    "606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d"
-                )
-                is_real_trx = cal_mode == "TRX" and cal_fingerprint == trx_fp
-                if is_real_trx and cal_serial and rad_camera_serial != cal_serial:
-                    raise NPZValidationError(
-                        f"Camera serial mismatch: radiograph '{rad_camera_serial}' "
-                        f"!= calibration '{cal_serial}'"
-                    )
 
         if expected_detector_mode:
             exp_norm = (

@@ -333,3 +333,63 @@ def test_adapter_convert_experimental_without_calibration_arg(tmp_path: Path) ->
     assert "--gain" in recorded_args
     assert "--manifest" in recorded_args
     assert "--output" in recorded_args
+
+
+def test_adapter_convert_interface_1_rejects_missing_calibration(
+    tmp_path: Path,
+) -> None:
+    rad = tmp_path / "rad.npz"
+    gain = tmp_path / "gain.npz"
+    manifest = tmp_path / "man.json"
+    out = tmp_path / "out.dcm"
+    rad.write_bytes(b"dummy")
+    gain.write_bytes(b"dummy")
+    manifest.write_bytes(b"dummy")
+
+    script = _create_mock_script(tmp_path, 'echo \'{"status":"ok"}\'')
+    adapter = MPIPSSubprocessAdapter(script)
+    with pytest.raises(MPIPSInvalidInputError) as exc_info:
+        adapter.convert(
+            radiograph=rad,
+            gain=gain,
+            manifest=manifest,
+            output=out,
+            expected_interface_version="1",
+        )
+    assert "Interface 1 requires explicit calibration directory" in str(exc_info.value)
+
+
+def test_adapter_rejects_untrusted_interface_version_without_reflection(
+    tmp_path: Path,
+) -> None:
+    malicious_ver = "<script>alert('pwned')</script>"
+    json_str = (
+        f'{{"status": "ok", "code": "OK", "interface_version": "{malicious_ver}", '
+        f'"runtime_version": "0.1.0"}}'
+    )
+    script = _create_mock_script(tmp_path, f"echo '{json_str}'")
+    adapter = MPIPSSubprocessAdapter(script)
+    with pytest.raises(MPIPSRuntimeError) as exc:
+        adapter.check_version()
+    # Ensure raw string was not reflected in error
+    assert "<script>" not in str(exc.value)
+    assert "Unsupported" in str(exc.value)
+
+
+def test_resource_limits_fallback_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
+    from mpips.conversion.worker import _apply_startup_resource_limits
+
+    # On Linux, verify that an OSError in setrlimit raises RuntimeError
+    monkeypatch.setattr("sys.platform", "linux")
+    try:
+        import resource
+
+        def mock_setrlimit(res: int, limits: tuple[int, int]) -> None:
+            raise OSError("Operation not permitted")
+
+        monkeypatch.setattr(resource, "setrlimit", mock_setrlimit)
+        with pytest.raises(RuntimeError) as exc:
+            _apply_startup_resource_limits()
+        assert "Failed to set RLIMIT_CPU on Linux" in str(exc.value)
+    except ImportError:
+        pass

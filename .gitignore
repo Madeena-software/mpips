@@ -58,4 +58,5 @@ dist-experimental/*.bin
 mpips/resources/calibration/trx_mode/remap.npz
 mpips/resources/calibration/trx_mode/*.npz
 mpips/resources/calibration/bed_mode/*.npz
-*.tar.gz
+*calibration*.tar.gz
+build-standalone/embedded_calibration_manifest.json

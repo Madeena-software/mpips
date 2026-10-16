@@ -1,30 +1,31 @@
 # MPIPS — Standalone Binary Review and Real TRX Calibration Integration Qualification Report
 
 **Document ID:** EV-STANDALONE-REAL-TRX-001  
-**Status:** Approved Qualification Evidence  
+**Status:** Independent Review Remediation (Review Pending)  
 **Date:** 2026-10-16  
 **Target Environment:** Ubuntu 24.04 x86_64 (`glibc 2.39`, Linux 5.15/6.x)  
 **Accepted Main Baseline:** `8dd42a7106d13ff602f41a57b726668066791bec`  
-**Governing Task:** `.agents/tasks/mpips-standalone-bin-real-trx-integration.md`  
-**Result:** **PASS — Standalone `.bin` qualified with embedded Real TRX geometric calibration.**
+**Governing Task:** `.agents/tasks/mpips-standalone-bin-real-trx-integration.md` (Revision 1.1)  
+**Result:** **QUALIFIED LOCALLY (STRICT MODE PASS) — Independent Review in Progress**
 
 ---
 
 ## 1. Executive Summary
 
-This qualification report records the review and full qualification of the self-contained Linux ELF executable **`mpips-runtime.bin`** embedded with the designated **real TRX detector geometric calibration profile**.
+This qualification report records the review, remediation, and qualification of the self-contained Linux ELF executable **`mpips-runtime.bin`** embedded with the designated **real TRX detector geometric calibration profile**.
 
-- **Executable:** `dist-experimental/mpips-runtime.bin`
+- **Executable:** `dist-experimental/mpips-runtime.bin` (local build candidate only; not distributed or released on GitHub)
 - **Format:** ELF 64-bit LSB executable, x86-64, dynamically linked (`glibc 2.39`), stripped.
 - **File Size:** `237,341,200` bytes (~226 MiB).
-- **SHA-256 Digest:**
+- **Local Candidate SHA-256 Digest:**
   ```text
   b9b9db3ee056b31f8a1e378a7c38e53bed0bbef9cb72ab5e38df0d6903e4e07f
   ```
+  *(Note: Tied explicitly to validated local build; binary payload is not committed to git or uploaded to GitHub Actions).*
 - **Designated Real TRX Asset Provenance:**
   - Archive: `trx-calibration-606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d.tar.gz`
-  - Archive SHA-256: `2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556` (exact match verified)
-  - Extracted Remap Size: 72,080,774 bytes (~72 MiB)
+  - Archive SHA-256: `2871e78f61676d36a03e8c06c172b49eed42d140c79e4b1970e141b70d557556` (exact match verified by pre-build gate)
+  - Remap SHA-256: `32796276833f7c6a8acb1ecc82aebe5f6dac1147073e6c49b4feaf34146da893`
   - Fingerprint: `606db560c391764b24fa6257a01a8afb38380b83bf83ea7bd6a30b299861547d`
   - Detector Mode: `TRX`, Camera Serial: `DA5234480`, Camera Model: `MV-CH120-10UM`, Image Shape: `3000 x 4096`
   - Scope: `LOCAL_REAL_TRX_ACCEPTANCE`
@@ -37,14 +38,14 @@ This qualification report records the review and full qualification of the self-
 
 | Dimension | Verdict | Evidence / Observed Result |
 |---|---|---|
-| **One-file Standalone ELF Build** | **PASS** | Dynamic PyInstaller specs (`SPECPATH`-relative) successfully built 226 MiB stripped ELF binary into `dist-experimental/mpips-runtime.bin`. |
-| **Embedded Real TRX Calibration Provenance** | **PASS** | Archive hash verified against `2871e78f...`. Embedded metadata and remap array loaded and validated directly by worker child process. Large assets excluded from Git. |
+| **One-file Standalone ELF Build** | **PASS** | Dynamic PyInstaller specs (`SPECPATH`-relative) preceded by `prepare_calibration_bundle.py` validation gate successfully built 226 MiB stripped ELF binary into `dist-experimental/mpips-runtime.bin`. |
+| **Embedded Real TRX Calibration Provenance** | **PASS** | Source archive hash verified against `2871e78f...`. Embedded metadata and remap array validated with SHA-256 integrity checks directly by worker child process. Large assets excluded from Git. |
 | **Full-Resolution Synthetic TRX Conversion** | **PASS** | 3000 x 4096 synthetic inputs processed through real TRX geometry into valid DICOM with 4096 x 3000 rotated uint16 pixel array in ~53s (~24.5 MiB DICOM). |
 | **Synthetic BED Regression** | **PASS** | Small synthetic BED test fixtures continue to convert without `--calibration` and pass regression invariants. |
-| **Grabber Adapter Compatibility** | **PASS** | `MPIPSSubprocessAdapter` updated with version-aware strategy supporting both interface 1 and experimental interface without `--calibration`. 22/22 unit/adapter tests passed. |
-| **Clean-Host Environment Isolation** | **PASS (Env-Isolated) / PENDING (Physical Bare Host)** | Subprocess execution verified in pure stripped environment (`env -i PATH=/usr/bin:/bin` from `/tmp`) with zero Python or repo variables. True clean-host qualification (on a container/VM with no Python installed on disk) remains pending container qualification. |
-| **Negative & Security Cases** | **PASS** | Rejection of camera serial mismatch, detector mode mismatch, missing inputs, malformed manifest, existing output, and dangling symlinks. File mode `0600` enforced. |
-| **Repository Regression & CI** | **PASS** | Protected converter check passed; Packaged Grabber E2E passed (11/11 tests). |
+| **Grabber Adapter Compatibility** | **PASS** | `MPIPSSubprocessAdapter` enforces contract differences between interface 1 (requires calibration) and 2-experimental (omits calibration). 25/25 adapter unit tests passed. |
+| **Clean-Host Environment Isolation** | **PASS (Env-Isolated) / PENDING (Physical Clean Host)** | Subprocess execution verified under environment isolation (`env -i PATH=/usr/bin:/bin` from `/tmp`) with all Python/repo environment variables scrubbed. Physical or containerized execution without Python installed remains pending. |
+| **Negative & Security Cases** | **PASS** | Strict fail-closed verification of camera serial identity, detector mode, remap hash, and fingerprint. Negative tests for wrong/missing serial, bad fingerprint, altered remap, and missing remap all pass. File mode `0600` enforced. |
+| **Repository Regression & CI** | **PASS (CI Suite) / LOCAL ONLY (.bin Execution)** | Standard CI suite passes completely on GitHub Actions (Black, Flake8, Mypy regression gate, pytest, Docker builds, smoke tests). Standalone binary execution is qualified strictly locally with `MPIPS_STRICT_QUALIFICATION=1`. |
 
 ---
 
@@ -87,25 +88,26 @@ When invoking `convert`, `calibration` is optional. When omitted, the adapter om
 ## 6. Test Suite Evidence
 
 ### Standalone Qualification Suite
-Command: `.venv/bin/pytest tests/test_standalone_bin_qualification.py -v`
+Command: `MPIPS_STRICT_QUALIFICATION=1 .venv/bin/pytest tests/test_standalone_bin_qualification.py -v`
 ```text
-tests/test_standalone_bin_qualification.py::test_bin_version PASSED                      [ 10%]
-tests/test_standalone_bin_qualification.py::test_bin_convert_bed_synthetic_no_calibration PASSED [ 20%]
-tests/test_standalone_bin_qualification.py::test_bin_convert_trx_full_resolution_no_calibration PASSED [ 30%]
-tests/test_standalone_bin_qualification.py::test_bin_via_adapter_no_calibration PASSED [ 40%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_camera_serial_mismatch PASSED [ 50%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_input_not_found PASSED       [ 60%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_invalid_manifest PASSED      [ 70%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_output_exists PASSED        [ 80%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_dangling_symlink PASSED     [ 90%]
-tests/test_standalone_bin_qualification.py::test_bin_negative_detector_mode_mismatch PASSED [100%]
-======================== 10 passed in 113.89s (0:01:53) ========================
+tests/test_standalone_bin_qualification.py::test_bin_version PASSED                      [  9%]
+tests/test_standalone_bin_qualification.py::test_bin_convert_bed_synthetic_no_calibration PASSED [ 18%]
+tests/test_standalone_bin_qualification.py::test_bin_convert_trx_full_resolution_no_calibration PASSED [ 27%]
+tests/test_standalone_bin_qualification.py::test_bin_via_adapter_no_calibration PASSED [ 36%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_camera_serial_mismatch PASSED [ 45%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_input_not_found PASSED       [ 54%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_invalid_manifest PASSED      [ 63%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_output_exists PASSED        [ 72%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_dangling_symlink PASSED     [ 81%]
+tests/test_standalone_bin_qualification.py::test_bin_negative_detector_mode_mismatch PASSED [ 90%]
+tests/test_standalone_bin_qualification.py::test_worker_negative_real_trx_validation_cases PASSED [100%]
+======================== 11 passed in 158.43s ========================
 ```
 
 ### Subprocess Adapter Suite
 Command: `.venv/bin/pytest tests/test_grabber_subprocess_adapter.py -v`
 ```text
-============================= 22 passed in 13.08s ==============================
+============================= 25 passed in 9.51s ==============================
 ```
 
 ### Packaged Grabber E2E Regression

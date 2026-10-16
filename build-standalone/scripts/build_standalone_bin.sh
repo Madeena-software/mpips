@@ -4,6 +4,9 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$REPO_ROOT"
 
+echo "Running pre-build calibration preparation and validation gate..."
+.venv/bin/python build-standalone/scripts/prepare_calibration_bundle.py
+
 echo "Building Stage B single-file ELF executable..."
 .venv/bin/pyinstaller \
   --distpath build-standalone/dist \

@@ -40,6 +40,12 @@ BINARY_PATH = REPO_ROOT / "dist-experimental" / "mpips-runtime.bin"
 @pytest.fixture(scope="module")
 def runtime_bin() -> Path:
     if not BINARY_PATH.is_file():
+        if os.getenv("MPIPS_STRICT_QUALIFICATION") == "1":
+            pytest.fail(
+                "STRICT QUALIFICATION FAILURE: Standalone binary not found at "
+                f"{BINARY_PATH}. Skipping is prohibited when "
+                "MPIPS_STRICT_QUALIFICATION=1."
+            )
         pytest.skip(f"Binary not found at {BINARY_PATH}")
     return BINARY_PATH
 
@@ -476,3 +482,119 @@ def test_bin_negative_detector_mode_mismatch(runtime_bin: Path, tmp_path: Path) 
     report = json.loads(proc.stdout)
     assert report["status"] == "error"
     assert not output.exists()
+
+
+def test_worker_negative_real_trx_validation_cases(tmp_path: Path) -> None:
+    """Fail-closed calibration validation on real TRX."""
+    from mpips.conversion.worker import execute_conversion_worker
+
+    shape = (3000, 4096)
+    root = tmp_path / "worker_neg_tests"
+    root.mkdir(parents=True)
+
+    rad = root / "rad.npz"
+    gain = root / "gain.npz"
+    out_tiff = root / "out.tiff"
+    result_json = root / "res.json"
+    args_json = root / "args.json"
+
+    camera = {
+        "serialNumber": "DA5234480",
+        "cameraSerial": "DA5234480",
+        "cameraModel": "MV-CH120-10UM",
+    }
+    xray = {"detectorMode": "TRX"}
+    raw_img = np.ones(shape, dtype=np.uint16) * 1000
+
+    np.savez_compressed(
+        rad,
+        id=np.array("RAD-1"),
+        gainid=np.array("GAIN-1"),
+        rawimage=raw_img,
+        cameraparams=np.array(camera),
+        xrayparams=np.array(xray),
+    )
+    np.savez_compressed(
+        gain,
+        id=np.array("GAIN-1"),
+        rawimage=np.full(shape, 35000, dtype=np.uint16),
+        darkimage=np.full(shape, 50, dtype=np.uint16),
+        cameraparams=np.array(camera),
+        xrayparams=np.array(xray),
+    )
+
+    # 1. Negative test: Missing camera identity in radiograph
+    rad_no_cam = root / "rad_no_cam.npz"
+    np.savez_compressed(
+        rad_no_cam,
+        id=np.array("RAD-1"),
+        gainid=np.array("GAIN-1"),
+        rawimage=raw_img,
+        cameraparams=np.array({}),
+        xrayparams=np.array(xray),
+    )
+    cal_dir = REPO_ROOT / "mpips" / "resources" / "calibration" / "trx_mode"
+
+    args = {
+        "radiograph_npz_path": str(rad_no_cam),
+        "gain_npz_path": str(gain),
+        "calibration_dir": str(cal_dir),
+        "expected_gain_id": "GAIN-1",
+        "expected_detector_mode": "TRX",
+        "output_tiff_path": str(out_tiff),
+        "result_path": str(result_json),
+    }
+    args_json.write_text(json.dumps(args))
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_json), str(result_json))
+    res = json.loads(result_json.read_text())
+    assert res["status"] == "failed"
+    assert "Missing camera identity" in res["error_detail"]
+
+    # 2. Negative test: Wrong fingerprint
+    cal_bad_fp = root / "cal_bad_fp"
+    cal_bad_fp.mkdir()
+    meta = json.loads((cal_dir / "metadata.json").read_text())
+    meta["fingerprint"] = "WRONG_FINGERPRINT_STRING"
+    (cal_bad_fp / "metadata.json").write_text(json.dumps(meta))
+    import shutil
+
+    shutil.copyfile(cal_dir / "remap.npz", cal_bad_fp / "remap.npz")
+
+    args["radiograph_npz_path"] = str(rad)
+    args["calibration_dir"] = str(cal_bad_fp)
+    args_json.write_text(json.dumps(args))
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_json), str(result_json))
+    res = json.loads(result_json.read_text())
+    assert res["status"] == "failed"
+    assert "fingerprint mismatch" in res["error_detail"]
+
+    # 3. Negative test: Altered remap payload (wrong hash)
+    cal_bad_remap = root / "cal_bad_remap"
+    cal_bad_remap.mkdir()
+    shutil.copyfile(cal_dir / "metadata.json", cal_bad_remap / "metadata.json")
+    y, x = np.indices(shape, dtype=np.float32)
+    # Altered map
+    np.savez_compressed(cal_bad_remap / "remap.npz", map_x=x, map_y=y)
+
+    args["calibration_dir"] = str(cal_bad_remap)
+    args_json.write_text(json.dumps(args))
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_json), str(result_json))
+    res = json.loads(result_json.read_text())
+    assert res["status"] == "failed"
+    assert "remap payload hash altered" in res["error_detail"]
+
+    # 4. Negative test: Missing remap.npz
+    cal_no_remap = root / "cal_no_remap"
+    cal_no_remap.mkdir()
+    shutil.copyfile(cal_dir / "metadata.json", cal_no_remap / "metadata.json")
+
+    args["calibration_dir"] = str(cal_no_remap)
+    args_json.write_text(json.dumps(args))
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_json), str(result_json))
+    res = json.loads(result_json.read_text())
+    assert res["status"] == "failed"
+    assert "missing metadata.json or remap.npz" in res["error_detail"]

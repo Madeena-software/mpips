@@ -140,9 +140,10 @@ class MPIPSSubprocessAdapter:
                 response=data,
             )
 
-        if data.get("interface_version") not in SUPPORTED_INTERFACE_VERSIONS:
+        raw_ver = data.get("interface_version")
+        if raw_ver not in SUPPORTED_INTERFACE_VERSIONS:
             raise MPIPSRuntimeError(
-                "Unsupported interface version: " f"{data.get('interface_version')}",
+                "Unsupported interface version",
                 exit_code=proc.returncode,
                 response=data,
             )
@@ -163,6 +164,7 @@ class MPIPSSubprocessAdapter:
         calibration: Path | str | None = None,
         output: Path | str,
         timeout: float = DEFAULT_CONVERT_TIMEOUT_SECONDS,
+        expected_interface_version: str | None = None,
     ) -> ConversionResult:
         """Execute mpips-runtime convert with arguments vector.
 
@@ -170,12 +172,24 @@ class MPIPSSubprocessAdapter:
             radiograph: Path to acquisition radiograph.npz
             gain: Path to matching gain.npz
             manifest: Path to MHCSManifest JSON file
-            calibration: Directory of validated detector calibration (optional
-                if runtime binary provides embedded calibration)
+            calibration: Directory of validated detector calibration (required
+                for interface 1; optional for 2-experimental)
             output: Path where output DICOM should be created (must not exist or
                 be symlink)
             timeout: Subprocess timeout in seconds
+            expected_interface_version: Expected interface version (e.g. '1' or
+                '2-experimental'). If '1' is specified, calibration is strictly
+                required.
         """
+        if (
+            expected_interface_version == SUPPORTED_INTERFACE_VERSION
+            and calibration is None
+        ):
+            raise MPIPSInvalidInputError(
+                "Interface 1 requires explicit calibration directory",
+                exit_code=2,
+                response={"code": "INVALID_INPUT"},
+            )
         raw_out = Path(output)
         # Check exists and is_symlink BEFORE resolving to prevent following
         # dangling symlinks
@@ -326,10 +340,10 @@ class MPIPSSubprocessAdapter:
                 exit_code=expected_exit,
             )
 
-        if data.get("interface_version") not in SUPPORTED_INTERFACE_VERSIONS:
+        raw_ver = data.get("interface_version")
+        if raw_ver not in SUPPORTED_INTERFACE_VERSIONS:
             raise MPIPSRuntimeError(
-                "Unsupported runtime interface version: "
-                f"{data.get('interface_version')}",
+                "Unsupported runtime interface version",
                 exit_code=expected_exit,
                 response={"code": "INCOMPATIBLE_INTERFACE"},
             )
