@@ -238,3 +238,46 @@ def test_adapter_timeout_enforcement_and_cleanup(tmp_path: Path) -> None:
     with pytest.raises(MPIPSTimeoutError) as exc_info:
         adapter.check_version(timeout=0.2)
     assert exc_info.value.exit_code == 5
+
+
+def test_adapter_rejects_malicious_or_leaking_response(tmp_path: Path) -> None:
+    # Malicious response attempting to inject arbitrary strings or paths
+    malicious_json = (
+        '{"status": "error", "code": "<script>alert(1)</script>", '
+        '"interface_version": "1", "runtime_version": "0.1.0", '
+        '"private_path": "/var/data/patient_001.npz"}'
+    )
+    script = _create_mock_script(tmp_path, f"echo '{malicious_json}'\nexit 2")
+    adapter = MPIPSSubprocessAdapter(script)
+    with pytest.raises(MPIPSRuntimeError) as exc:
+        adapter.check_version()
+    # Ensure error message does not reflect malicious string or path
+    err_str = str(exc.value)
+    assert "<script>" not in err_str
+    assert "patient_001" not in err_str
+    assert "expected status=error, code=INVALID_INPUT" in err_str
+
+
+@pytest.mark.parametrize(
+    ("exit_code", "wrong_code"),
+    [
+        (2, "IO_ERROR"),
+        (3, "INVALID_INPUT"),
+        (4, "CONVERSION_FAILED"),
+        (5, "OK"),
+        (6, "INPUT_NOT_FOUND"),
+        (7, "OUTPUT_EXISTS"),
+    ],
+)
+def test_adapter_validates_all_supported_exit_code_mappings(
+    tmp_path: Path, exit_code: int, wrong_code: str
+) -> None:
+    json_wrong = (
+        f'{{"status": "error", "code": "{wrong_code}", '
+        f'"interface_version": "1", "runtime_version": "0.1.0"}}'
+    )
+    script = _create_mock_script(tmp_path, f"echo '{json_wrong}'\nexit {exit_code}")
+    adapter = MPIPSSubprocessAdapter(script)
+    with pytest.raises(MPIPSRuntimeError) as exc:
+        adapter.check_version()
+    assert "Inconsistent response for exit" in str(exc.value)

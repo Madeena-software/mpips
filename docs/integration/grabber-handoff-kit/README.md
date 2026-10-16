@@ -104,7 +104,7 @@ The manifest must be a UTF-8 JSON file conforming to the `MHCSManifest` schema (
 * `patient`:
   * `medical_record_number`: string (1–64 characters).
   * `name`: string or `{"full_name": "..."}`.
-  * `sex`: Allowed values are `"male"`, `"female"`, `"other"`, or `"unknown"` (case-insensitive in Pydantic schema).
+  * `sex`: Allowed values are exactly `"male"`, `"female"`, `"other"`, or `"unknown"`.
     * Mapping to DICOM `PatientSex`:
       * `"male"` $\to$ `"M"`
       * `"female"` $\to$ `"F"`

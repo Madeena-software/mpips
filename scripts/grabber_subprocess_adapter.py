@@ -22,7 +22,17 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONVERT_TIMEOUT_SECONDS = 300.0
 SUPPORTED_INTERFACE_VERSION = "1"
-SUPPORTED_EXIT_CODES = {0, 2, 3, 4, 5, 6, 7}
+
+# Exact expected mapping between exit codes and JSON code strings
+EXIT_CODE_TO_EXPECTED_JSON_CODE: dict[int, str] = {
+    0: "OK",
+    2: "INVALID_INPUT",
+    3: "INPUT_NOT_FOUND",
+    4: "OUTPUT_EXISTS",
+    5: "CONVERSION_TIMEOUT",
+    6: "IO_ERROR",
+    7: "CONVERSION_FAILED",
+}
 
 
 class MPIPSRuntimeError(RuntimeError):
@@ -104,7 +114,7 @@ class MPIPSSubprocessAdapter:
                 text=True,
             )
             stdout_data, _ = proc.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired as exc:
+        except subprocess.TimeoutExpired:
             if proc is not None:
                 proc.kill()
                 proc.wait()
@@ -112,7 +122,7 @@ class MPIPSSubprocessAdapter:
                 "Runtime check timed out",
                 exit_code=5,
                 response={"code": "TIMEOUT"},
-            ) from exc
+            ) from None
 
         data = self._parse_and_validate_response(
             stdout_data, expected_exit=proc.returncode
@@ -127,7 +137,7 @@ class MPIPSSubprocessAdapter:
 
         if data.get("interface_version") != SUPPORTED_INTERFACE_VERSION:
             raise MPIPSRuntimeError(
-                f"Unsupported interface version: {data.get('interface_version')}",
+                "Unsupported interface version: " f"{data.get('interface_version')}",
                 exit_code=proc.returncode,
                 response=data,
             )
@@ -165,8 +175,7 @@ class MPIPSSubprocessAdapter:
         # dangling symlinks
         if raw_out.exists() or raw_out.is_symlink():
             raise MPIPSOutputExistsError(
-                "Destination DICOM output already exists or is a symlink: "
-                f"{raw_out.name}",
+                "Destination DICOM output already exists or is a symlink",
                 exit_code=4,
                 response={"code": "OUTPUT_EXISTS"},
             )
@@ -180,7 +189,7 @@ class MPIPSSubprocessAdapter:
         # Re-check resolved output path as well
         if out_p.exists() or out_p.is_symlink():
             raise MPIPSOutputExistsError(
-                f"Destination DICOM output already exists: {out_p.name}",
+                "Destination DICOM output already exists",
                 exit_code=4,
                 response={"code": "OUTPUT_EXISTS"},
             )
@@ -220,7 +229,7 @@ class MPIPSSubprocessAdapter:
                 text=True,
             )
             stdout_data, _ = proc.communicate(timeout=timeout)
-        except subprocess.TimeoutExpired as exc:
+        except subprocess.TimeoutExpired:
             if proc is not None:
                 proc.kill()
                 proc.wait()
@@ -228,7 +237,7 @@ class MPIPSSubprocessAdapter:
                 f"Conversion timed out after {timeout} seconds",
                 exit_code=5,
                 response={"code": "CONVERSION_TIMEOUT"},
-            ) from exc
+            ) from None
 
         parsed_json = self._parse_and_validate_response(
             stdout_data, expected_exit=proc.returncode
@@ -252,9 +261,9 @@ class MPIPSSubprocessAdapter:
                 raw_response=parsed_json,
             )
 
-        # Handle specific error exit codes
-        code_str = str(parsed_json.get("code", "UNKNOWN"))
-        msg = f"Runtime failed with exit code {proc.returncode} (code={code_str})"
+        # Handle specific error exit codes with exact sanitized messages
+        expected_code = EXIT_CODE_TO_EXPECTED_JSON_CODE.get(proc.returncode, "UNKNOWN")
+        msg = f"Runtime failed with exit code {proc.returncode} ({expected_code})"
 
         if proc.returncode == 2:
             raise MPIPSInvalidInputError(msg, exit_code=2, response=parsed_json)
@@ -291,11 +300,11 @@ class MPIPSSubprocessAdapter:
 
         try:
             data = json.loads(lines[0])
-        except json.JSONDecodeError as exc:
+        except json.JSONDecodeError:
             raise MPIPSRuntimeError(
                 "Malformed JSON response from runtime",
                 exit_code=expected_exit,
-            ) from exc
+            ) from None
 
         if not isinstance(data, dict):
             raise MPIPSRuntimeError(
@@ -323,18 +332,19 @@ class MPIPSSubprocessAdapter:
         status = data.get("status")
         code = data.get("code")
 
-        if expected_exit == 0:
-            if status != "ok" or code != "OK":
-                raise MPIPSRuntimeError(
-                    f"Inconsistent exit-0 status/code: status={status}, code={code}",
-                    exit_code=0,
-                )
-        else:
-            if status != "error":
-                raise MPIPSRuntimeError(
-                    f"Inconsistent error status: status={status} for exit "
-                    f"{expected_exit}",
-                    exit_code=expected_exit,
-                )
+        expected_code = EXIT_CODE_TO_EXPECTED_JSON_CODE.get(expected_exit)
+        if expected_code is None:
+            raise MPIPSRuntimeError(
+                f"Unsupported exit code: {expected_exit}",
+                exit_code=expected_exit,
+            )
+
+        expected_status = "ok" if expected_exit == 0 else "error"
+        if status != expected_status or code != expected_code:
+            raise MPIPSRuntimeError(
+                f"Inconsistent response for exit {expected_exit}: "
+                f"expected status={expected_status}, code={expected_code}",
+                exit_code=expected_exit,
+            )
 
         return data
