@@ -22,12 +22,12 @@
 
 1. **Synthetic Grabber E2E Test Suite (`tests/test_grabber_e2e_synthetic.py`):**
    - Mock SIMRS lookup and synthetic candidate selection / visit confirmation gating.
-   - Deep merge of mapper identity output with Grabber-owned capture/site manifest blocks.
+   - Manifest composition: SIMRS-derived mapper identity is retained, with test-owned Grabber capture and DICOM metadata added for BED/TRX without a generalized deep-merge mechanism.
    - Real subprocess execution of `python -m mpips.runtime convert` across both BED and TRX modes.
    - DICOM verification: standard SOP class (`1.2.840.10008.5.1.4.1.1.1.1.1`), 16-bit unsigned `MONOCHROME2`, dimensions (BED 48×64, TRX 64×48), zero private tags, mode `0600`.
-   - Deterministic pixel oracle assertions using independently derived pixel models and invariant bounds.
+   - Deterministic pixel oracle assertions using fixed SHA-256 pixel regression pins, structural invariants (shape, dtype uint16, non-constant values, dynamic range bounds, and geometric BED/TRX relations), and repeat-run determinism; these pins serve as regression evidence, not an independent numerical correctness proof.
    - Pre-CLI rejection tests verifying that malformed SIMRS data, visit mismatches, unconfirmed selection, and schema-invalid manifests abort before invoking the converter runtime.
-   - CLI boundary failure tests verifying exact exit codes (2–7) and sanitized error statuses for corrupted manifests, detector mode mismatches, gain shape/id mismatches, and unvalidated calibrations.
+   - CLI boundary failure tests verifying observed exit codes 2 (`INVALID_INPUT`) and 3 (`INPUT_NOT_FOUND`) with sanitized error statuses across corrupt manifests, detector mode mismatches, gain shape/id mismatches, missing calibrations, and unvalidated calibrations.
    - Process safety & isolation: safe individual `pidfd` process verification (NUL-delimited exact environment matching, live `fdinfo` verification, `execve` transition retry), eliminating unsafe process-group signaling and handling detached worker cleanup on timeout.
    - Subprocess network prohibition guard using Python-level audit hooks (`sys.addaudithook`) with canary verification and role-scoped load sentinels.
 2. **Documentation Update:**
