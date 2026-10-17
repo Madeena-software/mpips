@@ -51,3 +51,13 @@ research/TRX Production Calibration Carrier - 606db560-20261010T015729Z-1-001
 *.egg-info/
 build/
 dist/
+build-standalone/build*/
+build-standalone/dist*/
+build-standalone/*.log
+dist-experimental/*.bin
+mpips/resources/calibration/trx_mode/remap.npz
+mpips/resources/calibration/trx_mode/*.npz
+mpips/resources/calibration/bed_mode/*.npz
+*calibration*.tar.gz
+build-standalone/embedded_calibration_manifest.json
+mpips/resources/calibration/embedded_calibration_manifest.json

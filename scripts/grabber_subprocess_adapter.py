@@ -22,6 +22,11 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_CONVERT_TIMEOUT_SECONDS = 300.0
 SUPPORTED_INTERFACE_VERSION = "1"
+EXPERIMENTAL_INTERFACE_VERSION = "2-experimental"
+SUPPORTED_INTERFACE_VERSIONS = {
+    SUPPORTED_INTERFACE_VERSION,
+    EXPERIMENTAL_INTERFACE_VERSION,
+}
 
 # Exact expected mapping between exit codes and JSON code strings
 EXIT_CODE_TO_EXPECTED_JSON_CODE: dict[int, str] = {
@@ -35,6 +40,26 @@ EXIT_CODE_TO_EXPECTED_JSON_CODE: dict[int, str] = {
 }
 
 
+APPROVED_RESPONSE_FIELDS: frozenset[str] = frozenset(
+    {
+        "status",
+        "code",
+        "interface_version",
+        "runtime_version",
+        "output_byte_size",
+    }
+)
+
+
+def _sanitize_response_dict(
+    resp: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Retain only approved response fields, stripping untrusted or injected keys."""
+    if not resp:
+        return {}
+    return {k: resp[k] for k in APPROVED_RESPONSE_FIELDS if k in resp}
+
+
 class MPIPSRuntimeError(RuntimeError):
     """Base exception for mpips-runtime invocation failures."""
 
@@ -46,7 +71,7 @@ class MPIPSRuntimeError(RuntimeError):
     ) -> None:
         super().__init__(message)
         self.exit_code = exit_code
-        self.response = dict(response) if response else {}
+        self.response = _sanitize_response_dict(response)
 
 
 class MPIPSInvalidInputError(MPIPSRuntimeError):
@@ -135,9 +160,10 @@ class MPIPSSubprocessAdapter:
                 response=data,
             )
 
-        if data.get("interface_version") != SUPPORTED_INTERFACE_VERSION:
+        raw_ver = data.get("interface_version")
+        if raw_ver not in SUPPORTED_INTERFACE_VERSIONS:
             raise MPIPSRuntimeError(
-                "Unsupported interface version: " f"{data.get('interface_version')}",
+                "Unsupported interface version",
                 exit_code=proc.returncode,
                 response=data,
             )
@@ -149,15 +175,21 @@ class MPIPSSubprocessAdapter:
             code=str(data["code"]),
         )
 
+    def negotiate_interface(self, timeout: float = 10.0) -> str:
+        """Queries the runtime interface version and returns the negotiated version."""
+        info = self.check_version(timeout=timeout)
+        return info.interface_version
+
     def convert(
         self,
         *,
         radiograph: Path | str,
         gain: Path | str,
         manifest: Path | str,
-        calibration: Path | str,
+        calibration: Path | str | None = None,
         output: Path | str,
         timeout: float = DEFAULT_CONVERT_TIMEOUT_SECONDS,
+        expected_interface_version: str | None = None,
     ) -> ConversionResult:
         """Execute mpips-runtime convert with arguments vector.
 
@@ -165,11 +197,44 @@ class MPIPSSubprocessAdapter:
             radiograph: Path to acquisition radiograph.npz
             gain: Path to matching gain.npz
             manifest: Path to MHCSManifest JSON file
-            calibration: Directory of validated detector calibration
+            calibration: Directory of validated detector calibration (required
+                for interface 1; rejected for interface 2-experimental)
             output: Path where output DICOM should be created (must not exist or
                 be symlink)
             timeout: Subprocess timeout in seconds
+            expected_interface_version: Explicitly verified or negotiated interface
+                version (e.g. '1' or '2-experimental'). If omitted, interface is
+                negotiated via check_version().
         """
+        negotiated_interface = expected_interface_version
+        if negotiated_interface is None:
+            negotiated_interface = self.negotiate_interface(timeout=min(timeout, 10.0))
+
+        if negotiated_interface not in SUPPORTED_INTERFACE_VERSIONS:
+            raise MPIPSRuntimeError(
+                f"Unsupported interface version: {negotiated_interface}",
+                exit_code=2,
+                response={"code": "INVALID_INPUT"},
+            )
+
+        if negotiated_interface == SUPPORTED_INTERFACE_VERSION and calibration is None:
+            raise MPIPSInvalidInputError(
+                "Interface 1 requires explicit calibration directory",
+                exit_code=2,
+                response={"code": "INVALID_INPUT"},
+            )
+
+        if (
+            negotiated_interface == EXPERIMENTAL_INTERFACE_VERSION
+            and calibration is not None
+        ):
+            raise MPIPSInvalidInputError(
+                "Interface 2-experimental requires embedded calibration and rejects "
+                "external --calibration argument",
+                exit_code=2,
+                response={"code": "INVALID_INPUT"},
+            )
+
         raw_out = Path(output)
         # Check exists and is_symlink BEFORE resolving to prevent following
         # dangling symlinks
@@ -183,7 +248,7 @@ class MPIPSSubprocessAdapter:
         rad_p = Path(radiograph).resolve()
         gain_p = Path(gain).resolve()
         man_p = Path(manifest).resolve()
-        cal_p = Path(calibration).resolve()
+        cal_p = Path(calibration).resolve() if calibration is not None else None
         out_p = raw_out.resolve()
 
         # Re-check resolved output path as well
@@ -200,7 +265,7 @@ class MPIPSSubprocessAdapter:
             raise MPIPSInputNotFoundError("Gain file does not exist", exit_code=3)
         if not man_p.is_file():
             raise MPIPSInputNotFoundError("Manifest file does not exist", exit_code=3)
-        if not cal_p.is_dir():
+        if cal_p is not None and not cal_p.is_dir():
             raise MPIPSInputNotFoundError(
                 "Calibration directory does not exist", exit_code=3
             )
@@ -214,11 +279,10 @@ class MPIPSSubprocessAdapter:
             str(gain_p),
             "--manifest",
             str(man_p),
-            "--calibration",
-            str(cal_p),
-            "--output",
-            str(out_p),
         ]
+        if cal_p is not None:
+            cmd.extend(["--calibration", str(cal_p)])
+        cmd.extend(["--output", str(out_p)])
 
         proc: subprocess.Popen[str] | None = None
         try:
@@ -258,7 +322,7 @@ class MPIPSSubprocessAdapter:
                 runtime_version=str(parsed_json["runtime_version"]),
                 output_path=out_p,
                 output_byte_size=parsed_json.get("output_byte_size"),
-                raw_response=parsed_json,
+                raw_response=_sanitize_response_dict(parsed_json),
             )
 
         # Handle specific error exit codes with exact sanitized messages
@@ -321,10 +385,10 @@ class MPIPSSubprocessAdapter:
                 exit_code=expected_exit,
             )
 
-        if data.get("interface_version") != SUPPORTED_INTERFACE_VERSION:
+        raw_ver = data.get("interface_version")
+        if raw_ver not in SUPPORTED_INTERFACE_VERSIONS:
             raise MPIPSRuntimeError(
-                "Unsupported runtime interface version: "
-                f"{data.get('interface_version')}",
+                "Unsupported runtime interface version",
                 exit_code=expected_exit,
                 response={"code": "INCOMPATIBLE_INTERFACE"},
             )
