@@ -60,3 +60,4 @@ mpips/resources/calibration/trx_mode/*.npz
 mpips/resources/calibration/bed_mode/*.npz
 *calibration*.tar.gz
 build-standalone/embedded_calibration_manifest.json
+mpips/resources/calibration/embedded_calibration_manifest.json

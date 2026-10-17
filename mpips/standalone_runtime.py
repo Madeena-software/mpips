@@ -88,13 +88,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             ):
                 old_env = {
                     key: os.environ.get(key)
-                    for key in ("MPIPS_ENVIRONMENT", "MPIPS_WORKSPACE_ROOT")
+                    for key in (
+                        "MPIPS_ENVIRONMENT",
+                        "MPIPS_WORKSPACE_ROOT",
+                        "MPIPS_STANDALONE_EMBEDDED",
+                    )
                 }
                 old_logging = logging.root.manager.disable
                 old_umask = os.umask(0o077)
                 try:
                     os.environ["MPIPS_ENVIRONMENT"] = "development"
                     os.environ["MPIPS_WORKSPACE_ROOT"] = str(Path(stage) / "workers")
+                    os.environ["MPIPS_STANDALONE_EMBEDDED"] = "1"
                     logging.disable(logging.CRITICAL)
                     with (
                         contextlib.redirect_stdout(quiet),

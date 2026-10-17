@@ -400,6 +400,14 @@ def run_isolated_dicom_conversion(
             "radiograph_npz_path": str(input_rad),
             "gain_npz_path": str(input_gain),
             "calibration_dir": str(staged_cal_dir),
+            "calibration_origin": (
+                "embedded"
+                if (
+                    getattr(sys, "frozen", False)
+                    or os.getenv("MPIPS_STANDALONE_EMBEDDED") == "1"
+                )
+                else "external"
+            ),
             "expected_gain_id": None,
             "expected_detector_mode": (
                 manifest.capture.detector_type if manifest.capture else None

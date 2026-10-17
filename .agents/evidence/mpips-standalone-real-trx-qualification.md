@@ -19,7 +19,7 @@ This qualification report records the review, remediation, and qualification of 
 - **File Size:** `237,341,200` bytes (~226 MiB).
 - **Local Candidate SHA-256 Digest:**
   ```text
-  664906aa491b04735307f23c8a4cb821ef2f8c04c6cc33f8768c1e7ee7d6a115
+  0fe4b70ec1e392bf4514e2f3299a7fcd299b98c5f5b95c43a1397aebc6607081
   ```
   *(Note: Tied explicitly to validated local build; binary payload is not committed to git or uploaded to GitHub Actions).*
 - **Designated Real TRX Asset Provenance:**
@@ -109,13 +109,19 @@ tests/test_standalone_bin_qualification.py::test_bin_rejects_explicit_calibratio
 ### Subprocess Adapter Suite
 Command: `.venv/bin/pytest tests/test_grabber_subprocess_adapter.py -v`
 ```text
-============================= 25 passed in 10.58s ==============================
+============================= 27 passed in 10.82s ==============================
 ```
 
 ### Packaged Grabber E2E Regression
 Command: `.venv/bin/pytest tests/test_packaged_grabber_e2e.py -v`
 ```text
-============================= 11 passed in 31.37s ==============================
+============================= 11 passed in 31.42s ==============================
+```
+
+### Full Local Test Suite
+Command: `.venv/bin/pytest -q`
+```text
+1068 passed, 312 warnings in 340.87s
 ```
 
 ### Canonical Converter Immutability

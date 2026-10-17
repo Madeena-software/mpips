@@ -40,6 +40,26 @@ EXIT_CODE_TO_EXPECTED_JSON_CODE: dict[int, str] = {
 }
 
 
+APPROVED_RESPONSE_FIELDS: frozenset[str] = frozenset(
+    {
+        "status",
+        "code",
+        "interface_version",
+        "runtime_version",
+        "output_byte_size",
+    }
+)
+
+
+def _sanitize_response_dict(
+    resp: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Retain only approved response fields, stripping untrusted or injected keys."""
+    if not resp:
+        return {}
+    return {k: resp[k] for k in APPROVED_RESPONSE_FIELDS if k in resp}
+
+
 class MPIPSRuntimeError(RuntimeError):
     """Base exception for mpips-runtime invocation failures."""
 
@@ -51,7 +71,7 @@ class MPIPSRuntimeError(RuntimeError):
     ) -> None:
         super().__init__(message)
         self.exit_code = exit_code
-        self.response = dict(response) if response else {}
+        self.response = _sanitize_response_dict(response)
 
 
 class MPIPSInvalidInputError(MPIPSRuntimeError):
@@ -302,7 +322,7 @@ class MPIPSSubprocessAdapter:
                 runtime_version=str(parsed_json["runtime_version"]),
                 output_path=out_p,
                 output_byte_size=parsed_json.get("output_byte_size"),
-                raw_response=parsed_json,
+                raw_response=_sanitize_response_dict(parsed_json),
             )
 
         # Handle specific error exit codes with exact sanitized messages

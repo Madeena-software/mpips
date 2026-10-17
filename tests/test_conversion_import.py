@@ -325,6 +325,64 @@ def test_convert_npz_to_dicom_trx_mode_clockwise_rotation(tmp_path: Path) -> Non
     assert ds.pixel_array.dtype == np.uint16
 
 
+def test_convert_npz_to_dicom_interface_1_external_cal_named_trx_mode(
+    tmp_path: Path,
+) -> None:
+    # Directory named trx_mode
+    cal_dir = _create_calibration_artifact(
+        tmp_path / "trx_mode", shape=(64, 64), detector_mode="TRX"
+    )
+    rad_p, gain_p, r_sha, g_sha, r_sz, g_sz = _create_test_npzs(
+        tmp_path, detector_mode="TRX", shape=(64, 64)
+    )
+    manifest_dict = _build_manifest(r_sha, g_sha, r_sz, g_sz, detector_mode="TRX")
+    out_dcm = tmp_path / "result_trx_mode_name.dcm"
+
+    result_path = convert_npz_to_dicom(
+        radiograph_npz_path=rad_p,
+        gain_npz_path=gain_p,
+        manifest=manifest_dict,
+        output_dicom_path=out_dcm,
+        calibration_dir=cal_dir,
+    )
+
+    assert result_path == out_dcm.resolve()
+    assert out_dcm.is_file()
+    ds = pydicom.dcmread(str(out_dcm))
+    assert ds.Modality == "DX"
+    assert ds.pixel_array.dtype == np.uint16
+
+
+def test_convert_npz_to_dicom_interface_1_external_cal_resources_cal_path(
+    tmp_path: Path,
+) -> None:
+    # Path containing resources/calibration substring
+    cal_dir = _create_calibration_artifact(
+        tmp_path / "some_dir" / "resources" / "calibration" / "custom_cal",
+        shape=(64, 64),
+        detector_mode="TRX",
+    )
+    rad_p, gain_p, r_sha, g_sha, r_sz, g_sz = _create_test_npzs(
+        tmp_path, detector_mode="TRX", shape=(64, 64)
+    )
+    manifest_dict = _build_manifest(r_sha, g_sha, r_sz, g_sz, detector_mode="TRX")
+    out_dcm = tmp_path / "result_resources_cal.dcm"
+
+    result_path = convert_npz_to_dicom(
+        radiograph_npz_path=rad_p,
+        gain_npz_path=gain_p,
+        manifest=manifest_dict,
+        output_dicom_path=out_dcm,
+        calibration_dir=cal_dir,
+    )
+
+    assert result_path == out_dcm.resolve()
+    assert out_dcm.is_file()
+    ds = pydicom.dcmread(str(out_dcm))
+    assert ds.Modality == "DX"
+    assert ds.pixel_array.dtype == np.uint16
+
+
 def test_convert_npz_to_dicom_raises_standard_exceptions_never_http_exception(
     tmp_path: Path,
 ) -> None:

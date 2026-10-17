@@ -43,9 +43,10 @@ hiddenimports = [
 hiddenimports += collect_submodules('mpips')
 hiddenimports += collect_submodules('pydicom')
 
-# Embed synthetic calibration assets
+# Embed verified calibration assets and manifest
 datas = [
     (str(REPO_ROOT / 'mpips' / 'resources' / 'calibration'), 'mpips/resources/calibration'),
+    (str(REPO_ROOT / 'build-standalone' / 'embedded_calibration_manifest.json'), 'mpips/resources/calibration'),
 ]
 
 a = Analysis(

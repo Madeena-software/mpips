@@ -213,14 +213,19 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
         # Determine if this conversion is operating under embedded calibration
         # resources (e.g. standalone runtime interface 2-experimental or
         # embedded bundle)
-        is_embedded_cal = (
-            selected_cal_dir.name == "trx_mode"
-            or (
-                selected_cal_dir / ".." / "embedded_calibration_manifest.json"
-            ).is_file()
-            or "resources/calibration" in str(selected_cal_dir)
-            or getattr(sys, "frozen", False)
-        )
+        calibration_origin = args.get("calibration_origin")
+        if calibration_origin == "external":
+            is_embedded_cal = False
+        elif calibration_origin == "embedded":
+            is_embedded_cal = True
+        else:
+            # Fallback for standalone frozen execution or direct worker execution
+            is_embedded_cal = bool(
+                getattr(sys, "frozen", False)
+                or (
+                    selected_cal_dir.parent / "embedded_calibration_manifest.json"
+                ).is_file()
+            )
 
         # Scoped fail-closed integrity validation for designated real TRX profile:
         # 1. Under embedded calibration, ALL TRX conversions MUST strictly use

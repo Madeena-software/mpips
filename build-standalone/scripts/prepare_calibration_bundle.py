@@ -253,6 +253,13 @@ def prepare_and_validate_calibration(
             b_my = bed_data["map_y"]
             if b_mx.shape != (48, 64) or b_my.shape != (48, 64):
                 raise RuntimeError(f"BED remap array shape mismatch: {b_mx.shape}")
+            expected_y, expected_x = np.indices((48, 64), dtype=np.float32)
+            if not np.array_equal(b_mx, expected_x) or not np.array_equal(
+                b_my, expected_y
+            ):
+                raise RuntimeError(
+                    "BED remap.npz does not equal expected identity coordinate grid"
+                )
     except Exception as exc:
         raise RuntimeError(f"Failed to validate BED fixture: {exc}") from exc
 
@@ -289,7 +296,12 @@ def prepare_and_validate_calibration(
         REPO_ROOT / "build-standalone" / "embedded_calibration_manifest.json"
     )
     manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(json.dumps(manifest_record, indent=2), encoding="utf-8")
+    manifest_text = json.dumps(manifest_record, indent=2)
+    manifest_path.write_text(manifest_text, encoding="utf-8")
+
+    # Also persist inside the calibration directory so it is co-located with profiles
+    bundle_manifest = cal_base / "embedded_calibration_manifest.json"
+    bundle_manifest.write_text(manifest_text, encoding="utf-8")
 
     return manifest_record
 
