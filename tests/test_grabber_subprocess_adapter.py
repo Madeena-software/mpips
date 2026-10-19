@@ -281,3 +281,225 @@ def test_adapter_validates_all_supported_exit_code_mappings(
     with pytest.raises(MPIPSRuntimeError) as exc:
         adapter.check_version()
     assert "Inconsistent response for exit" in str(exc.value)
+
+
+def test_adapter_accepts_experimental_interface_version(tmp_path: Path) -> None:
+    json_str = (
+        '{"status": "ok", "code": "OK", "interface_version": "2-experimental", '
+        '"runtime_version": "0.1.0"}'
+    )
+    script = _create_mock_script(tmp_path, f"echo '{json_str}'")
+    adapter = MPIPSSubprocessAdapter(script)
+    info = adapter.check_version()
+    assert info.interface_version == "2-experimental"
+    assert info.status == "ok"
+    assert info.code == "OK"
+
+
+def test_adapter_convert_experimental_without_calibration_arg(tmp_path: Path) -> None:
+    # Verifies that convert() without calibration argument emits exactly 4 flags
+    # and handles 2-experimental response correctly
+    script_record = tmp_path / "cmd.txt"
+    json_resp = (
+        '{"status": "ok", "code": "OK", "interface_version": "2-experimental", '
+        '"runtime_version": "0.1.0", "output_byte_size": 1234}'
+    )
+    mock_body = f"""if [ "$1" = "--version" ]; then
+    echo '{json_resp}'
+else
+    echo "$@" > "{script_record}"
+    touch "${{@: -1}}"
+    echo '{json_resp}'
+fi
+"""
+    script = _create_mock_script(tmp_path, mock_body)
+    rad = tmp_path / "rad.npz"
+    gain = tmp_path / "gain.npz"
+    manifest = tmp_path / "man.json"
+    out = tmp_path / "out.dcm"
+    rad.write_bytes(b"dummy")
+    gain.write_bytes(b"dummy")
+    manifest.write_bytes(b"dummy")
+
+    adapter = MPIPSSubprocessAdapter(script)
+    res = adapter.convert(
+        radiograph=rad,
+        gain=gain,
+        manifest=manifest,
+        output=out,
+    )
+    assert res.status == "ok"
+    assert res.interface_version == "2-experimental"
+    recorded_args = script_record.read_text()
+    assert "--calibration" not in recorded_args
+    assert "--radiograph" in recorded_args
+    assert "--gain" in recorded_args
+    assert "--manifest" in recorded_args
+    assert "--output" in recorded_args
+
+
+def test_adapter_convert_interface_1_rejects_missing_calibration(
+    tmp_path: Path,
+) -> None:
+    rad = tmp_path / "rad.npz"
+    gain = tmp_path / "gain.npz"
+    manifest = tmp_path / "man.json"
+    out = tmp_path / "out.dcm"
+    rad.write_bytes(b"dummy")
+    gain.write_bytes(b"dummy")
+    manifest.write_bytes(b"dummy")
+
+    script = _create_mock_script(tmp_path, 'echo \'{"status":"ok"}\'')
+    adapter = MPIPSSubprocessAdapter(script)
+    with pytest.raises(MPIPSInvalidInputError) as exc_info:
+        adapter.convert(
+            radiograph=rad,
+            gain=gain,
+            manifest=manifest,
+            output=out,
+            expected_interface_version="1",
+        )
+    assert "Interface 1 requires explicit calibration directory" in str(exc_info.value)
+
+
+def test_adapter_rejects_untrusted_interface_version_without_reflection(
+    tmp_path: Path,
+) -> None:
+    malicious_ver = "<script>alert('pwned')</script>"
+    json_str = (
+        f'{{"status": "ok", "code": "OK", "interface_version": "{malicious_ver}", '
+        f'"runtime_version": "0.1.0"}}'
+    )
+    script = _create_mock_script(tmp_path, f"echo '{json_str}'")
+    adapter = MPIPSSubprocessAdapter(script)
+    with pytest.raises(MPIPSRuntimeError) as exc:
+        adapter.check_version()
+    # Ensure raw string was not reflected in error
+    assert "<script>" not in str(exc.value)
+    assert "Unsupported" in str(exc.value)
+
+
+def test_resource_limits_fallback_on_linux(monkeypatch: pytest.MonkeyPatch) -> None:
+    from mpips.conversion.worker import _apply_startup_resource_limits
+
+    # On Linux, verify that an OSError in setrlimit raises RuntimeError
+    monkeypatch.setattr("sys.platform", "linux")
+    try:
+        import resource
+
+        def mock_setrlimit(res: int, limits: tuple[int, int]) -> None:
+            raise OSError("Operation not permitted")
+
+        monkeypatch.setattr(resource, "setrlimit", mock_setrlimit)
+        with pytest.raises(RuntimeError) as exc:
+            _apply_startup_resource_limits()
+        assert "Failed to set RLIMIT_CPU on Linux" in str(exc.value)
+    except ImportError:
+        pass
+
+
+def test_adapter_sanitizes_untrusted_response_fields_in_error(tmp_path: Path) -> None:
+    """Verifies untrusted response fields are discarded from error response."""
+    untrusted_json = (
+        '{"status": "error", "code": "INVALID_INPUT", "interface_version": "1", '
+        '"runtime_version": "0.1.0", "patient_ssn": "SECRET-999", '
+        '"injected": "<script>alert(1)</script>", "private_path": "/var/data/private"}'
+    )
+    version_json = (
+        '{"status": "ok", "code": "OK", "interface_version": "1", '
+        '"runtime_version": "0.1.0"}'
+    )
+    mock_body = f"""if [ "$1" = "--version" ]; then
+    echo '{version_json}'
+    exit 0
+fi
+echo '{untrusted_json}'
+exit 2
+"""
+    script = _create_mock_script(tmp_path, mock_body)
+    rad = tmp_path / "rad.npz"
+    gain = tmp_path / "gain.npz"
+    manifest = tmp_path / "man.json"
+    cal = tmp_path / "cal"
+    cal.mkdir()
+    out = tmp_path / "out.dcm"
+    rad.write_bytes(b"dummy")
+    gain.write_bytes(b"dummy")
+    manifest.write_bytes(b"dummy")
+
+    adapter = MPIPSSubprocessAdapter(script)
+    with pytest.raises(MPIPSInvalidInputError) as exc_info:
+        adapter.convert(
+            radiograph=rad,
+            gain=gain,
+            manifest=manifest,
+            calibration=cal,
+            output=out,
+        )
+
+    exc = exc_info.value
+    assert exc.response == {
+        "status": "error",
+        "code": "INVALID_INPUT",
+        "interface_version": "1",
+        "runtime_version": "0.1.0",
+    }
+    assert "patient_ssn" not in exc.response
+    assert "injected" not in exc.response
+    assert "private_path" not in exc.response
+    assert "SECRET-999" not in str(exc)
+
+
+def test_adapter_sanitizes_untrusted_response_fields_in_success(
+    tmp_path: Path,
+) -> None:
+    """Verifies that unexpected fields are stripped from raw_response."""
+    untrusted_success = (
+        '{"status": "ok", "code": "OK", "interface_version": "1", '
+        '"runtime_version": "0.1.0", "output_byte_size": 42, '
+        '"patient_identifier": "ID-SECRET", "private_sys_path": "/root/secret"}'
+    )
+    version_json = (
+        '{"status": "ok", "code": "OK", "interface_version": "1", '
+        '"runtime_version": "0.1.0"}'
+    )
+    mock_body = f"""if [ "$1" = "--version" ]; then
+    echo '{version_json}'
+    exit 0
+fi
+touch "${{@: -1}}"
+echo '{untrusted_success}'
+exit 0
+"""
+    script = _create_mock_script(tmp_path, mock_body)
+    rad = tmp_path / "rad.npz"
+    gain = tmp_path / "gain.npz"
+    manifest = tmp_path / "man.json"
+    cal = tmp_path / "cal"
+    cal.mkdir()
+    out = tmp_path / "out.dcm"
+    rad.write_bytes(b"dummy")
+    gain.write_bytes(b"dummy")
+    manifest.write_bytes(b"dummy")
+
+    adapter = MPIPSSubprocessAdapter(script)
+    res = adapter.convert(
+        radiograph=rad,
+        gain=gain,
+        manifest=manifest,
+        calibration=cal,
+        output=out,
+    )
+
+    assert res.status == "ok"
+    assert res.code == "OK"
+    assert res.output_byte_size == 42
+    assert res.raw_response == {
+        "status": "ok",
+        "code": "OK",
+        "interface_version": "1",
+        "runtime_version": "0.1.0",
+        "output_byte_size": 42,
+    }
+    assert "patient_identifier" not in res.raw_response
+    assert "private_sys_path" not in res.raw_response

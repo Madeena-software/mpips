@@ -206,12 +206,40 @@ def _is_valid_calibration_dir(p: Path) -> bool:
 
 def resolve_calibration_artifact_dir() -> Path:
     """Resolves the pre-generated, validated calibration artifact directory."""
+    # 1. In PyInstaller frozen environments, sys._MEIPASS holds embedded
+    # calibration assets exclusively. Under the interface 2-experimental contract,
+    # frozen execution must never fall back to external filesystem or env paths.
+    if getattr(sys, "frozen", False) or getattr(sys, "_MEIPASS", None):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            bundle_cal = Path(meipass) / "mpips" / "resources" / "calibration"
+            if _is_valid_calibration_dir(bundle_cal):
+                return bundle_cal
+            bundle_cal_alt = Path(meipass) / "resources" / "calibration"
+            if _is_valid_calibration_dir(bundle_cal_alt):
+                return bundle_cal_alt
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CALIBRATION_ARTIFACT_MISSING",
+        )
+
+    # 2. Explicit environment override for testing or external deployment
     env_dir = os.getenv("MPIPS_CALIBRATION_ARTIFACT_DIR")
     if env_dir:
         p = Path(env_dir).expanduser().resolve()
         if _is_valid_calibration_dir(p):
             return p
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CALIBRATION_ARTIFACT_MISSING",
+        )
 
+    # 3. Check bundled/packaged resources relative to module (installed package)
+    embedded_dir = Path(__file__).resolve().parent.parent / "resources" / "calibration"
+    if _is_valid_calibration_dir(embedded_dir):
+        return embedded_dir
+
+    # 4. Artifact root fallback (development only)
     artifact_root_env = os.getenv("MPIPS_ARTIFACT_ROOT")
     if artifact_root_env:
         root = Path(artifact_root_env).expanduser().resolve()
@@ -378,6 +406,14 @@ def run_isolated_dicom_conversion(
             "radiograph_npz_path": str(input_rad),
             "gain_npz_path": str(input_gain),
             "calibration_dir": str(staged_cal_dir),
+            "calibration_origin": (
+                "embedded"
+                if (
+                    getattr(sys, "frozen", False)
+                    or os.getenv("MPIPS_STANDALONE_EMBEDDED") == "1"
+                )
+                else "external"
+            ),
             "expected_gain_id": None,
             "expected_detector_mode": (
                 manifest.capture.detector_type if manifest.capture else None
@@ -475,16 +511,27 @@ def run_isolated_dicom_conversion(
                 }
             )
 
-            venv_python = Path(sys.prefix) / "bin" / "python"
-            python_bin = str(venv_python) if venv_python.exists() else sys.executable
-
-            cmd = [
-                python_bin,
-                "-m",
-                "mpips.conversion.worker",
-                str(args_path),
-                str(result_path),
-            ]
+            if getattr(sys, "frozen", False):
+                # Under PyInstaller frozen mode, sys.executable is the binary.
+                # Pass a special internal subcommand to run worker entrypoint.
+                cmd = [
+                    sys.executable,
+                    "_internal_worker",
+                    str(args_path),
+                    str(result_path),
+                ]
+            else:
+                venv_python = Path(sys.prefix) / "bin" / "python"
+                python_bin = (
+                    str(venv_python) if venv_python.exists() else sys.executable
+                )
+                cmd = [
+                    python_bin,
+                    "-m",
+                    "mpips.conversion.worker",
+                    str(args_path),
+                    str(result_path),
+                ]
 
             try:
                 proc = subprocess.Popen(
