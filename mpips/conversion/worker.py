@@ -210,22 +210,24 @@ def execute_conversion_worker(args_path: str, result_path: str) -> None:
             if isinstance(cal_cam, dict):
                 cal_serial = cal_cam.get("serialNumber") or cal_cam.get("cameraSerial")
 
-        # Determine if this conversion is operating under embedded calibration
-        # resources (e.g. standalone runtime interface 2-experimental or
-        # embedded bundle)
-        calibration_origin = args.get("calibration_origin")
-        if calibration_origin == "external":
-            is_embedded_cal = False
-        elif calibration_origin == "embedded":
+        # Establish authoritative calibration-origin policy:
+        # If sys.frozen is True, the effective calibration origin must always
+        # be embedded. An argument containing calibration_origin="external"
+        # must not downgrade that policy.
+        if getattr(sys, "frozen", False):
             is_embedded_cal = True
         else:
-            # Fallback for standalone frozen execution or direct worker execution
-            is_embedded_cal = bool(
-                getattr(sys, "frozen", False)
-                or (
-                    selected_cal_dir.parent / "embedded_calibration_manifest.json"
-                ).is_file()
-            )
+            calibration_origin = args.get("calibration_origin")
+            if calibration_origin == "external":
+                is_embedded_cal = False
+            elif calibration_origin == "embedded":
+                is_embedded_cal = True
+            else:
+                is_embedded_cal = bool(
+                    (
+                        selected_cal_dir.parent / "embedded_calibration_manifest.json"
+                    ).is_file()
+                )
 
         # Scoped fail-closed integrity validation for designated real TRX profile:
         # 1. Under embedded calibration, ALL TRX conversions MUST strictly use

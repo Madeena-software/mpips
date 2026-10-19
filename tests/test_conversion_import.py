@@ -409,3 +409,343 @@ def test_convert_npz_to_dicom_raises_standard_exceptions_never_http_exception(
     exc = exc_info.value
     assert not exc.__class__.__name__.endswith("HTTPException")
     assert isinstance(exc, (ValueError, RuntimeError, ConversionError))
+
+
+# ---------------------------------------------------------------------------
+# Finding A: Frozen Calibration Must Never Fall Back Externally
+# ---------------------------------------------------------------------------
+
+
+def test_frozen_calibration_resolution_with_valid_bundle(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Frozen mode with valid bundled resources selects those resources."""
+    from mpips.conversion.service import resolve_calibration_artifact_dir
+
+    meipass = tmp_path / "bundle_valid"
+    bundle_cal = meipass / "mpips" / "resources" / "calibration"
+    _create_calibration_artifact(bundle_cal, shape=(64, 64))
+
+    monkeypatch.setattr("mpips.conversion.service.sys.frozen", True, raising=False)
+    monkeypatch.setattr(
+        "mpips.conversion.service.sys._MEIPASS", str(meipass), raising=False
+    )
+
+    resolved = resolve_calibration_artifact_dir()
+    assert resolved == bundle_cal
+
+
+def test_frozen_calibration_resolution_fails_when_bundle_missing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Frozen mode with missing bundled resources fails immediately."""
+    from fastapi import HTTPException
+    from mpips.conversion.service import resolve_calibration_artifact_dir
+
+    meipass = tmp_path / "bundle_missing"
+    meipass.mkdir()
+
+    monkeypatch.setattr("mpips.conversion.service.sys.frozen", True, raising=False)
+    monkeypatch.setattr(
+        "mpips.conversion.service.sys._MEIPASS", str(meipass), raising=False
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_calibration_artifact_dir()
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "CALIBRATION_ARTIFACT_MISSING"
+
+
+def test_frozen_calibration_resolution_fails_when_bundle_invalid(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Frozen mode with invalid bundled resources fails immediately."""
+    from fastapi import HTTPException
+    from mpips.conversion.service import resolve_calibration_artifact_dir
+
+    meipass = tmp_path / "bundle_invalid"
+    bundle_cal = meipass / "mpips" / "resources" / "calibration"
+    bundle_cal.mkdir(parents=True)
+    # Empty directory, missing metadata.json and remap.npz
+
+    monkeypatch.setattr("mpips.conversion.service.sys.frozen", True, raising=False)
+    monkeypatch.setattr(
+        "mpips.conversion.service.sys._MEIPASS", str(meipass), raising=False
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_calibration_artifact_dir()
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "CALIBRATION_ARTIFACT_MISSING"
+
+
+def test_frozen_calibration_resolution_never_falls_back_externally(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A valid external calibration dir does not rescue a missing frozen bundle."""
+    from fastapi import HTTPException
+    from mpips.conversion.service import resolve_calibration_artifact_dir
+
+    external_cal = _create_calibration_artifact(
+        tmp_path / "external_cal", shape=(64, 64)
+    )
+    monkeypatch.setenv("MPIPS_CALIBRATION_ARTIFACT_DIR", str(external_cal))
+    monkeypatch.setenv("MPIPS_ARTIFACT_ROOT", str(tmp_path / "external_cal"))
+
+    # Missing meipass bundle
+    meipass = tmp_path / "bundle_empty"
+    meipass.mkdir()
+    monkeypatch.setattr("mpips.conversion.service.sys.frozen", True, raising=False)
+    monkeypatch.setattr(
+        "mpips.conversion.service.sys._MEIPASS", str(meipass), raising=False
+    )
+
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_calibration_artifact_dir()
+    assert exc_info.value.status_code == 422
+    assert exc_info.value.detail == "CALIBRATION_ARTIFACT_MISSING"
+
+
+def test_non_frozen_interface_1_accepts_external_calibration(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Non-frozen interface 1 accepts legitimate external calibration."""
+    from mpips.conversion.service import resolve_calibration_artifact_dir
+
+    external_cal = _create_calibration_artifact(
+        tmp_path / "legit_external_cal", shape=(64, 64)
+    )
+    monkeypatch.setenv("MPIPS_CALIBRATION_ARTIFACT_DIR", str(external_cal))
+
+    # Ensure frozen is false and _MEIPASS is absent
+    monkeypatch.delattr("mpips.conversion.service.sys.frozen", raising=False)
+    monkeypatch.delattr("mpips.conversion.service.sys._MEIPASS", raising=False)
+
+    resolved = resolve_calibration_artifact_dir()
+    assert resolved == external_cal.resolve()
+
+
+# ---------------------------------------------------------------------------
+# Finding B: Frozen Worker Policy Cannot Be Downgraded
+# ---------------------------------------------------------------------------
+
+
+def test_frozen_worker_policy_cannot_be_downgraded_by_external_arg(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Assert sys.frozen=True stays embedded even if calibration_origin='external'."""
+    from mpips.conversion.worker import execute_conversion_worker
+
+    monkeypatch.setattr("mpips.conversion.worker.sys.frozen", True, raising=False)
+
+    root = tmp_path / "frozen_worker_downgrade_test"
+    root.mkdir()
+
+    # Create dummy radiograph with TRX mode
+    camera = {
+        "serialNumber": "DA5234480",
+        "cameraSerial": "DA5234480",
+        "cameraModel": "MV-CH120-10UM",
+    }
+    xray = {"detectorMode": "TRX"}
+    shape = (3000, 4096)
+    raw_img = np.ones(shape, dtype=np.uint16) * 1000
+
+    rad = root / "rad.npz"
+    gain = root / "gain.npz"
+    np.savez_compressed(
+        rad,
+        id=np.array("RAD-1"),
+        gainid=np.array("GAIN-1"),
+        rawimage=raw_img,
+        cameraparams=np.array(camera),
+        xrayparams=np.array(xray),
+    )
+    np.savez_compressed(
+        gain,
+        id=np.array("GAIN-1"),
+        rawimage=np.full(shape, 35000, dtype=np.uint16),
+        darkimage=np.full(shape, 50, dtype=np.uint16),
+        cameraparams=np.array(camera),
+        xrayparams=np.array(xray),
+    )
+
+    # Provide a calibration dir that does NOT match the approved real TRX specs
+    # (e.g. substitute profile or wrong fingerprint)
+    cal_substitute = root / "cal_substitute"
+    cal_substitute.mkdir()
+    substitute_meta = {
+        "validated": True,
+        "fingerprint": "SUBSTITUTE_TRX_FP_ATTEMPTING_BYPASS",
+        "image_shape": [3000, 4096],
+        "source_metadata": {
+            "id": "UNAUTHORIZED_SUBSTITUTE_PROFILE",
+            "detector_mode": "TRX",
+            "camera_params": {},
+        },
+    }
+    (cal_substitute / "metadata.json").write_text(json.dumps(substitute_meta))
+    y, x = np.indices(shape, dtype=np.float32)
+    np.savez_compressed(cal_substitute / "remap.npz", map_x=x, map_y=y)
+
+    out_tiff = root / "out.tiff"
+    result_json = root / "res.json"
+    args_json = root / "args.json"
+
+    # Worker args explicitly passing calibration_origin="external"
+    args = {
+        "radiograph_npz_path": str(rad),
+        "gain_npz_path": str(gain),
+        "calibration_dir": str(cal_substitute),
+        "calibration_origin": "external",  # Attempting to downgrade frozen policy
+        "expected_gain_id": "GAIN-1",
+        "expected_detector_mode": "TRX",
+        "output_tiff_path": str(out_tiff),
+        "result_path": str(result_json),
+    }
+    args_json.write_text(json.dumps(args))
+
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_json), str(result_json))
+
+    res = json.loads(result_json.read_text())
+    assert res["status"] == "failed"
+    assert res["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
+    # Proves it failed during real TRX validation before image processing
+    assert not out_tiff.exists()
+
+
+def test_frozen_worker_policy_with_missing_calibration_origin(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Frozen worker with missing calibration_origin defaults to embedded policy."""
+    from mpips.conversion.worker import execute_conversion_worker
+
+    monkeypatch.setattr("mpips.conversion.worker.sys.frozen", True, raising=False)
+
+    root = tmp_path / "frozen_worker_missing_origin"
+    root.mkdir()
+
+    camera = {
+        "serialNumber": "DA5234480",
+        "cameraSerial": "DA5234480",
+    }
+    xray = {"detectorMode": "TRX"}
+    shape = (3000, 4096)
+    rad = root / "rad.npz"
+    gain = root / "gain.npz"
+    np.savez_compressed(
+        rad,
+        id=np.array("RAD-1"),
+        gainid=np.array("GAIN-1"),
+        rawimage=np.ones(shape, dtype=np.uint16) * 1000,
+        cameraparams=np.array(camera),
+        xrayparams=np.array(xray),
+    )
+    np.savez_compressed(
+        gain,
+        id=np.array("GAIN-1"),
+        rawimage=np.full(shape, 35000, dtype=np.uint16),
+        darkimage=np.full(shape, 50, dtype=np.uint16),
+        cameraparams=np.array(camera),
+        xrayparams=np.array(xray),
+    )
+
+    cal_substitute = root / "cal_substitute"
+    cal_substitute.mkdir()
+    (cal_substitute / "metadata.json").write_text(
+        json.dumps(
+            {
+                "validated": True,
+                "fingerprint": "WRONG_FP",
+                "image_shape": [3000, 4096],
+                "source_metadata": {"id": "SUB", "detector_mode": "TRX"},
+            }
+        )
+    )
+    y, x = np.indices(shape, dtype=np.float32)
+    np.savez_compressed(cal_substitute / "remap.npz", map_x=x, map_y=y)
+
+    out_tiff = root / "out.tiff"
+    result_json = root / "res.json"
+    args_json = root / "args.json"
+
+    # Missing calibration_origin in args
+    args = {
+        "radiograph_npz_path": str(rad),
+        "gain_npz_path": str(gain),
+        "calibration_dir": str(cal_substitute),
+        "expected_gain_id": "GAIN-1",
+        "expected_detector_mode": "TRX",
+        "output_tiff_path": str(out_tiff),
+        "result_path": str(result_json),
+    }
+    args_json.write_text(json.dumps(args))
+
+    with pytest.raises(SystemExit):
+        execute_conversion_worker(str(args_json), str(result_json))
+
+    res = json.loads(result_json.read_text())
+    assert res["status"] == "failed"
+    assert res["sanitized_error_code"] == "NPZ_VALIDATION_ERROR"
+    assert not out_tiff.exists()
+
+
+def test_non_frozen_worker_using_legitimate_external_interface_1_calibration(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Non-frozen worker using legitimate external interface 1 calibration succeeds."""
+    from mpips.conversion.worker import execute_conversion_worker
+
+    # Ensure frozen is false
+    monkeypatch.setattr("mpips.conversion.worker.sys.frozen", False, raising=False)
+
+    root = tmp_path / "non_frozen_external_worker"
+    root.mkdir()
+
+    camera = {"serialNumber": "CAM-EXTERNAL-01"}
+    xray = {"detectorMode": "BED"}
+    shape = (64, 64)
+    rad = root / "rad.npz"
+    gain = root / "gain.npz"
+    np.savez_compressed(
+        rad,
+        id=np.array("RAD-EXT"),
+        gainid=np.array("GAIN-EXT"),
+        rawimage=np.ones(shape, dtype=np.uint16) * 1000,
+        cameraparams=np.array(camera),
+        xrayparams=np.array(xray),
+    )
+    np.savez_compressed(
+        gain,
+        id=np.array("GAIN-EXT"),
+        rawimage=np.full(shape, 35000, dtype=np.uint16),
+        darkimage=np.full(shape, 50, dtype=np.uint16),
+        cameraparams=np.array(camera),
+        xrayparams=np.array(xray),
+    )
+
+    cal_ext = _create_calibration_artifact(
+        root / "cal_ext", shape=shape, detector_mode="BED"
+    )
+    out_tiff = root / "out.tiff"
+    result_json = root / "res.json"
+    args_json = root / "args.json"
+
+    args = {
+        "radiograph_npz_path": str(rad),
+        "gain_npz_path": str(gain),
+        "calibration_dir": str(cal_ext),
+        "calibration_origin": "external",
+        "expected_gain_id": "GAIN-EXT",
+        "expected_detector_mode": "BED",
+        "output_tiff_path": str(out_tiff),
+        "result_path": str(result_json),
+    }
+    args_json.write_text(json.dumps(args))
+
+    execute_conversion_worker(str(args_json), str(result_json))
+
+    res = json.loads(result_json.read_text())
+    assert res["status"] == "success"
+    assert out_tiff.is_file()

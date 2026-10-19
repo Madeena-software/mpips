@@ -207,15 +207,21 @@ def _is_valid_calibration_dir(p: Path) -> bool:
 def resolve_calibration_artifact_dir() -> Path:
     """Resolves the pre-generated, validated calibration artifact directory."""
     # 1. In PyInstaller frozen environments, sys._MEIPASS holds embedded
-    # calibration assets
-    meipass = getattr(sys, "_MEIPASS", None)
-    if meipass:
-        bundle_cal = Path(meipass) / "mpips" / "resources" / "calibration"
-        if _is_valid_calibration_dir(bundle_cal):
-            return bundle_cal
-        bundle_cal_alt = Path(meipass) / "resources" / "calibration"
-        if _is_valid_calibration_dir(bundle_cal_alt):
-            return bundle_cal_alt
+    # calibration assets exclusively. Under the interface 2-experimental contract,
+    # frozen execution must never fall back to external filesystem or env paths.
+    if getattr(sys, "frozen", False) or getattr(sys, "_MEIPASS", None):
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            bundle_cal = Path(meipass) / "mpips" / "resources" / "calibration"
+            if _is_valid_calibration_dir(bundle_cal):
+                return bundle_cal
+            bundle_cal_alt = Path(meipass) / "resources" / "calibration"
+            if _is_valid_calibration_dir(bundle_cal_alt):
+                return bundle_cal_alt
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="CALIBRATION_ARTIFACT_MISSING",
+        )
 
     # 2. Explicit environment override for testing or external deployment
     env_dir = os.getenv("MPIPS_CALIBRATION_ARTIFACT_DIR")

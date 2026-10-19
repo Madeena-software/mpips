@@ -16,10 +16,10 @@ This qualification report records the review, remediation, and qualification of 
 
 - **Executable:** `dist-experimental/mpips-runtime.bin` (local build candidate only; not distributed or released on GitHub)
 - **Format:** ELF 64-bit LSB executable, x86-64, dynamically linked (`glibc 2.39`), stripped.
-- **File Size:** `237,341,200` bytes (~226 MiB).
+- **File Size:** `236,532,616` bytes (~226 MiB).
 - **Local Candidate SHA-256 Digest:**
   ```text
-  0fe4b70ec1e392bf4514e2f3299a7fcd299b98c5f5b95c43a1397aebc6607081
+  8ef48229d72adaa4eb9df832a5315e2ecf42abb448f78c2674c330d964004669
   ```
   *(Note: Tied explicitly to validated local build; binary payload is not committed to git or uploaded to GitHub Actions).*
 - **Designated Real TRX Asset Provenance:**
@@ -103,7 +103,7 @@ tests/test_standalone_bin_qualification.py::test_bin_negative_dangling_symlink P
 tests/test_standalone_bin_qualification.py::test_bin_negative_detector_mode_mismatch PASSED [ 83%]
 tests/test_standalone_bin_qualification.py::test_worker_negative_real_trx_validation_cases PASSED [ 91%]
 tests/test_standalone_bin_qualification.py::test_bin_rejects_explicit_calibration_override_in_interface_2 PASSED [100%]
-======================== 12 passed in 119.91s ========================
+======================== 12 passed in 114.54s ========================
 ```
 
 ### Subprocess Adapter Suite
@@ -121,7 +121,7 @@ Command: `.venv/bin/pytest tests/test_packaged_grabber_e2e.py -v`
 ### Full Local Test Suite
 Command: `.venv/bin/pytest -q`
 ```text
-1068 passed, 312 warnings in 340.87s
+1076 passed, 315 warnings in 442.57s
 ```
 
 ### Canonical Converter Immutability
