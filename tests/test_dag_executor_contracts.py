@@ -206,7 +206,7 @@ def test_baseline_progress_sequence_and_return_metadata(
     assert output["mime_type"] == "image/png"
     assert output["size_bytes"] == len(b"deterministic-output")
     assert output["checksum"] == hashlib.md5(b"deterministic-output").hexdigest()
-    assert output["quality_assessment"] == {"quality": 1.0}
+    assert output["quality_assessment"] == {"quality": 1.0, "before": {"quality": 1.0}}
 
 
 @pytest.mark.parametrize(
@@ -382,7 +382,7 @@ def test_baseline_extension_url_and_mime_contract(
     assert output["mime_type"] == expected_mime
 
 
-def test_baseline_url_output_and_iqa_uses_first_input_reference() -> None:
+def test_url_output_and_iqa_uses_each_output_source_reference() -> None:
     image_a = np.full((2, 2), 1, dtype=np.uint8)
     image_b = np.full((2, 2), 9, dtype=np.uint8)
     storage = RecordingStorage()
@@ -419,8 +419,8 @@ def test_baseline_url_output_and_iqa_uses_first_input_reference() -> None:
         )
 
     assert result["output_target"] == "https://example.test/output.png"
-    assert len(references) == 2
-    assert [int(reference.mean()) for _, reference in references] == [1, 1]
+    assert len(references) == 4
+    assert sorted(int(reference.mean()) for _, reference in references) == [1, 1, 9, 9]
     assert all(int(output.mean()) in {1, 9} for output, _ in references)
     assert all(upload[2] is True for upload in storage.uploads)
     assert all(
@@ -493,8 +493,10 @@ def test_baseline_iqa_executor_local_normalization_is_preserved() -> None:
             _pipeline(), {"in_1": {"key": "image.tiff"}}, {"prefix": "outputs/"}
         )
 
-    assert len(captured) == 1
+    assert len(captured) == 2
     output, reference = captured[0]
+    np.testing.assert_array_equal(captured[1][0], reference)
+    np.testing.assert_array_equal(captured[1][1], reference)
     assert output.dtype == np.uint8
     assert reference.dtype == np.uint8
     np.testing.assert_array_equal(

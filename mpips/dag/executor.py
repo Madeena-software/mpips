@@ -77,7 +77,9 @@ class DAGExecutor:
 
         try:
             # 3. Download inputs and prepare execution context
-            original_input_img = None
+            # Preserve source pixels before any node can modify them in place.
+            original_images: Dict[tuple[str, str], np.ndarray] = {}
+            image_references: Dict[tuple[str, str], Optional[tuple[str, str]]] = {}
             context: Dict[tuple[str, str], Any] = (
                 {}
             )  # maps (node_id, slot_name) -> value
@@ -108,6 +110,7 @@ class DAGExecutor:
 
                 # Resolve inputs from incoming edges
                 node_inputs: Dict[str, Any] = {}
+                input_references: Dict[str, Optional[tuple[str, str]]] = {}
 
                 if node_type in ("input", "input_npz"):
                     # Download input image to a temp file
@@ -224,9 +227,6 @@ class DAGExecutor:
                                         slot: _convert_to_8bit(slot_img)
                                         for slot, slot_img in gain_images.items()
                                     }
-
-                        if original_input_img is None:
-                            original_input_img = img
                     finally:
                         if original_bucket is not None:
                             os.environ["AWS_BUCKET"] = original_bucket
@@ -260,6 +260,30 @@ class DAGExecutor:
                                 f"Missing connection for " f"{node_id}:{target_handle}"
                             )
                         node_inputs[target_handle] = val
+                        input_references[target_handle] = image_references.get(
+                            (source_id, source_handle)
+                        )
+
+                if node_type in ("input", "input_npz"):
+                    for slot_name, val in node_inputs.items():
+                        if isinstance(val, np.ndarray):
+                            input_reference = (node_id, slot_name)
+                            original_images[input_reference] = val.copy()
+                            input_references[slot_name] = input_reference
+
+                # Prefer the declared image input over calibration/reference inputs.
+                # For other multi-image nodes, only an unambiguous source is valid.
+                if isinstance(node_inputs.get("input_image"), np.ndarray):
+                    node_reference = input_references.get("input_image")
+                else:
+                    references = {
+                        input_references.get(slot_name)
+                        for slot_name, val in node_inputs.items()
+                        if isinstance(val, np.ndarray)
+                    }
+                    node_reference = (
+                        next(iter(references)) if len(references) == 1 else None
+                    )
 
                 # Execute node
                 outputs = node_inst.execute(node_inputs, node_params)
@@ -267,6 +291,12 @@ class DAGExecutor:
                 # Write outputs to context
                 for slot_name, val in outputs.items():
                     context[(node_id, slot_name)] = val
+                    if isinstance(val, np.ndarray):
+                        image_references[(node_id, slot_name)] = (
+                            input_references.get(slot_name)
+                            if val is node_inputs.get(slot_name)
+                            else node_reference
+                        )
 
                 # Special handling for OutputNode/MadeenaNpzOutputNode: upload
                 # the result image(s)
@@ -295,8 +325,10 @@ class DAGExecutor:
                                 f"rawimage/darkimage/processedimage input to upload."
                             )
                         # Reference image for checksum/IQA metrics below.
-                        output_img = next(iter(npz_images.values()))
+                        output_slot = next(iter(npz_images))
+                        output_img = npz_images[output_slot]
                     else:
+                        output_slot = "output_image"
                         output_img = node_inputs.get("input_image")
                         if output_img is None:
                             # Fallback if connected differently
@@ -379,10 +411,12 @@ class DAGExecutor:
 
                         from mpips.iqa import calculate_all_metrics
 
+                        reference_key = image_references.get((node_id, output_slot))
+                        original_image = (
+                            original_images.get(reference_key) if reference_key else None
+                        )
                         ref_img = (
-                            original_input_img
-                            if original_input_img is not None
-                            else output_img
+                            original_image if original_image is not None else output_img
                         )
 
                         # Normalize copies for IQA metrics
@@ -405,9 +439,17 @@ class DAGExecutor:
 
                         ref_img_u8 = to_uint8_copy(ref_img)
                         output_img_u8 = to_uint8_copy(output_img)
-                        quality_assessment = calculate_all_metrics(
-                            output_img_u8, ref_img_u8
+                        quality_assessment: Dict[str, Any] = dict(
+                            calculate_all_metrics(output_img_u8, ref_img_u8)
                         )
+                        if original_image is not None:
+                            quality_assessment["before"] = calculate_all_metrics(
+                                ref_img_u8, ref_img_u8
+                            )
+
+                        else:
+                            # CII needs a known original, not a self-comparison.
+                            quality_assessment["cii"] = None
 
                         outputs_metadata[node_id] = {
                             "storage_disk": "s3" if not is_presigned else "url",
