@@ -1,0 +1,1955 @@
+[
+  {
+    "name": "bounded loop with gate",
+    "valid": true,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 5,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "bright",
+          "type": "brightness_contrast",
+          "name": "Brightness & Contrast",
+          "category": "adjustments",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "alpha": 1,
+            "beta": 10
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "iteration >= 3 or (iteration > 1 and delta_entropy < 0.01)"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "in",
+          "target": "repeat",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_repeat_input_image"
+        },
+        {
+          "source": "repeat",
+          "target": "bright",
+          "source_handle": "current_image",
+          "target_handle": "input_image",
+          "id": "repeat_current_image_bright_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "true_image",
+          "target_handle": "stop_image",
+          "id": "gate_true_image_repeat_stop_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "false_image",
+          "target_handle": "feedback_image",
+          "id": "gate_false_image_repeat_feedback_image"
+        },
+        {
+          "source": "repeat",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "repeat_output_image_out_input_image"
+        }
+      ]
+    }
+  },
+  {
+    "name": "missing seed",
+    "valid": false,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 5,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "bright",
+          "type": "brightness_contrast",
+          "name": "Brightness & Contrast",
+          "category": "adjustments",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "alpha": 1,
+            "beta": 10
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "iteration >= 3 or (iteration > 1 and delta_entropy < 0.01)"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "repeat",
+          "target": "bright",
+          "source_handle": "current_image",
+          "target_handle": "input_image",
+          "id": "repeat_current_image_bright_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "true_image",
+          "target_handle": "stop_image",
+          "id": "gate_true_image_repeat_stop_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "false_image",
+          "target_handle": "feedback_image",
+          "id": "gate_false_image_repeat_feedback_image"
+        },
+        {
+          "source": "repeat",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "repeat_output_image_out_input_image"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unbounded loop",
+    "valid": false,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 0,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "bright",
+          "type": "brightness_contrast",
+          "name": "Brightness & Contrast",
+          "category": "adjustments",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "alpha": 1,
+            "beta": 10
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "iteration >= 3 or (iteration > 1 and delta_entropy < 0.01)"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "in",
+          "target": "repeat",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_repeat_input_image"
+        },
+        {
+          "source": "repeat",
+          "target": "bright",
+          "source_handle": "current_image",
+          "target_handle": "input_image",
+          "id": "repeat_current_image_bright_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "true_image",
+          "target_handle": "stop_image",
+          "id": "gate_true_image_repeat_stop_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "false_image",
+          "target_handle": "feedback_image",
+          "id": "gate_false_image_repeat_feedback_image"
+        },
+        {
+          "source": "repeat",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "repeat_output_image_out_input_image"
+        }
+      ]
+    }
+  },
+  {
+    "name": "wrong return",
+    "valid": false,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 5,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "bright",
+          "type": "brightness_contrast",
+          "name": "Brightness & Contrast",
+          "category": "adjustments",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "alpha": 1,
+            "beta": 10
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "iteration >= 3 or (iteration > 1 and delta_entropy < 0.01)"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "in",
+          "target": "repeat",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_repeat_input_image"
+        },
+        {
+          "source": "repeat",
+          "target": "bright",
+          "source_handle": "current_image",
+          "target_handle": "input_image",
+          "id": "repeat_current_image_bright_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "true_image",
+          "target_handle": "stop_image",
+          "id": "gate_true_image_repeat_stop_image"
+        },
+        {
+          "source": "in",
+          "target": "repeat",
+          "source_handle": "output_image",
+          "target_handle": "feedback_image",
+          "id": "in_output_image_repeat_feedback_image"
+        },
+        {
+          "source": "repeat",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "repeat_output_image_out_input_image"
+        }
+      ]
+    }
+  },
+  {
+    "name": "body output leak",
+    "valid": false,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 5,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "bright",
+          "type": "brightness_contrast",
+          "name": "Brightness & Contrast",
+          "category": "adjustments",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "alpha": 1,
+            "beta": 10
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "iteration >= 3 or (iteration > 1 and delta_entropy < 0.01)"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "in",
+          "target": "repeat",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_repeat_input_image"
+        },
+        {
+          "source": "repeat",
+          "target": "bright",
+          "source_handle": "current_image",
+          "target_handle": "input_image",
+          "id": "repeat_current_image_bright_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "true_image",
+          "target_handle": "stop_image",
+          "id": "gate_true_image_repeat_stop_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "false_image",
+          "target_handle": "feedback_image",
+          "id": "gate_false_image_repeat_feedback_image"
+        },
+        {
+          "source": "repeat",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "repeat_output_image_out_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_out_input_image"
+        }
+      ]
+    }
+  },
+  {
+    "name": "unsafe expression",
+    "valid": false,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 5,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "bright",
+          "type": "brightness_contrast",
+          "name": "Brightness & Contrast",
+          "category": "adjustments",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "alpha": 1,
+            "beta": 10
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "__import__(\"os\")"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "in",
+          "target": "repeat",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_repeat_input_image"
+        },
+        {
+          "source": "repeat",
+          "target": "bright",
+          "source_handle": "current_image",
+          "target_handle": "input_image",
+          "id": "repeat_current_image_bright_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "true_image",
+          "target_handle": "stop_image",
+          "id": "gate_true_image_repeat_stop_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "false_image",
+          "target_handle": "feedback_image",
+          "id": "gate_false_image_repeat_feedback_image"
+        },
+        {
+          "source": "repeat",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "repeat_output_image_out_input_image"
+        }
+      ]
+    }
+  },
+  {
+    "name": "ordinary cycle",
+    "valid": false,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 5,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "bright",
+          "type": "brightness_contrast",
+          "name": "Brightness & Contrast",
+          "category": "adjustments",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "alpha": 1,
+            "beta": 10
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "iteration >= 3 or (iteration > 1 and delta_entropy < 0.01)"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "in",
+          "target": "repeat",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_repeat_input_image"
+        },
+        {
+          "source": "repeat",
+          "target": "bright",
+          "source_handle": "current_image",
+          "target_handle": "input_image",
+          "id": "repeat_current_image_bright_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "true_image",
+          "target_handle": "stop_image",
+          "id": "gate_true_image_repeat_stop_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "false_image",
+          "target_handle": "feedback_image",
+          "id": "gate_false_image_repeat_feedback_image"
+        },
+        {
+          "source": "repeat",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "repeat_output_image_out_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "bright",
+          "source_handle": "false_image",
+          "target_handle": "input_image",
+          "id": "gate_false_image_bright_input_image"
+        }
+      ]
+    }
+  },
+  {
+    "name": "nested loop",
+    "valid": false,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 5,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "bright",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 10,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "iteration >= 3 or (iteration > 1 and delta_entropy < 0.01)"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "in",
+          "target": "repeat",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_repeat_input_image"
+        },
+        {
+          "source": "repeat",
+          "target": "bright",
+          "source_handle": "current_image",
+          "target_handle": "input_image",
+          "id": "repeat_current_image_bright_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "true_image",
+          "target_handle": "stop_image",
+          "id": "gate_true_image_repeat_stop_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "false_image",
+          "target_handle": "feedback_image",
+          "id": "gate_false_image_repeat_feedback_image"
+        },
+        {
+          "source": "repeat",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "repeat_output_image_out_input_image"
+        }
+      ]
+    }
+  },
+  {
+    "name": "duplicate gate input",
+    "valid": false,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 5,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "bright",
+          "type": "brightness_contrast",
+          "name": "Brightness & Contrast",
+          "category": "adjustments",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "alpha": 1,
+            "beta": 10
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "iteration >= 3 or (iteration > 1 and delta_entropy < 0.01)"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "in",
+          "target": "repeat",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_repeat_input_image"
+        },
+        {
+          "source": "repeat",
+          "target": "bright",
+          "source_handle": "current_image",
+          "target_handle": "input_image",
+          "id": "repeat_current_image_bright_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "true_image",
+          "target_handle": "stop_image",
+          "id": "gate_true_image_repeat_stop_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "false_image",
+          "target_handle": "feedback_image",
+          "id": "gate_false_image_repeat_feedback_image"
+        },
+        {
+          "source": "repeat",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "repeat_output_image_out_input_image"
+        },
+        {
+          "source": "in",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_gate_input_image"
+        }
+      ]
+    }
+  },
+  {
+    "name": "loop depends on its own output",
+    "valid": false,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "repeat",
+          "type": "loop",
+          "name": "Loop \u00b7 bounded repeat",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "max_iterations": 5,
+            "result_mode": "latest",
+            "score_metric": "entropy",
+            "score_direction": "maximize"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "feedback_image",
+              "type": "image"
+            },
+            {
+              "name": "stop_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "current_image",
+              "type": "image"
+            },
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "bright",
+          "type": "brightness_contrast",
+          "name": "Brightness & Contrast",
+          "category": "adjustments",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "alpha": 1,
+            "beta": 10
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "iteration >= 3 or (iteration > 1 and delta_entropy < 0.01)"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "in",
+          "target": "repeat",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_repeat_input_image"
+        },
+        {
+          "source": "repeat",
+          "target": "bright",
+          "source_handle": "current_image",
+          "target_handle": "input_image",
+          "id": "repeat_current_image_bright_input_image"
+        },
+        {
+          "source": "bright",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "bright_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "true_image",
+          "target_handle": "stop_image",
+          "id": "gate_true_image_repeat_stop_image"
+        },
+        {
+          "source": "gate",
+          "target": "repeat",
+          "source_handle": "false_image",
+          "target_handle": "feedback_image",
+          "id": "gate_false_image_repeat_feedback_image"
+        },
+        {
+          "source": "repeat",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "repeat_output_image_out_input_image"
+        },
+        {
+          "source": "out",
+          "target": "bright",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "out_output_image_bright_input_image"
+        }
+      ]
+    }
+  },
+  {
+    "name": "true false branch join",
+    "valid": true,
+    "graph": {
+      "nodes": [
+        {
+          "id": "in",
+          "type": "input",
+          "name": "Input Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "convert_to_8bit": false
+          },
+          "inputs": [],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "gate",
+          "type": "condition",
+          "name": "Condition \u00b7 True / False",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {
+            "condition": "mean > 128"
+          },
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            },
+            {
+              "name": "value",
+              "type": "float"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "join",
+          "type": "branch_merge",
+          "name": "Branch Merge \u00b7 selected path",
+          "category": "control_flow",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "true_image",
+              "type": "image"
+            },
+            {
+              "name": "false_image",
+              "type": "image"
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output_image",
+              "type": "image"
+            }
+          ]
+        },
+        {
+          "id": "out",
+          "type": "output",
+          "name": "Output Node",
+          "category": "io",
+          "x": 100,
+          "y": 100,
+          "parameters": {},
+          "inputs": [
+            {
+              "name": "input_image",
+              "type": "image"
+            }
+          ],
+          "outputs": []
+        }
+      ],
+      "edges": [
+        {
+          "source": "in",
+          "target": "gate",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "in_output_image_gate_input_image"
+        },
+        {
+          "source": "gate",
+          "target": "join",
+          "source_handle": "true_image",
+          "target_handle": "true_image",
+          "id": "gate_true_image_join_true_image"
+        },
+        {
+          "source": "gate",
+          "target": "join",
+          "source_handle": "false_image",
+          "target_handle": "false_image",
+          "id": "gate_false_image_join_false_image"
+        },
+        {
+          "source": "join",
+          "target": "out",
+          "source_handle": "output_image",
+          "target_handle": "input_image",
+          "id": "join_output_image_out_input_image"
+        }
+      ]
+    }
+  }
+]

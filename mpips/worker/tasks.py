@@ -142,6 +142,7 @@ def run_pipeline(self: Any, job_data: Dict[str, Any]) -> Dict[str, Any]:
         job_state["current_node"] = None
         job_state["finished_at"] = datetime.now(timezone.utc).isoformat()
         job_state["outputs"] = result.get("outputs", {})
+        job_state["control_flow"] = result.get("control_flow", [])
 
         r.set(f"mpips:job:{job_id}", json.dumps(job_state))
         logger.info("Job completed.", extra=log_context)
