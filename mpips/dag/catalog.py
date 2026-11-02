@@ -843,3 +843,35 @@ NODE_CATALOG = [
         version="1.0.0",
     ),
 ]
+
+
+# Explicit control nodes are server-executed; a feedback connection is legal only
+# through a Loop's named return ports. Existing DAG catalog entries are unchanged.
+NODE_CATALOG.extend([
+    ProcessorNodeSchema(
+        id="condition", name="Condition · True / False", category="control_flow",
+        description="Routes the image through True or False. Conditions support iteration, mean, std, entropy, optional value/previous_value and delta_* variables; use iteration > 1 before previous/delta values. Operators: comparisons, + - * / %, and/or/not. No code or function calls.",
+        inputs=[InputSlot(name="input_image", type="image"), InputSlot(name="value", type="float")],
+        outputs=[OutputSlot(name="true_image", type="image"), OutputSlot(name="false_image", type="image")],
+        parameters=[Parameter(name="condition", type="string", default="iteration >= 3", description="Stop example: iteration > 1 and delta_entropy < 0.01. True/False outputs carry the selected image; value is an optional numeric input.")],
+        version="1.0.0", executable_in_browser=False,
+    ),
+    ProcessorNodeSchema(
+        id="loop", name="Loop · bounded repeat", category="control_flow",
+        description="Initial image enters input_image. current_image feeds the repeated body; wire the gate's False result to feedback_image and True result to stop_image. output_image is emitted only after stopping. Nested/crossing loops and IO inside the repeated body are rejected.",
+        inputs=[InputSlot(name=name,type="image") for name in ["input_image","feedback_image","stop_image"]],
+        outputs=[OutputSlot(name=name,type="image") for name in ["current_image","output_image"]],
+        parameters=[
+            Parameter(name="max_iterations",type="integer",default=10,min=1,max=100,description="Hard iteration limit, including the first pass. Reaching the limit returns the chosen image with an iteration_limit reason."),
+            Parameter(name="result_mode",type="string",default="latest",options=["latest","best"],description="Return the latest result or the best measured result across iterations."),
+            Parameter(name="score_metric",type="string",default="entropy",options=["mean","std","entropy"],description="Metric used only when result_mode is best; scores do not establish diagnostic quality."),
+            Parameter(name="score_direction",type="string",default="maximize",options=["maximize","minimize"],description="Whether the selected score should increase or decrease."),
+        ], version="1.0.0",executable_in_browser=False,
+    ),
+    ProcessorNodeSchema(
+        id="branch_merge",name="Branch Merge · selected path",category="control_flow",
+        description="Passes through the one active True/False branch, without waiting for an inactive branch. Two active image inputs are an error; use Merge for blending.",
+        inputs=[InputSlot(name="true_image",type="image"),InputSlot(name="false_image",type="image")],
+        outputs=[OutputSlot(name="output_image",type="image")],parameters=[],version="1.0.0",executable_in_browser=False,
+    ),
+])

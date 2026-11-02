@@ -14,7 +14,7 @@ from mpips.dag.artifacts import (
     save_npz_image,
     save_npz_madeena,
 )
-from mpips.dag.graph import topological_sort
+from mpips.dag.control_flow import PipelinePlan
 from mpips.dag.registry import get_node_class
 
 __all__ = ["DAGExecutor"]
@@ -63,8 +63,8 @@ class DAGExecutor:
         nodes = pipeline.get("nodes", [])
         edges = pipeline.get("edges", [])
 
-        # 1. Topological sort (includes cycle detection)
-        sorted_nodes = topological_sort(nodes, edges)
+        # Validate ordinary ordering and explicit bounded feedback regions.
+        plan = PipelinePlan(nodes, edges)
 
         # 2. Track temp files to clean them up
         temp_files: List[str] = []
@@ -84,16 +84,10 @@ class DAGExecutor:
                 {}
             )  # maps (node_id, slot_name) -> value
 
-            # Map of node ID to incoming edges for quick lookup
-            incoming_edges: Dict[str, List[Dict[str, Any]]] = {
-                n["id"]: [] for n in nodes
-            }
-            for edge in edges:
-                incoming_edges[edge["target"]].append(edge)
-
             # Process each node in topological order
-            total_nodes = len(sorted_nodes)
-            for idx, node in enumerate(sorted_nodes, start=1):
+            total_nodes = max(1, plan.max_steps)
+            plan.on_control = on_progress
+            for idx, node in enumerate(plan.steps(context, image_references), start=1):
                 node_id = node["id"]
                 node_type = node["type"]
                 raw_node_params = node.get("parameters", {})
@@ -102,7 +96,7 @@ class DAGExecutor:
                 )
 
                 if on_progress:
-                    on_progress(node_id, round(((idx - 1) / total_nodes) * 100.0, 2))
+                    on_progress(node_id, min(99.0, round(((plan.visits - 1 if plan.extended else idx - 1) / total_nodes) * 100.0, 2)))
 
                 # Fetch node class
                 node_cls = get_node_class(node_type)
@@ -249,7 +243,7 @@ class DAGExecutor:
 
                 else:
                     # Resolve inputs from edges
-                    for edge in incoming_edges[node_id]:
+                    for edge in plan.current_edges:
                         target_handle = edge["target_handle"]
                         source_id = edge["source"]
                         source_handle = edge["source_handle"]
@@ -477,11 +471,17 @@ class DAGExecutor:
                         else:
                             os.environ.pop("AWS_BUCKET", None)
 
+            if plan.extended and not outputs_metadata:
+                raise ValueError("Pipeline produced no active output image.")
+            if plan.extended:
+                for metadata in outputs_metadata.values():
+                    metadata["control_flow"] = plan.events
             # Return successfully processed details
             return {
                 "status": "completed",
                 "output_target": target,
                 "outputs": outputs_metadata,
+                **({"control_flow": plan.events} if plan.extended else {}),
             }
 
         finally:

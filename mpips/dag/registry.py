@@ -8,6 +8,7 @@ from mpips.dag.nodes.adjustments import (
     ThresholdingNode,
 )
 from mpips.dag.nodes.base import BaseNode
+from mpips.dag.nodes.control import ControlFlowNode
 from mpips.dag.nodes.calibration import CameraCalibrationWarpNode
 from mpips.dag.nodes.composite import MergeNode
 from mpips.dag.nodes.filtering import (
@@ -35,6 +36,9 @@ from mpips.dag.nodes.scientific import (
 )
 
 NODE_CLASSES: Dict[str, Type[BaseNode]] = {
+    "condition": ControlFlowNode,
+    "loop": ControlFlowNode,
+    "branch_merge": ControlFlowNode,
     "input": InputNode,
     "input_npz": InputNode,
     "output": OutputNode,
