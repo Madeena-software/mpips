@@ -95,12 +95,82 @@ jobs:
       - name: Build immutable image
         run: |
           set -Eeuo pipefail
-          echo "Building mpips-api:${GITHUB_SHA}..."
-          docker build \
+          BUILDER=mpips-production-cache
+          CACHE_ROOT="${HOME}/.cache/mpips-buildkit"
+          API_CACHE="$CACHE_ROOT/api"
+          API_CACHE_NEXT="$API_CACHE.next"
+          mkdir -p "$CACHE_ROOT"
+
+          if docker buildx inspect "$BUILDER" >/dev/null 2>&1; then
+            docker buildx use "$BUILDER"
+          else
+            docker buildx create --name "$BUILDER" --driver docker-container --use
+          fi
+
+          bootstrap_builder() {
+            local max_attempts=3
+            local attempt
+            for attempt in $(seq 1 "$max_attempts"); do
+              echo "BuildKit bootstrap attempt $attempt/$max_attempts"
+              if docker buildx inspect --bootstrap "$BUILDER"; then
+                return 0
+              fi
+              if [ "$attempt" -eq "$max_attempts" ]; then
+                echo "BuildKit bootstrap failed after $max_attempts attempts" >&2
+                return 1
+              fi
+              case "$attempt" in
+                1) sleep 10 ;;
+                2) sleep 30 ;;
+              esac
+            done
+          }
+
+          bootstrap_builder
+
+          rotate_cache() {
+            local active="$1" next="$2"
+            if [ ! -f "$next/index.json" ]; then
+              return 0
+            fi
+            rm -rf "$active.previous"
+            if [ -d "$active" ]; then
+              mv "$active" "$active.previous"
+            fi
+            if mv "$next" "$active"; then
+              rm -rf "$active.previous"
+            elif [ -d "$active.previous" ]; then
+              mv "$active.previous" "$active"
+              return 1
+            else
+              return 1
+            fi
+          }
+
+          cache_from=()
+          rm -rf "$API_CACHE_NEXT"
+          if [ -f "$API_CACHE/index.json" ]; then
+            echo "Found existing BuildKit cache at $API_CACHE"
+            cache_from=(--cache-from "type=local,src=$API_CACHE")
+          else
+            echo "No existing cache found at $API_CACHE/index.json"
+          fi
+
+          echo "Building mpips-api:${GITHUB_SHA} using builder $BUILDER..."
+          docker buildx build \
+            --builder "$BUILDER" \
+            --load \
+            "${cache_from[@]}" \
+            --cache-to "type=local,dest=$API_CACHE_NEXT,mode=max,ignore-error=true" \
             -t "mpips-api:${GITHUB_SHA}" \
+            -t "mpips-api:staging" \
             -f Dockerfile \
             .
+
           docker image inspect "mpips-api:${GITHUB_SHA}" >/dev/null
+          if [ -f "$API_CACHE_NEXT/index.json" ]; then
+            rotate_cache "$API_CACHE" "$API_CACHE_NEXT"
+          fi
           echo "Image mpips-api:${GITHUB_SHA} built successfully."
 
       - name: Deploy Staging Update Server via Compose
@@ -154,7 +224,7 @@ jobs:
         run: |
           set -Eeuo pipefail
           echo "Verifying existing clinical API on port 8014 is untouched..."
-          if curl -s -f http://127.0.0.1:8014/docs >/dev/null 2>&1 || curl -s http://127.0.0.1:8014/ >/dev/null 2>&1; then
+          if curl -s -f http://127.0.0.1:8014/health >/dev/null 2>&1 || curl -s -f http://127.0.0.1:8014/docs >/dev/null 2>&1; then
             echo "Clinical MPIPS API on port 8014 is healthy."
           fi
           docker ps --filter "name=mpips" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
