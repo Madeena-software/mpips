@@ -348,4 +348,3 @@ class MinIOArtifactStore:
             download_url=url,
             expires_at=expires_at.isoformat().replace("+00:00", "Z"),
         )
-

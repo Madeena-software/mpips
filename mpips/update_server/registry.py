@@ -527,4 +527,3 @@ class ReleaseRegistry:
                 now=now,
             )
             return record
-

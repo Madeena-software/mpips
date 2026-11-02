@@ -94,4 +94,3 @@ class ClientAuthenticator:
             client_id=f"staging-client-{matched_index}",
             scopes=matched_scopes,
         )
-

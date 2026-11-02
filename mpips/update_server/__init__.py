@@ -46,4 +46,3 @@ __all__ = [
     "sign_metadata_bytes",
     "verify_elf_release_metadata",
 ]
-

@@ -1,0 +1,160 @@
+name: Deploy MPIPS Staging Update Server
+
+on:
+  push:
+    branches:
+      - feat/mpips-minio-update-server
+      - feat/mpips-staging-binary-distribution
+  workflow_dispatch:
+    inputs:
+      stage_test_release:
+        description: "Upload and promote a synthetic staging test release for E2E verification"
+        type: boolean
+        default: false
+
+concurrency:
+  group: mpips-staging-update-server
+  cancel-in-progress: false
+
+jobs:
+  deploy-and-verify:
+    name: Deploy & Verify Staging Update Server
+    runs-on: [self-hosted, production]
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up deployment environment
+        env:
+          AWS_ACCESS_KEY_ID_SECRET: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_SECRET: ${{ secrets.AWS_ENDPOINT }}
+          AWS_REGION_SECRET: ${{ secrets.AWS_DEFAULT_REGION }}
+          MPIPS_API_KEY_SECRET: ${{ secrets.MPIPS_API_KEY }}
+        run: |
+          set -Eeuo pipefail
+          echo "Setting up host directories for staging update server..."
+
+          BASE_DIR="/var/www/mpips-runtime/update-server"
+          STATE_DIR="$BASE_DIR/state"
+          PUBKEY_PATH="$BASE_DIR/release-public.pem"
+          PRIVKEY_PATH="$BASE_DIR/staging-signing-private.pem"
+
+          mkdir -p "$STATE_DIR"
+          chmod 775 "$STATE_DIR"
+
+          # Generate Ed25519 keypair if not present
+          if [ ! -s "$PUBKEY_PATH" ] || [ ! -s "$PRIVKEY_PATH" ]; then
+            echo "Generating staging Ed25519 keypair on host..."
+            python3 -c "
+          from cryptography.hazmat.primitives import serialization
+          from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+          from pathlib import Path
+          priv = Ed25519PrivateKey.generate()
+          priv_pem = priv.private_bytes(
+              encoding=serialization.Encoding.PEM,
+              format=serialization.PrivateFormat.PKCS8,
+              encryption_algorithm=serialization.NoEncryption(),
+          )
+          pub_pem = priv.public_key().public_bytes(
+              encoding=serialization.Encoding.PEM,
+              format=serialization.PublicFormat.SubjectPublicKeyInfo,
+          )
+          Path('$PRIVKEY_PATH').write_bytes(priv_pem)
+          Path('$PUBKEY_PATH').write_bytes(pub_pem)
+          "
+            chmod 400 "$PRIVKEY_PATH"
+            chmod 444 "$PUBKEY_PATH"
+            echo "Ed25519 keypair created."
+          else
+            echo "Using existing Ed25519 public key at $PUBKEY_PATH."
+          fi
+
+          # Prepare environment file for docker compose
+          COMPOSE_ENV="$BASE_DIR/.env.staging"
+          cat << EOF > "$COMPOSE_ENV"
+          MPIPS_VERSION=${GITHUB_SHA}
+          MPIPS_RUNTIME_UID=$(id -u)
+          MPIPS_RUNTIME_GID=$(id -g)
+          MPIPS_UPDATE_HOST_PORT=8015
+          MPIPS_UPDATE_STATE_HOST_DIR=${STATE_DIR}
+          MPIPS_UPDATE_PUBLIC_KEY_HOST_PATH=${PUBKEY_PATH}
+          AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID_SECRET}
+          AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY_SECRET}
+          AWS_DEFAULT_REGION=${AWS_REGION_SECRET:-id}
+          AWS_ENDPOINT_URL=${AWS_ENDPOINT_SECRET}
+          AWS_USE_PATH_STYLE_ENDPOINT=true
+          MPIPS_UPDATE_S3_BUCKET=mpips-dev-bucket
+          MPIPS_UPDATE_STAGING_READER_TOKEN=${MPIPS_API_KEY_SECRET}
+          MPIPS_UPDATE_PRESIGN_TTL_SECONDS=300
+          EOF
+          chmod 600 "$COMPOSE_ENV"
+          echo "Compose environment configuration ready."
+
+      - name: Build immutable image
+        run: |
+          set -Eeuo pipefail
+          echo "Building mpips-api:${GITHUB_SHA}..."
+          docker build \
+            -t "mpips-api:${GITHUB_SHA}" \
+            -f Dockerfile \
+            .
+          docker image inspect "mpips-api:${GITHUB_SHA}" >/dev/null
+          echo "Image mpips-api:${GITHUB_SHA} built successfully."
+
+      - name: Deploy Staging Update Server via Compose
+        run: |
+          set -Eeuo pipefail
+          COMPOSE_ENV="/var/www/mpips-runtime/update-server/.env.staging"
+          echo "Starting staging update server..."
+          docker compose \
+            --env-file "$COMPOSE_ENV" \
+            -f docker-compose.update-server.staging.yml \
+            --project-name mpips-update-staging \
+            up -d --force-recreate
+
+      - name: Verify Staging Update Server Local Health
+        run: |
+          set -Eeuo pipefail
+          echo "Polling http://127.0.0.1:8015/mpips/staging/health..."
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:8015/mpips/staging/health; then
+              echo ""
+              echo "Local staging update server healthy on port 8015!"
+              break
+            fi
+            sleep 2
+          done
+
+      - name: Verify HTTPS Domain Health
+        run: |
+          set -Eeuo pipefail
+          echo "Testing https://ip.mhcsgo.cloud/mpips/staging/health..."
+          curl -fsS --retry 5 --retry-delay 2 https://ip.mhcsgo.cloud/mpips/staging/health
+          echo ""
+          echo "Public HTTPS staging health verified!"
+
+      - name: Run End-to-End Verification Suite (Local & HTTPS)
+        env:
+          MPIPS_API_KEY_SECRET: ${{ secrets.MPIPS_API_KEY }}
+        run: |
+          set -Eeuo pipefail
+          echo "Running local loopback verification..."
+          python3 scripts/verify_staging_update_server.py \
+            --base-url http://127.0.0.1:8015 \
+            --token "${MPIPS_API_KEY_SECRET}"
+
+          echo "Running public HTTPS domain verification..."
+          python3 scripts/verify_staging_update_server.py \
+            --base-url https://ip.mhcsgo.cloud \
+            --token "${MPIPS_API_KEY_SECRET}"
+
+      - name: Verify Clinical API on Port 8014 Unaffected
+        run: |
+          set -Eeuo pipefail
+          echo "Verifying existing clinical API on port 8014 is untouched..."
+          if curl -s -f http://127.0.0.1:8014/docs >/dev/null 2>&1 || curl -s http://127.0.0.1:8014/ >/dev/null 2>&1; then
+            echo "Clinical MPIPS API on port 8014 is healthy."
+          fi
+          docker ps --filter "name=mpips" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
