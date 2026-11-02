@@ -96,17 +96,28 @@ def get_s3_client() -> Any:
     aws_secret_access_key = os.getenv("AWS_SECRET_ACCESS_KEY")
     aws_region = os.getenv("AWS_DEFAULT_REGION", "us-east-1")
     aws_endpoint_url = os.getenv("AWS_ENDPOINT_URL")
+    use_path_style = os.getenv("AWS_USE_PATH_STYLE_ENDPOINT", "false").lower() in (
+        "true",
+        "1",
+        "yes",
+    )
 
-    kwargs = {}
+    kwargs: dict[str, Any] = {}
     if aws_endpoint_url:
+        if not aws_endpoint_url.startswith(("http://", "https://")):
+            aws_endpoint_url = f"https://{aws_endpoint_url}"
         kwargs["endpoint_url"] = aws_endpoint_url
+
+    config_kwargs: dict[str, Any] = {"signature_version": "s3v4"}
+    if use_path_style:
+        config_kwargs["s3"] = {"addressing_style": "path"}
 
     return boto3.client(
         "s3",
         aws_access_key_id=aws_access_key_id,
         aws_secret_access_key=aws_secret_access_key,
         region_name=aws_region,
-        config=Config(signature_version="s3v4"),
+        config=Config(**config_kwargs),
         **kwargs,
     )
 

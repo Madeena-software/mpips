@@ -74,6 +74,17 @@ def run_api() -> None:
     uvicorn.run("mpips.asgi:app", host=host, port=port, workers=workers)
 
 
+def run_update_server() -> None:
+    """Run the isolated MPIPS staging update server with Uvicorn."""
+    import uvicorn
+
+    host = os.getenv("UPDATE_SERVER_HOST", "127.0.0.1")
+    port = _int_env("UPDATE_SERVER_PORT", os.getenv("PORT", "8015"))
+    workers = _int_env("MPIPS_UPDATE_SERVER_WORKERS", "1")
+
+    uvicorn.run("mpips.update_server.app:app", host=host, port=port, workers=workers)
+
+
 def run_worker() -> None:
     """Run the MPIPS Celery worker using the installed Celery command."""
     args = [

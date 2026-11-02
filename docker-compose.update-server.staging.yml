@@ -1,0 +1,49 @@
+services:
+  mpips-update-server:
+    image: mpips-api:${MPIPS_VERSION:?set MPIPS_VERSION}
+    command: ["update-server"]
+    user: "${MPIPS_RUNTIME_UID:-10001}:${MPIPS_RUNTIME_GID:-10001}"
+    environment:
+      MPIPS_ENVIRONMENT: staging
+      PORT: "8000"
+      MPIPS_UPDATE_SERVER_WORKERS: "1"
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?set AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?set AWS_SECRET_ACCESS_KEY}
+      AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-id}
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:?set AWS_ENDPOINT_URL}
+      AWS_USE_PATH_STYLE_ENDPOINT: ${AWS_USE_PATH_STYLE_ENDPOINT:-true}
+      MPIPS_UPDATE_S3_BUCKET: ${MPIPS_UPDATE_S3_BUCKET:-mhcs-mpips-artifacts}
+      MPIPS_UPDATE_STATE_DIR: /var/lib/mpips-update-server/state
+      MPIPS_UPDATE_PUBLIC_KEY_PATH: /etc/mpips-update-server/release-public.pem
+      MPIPS_UPDATE_STAGING_READER_TOKEN: ${MPIPS_UPDATE_STAGING_READER_TOKEN:?set MPIPS_UPDATE_STAGING_READER_TOKEN}
+      MPIPS_UPDATE_PRESIGN_TTL_SECONDS: "${MPIPS_UPDATE_PRESIGN_TTL_SECONDS:-300}"
+    ports:
+      - "127.0.0.1:${MPIPS_UPDATE_HOST_PORT:-8015}:8000"
+    volumes:
+      - ${MPIPS_UPDATE_STATE_HOST_DIR:?set MPIPS_UPDATE_STATE_HOST_DIR}:/var/lib/mpips-update-server/state:rw
+      - ${MPIPS_UPDATE_PUBLIC_KEY_HOST_PATH:?set MPIPS_UPDATE_PUBLIC_KEY_HOST_PATH}:/etc/mpips-update-server/release-public.pem:ro
+    networks:
+      - mpips-update-staging
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    cpus: "0.5"
+    mem_limit: 512m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8000/mpips/staging/health >/dev/null"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 5s
+
+networks:
+  mpips-update-staging:
+    name: mpips-update-staging-v1
+    driver: bridge
+
