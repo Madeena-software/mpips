@@ -156,15 +156,16 @@ jobs:
             echo "No existing cache found at $API_CACHE/index.json"
           fi
 
-          echo "Building mpips-api:${GITHUB_SHA} using builder $BUILDER..."
+          echo "Building lightweight staging update server image using builder $BUILDER..."
           docker buildx build \
             --builder "$BUILDER" \
             --load \
             "${cache_from[@]}" \
             --cache-to "type=local,dest=$API_CACHE_NEXT,mode=max,ignore-error=true" \
             -t "mpips-api:${GITHUB_SHA}" \
+            -t "mpips-update-server:${GITHUB_SHA}" \
             -t "mpips-api:staging" \
-            -f Dockerfile \
+            -f docker/Dockerfile.update-server \
             .
 
           docker image inspect "mpips-api:${GITHUB_SHA}" >/dev/null
