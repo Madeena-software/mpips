@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import io
 import json
 import threading
 from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Any
+import urllib.request
 from urllib.parse import parse_qs, urlsplit
 
 import pytest
@@ -70,6 +72,8 @@ class MockServerState:
         self.binary_payload: bytes = b""
         self.presigned_path = "/presigned/mpips-runtime.bin"
         self.redirect_target: str | None = None
+        self.download_endpoint_requests: list[str] = []
+        self.binary_download_requests: list[str] = []
 
 
 def make_mock_handler(state: MockServerState) -> type[BaseHTTPRequestHandler]:
@@ -137,6 +141,7 @@ def make_mock_handler(state: MockServerState) -> type[BaseHTTPRequestHandler]:
                 path.startswith("/mpips/staging/releases/")
                 and path.endswith("/download")
             ):
+                state.download_endpoint_requests.append(path)
                 parts = path.split("/")
                 release_id = parts[4] if len(parts) >= 5 else ""
                 if not auth or not auth.startswith("Bearer "):
@@ -188,6 +193,7 @@ def make_mock_handler(state: MockServerState) -> type[BaseHTTPRequestHandler]:
 
             # 4. Presigned binary download
             if path == state.presigned_path:
+                state.binary_download_requests.append(path)
                 if state.redirect_target is not None:
                     self.send_response(302)
                     self.send_header("Location", state.redirect_target)
@@ -626,3 +632,223 @@ def test_fails_closed_when_health_endpoint_fails(mock_server: Any) -> None:
     state.health_data = {"status": "error", "error": "database_down"}
 
     assert run_checks(base_url, TEST_TOKEN, mode="infra") is False
+
+
+def test_invalid_manifest_causes_zero_artifact_download_requests(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    state.binary_payload = bin_bytes
+
+    # 1. Invalid signature
+    manifest = _build_manifest(bin_path, priv_pem)
+    manifest["signature"] = base64.b64encode(b"0" * 64).decode("ascii")
+    state.latest_override = manifest
+    state.download_endpoint_requests.clear()
+    state.binary_download_requests.clear()
+
+    assert (
+        run_checks(
+            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
+        )
+        is False
+    )
+    assert len(state.download_endpoint_requests) == 0
+    assert len(state.binary_download_requests) == 0
+
+    # 2. Tampered outer field
+    manifest = _build_manifest(bin_path, priv_pem)
+    manifest["version"] = "9.9.9"
+    state.latest_override = manifest
+    state.download_endpoint_requests.clear()
+    state.binary_download_requests.clear()
+
+    assert (
+        run_checks(
+            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
+        )
+        is False
+    )
+    assert len(state.download_endpoint_requests) == 0
+    assert len(state.binary_download_requests) == 0
+
+    # 3. Expired metadata
+    manifest = _build_manifest(bin_path, priv_pem)
+    manifest["expires_at"] = (
+        datetime.now(timezone.utc) - timedelta(hours=2)
+    ).isoformat()
+    state.latest_override = manifest
+    state.download_endpoint_requests.clear()
+    state.binary_download_requests.clear()
+
+    assert (
+        run_checks(
+            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
+        )
+        is False
+    )
+    assert len(state.download_endpoint_requests) == 0
+    assert len(state.binary_download_requests) == 0
+
+    # 4. Malformed download endpoint path
+    manifest = _build_manifest(bin_path, priv_pem)
+    manifest["download_endpoint"] = "/unexpected/malformed/download/path"
+    state.latest_override = manifest
+    state.download_endpoint_requests.clear()
+    state.binary_download_requests.clear()
+
+    assert (
+        run_checks(
+            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
+        )
+        is False
+    )
+    assert len(state.download_endpoint_requests) == 0
+    assert len(state.binary_download_requests) == 0
+
+
+def test_fails_closed_when_download_host_unauthorized_https(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    state.binary_payload = bin_bytes
+    # HTTPS destination that is not in the trusted storage allowlist
+    state.download_url_override = (
+        "https://unauthorized-s3.malicious.com/mpips-runtime.bin"
+    )
+    manifest = _build_manifest(bin_path, priv_pem)
+    state.latest_override = manifest
+
+    assert (
+        run_checks(
+            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
+        )
+        is False
+    )
+
+
+def test_accepts_explicitly_trusted_storage_host(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    state.binary_payload = bin_bytes
+    trusted_host = "custom-test-storage.example.com"
+    state.download_url_override = f"https://{trusted_host}/mpips-runtime.bin"
+    manifest = _build_manifest(bin_path, priv_pem)
+    state.latest_override = manifest
+
+    class MockStreamingResponse:
+        def __init__(self, data: bytes):
+            self._bio = io.BytesIO(data)
+
+        def read(self, size: int = -1) -> bytes:
+            return self._bio.read(size)
+
+        def __enter__(self) -> MockStreamingResponse:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+    original_open = urllib.request.OpenerDirector.open
+
+    def custom_open(self: Any, *args: Any, **kwargs: Any) -> Any:
+        req = args[0] if args else kwargs.get("fullurl")
+        url = str(getattr(req, "full_url", req))
+        if "mpips-runtime.bin" in url:
+            return MockStreamingResponse(bin_bytes)
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr("urllib.request.OpenerDirector.open", custom_open)
+
+    # Rejection when trusted_host is not provided in trusted_storage_hosts
+    assert (
+        run_checks(
+            base_url,
+            TEST_TOKEN,
+            mode="distribution",
+            public_key_pem=pub_pem,
+            trusted_storage_hosts=["other-host.example.com"],
+        )
+        is False
+    )
+
+    # Acceptance when trusted_host is explicitly passed
+    assert (
+        run_checks(
+            base_url,
+            TEST_TOKEN,
+            mode="distribution",
+            public_key_pem=pub_pem,
+            trusted_storage_hosts=[trusted_host],
+        )
+        is True
+    )
+
+
+def test_accepts_default_trusted_storage_host(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    state.binary_payload = bin_bytes
+    state.download_url_override = "https://s3.mhcsgo.cloud/mpips-runtime.bin"
+    manifest = _build_manifest(bin_path, priv_pem)
+    state.latest_override = manifest
+
+    class MockStreamingResponse:
+        def __init__(self, data: bytes):
+            self._bio = io.BytesIO(data)
+
+        def read(self, size: int = -1) -> bytes:
+            return self._bio.read(size)
+
+        def __enter__(self) -> MockStreamingResponse:
+            return self
+
+        def __exit__(self, *args: Any) -> None:
+            pass
+
+    original_open = urllib.request.OpenerDirector.open
+
+    def custom_open(self: Any, *args: Any, **kwargs: Any) -> Any:
+        req = args[0] if args else kwargs.get("fullurl")
+        url = str(getattr(req, "full_url", req))
+        if "mpips-runtime.bin" in url:
+            return MockStreamingResponse(bin_bytes)
+        return original_open(self, *args, **kwargs)
+
+    monkeypatch.setattr("urllib.request.OpenerDirector.open", custom_open)
+
+    # Acceptance of default s3.mhcsgo.cloud without explicit argument
+    assert (
+        run_checks(
+            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
+        )
+        is True
+    )

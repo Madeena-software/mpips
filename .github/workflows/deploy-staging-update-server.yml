@@ -44,10 +44,19 @@ jobs:
           mkdir -p "$STATE_DIR"
           chmod 775 "$STATE_DIR"
 
+          REGISTRY_STATE="$STATE_DIR/registry.json"
+          BOOTSTRAP_MARKER="$STATE_DIR/.bootstrapped"
+
           # Verify or bootstrap Ed25519 keypair safely
           # Prevent silent signing-key replacement when one file is missing or keys are inconsistent.
           if [ ! -s "$PUBKEY_PATH" ] && [ ! -s "$PRIVKEY_PATH" ]; then
-            echo "Initial bootstrap: generating staging Ed25519 keypair on host..."
+            if [ -s "$REGISTRY_STATE" ] || [ -f "$BOOTSTRAP_MARKER" ]; then
+              echo "ERROR: Persistent release state exists ($REGISTRY_STATE) or bootstrap marker present ($BOOTSTRAP_MARKER) but Ed25519 signing keys are absent!" >&2
+              echo "Refusing implicit key regeneration to prevent replacing deployed trust identity." >&2
+              exit 1
+            fi
+
+            echo "Initial first-bootstrap: generating staging Ed25519 keypair on host..."
             python3 -c "
           from cryptography.hazmat.primitives import serialization
           from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -67,7 +76,8 @@ jobs:
           "
             chmod 400 "$PRIVKEY_PATH"
             chmod 444 "$PUBKEY_PATH"
-            echo "Staging Ed25519 keypair created."
+            touch "$BOOTSTRAP_MARKER"
+            echo "Staging Ed25519 keypair created and initial bootstrap marked."
           elif [ -s "$PUBKEY_PATH" ] && [ ! -s "$PRIVKEY_PATH" ]; then
             echo "ERROR: Public key exists at $PUBKEY_PATH but signing private key is missing. Refusing silent regeneration." >&2
             exit 1
@@ -95,6 +105,7 @@ jobs:
               sys.exit(1)
           print('Existing Ed25519 keypair verified consistent.')
           "
+            [ -f "$BOOTSTRAP_MARKER" ] || touch "$BOOTSTRAP_MARKER"
           fi
 
           # Prepare environment file for docker compose

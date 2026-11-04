@@ -13,7 +13,7 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 from urllib.parse import urlsplit
 
 RELEASE_ID_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,159}\Z")
@@ -68,6 +68,7 @@ SIGNED_METADATA_KEYS = frozenset(
 )
 
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1"})
+DEFAULT_TRUSTED_STORAGE_HOSTS = frozenset({"s3.mhcsgo.cloud"})
 
 
 class StrictNoRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -174,6 +175,7 @@ def run_checks(
     public_key_pem: bytes | None = None,
     timeout: float = 10.0,
     download_timeout: float = 60.0,
+    trusted_storage_hosts: Iterable[str] | None = None,
 ) -> bool:
     base = base_url.rstrip("/")
     all_ok = True
@@ -182,6 +184,29 @@ def run_checks(
         raise ValueError(
             f"Invalid verification mode: {mode!r} (expected 'infra' or 'distribution')"
         )
+
+    if trusted_storage_hosts is not None:
+        effective_trusted_hosts = frozenset(
+            h.strip().lower() for h in trusted_storage_hosts if h.strip()
+        )
+    else:
+        env_hosts = os.getenv("MPIPS_UPDATE_TRUSTED_STORAGE_HOSTS", "").strip()
+        if env_hosts:
+            effective_trusted_hosts = frozenset(
+                h.strip().lower()
+                for h in re.split(r"[,\s]+", env_hosts)
+                if h.strip()
+            )
+        else:
+            effective_hosts_set = set(DEFAULT_TRUSTED_STORAGE_HOSTS)
+            aws_endpoint = os.getenv("AWS_ENDPOINT_URL", "").strip()
+            if aws_endpoint:
+                aws_host = urlsplit(
+                    aws_endpoint if "//" in aws_endpoint else f"//{aws_endpoint}"
+                ).hostname
+                if aws_host:
+                    effective_hosts_set.add(aws_host.lower())
+            effective_trusted_hosts = frozenset(effective_hosts_set)
 
     print(f"=== MPIPS Staging Update Server Verification: {base} (mode={mode}) ===")
 
@@ -552,12 +577,16 @@ def run_checks(
                 manifest_valid = False
 
         if not manifest_valid:
-            all_ok = False
-        else:
             print(
-                f"  [PASS] 5. Authenticated latest.json manifest verified "
-                f"(release_id={release_id}, sequence={sequence})"
+                "  [FAIL] 5. Manifest validation failed; aborting verification "
+                "before requesting download endpoint or artifact binary"
             )
+            return False
+
+        print(
+            f"  [PASS] 5. Authenticated latest.json manifest verified "
+            f"(release_id={release_id}, sequence={sequence})"
+        )
 
         # 6. Authenticated download URL check
         dl_status, dl_data, _, dl_body = _request(
@@ -586,7 +615,14 @@ def run_checks(
                             raise ValueError(
                                 f"HTTP scheme forbidden for non-loopback: {dest_host!r}"
                             )
-                    elif dest_scheme != "https":
+                    elif dest_scheme == "https":
+                        if dest_host not in effective_trusted_hosts:
+                            raise ValueError(
+                                f"Unauthorized download host {dest_host!r}; must be "
+                                f"in trusted storage allowlist: "
+                                f"{sorted(effective_trusted_hosts)}"
+                            )
+                    else:
                         raise ValueError(
                             f"Disallowed URL scheme for download: {dest_scheme!r}"
                         )
@@ -748,6 +784,16 @@ def main() -> int:
         default=60.0,
         help="Binary artifact download timeout in seconds (default: 60.0)",
     )
+    parser.add_argument(
+        "--trusted-storage-host",
+        action="append",
+        dest="trusted_storage_hosts",
+        help=(
+            "Explicitly trusted hostname for presigned MinIO artifact downloads. "
+            "May be specified multiple times (defaults to s3.mhcsgo.cloud or "
+            "MPIPS_UPDATE_TRUSTED_STORAGE_HOSTS / AWS_ENDPOINT_URL env vars)."
+        ),
+    )
 
     args = parser.parse_args()
 
@@ -786,6 +832,7 @@ def main() -> int:
         public_key_pem=pub_pem,
         timeout=args.timeout,
         download_timeout=args.download_timeout,
+        trusted_storage_hosts=args.trusted_storage_hosts,
     )
     return 0 if success else 1
 
