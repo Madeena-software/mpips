@@ -485,7 +485,7 @@ SIMRS queries, or DICOM imaging.
   - `403 Forbidden`: `{"schema_version": 1, "error": {"code": "forbidden", "message": "Client token lacks staging:read scope"}}`
   - `422 Unprocessable Content`: `{"schema_version": 1, "error": {"code": "incompatible_platform", "message": "Requested platform is not supported by this release channel"}}`
 - **Success Case A: No Promoted Release (`status: "no_release"`)**:
-  Returned when no release has been promoted to the staging channel pointer (e.g. while G10 release gate remains open):
+  Returned when no release has been promoted to the staging channel pointer (current live staging state; G10 release gate remains open):
 ```json
 {
   "schema_version": 1,
@@ -493,8 +493,8 @@ SIMRS queries, or DICOM imaging.
   "status": "no_release"
 }
 ```
-- **Success Case B: Release Available (`status: "available"`)**:
-  Exposes top-level metadata, exact artifact hash and size in an `artifact` object, signed canonical metadata, and a download endpoint:
+- **Illustrative Synthetic Example: Promoted Release Available (`status: "available"`)**:
+  *(Illustrative schema example only — Gate G10 remains NOT RELEASED; no production binary is currently promoted on the live channel)*:
 ```json
 {
   "schema_version": 1,
@@ -508,8 +508,8 @@ SIMRS queries, or DICOM imaging.
   "interface_version": "2-experimental",
   "artifact": {
     "filename": "mpips-runtime.bin",
-    "sha256": "4a53e89f41b3127ef3e3d2ff328fa16de294c79aa55be743224b17f5a8de7e5a",
-    "size_bytes": 125829120
+    "sha256": "8ef48229d72adaa4eb9df832a5315e2ecf42abb448f78c2674c330d964004669",
+    "size_bytes": 236532616
   },
   "download_endpoint": "/mpips/staging/releases/0.1.0-20261102-1/download",
   "signature": "<base64-encoded-64-byte-ed25519-detached-signature>",
@@ -527,18 +527,32 @@ SIMRS queries, or DICOM imaging.
 
 #### 3. Authenticated Download URL Endpoint
 
-- **Method / Path**: `GET /mpips/staging/releases/{release_id}/download` (or the path in `download_endpoint`)
+- **Method / Path**: `GET /mpips/staging/releases/{release_id}/download` (matching `download_endpoint`)
 - **Headers**:
   - `Authorization: Bearer <staging-reader-token>` (or `X-MPIPS-API-Key: <token>`)
 - **Response**: `200 OK`
 ```json
 {
   "release_id": "0.1.0-20261102-1",
-  "download_url": "https://storage.mhcsgo.cloud/mpips-dev-bucket/mpips/staging/ubuntu-24.04-x86_64/0.1.0-20261102-1/mpips-runtime.bin?AWSAccessKeyId=...&Signature=...&Expires=...",
+  "download_url": "https://<s3-endpoint>/<bucket>/staging/ubuntu-24.04-x86_64/releases/0.1.0-20261102-1/mpips-runtime.bin?AWSAccessKeyId=...&Signature=...&Expires=...",
   "expires_at": "2026-11-04T08:50:00+00:00"
 }
 ```
-> **CRITICAL**: The download endpoint returns a short-lived MinIO presigned URL (`download_url`), **not** raw binary bytes. Grabber must execute an HTTP GET request to `download_url` directly (without an `Authorization` header, as authentication is embedded in the S3 presigned query string) to stream the `.bin` executable.
+> **CRITICAL ARCHITECTURAL CONSTRAINTS**:
+> 1. **Presigned URL Flow**: The download endpoint returns a short-lived MinIO presigned URL (`download_url`), **not** raw binary bytes. Grabber executes a direct HTTP GET request to `download_url` (without an `Authorization` header, as authentication is embedded in the presigned query string) to stream the `.bin` executable.
+> 2. **Object Key Structure**: The underlying storage adapter strictly maps artifacts to `staging/{platform}/releases/{release_id}/mpips-runtime.bin`.
+> 3. **Streaming & Bounded Download**: Grabber must stream the download in chunks, calculating SHA-256 incrementally, and abort immediately if downloaded bytes exceed `artifact.size_bytes` or the 512 MiB upper bound.
+
+### Standalone Binary Provenance and Release Gate Status (PR #23 Review)
+
+- **G10 Release Gate**: Gate G10 remains strictly **NOT RELEASED**. No real binary has been promoted on live staging channels.
+- **PR #23 Candidate Provenance**: Under open PR #23 and qualification evidence `EV-STANDALONE-REAL-TRX-001`:
+  - Artifact: `dist-experimental/mpips-runtime.bin` (local build candidate only; not committed to git).
+  - Format: ELF 64-bit LSB executable, x86-64, dynamically linked (`glibc 2.39`), stripped.
+  - File Size: `236,532,616` bytes (~226 MiB).
+  - Digest: SHA-256 `8ef48229d72adaa4eb9df832a5315e2ecf42abb448f78c2674c330d964004669`.
+  - Supported Profiles: Real TRX geometric calibration (`DA5234480`, `MV-CH120-10UM`, `3000 x 4096`) and synthetic BED mode.
+  - Pending Approvals: Physical clean-host verification (without Python installed) and formal institutional clinical release authorization remain open.
 
 ### Grabber Verification Obligations
 

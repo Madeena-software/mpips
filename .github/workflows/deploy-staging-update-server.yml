@@ -44,9 +44,10 @@ jobs:
           mkdir -p "$STATE_DIR"
           chmod 775 "$STATE_DIR"
 
-          # Generate Ed25519 keypair if not present
-          if [ ! -s "$PUBKEY_PATH" ] || [ ! -s "$PRIVKEY_PATH" ]; then
-            echo "Generating staging Ed25519 keypair on host..."
+          # Verify or bootstrap Ed25519 keypair safely
+          # Prevent silent signing-key replacement when one file is missing or keys are inconsistent.
+          if [ ! -s "$PUBKEY_PATH" ] && [ ! -s "$PRIVKEY_PATH" ]; then
+            echo "Initial bootstrap: generating staging Ed25519 keypair on host..."
             python3 -c "
           from cryptography.hazmat.primitives import serialization
           from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
@@ -66,9 +67,34 @@ jobs:
           "
             chmod 400 "$PRIVKEY_PATH"
             chmod 444 "$PUBKEY_PATH"
-            echo "Ed25519 keypair created."
+            echo "Staging Ed25519 keypair created."
+          elif [ -s "$PUBKEY_PATH" ] && [ ! -s "$PRIVKEY_PATH" ]; then
+            echo "ERROR: Public key exists at $PUBKEY_PATH but signing private key is missing. Refusing silent regeneration." >&2
+            exit 1
+          elif [ ! -s "$PUBKEY_PATH" ] && [ -s "$PRIVKEY_PATH" ]; then
+            echo "ERROR: Signing private key exists at $PRIVKEY_PATH but public key is missing. Refusing silent regeneration." >&2
+            exit 1
           else
-            echo "Using existing Ed25519 public key at $PUBKEY_PATH."
+            echo "Validating consistency of existing Ed25519 keypair..."
+            python3 -c "
+          from cryptography.hazmat.primitives import serialization
+          from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+          from pathlib import Path
+          import sys
+          priv = serialization.load_pem_private_key(Path('$PRIVKEY_PATH').read_bytes(), password=None)
+          if not isinstance(priv, Ed25519PrivateKey):
+              print('ERROR: $PRIVKEY_PATH is not an Ed25519 private key', file=sys.stderr)
+              sys.exit(1)
+          derived_pub = priv.public_key().public_bytes(
+              encoding=serialization.Encoding.PEM,
+              format=serialization.PublicFormat.SubjectPublicKeyInfo,
+          )
+          existing_pub = Path('$PUBKEY_PATH').read_bytes()
+          if derived_pub != existing_pub:
+              print('ERROR: Inconsistent keypair: $PUBKEY_PATH does not match private key $PRIVKEY_PATH', file=sys.stderr)
+              sys.exit(1)
+          print('Existing Ed25519 keypair verified consistent.')
+          "
           fi
 
           # Prepare environment file for docker compose
@@ -213,29 +239,28 @@ jobs:
 
       - name: Run End-to-End Verification Suite (Local & HTTPS)
         env:
-          MPIPS_STAGING_READER_TOKEN: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN || secrets.MPIPS_API_KEY }}
+          MPIPS_UPDATE_STAGING_READER_TOKEN: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN || secrets.MPIPS_API_KEY }}
+          MPIPS_UPDATE_PUBLIC_KEY_PATH: /var/www/mpips-runtime/update-server/release-public.pem
         run: |
           set -Eeuo pipefail
           echo "Running local loopback verification..."
           python3 scripts/verify_staging_update_server.py \
             --base-url http://127.0.0.1:8015 \
-            --token "${MPIPS_STAGING_READER_TOKEN}" \
             --mode infra
 
           echo "Running public HTTPS domain verification..."
           python3 scripts/verify_staging_update_server.py \
             --base-url https://ip.mhcsgo.cloud \
-            --token "${MPIPS_STAGING_READER_TOKEN}" \
             --mode infra
 
       - name: Verify Clinical API on Port 8014 Unaffected
         run: |
           set -Eeuo pipefail
           echo "Verifying existing clinical API on port 8014 is untouched..."
-          if curl -s -f http://127.0.0.1:8014/health >/dev/null 2>&1 || curl -s -f http://127.0.0.1:8014/docs >/dev/null 2>&1; then
+          if curl -fsS http://127.0.0.1:8014/health >/dev/null 2>&1; then
             echo "Clinical MPIPS API on port 8014 is healthy."
           else
-            echo "ERROR: Clinical MPIPS API on port 8014 is unreachable or failing health checks!" >&2
+            echo "ERROR: Clinical MPIPS API on port 8014 health check failed!" >&2
             docker ps --filter "name=mpips" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
             exit 1
           fi

@@ -22,7 +22,10 @@ from mpips.update_server.release_metadata import (
     encode_signature_b64,
     sign_metadata_bytes,
 )
-from scripts.verify_staging_update_server import run_checks
+from scripts.verify_staging_update_server import (
+    MAX_PERMITTED_ARTIFACT_BYTES,
+    run_checks,
+)
 
 TEST_TOKEN = "valid-staging-test-token"
 
@@ -63,8 +66,10 @@ class MockServerState:
         self.release_status = "no_release"
         self.latest_override: dict[str, Any] | None = None
         self.download_override_status: int | None = None
+        self.download_url_override: str | None = None
         self.binary_payload: bytes = b""
         self.presigned_path = "/presigned/mpips-runtime.bin"
+        self.redirect_target: str | None = None
 
 
 def make_mock_handler(state: MockServerState) -> type[BaseHTTPRequestHandler]:
@@ -128,8 +133,9 @@ def make_mock_handler(state: MockServerState) -> type[BaseHTTPRequestHandler]:
                     return
 
             # 3. Download endpoint
-            if path.startswith("/mpips/staging/releases/") and path.endswith(
-                "/download"
+            if (
+                path.startswith("/mpips/staging/releases/")
+                and path.endswith("/download")
             ):
                 parts = path.split("/")
                 release_id = parts[4] if len(parts) >= 5 else ""
@@ -159,11 +165,15 @@ def make_mock_handler(state: MockServerState) -> type[BaseHTTPRequestHandler]:
                     )
                     return
 
-                # Issue presigned URL pointing to local server
-                server_addr = self.server.server_address
-                host = str(server_addr[0])  # type: ignore[index]
-                port = int(server_addr[1])  # type: ignore[index]
-                download_url = f"http://{host}:{port}{state.presigned_path}"
+                # Issue presigned URL pointing to local server or override
+                if state.download_url_override is not None:
+                    download_url = state.download_url_override
+                else:
+                    server_addr = self.server.server_address
+                    host = str(server_addr[0])  # type: ignore[index]
+                    port = int(server_addr[1])  # type: ignore[index]
+                    download_url = f"http://{host}:{port}{state.presigned_path}"
+
                 self._send_json(
                     200,
                     {
@@ -178,6 +188,12 @@ def make_mock_handler(state: MockServerState) -> type[BaseHTTPRequestHandler]:
 
             # 4. Presigned binary download
             if path == state.presigned_path:
+                if state.redirect_target is not None:
+                    self.send_response(302)
+                    self.send_header("Location", state.redirect_target)
+                    self.end_headers()
+                    return
+
                 self.send_response(200)
                 self.send_header("Content-Type", "application/octet-stream")
                 self.send_header("Content-Length", str(len(state.binary_payload)))
@@ -256,7 +272,7 @@ def _build_manifest(
     }
 
 
-def test_infra_mode_succeeds_when_no_release(mock_server: Any) -> None:
+def test_infra_mode_succeeds_when_valid_no_release(mock_server: Any) -> None:
     base_url, state = mock_server
     state.release_status = "no_release"
 
@@ -270,6 +286,28 @@ def test_distribution_mode_fails_when_no_release(mock_server: Any) -> None:
     # In distribution readiness mode, 'no_release' is not sufficient
     # and must fail closed.
     assert run_checks(base_url, TEST_TOKEN, mode="distribution") is False
+
+
+def test_fails_closed_when_no_release_has_extraneous_or_invalid_fields(
+    mock_server: Any,
+) -> None:
+    base_url, state = mock_server
+    # Extra unexpected key in no_release
+    state.latest_override = {
+        "schema_version": 1,
+        "channel": "staging",
+        "status": "no_release",
+        "unexpected_extra_key": "malformed",
+    }
+    assert run_checks(base_url, TEST_TOKEN, mode="infra") is False
+
+    # Wrong channel in no_release
+    state.latest_override = {
+        "schema_version": 1,
+        "channel": "production",
+        "status": "no_release",
+    }
+    assert run_checks(base_url, TEST_TOKEN, mode="infra") is False
 
 
 def test_available_release_with_valid_binary_succeeds_in_both_modes(
@@ -286,35 +324,36 @@ def test_available_release_with_valid_binary_succeeds_in_both_modes(
     manifest = _build_manifest(bin_path, priv_pem)
     state.latest_override = manifest
 
-    # Test infra mode with public key
+    # Test infra mode with valid public key
     assert (
         run_checks(base_url, TEST_TOKEN, mode="infra", public_key_pem=pub_pem) is True
     )
 
-    # Test distribution mode with public key
+    # Test distribution mode with valid public key
     assert (
         run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
         is True
     )
 
 
-def test_fails_closed_when_sha256_corrupted(
+def test_fails_closed_when_available_without_public_key(
     mock_server: Any,
     ed25519_keys: tuple[bytes, bytes],
     synthetic_binary: tuple[Path, bytes, str, int],
 ) -> None:
     base_url, state = mock_server
-    priv_pem, pub_pem = ed25519_keys
+    priv_pem, _ = ed25519_keys
     bin_path, bin_bytes, _, _ = synthetic_binary
 
     state.release_status = "available"
-    # Tamper with the binary payload by appending extra byte
-    state.binary_payload = bin_bytes + b"\x00"
+    state.binary_payload = bin_bytes
     manifest = _build_manifest(bin_path, priv_pem)
     state.latest_override = manifest
 
+    # Available release without public key must strictly fail closed in both modes
+    assert run_checks(base_url, TEST_TOKEN, mode="infra", public_key_pem=None) is False
     assert (
-        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=None)
         is False
     )
 
@@ -331,9 +370,215 @@ def test_fails_closed_when_signature_invalid(
     state.release_status = "available"
     state.binary_payload = bin_bytes
     manifest = _build_manifest(bin_path, priv_pem)
-    # Corrupt the signature
+    # Corrupt the signature bytes
     corrupt_sig = b"\x00" * 64
     manifest["signature"] = base64.b64encode(corrupt_sig).decode("ascii")
+    state.latest_override = manifest
+
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
+        is False
+    )
+
+
+def test_fails_closed_when_outer_metadata_tampered_against_inner_signed(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    state.binary_payload = bin_bytes
+
+    # 1. Tampered sequence
+    manifest1 = _build_manifest(bin_path, priv_pem)
+    manifest1["sequence"] = 999  # Does not match inner sequence 1
+    state.latest_override = manifest1
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="infra", public_key_pem=pub_pem) is False
+    )
+
+    # 2. Tampered version
+    manifest2 = _build_manifest(bin_path, priv_pem)
+    manifest2["version"] = "9.9.9"
+    state.latest_override = manifest2
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="infra", public_key_pem=pub_pem) is False
+    )
+
+    # 3. Tampered source commit
+    manifest3 = _build_manifest(bin_path, priv_pem)
+    manifest3["source_commit"] = "0" * 40
+    state.latest_override = manifest3
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="infra", public_key_pem=pub_pem) is False
+    )
+
+    # 4. Tampered artifact SHA in outer manifest
+    manifest4 = _build_manifest(bin_path, priv_pem)
+    manifest4["artifact"]["sha256"] = "a" * 64
+    state.latest_override = manifest4
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="infra", public_key_pem=pub_pem) is False
+    )
+
+
+def test_fails_closed_when_wrong_channel_or_platform(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    state.binary_payload = bin_bytes
+
+    # Wrong platform
+    manifest = _build_manifest(bin_path, priv_pem)
+    manifest["platform"] = "windows-x86_64"
+    state.latest_override = manifest
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="infra", public_key_pem=pub_pem) is False
+    )
+
+    # Wrong channel
+    manifest_ch = _build_manifest(bin_path, priv_pem)
+    manifest_ch["channel"] = "production"
+    state.latest_override = manifest_ch
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="infra", public_key_pem=pub_pem) is False
+    )
+
+
+def test_fails_closed_when_malformed_download_endpoint(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    state.binary_payload = bin_bytes
+    manifest = _build_manifest(bin_path, priv_pem)
+    # Malformed download endpoint path
+    manifest["download_endpoint"] = "/unauthorized/download/path"
+    state.latest_override = manifest
+
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="infra", public_key_pem=pub_pem) is False
+    )
+
+
+def test_fails_closed_when_download_redirects(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    state.binary_payload = bin_bytes
+    state.redirect_target = "http://127.0.0.1/redirected-target"
+    manifest = _build_manifest(bin_path, priv_pem)
+    state.latest_override = manifest
+
+    # StrictNoRedirectHandler must block any HTTP redirect
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
+        is False
+    )
+
+
+def test_fails_closed_when_download_host_insecure_non_loopback(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    state.binary_payload = bin_bytes
+    # Presigned URL points to insecure HTTP non-loopback destination
+    state.download_url_override = (
+        "http://insecure-external-server.example.com/mpips-runtime.bin"
+    )
+    manifest = _build_manifest(bin_path, priv_pem)
+    state.latest_override = manifest
+
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
+        is False
+    )
+
+
+def test_fails_closed_when_artifact_oversized(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    state.binary_payload = bin_bytes
+    manifest = _build_manifest(bin_path, priv_pem)
+    # Manifest declares size exceeding MAX_PERMITTED_ARTIFACT_BYTES
+    manifest["artifact"]["size_bytes"] = MAX_PERMITTED_ARTIFACT_BYTES + 1
+    state.latest_override = manifest
+
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="infra", public_key_pem=pub_pem) is False
+    )
+
+
+def test_fails_closed_when_stream_exceeds_declared_size(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    # Actual binary payload is longer than declared in manifest
+    state.binary_payload = bin_bytes + (b"EXTRA_APPENDED_BYTES" * 1024)
+    manifest = _build_manifest(bin_path, priv_pem)
+    state.latest_override = manifest
+
+    assert (
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
+        is False
+    )
+
+
+def test_fails_closed_when_sha256_corrupted(
+    mock_server: Any,
+    ed25519_keys: tuple[bytes, bytes],
+    synthetic_binary: tuple[Path, bytes, str, int],
+) -> None:
+    base_url, state = mock_server
+    priv_pem, pub_pem = ed25519_keys
+    bin_path, bin_bytes, _, _ = synthetic_binary
+
+    state.release_status = "available"
+    # Tamper with byte content without changing length
+    corrupted_payload = bytearray(bin_bytes)
+    corrupted_payload[0] = 0x00
+    state.binary_payload = bytes(corrupted_payload)
+    manifest = _build_manifest(bin_path, priv_pem)
     state.latest_override = manifest
 
     assert (
@@ -354,7 +599,6 @@ def test_fails_closed_when_metadata_expired(
     state.release_status = "available"
     state.binary_payload = bin_bytes
     manifest = _build_manifest(bin_path, priv_pem)
-    # Set expires_at to the past
     manifest["expires_at"] = (
         datetime.now(timezone.utc) - timedelta(hours=1)
     ).isoformat()
@@ -380,24 +624,5 @@ def test_fails_closed_when_health_endpoint_fails(mock_server: Any) -> None:
     base_url, state = mock_server
     state.health_status = 503
     state.health_data = {"status": "error", "error": "database_down"}
-
-    assert run_checks(base_url, TEST_TOKEN, mode="infra") is False
-
-
-def test_fails_closed_when_missing_artifact_structure(
-    mock_server: Any,
-    ed25519_keys: tuple[bytes, bytes],
-    synthetic_binary: tuple[Path, bytes, str, int],
-) -> None:
-    base_url, state = mock_server
-    priv_pem, _ = ed25519_keys
-    bin_path, bin_bytes, _, _ = synthetic_binary
-
-    state.release_status = "available"
-    state.binary_payload = bin_bytes
-    manifest = _build_manifest(bin_path, priv_pem)
-    # Remove 'artifact' object
-    del manifest["artifact"]
-    state.latest_override = manifest
 
     assert run_checks(base_url, TEST_TOKEN, mode="infra") is False
