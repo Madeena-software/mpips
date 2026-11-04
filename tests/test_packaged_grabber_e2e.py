@@ -221,7 +221,9 @@ def compose_synthetic_manifest(
     response: dict[str, Any], visit: str, mode: str, confirmed: bool = True
 ) -> dict[str, Any]:
     confirm_patient_selection(response, visit, confirmed)
-    mapped = build_manifest(response, visit, {}, CAPTURED_AT)
+    mapped = build_manifest(
+        response, visit, {}, CAPTURED_AT, confirmed=confirmed
+    )
     merged: dict[str, Any] = {"manifest_version": "1.0", **copy.deepcopy(mapped)}
     merged["examination"]["performed_at"] = CAPTURED_AT
     merged["capture"] = {

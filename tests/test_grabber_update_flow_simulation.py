@@ -2,11 +2,13 @@
 
 Simulates the 8-step Grabber update workflow against an isolated mock update server
 with signed Ed25519 metadata:
-1. Check latest release metadata.
+1. Check latest release metadata with staging-reader bearer authentication.
 2. Compare sequence against installed sequence.
-3. Validate Ed25519 signature & platform compatibility before requesting download.
-4. Request download endpoint and presigned download URL.
-5. Bounded chunk download with SHA-256 and size verification.
+3. Validate Ed25519 signature, integer schema_version=1 & platform compatibility
+   before requesting download.
+4. Request download endpoint with staging-reader bearer authentication.
+5. Bounded chunk download from presigned storage URL (without MPIPS auth header)
+   with SHA-256 and size verification.
 6. Local runtime self-check (check_version / --version).
 7. Synthetic conversion verification with MPIPSSubprocessAdapter.
 8. Atomic promotion to installed executable, preserving existing runtime on failure.
@@ -14,6 +16,7 @@ with signed Ed25519 metadata:
 NOTE: These tests use mock executables and an isolated loopback HTTP server.
 Per project requirements, they are explicitly labeled as protocol-only simulation.
 No live MinIO, production server, or hospital SIMRS network calls are made.
+The mock converter output is explicitly labeled as mock data, not a genuine DICOM.
 """
 
 from __future__ import annotations
@@ -39,6 +42,8 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import (
 )
 
 from scripts.grabber_subprocess_adapter import MPIPSSubprocessAdapter
+
+DEFAULT_STAGING_READER_TOKEN = "synthetic-staging-reader-token-xyz123"
 
 SIGNED_METADATA_KEYS = frozenset(
     {
@@ -85,9 +90,12 @@ def _create_mock_runtime_script(
     runtime_version: str = "0.1.0",
     fail_version: bool = False,
     fail_convert: bool = False,
-    tag: str = "mock-runtime",
+    tag: str = "protocol-only-mock-runtime",
 ) -> Path:
-    """Create a mock executable script supporting --version and convert."""
+    """Create a mock executable script supporting --version and convert.
+
+    Explicitly labeled as protocol simulation mock; output is NOT a genuine DICOM.
+    """
     script_lines = ["#!/usr/bin/env python3", "import sys, json, os", ""]
     if fail_version:
         script_lines.append(
@@ -118,13 +126,14 @@ def _create_mock_runtime_script(
             "    sys.exit(7)"
         )
     else:
+        mock_payload_len = 54
         resp_template = json.dumps(
             {
                 "status": "ok",
                 "code": "OK",
                 "interface_version": interface_version,
                 "runtime_version": runtime_version,
-                "output_byte_size": 34,
+                "output_byte_size": mock_payload_len,
                 "tag": tag,
             }
         )
@@ -132,7 +141,7 @@ def _create_mock_runtime_script(
             'if "convert" in sys.argv:\n'
             '    out_idx = sys.argv.index("--output") + 1\n'
             "    out_path = sys.argv[out_idx]\n"
-            '    payload = b"MOCK_DICOM_OUTPUT_PAYLOAD_12345678"\n'
+            '    payload = b"PROTOCOL_MOCK_CONVERTER_OUTPUT_NOT_A_GENUINE_DICOM_54B"\n'
             '    with open(out_path, "wb") as f:\n'
             "        f.write(payload)\n"
             "    os.chmod(out_path, 0o600)\n"
@@ -162,6 +171,30 @@ class MockUpdateServerHandler(BaseHTTPRequestHandler):
 
         calls = self.server_state.setdefault("calls", [])
         calls.append(path)
+
+        # Enforce required staging reader bearer authentication on API endpoints
+        if path.startswith("/mpips/staging/"):
+            expected_token = self.server_state.get(
+                "staging_token", DEFAULT_STAGING_READER_TOKEN
+            )
+            auth_header = self.headers.get("Authorization", "")
+            if auth_header != f"Bearer {expected_token}":
+                self.server_state["auth_failures"] = (
+                    self.server_state.get("auth_failures", 0) + 1
+                )
+                body = json.dumps(
+                    {
+                        "status": "error",
+                        "code": "UNAUTHORIZED",
+                        "message": "Invalid or missing staging bearer token",
+                    }
+                ).encode("utf-8")
+                self.send_response(401)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+                return
 
         # 1. Latest release discovery endpoint
         if path == "/mpips/staging/latest.json":
@@ -201,7 +234,7 @@ class MockUpdateServerHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
             return
 
-        # 3. Artifact storage endpoint
+        # 3. Artifact storage endpoint (simulates presigned MinIO URL - NO auth header)
         if path == "/storage/mpips-runtime.bin":
             self.server_state["artifact_downloads"] = (
                 self.server_state.get("artifact_downloads", 0) + 1
@@ -236,6 +269,8 @@ class MockServerFixture:
                 "latest_checks": 0,
                 "download_requests": 0,
                 "artifact_downloads": 0,
+                "auth_failures": 0,
+                "staging_token": DEFAULT_STAGING_READER_TOKEN,
                 "manifest_response": None,
                 "download_url": None,
                 "artifact_bytes": None,
@@ -289,21 +324,27 @@ def simulate_grabber_update_flow(
     installed_executable: Path,
     installed_sequence: int,
     workspace_dir: Path,
+    staging_token: str | None = DEFAULT_STAGING_READER_TOKEN,
     perform_synthetic_conversion: bool = True,
 ) -> dict[str, Any]:
     """Execute the 8-step Grabber update workflow simulation.
 
     Steps:
-    1. Query latest release metadata.
+    1. Query latest release metadata with staging bearer token.
     2. Compare candidate sequence against installed sequence.
-    3. Validate Ed25519 signature & platform compatibility BEFORE downloading.
-    4. Request download endpoint and presigned storage URL.
-    5. Stream candidate artifact with bounded size and SHA-256 validation.
+    3. Validate Ed25519 signature, integer schema_version=1 & platform compatibility
+       BEFORE downloading.
+    4. Request download endpoint with staging bearer token.
+    5. Stream candidate artifact (no auth header on storage URL)
+       with SHA-256 validation.
     6. Run local runtime self-check (--version).
     7. Invoke candidate for a synthetic conversion.
     8. Atomically promote candidate, preserving existing runtime on any failure.
     """
     history: list[str] = []
+    auth_headers = {}
+    if staging_token:
+        auth_headers["Authorization"] = f"Bearer {staging_token}"
 
     # Step 1: Query latest release metadata
     history.append("1_CHECK_METADATA")
@@ -311,11 +352,17 @@ def simulate_grabber_update_flow(
         f"{server_base_url}/mpips/staging/latest.json?platform=ubuntu-24.04-x86_64"
     )
     try:
-        req = urllib.request.Request(discovery_url)
+        req = urllib.request.Request(discovery_url, headers=auth_headers)
         with urllib.request.urlopen(req, timeout=5.0) as resp:
             if resp.status != 200:
                 raise GrabberUpdateError(f"Discovery returned HTTP {resp.status}")
             manifest = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            raise GrabberUpdateError("Authentication failed: HTTP 401 Unauthorized")
+        raise GrabberUpdateError(
+            f"Failed to query latest release: HTTP {exc.code}"
+        ) from exc
     except Exception as exc:
         raise GrabberUpdateError(f"Failed to query latest release: {exc}") from exc
 
@@ -326,6 +373,13 @@ def simulate_grabber_update_flow(
             "current_sequence": installed_sequence,
             "steps_completed": history,
         }
+
+    # Verify integer schema_version: 1 (contract requirement)
+    schema_ver = manifest.get("schema_version")
+    if not isinstance(schema_ver, int) or schema_ver != 1:
+        raise GrabberUpdateError(
+            f"Invalid schema_version: {schema_ver!r}, expected integer 1"
+        )
 
     # Step 2: Compare verified release sequence against installed sequence
     history.append("2_COMPARE_SEQUENCE")
@@ -403,11 +457,11 @@ def simulate_grabber_update_flow(
     ):
         raise GrabberUpdateError(f"Invalid download_endpoint path: {download_endpoint}")
 
-    # Step 4: Request download endpoint to obtain download URL
+    # Step 4: Request download endpoint to obtain presigned storage URL
     history.append("4_REQUEST_DOWNLOAD_ENDPOINT")
     dl_url_endpoint = f"{server_base_url}{download_endpoint}"
     try:
-        req = urllib.request.Request(dl_url_endpoint)
+        req = urllib.request.Request(dl_url_endpoint, headers=auth_headers)
         with urllib.request.urlopen(req, timeout=5.0) as resp:
             if resp.status != 200:
                 raise GrabberUpdateError(f"Download endpoint error {resp.status}")
@@ -415,10 +469,19 @@ def simulate_grabber_update_flow(
             storage_url = dl_data.get("download_url")
             if not storage_url:
                 raise GrabberUpdateError("Missing download_url in download response")
+    except urllib.error.HTTPError as exc:
+        if exc.code == 401:
+            raise GrabberUpdateError(
+                "Download endpoint authentication failed: HTTP 401 Unauthorized"
+            )
+        raise GrabberUpdateError(
+            f"Failed download endpoint request: HTTP {exc.code}"
+        ) from exc
     except Exception as exc:
         raise GrabberUpdateError(f"Failed download endpoint request: {exc}") from exc
 
     # Step 5: Bounded chunk download and verify SHA-256 + size
+    # NOTE: Presigned storage download does NOT forward MPIPS Authorization headers
     history.append("5_DOWNLOAD_AND_VERIFY_ARTIFACT")
     workspace_dir.mkdir(parents=True, exist_ok=True)
     staging_file = workspace_dir / "candidate_runtime.tmp"
@@ -553,10 +616,10 @@ def test_protocol_simulation_successful_update_and_conversion(
     candidate_sha = hashlib.sha256(candidate_bytes).hexdigest()
     candidate_size = len(candidate_bytes)
 
-    # Prepare server response
+    # Prepare server response with integer schema_version: 1
     release_id = "rel-2026-0011"
     metadata = {
-        "schema_version": "1.0",
+        "schema_version": 1,
         "channel": "staging",
         "platform": "ubuntu-24.04-x86_64",
         "release_id": release_id,
@@ -592,13 +655,14 @@ def test_protocol_simulation_successful_update_and_conversion(
     mock_server.state["download_url"] = dl_url
     mock_server.state["artifact_bytes"] = candidate_bytes
 
-    # Execute simulation
+    # Execute simulation with valid staging reader authentication
     result = simulate_grabber_update_flow(
         server_base_url=mock_server.base_url,
         trusted_public_key_pem=pub_pem,
         installed_executable=installed_bin,
         installed_sequence=10,
         workspace_dir=tmp_path / "work",
+        staging_token=DEFAULT_STAGING_READER_TOKEN,
     )
 
     assert result["status"] == "promoted"
@@ -612,6 +676,65 @@ def test_protocol_simulation_successful_update_and_conversion(
     assert mock_server.state["latest_checks"] == 1
     assert mock_server.state["download_requests"] == 1
     assert mock_server.state["artifact_downloads"] == 1
+    assert mock_server.state["auth_failures"] == 0
+
+
+def test_protocol_simulation_rejects_unauthenticated_request(
+    mock_server: MockServerFixture,
+    ed25519_keypair: tuple[Ed25519PrivateKey, bytes],
+    tmp_path: Path,
+) -> None:
+    """Protocol-only simulation: unauthenticated request returns 401 and halts."""
+    _, pub_pem = ed25519_keypair
+
+    installed_bin = tmp_path / "installed_runtime.bin"
+    _create_mock_runtime_script(installed_bin, tag="v10-existing")
+    initial_bytes = installed_bin.read_bytes()
+
+    with pytest.raises(GrabberUpdateError) as exc_info:
+        simulate_grabber_update_flow(
+            server_base_url=mock_server.base_url,
+            trusted_public_key_pem=pub_pem,
+            installed_executable=installed_bin,
+            installed_sequence=10,
+            workspace_dir=tmp_path / "work",
+            staging_token=None,  # No authentication token
+        )
+
+    assert "401 unauthorized" in str(exc_info.value).lower()
+    assert mock_server.state["auth_failures"] >= 1
+    assert mock_server.state["download_requests"] == 0
+    assert mock_server.state["artifact_downloads"] == 0
+    assert installed_bin.read_bytes() == initial_bytes
+
+
+def test_protocol_simulation_rejects_invalid_token(
+    mock_server: MockServerFixture,
+    ed25519_keypair: tuple[Ed25519PrivateKey, bytes],
+    tmp_path: Path,
+) -> None:
+    """Protocol-only simulation: invalid bearer token returns 401 and halts."""
+    _, pub_pem = ed25519_keypair
+
+    installed_bin = tmp_path / "installed_runtime.bin"
+    _create_mock_runtime_script(installed_bin, tag="v10-existing")
+    initial_bytes = installed_bin.read_bytes()
+
+    with pytest.raises(GrabberUpdateError) as exc_info:
+        simulate_grabber_update_flow(
+            server_base_url=mock_server.base_url,
+            trusted_public_key_pem=pub_pem,
+            installed_executable=installed_bin,
+            installed_sequence=10,
+            workspace_dir=tmp_path / "work",
+            staging_token="WRONG-OR-MALICIOUS-TOKEN",
+        )
+
+    assert "401 unauthorized" in str(exc_info.value).lower()
+    assert mock_server.state["auth_failures"] >= 1
+    assert mock_server.state["download_requests"] == 0
+    assert mock_server.state["artifact_downloads"] == 0
+    assert installed_bin.read_bytes() == initial_bytes
 
 
 def test_protocol_simulation_rejects_older_or_equal_sequence(
@@ -626,9 +749,8 @@ def test_protocol_simulation_rejects_older_or_equal_sequence(
     _create_mock_runtime_script(installed_bin, tag="v10-existing")
     initial_bytes = installed_bin.read_bytes()
 
-    # Server offers sequence 10 (same as installed)
     manifest = {
-        "schema_version": "1.0",
+        "schema_version": 1,
         "channel": "staging",
         "status": "available",
         "platform": "ubuntu-24.04-x86_64",
@@ -685,7 +807,7 @@ def test_protocol_simulation_rejects_invalid_signature_before_download(
     initial_bytes = installed_bin.read_bytes()
 
     metadata = {
-        "schema_version": "1.0",
+        "schema_version": 1,
         "channel": "staging",
         "platform": "ubuntu-24.04-x86_64",
         "release_id": "rel-0011",
@@ -750,7 +872,7 @@ def test_protocol_simulation_rejects_corrupted_sha256_preserves_runtime(
     candidate_bytes = candidate_src.read_bytes()
 
     metadata = {
-        "schema_version": "1.0",
+        "schema_version": 1,
         "channel": "staging",
         "platform": "ubuntu-24.04-x86_64",
         "release_id": "rel-0011",
@@ -813,7 +935,7 @@ def test_protocol_simulation_rejects_incompatible_platform(
     initial_bytes = installed_bin.read_bytes()
 
     metadata = {
-        "schema_version": "1.0",
+        "schema_version": 1,
         "channel": "staging",
         "platform": "ubuntu-24.04-x86_64",
         "release_id": "rel-0011",
@@ -876,7 +998,7 @@ def test_protocol_simulation_rejects_failed_self_check_preserves_runtime(
     bad_bytes = bad_candidate.read_bytes()
 
     metadata = {
-        "schema_version": "1.0",
+        "schema_version": 1,
         "channel": "staging",
         "platform": "ubuntu-24.04-x86_64",
         "release_id": "rel-0011",
@@ -945,7 +1067,7 @@ def test_protocol_simulation_rejects_failed_synthetic_conversion_preserves_runti
     failing_bytes = failing_candidate.read_bytes()
 
     metadata = {
-        "schema_version": "1.0",
+        "schema_version": 1,
         "channel": "staging",
         "platform": "ubuntu-24.04-x86_64",
         "release_id": "rel-0011",
@@ -1005,9 +1127,9 @@ def test_protocol_simulation_network_isolation_no_live_egress(
     installed_bin = tmp_path / "installed_runtime.bin"
     _create_mock_runtime_script(installed_bin, tag="v10-existing")
 
-    # Mock no_release response
+    # Mock no_release response with integer schema_version: 1
     manifest = {
-        "schema_version": "1.0",
+        "schema_version": 1,
         "channel": "staging",
         "status": "no_release",
     }

@@ -32,7 +32,7 @@ def build_manifest(
     confirmed_sex_codes: dict[str, str],
     captured_at: str,
     *,
-    confirmed: bool = True,
+    confirmed: bool = False,
 ) -> dict[str, Any]:
     if not confirmed:
         raise SIMRSConfirmationRequiredError(
@@ -95,7 +95,7 @@ def parse_simrs_http_response(
     *,
     confirmed_sex_codes: dict[str, str],
     captured_at: str,
-    confirmed: bool = True,
+    confirmed: bool = False,
 ) -> dict[str, Any]:
     """Parse and validate an HTTP response from GET /api/api_reg.php?id=<visit-id>."""
     if status_code != 200:

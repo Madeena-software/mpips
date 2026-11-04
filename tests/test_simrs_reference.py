@@ -14,7 +14,9 @@ def test_synthetic_mapping_preserves_identifiers() -> None:
 
     response = json.loads((EXAMPLES / "simrs-response.synthetic.json").read_text())
     request = "SYNTHETIC-VISIT-2026-0001"
-    data = build_manifest(response, request, {}, "2026-10-12T10:00:00+07:00")
+    data = build_manifest(
+        response, request, {}, "2026-10-12T10:00:00+07:00", confirmed=True
+    )
     model = MHCSManifest.model_validate(data)
     assert model.patient.medical_record_number == "SYNTHETIC-001"
     assert model.patient.sex == "unknown"
@@ -122,6 +124,15 @@ def test_simrs_contract_success_with_explicit_confirmation() -> None:
             confirmed=False,
         )
 
+    # 1b. Default confirmed=False (omitted keyword arg) -> MUST fail
+    with pytest.raises(SIMRSConfirmationRequiredError):
+        build_manifest(
+            response,
+            "SYNTHETIC-VISIT-2026-9999",
+            {"L": "male"},
+            "2026-10-12T10:00:00+07:00",
+        )
+
     # 2. With explicit operator confirmation -> succeeds
     manifest = build_manifest(
         response,
@@ -162,6 +173,7 @@ def test_simrs_contract_success_with_null_data() -> None:
             "SYNTHETIC-NONEXISTENT-VISIT",
             {},
             "2026-10-12T10:00:00+07:00",
+            confirmed=True,
         )
 
     with pytest.raises(SIMRSPatientNotFoundError):
@@ -171,6 +183,7 @@ def test_simrs_contract_success_with_null_data() -> None:
             "SYNTHETIC-NONEXISTENT-VISIT",
             confirmed_sex_codes={},
             captured_at="2026-10-12T10:00:00+07:00",
+            confirmed=True,
         )
 
 
@@ -188,6 +201,7 @@ def test_simrs_contract_rejected_or_malformed_response() -> None:
             "SYNTHETIC-VISIT-001",
             {},
             "2026-10-12T10:00:00+07:00",
+            confirmed=True,
         )
 
     # 2. HTTP error status 500
@@ -198,6 +212,7 @@ def test_simrs_contract_rejected_or_malformed_response() -> None:
             "SYNTHETIC-VISIT-001",
             confirmed_sex_codes={},
             captured_at="2026-10-12T10:00:00+07:00",
+            confirmed=True,
         )
 
     # 3. Malformed JSON body
@@ -208,6 +223,7 @@ def test_simrs_contract_rejected_or_malformed_response() -> None:
             "SYNTHETIC-VISIT-001",
             confirmed_sex_codes={},
             captured_at="2026-10-12T10:00:00+07:00",
+            confirmed=True,
         )
 
 
@@ -230,6 +246,7 @@ def test_simrs_contract_visit_id_mismatch() -> None:
             "SYNTHETIC-DIFFERENT-VISIT",
             {},
             "2026-10-12T10:00:00+07:00",
+            confirmed=True,
         )
     assert "visit" in str(exc.value).lower()
 
@@ -250,7 +267,11 @@ def test_simrs_contract_unconfirmed_hospital_sex_code_mapping() -> None:
 
     # When no mapping is confirmed, sex must default to 'unknown' without guessing
     manifest_unmapped = build_manifest(
-        response, "SYNTHETIC-VISIT-001", {}, "2026-10-12T10:00:00+07:00"
+        response,
+        "SYNTHETIC-VISIT-001",
+        {},
+        "2026-10-12T10:00:00+07:00",
+        confirmed=True,
     )
     assert manifest_unmapped["patient"]["sex"] == "unknown"
 
@@ -261,5 +282,6 @@ def test_simrs_contract_unconfirmed_hospital_sex_code_mapping() -> None:
             "SYNTHETIC-VISIT-001",
             {"P": "female"},  # 'L' is not in confirmed mapping
             "2026-10-12T10:00:00+07:00",
+            confirmed=True,
         )
     assert "sex" in str(exc.value).lower()

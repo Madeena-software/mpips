@@ -377,7 +377,9 @@ def compose_manifest(
     from scripts.simrs_manifest_example import build_manifest
 
     confirm_selection(response, visit, confirmed)
-    mapped = build_manifest(response, visit, {}, CAPTURED_AT)
+    mapped = build_manifest(
+        response, visit, {}, CAPTURED_AT, confirmed=confirmed
+    )
     merged: dict[str, Any] = {"manifest_version": "1.0", **copy.deepcopy(mapped)}
     merged["examination"]["performed_at"] = CAPTURED_AT
     merged["capture"].update(copy.deepcopy(GRABBER_CAPTURE), detector_type=mode)
