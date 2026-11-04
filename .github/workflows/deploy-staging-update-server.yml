@@ -31,7 +31,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_ENDPOINT_SECRET: ${{ secrets.AWS_ENDPOINT }}
           AWS_REGION_SECRET: ${{ secrets.AWS_DEFAULT_REGION }}
-          MPIPS_API_KEY_SECRET: ${{ secrets.MPIPS_API_KEY }}
+          MPIPS_UPDATE_STAGING_READER_TOKEN_SECRET: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN || secrets.MPIPS_API_KEY }}
         run: |
           set -Eeuo pipefail
           echo "Setting up host directories for staging update server..."
@@ -86,7 +86,7 @@ jobs:
           AWS_ENDPOINT_URL=${AWS_ENDPOINT_SECRET}
           AWS_USE_PATH_STYLE_ENDPOINT=true
           MPIPS_UPDATE_S3_BUCKET=mpips-dev-bucket
-          MPIPS_UPDATE_STAGING_READER_TOKEN=${MPIPS_API_KEY_SECRET}
+          MPIPS_UPDATE_STAGING_READER_TOKEN=${MPIPS_UPDATE_STAGING_READER_TOKEN_SECRET}
           MPIPS_UPDATE_PRESIGN_TTL_SECONDS=300
           EOF
           chmod 600 "$COMPOSE_ENV"
@@ -189,14 +189,19 @@ jobs:
         run: |
           set -Eeuo pipefail
           echo "Polling http://127.0.0.1:8015/mpips/staging/health..."
-          for i in {1..30}; do
-            if curl -fsS http://127.0.0.1:8015/mpips/staging/health; then
-              echo ""
-              echo "Local staging update server healthy on port 8015!"
+          healthy=false
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8015/mpips/staging/health >/dev/null 2>&1; then
+              echo "Local staging update server healthy on port 8015 (attempt $i/30)!"
+              healthy=true
               break
             fi
             sleep 2
           done
+          if [ "$healthy" != "true" ]; then
+            echo "ERROR: Local staging update server failed to become healthy on port 8015 after 30 attempts." >&2
+            exit 1
+          fi
 
       - name: Verify HTTPS Domain Health
         run: |
@@ -208,18 +213,20 @@ jobs:
 
       - name: Run End-to-End Verification Suite (Local & HTTPS)
         env:
-          MPIPS_API_KEY_SECRET: ${{ secrets.MPIPS_API_KEY }}
+          MPIPS_STAGING_READER_TOKEN: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN || secrets.MPIPS_API_KEY }}
         run: |
           set -Eeuo pipefail
           echo "Running local loopback verification..."
           python3 scripts/verify_staging_update_server.py \
             --base-url http://127.0.0.1:8015 \
-            --token "${MPIPS_API_KEY_SECRET}"
+            --token "${MPIPS_STAGING_READER_TOKEN}" \
+            --mode infra
 
           echo "Running public HTTPS domain verification..."
           python3 scripts/verify_staging_update_server.py \
             --base-url https://ip.mhcsgo.cloud \
-            --token "${MPIPS_API_KEY_SECRET}"
+            --token "${MPIPS_STAGING_READER_TOKEN}" \
+            --mode infra
 
       - name: Verify Clinical API on Port 8014 Unaffected
         run: |
@@ -227,5 +234,9 @@ jobs:
           echo "Verifying existing clinical API on port 8014 is untouched..."
           if curl -s -f http://127.0.0.1:8014/health >/dev/null 2>&1 || curl -s -f http://127.0.0.1:8014/docs >/dev/null 2>&1; then
             echo "Clinical MPIPS API on port 8014 is healthy."
+          else
+            echo "ERROR: Clinical MPIPS API on port 8014 is unreachable or failing health checks!" >&2
+            docker ps --filter "name=mpips" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+            exit 1
           fi
           docker ps --filter "name=mpips" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"

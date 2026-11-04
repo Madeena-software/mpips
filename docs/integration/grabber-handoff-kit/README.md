@@ -204,3 +204,26 @@ Prior to requesting clinical integration testing or deployment review, external 
 - [ ] **6. Privacy & Security Audit**:
   - [ ] Confirmed no patient names, medical record numbers, or birthdates appear in error logs or stdout.
   - [ ] Confirmed calibration directory is kept read-only and separate from clinical data storage.
+
+---
+
+## 7. Staging Update Server Integration & Remote Binary Distribution
+
+The MPIPS staging update server (`https://ip.mhcsgo.cloud`, port `8015`) provides automated discovery and authenticated download for the standalone Linux ELF binary (`mpips-runtime.bin`).
+
+### Summary API Contract for Grabber Clients
+
+| Endpoint | Method | Auth | Purpose & Format |
+|---|---|---|---|
+| `/mpips/staging/health` | GET | None | Health check. Returns `{"status": "ok", "service": "mpips-update-server", "environment": "staging"}`. |
+| `/mpips/staging/latest.json` | GET | Bearer / API Key | Channel discovery. Returns either `status: "no_release"` or `status: "available"` with `artifact` descriptor and signed metadata. |
+| `/mpips/staging/releases/{release_id}/download` | GET | Bearer / API Key | Presigned download URL issuer. Returns short-lived MinIO presigned URL in `download_url`. |
+
+### Key Integration Rules for Grabber Developers:
+1. **Platform Target**: Supported canonical platform is strictly `ubuntu-24.04-x86_64`.
+2. **Client-Side Version Checking**: The update server does **not** compare a `current_version` query parameter. Grabber must compare the returned `sequence` against its locally installed sequence and enforce monotonic sequence progression (`sequence > current_sequence`).
+3. **Presigned Download URL**: The download endpoint returns a short-lived MinIO presigned URL in `{"download_url": "https://..."}`, **not** binary stream bytes. Fetch the binary from `download_url` using standard HTTP GET without the MPIPS auth header.
+4. **Artifact Integrity Verification**: When `status == "available"`, extract `artifact.sha256` and `artifact.size_bytes`. Verify that downloaded byte length equals `size_bytes` and SHA-256 equals `sha256`.
+5. **Signature Verification**: Verify the 64-byte Ed25519 signature in `signature` over the canonical bytes of `signed_metadata_b64` using the pinned staging Ed25519 public key before activation.
+6. **Detailed Reference**: See [Ubuntu Grabber Integration Guide](../ubuntu-grabber.md#staging-release-distribution-and-update-server-api-contract) for full JSON request/response envelopes and client state machine specifications.
+
