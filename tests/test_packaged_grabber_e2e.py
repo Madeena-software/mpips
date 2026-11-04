@@ -482,7 +482,19 @@ def test_negative_malicious_response_shielding(tmp_path: Path) -> None:
         '"runtime_version": "0.1.0", "patient_ssn": "SECRET-12345", '
         '"injected": "<script>alert(\'xss\')</script>"}'
     )
-    mock_bin.write_text(f"#!/bin/bash\necho '{malicious_payload}'\nexit 2\n")
+    version_payload = (
+        '{"status": "ok", "code": "OK", "interface_version": "1", '
+        '"runtime_version": "0.1.0"}'
+    )
+    mock_bin.write_text(
+        f"#!/bin/bash\n"
+        f'if [ "$1" = "--version" ]; then\n'
+        f"  echo '{version_payload}'\n"
+        f"  exit 0\n"
+        f"fi\n"
+        f"echo '{malicious_payload}'\n"
+        f"exit 2\n"
+    )
     mock_bin.chmod(0o755)
 
     rad_p = tmp_path / "rad.npz"
