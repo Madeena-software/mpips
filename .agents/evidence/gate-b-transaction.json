@@ -1,0 +1,16 @@
+{
+  "bucket": "mpips-dev-bucket",
+  "channel": "staging",
+  "expected_current_sequence": null,
+  "expected_sha256": "189baaeff2dd6f5eb96e7dac984a63ea1e2cc47e54158539cc77d7d5d0fae937",
+  "expected_size_bytes": 241288024,
+  "handoff_recipient_pubkey_b64": "",
+  "operation": "preflight_inspect",
+  "platform": "ubuntu-24.04-x86_64",
+  "schema_version": 1,
+  "source_commit": "cbf2b24ba4fb8f2b5fc25b6a86f381ba7cf5f4b1",
+  "target_release_id": "",
+  "target_sequence": null,
+  "upload_id": "",
+  "version": "0.1.0"
+}
