@@ -26,6 +26,7 @@ from mpips.update_server.release_metadata import (
 )
 from scripts.verify_staging_update_server import (
     MAX_PERMITTED_ARTIFACT_BYTES,
+    main as verifier_main,
     run_checks,
 )
 
@@ -137,9 +138,8 @@ def make_mock_handler(state: MockServerState) -> type[BaseHTTPRequestHandler]:
                     return
 
             # 3. Download endpoint
-            if (
-                path.startswith("/mpips/staging/releases/")
-                and path.endswith("/download")
+            if path.startswith("/mpips/staging/releases/") and path.endswith(
+                "/download"
             ):
                 state.download_endpoint_requests.append(path)
                 parts = path.split("/")
@@ -654,9 +654,7 @@ def test_invalid_manifest_causes_zero_artifact_download_requests(
     state.binary_download_requests.clear()
 
     assert (
-        run_checks(
-            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
-        )
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
         is False
     )
     assert len(state.download_endpoint_requests) == 0
@@ -670,9 +668,7 @@ def test_invalid_manifest_causes_zero_artifact_download_requests(
     state.binary_download_requests.clear()
 
     assert (
-        run_checks(
-            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
-        )
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
         is False
     )
     assert len(state.download_endpoint_requests) == 0
@@ -688,9 +684,7 @@ def test_invalid_manifest_causes_zero_artifact_download_requests(
     state.binary_download_requests.clear()
 
     assert (
-        run_checks(
-            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
-        )
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
         is False
     )
     assert len(state.download_endpoint_requests) == 0
@@ -704,9 +698,7 @@ def test_invalid_manifest_causes_zero_artifact_download_requests(
     state.binary_download_requests.clear()
 
     assert (
-        run_checks(
-            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
-        )
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
         is False
     )
     assert len(state.download_endpoint_requests) == 0
@@ -732,9 +724,7 @@ def test_fails_closed_when_download_host_unauthorized_https(
     state.latest_override = manifest
 
     assert (
-        run_checks(
-            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
-        )
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
         is False
     )
 
@@ -847,8 +837,17 @@ def test_accepts_default_trusted_storage_host(
 
     # Acceptance of default s3.mhcsgo.cloud without explicit argument
     assert (
-        run_checks(
-            base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem
-        )
+        run_checks(base_url, TEST_TOKEN, mode="distribution", public_key_pem=pub_pem)
         is True
     )
+
+
+def test_verifier_main_does_not_fallback_to_mpips_api_key(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Ensure verify_staging_update_server.main requires dedicated reader token."""
+    monkeypatch.delenv("MPIPS_UPDATE_STAGING_READER_TOKEN", raising=False)
+    monkeypatch.setenv("MPIPS_API_KEY", "clinical-api-key-must-not-be-used")
+    monkeypatch.setattr("sys.argv", ["verify_staging_update_server.py"])
+
+    assert verifier_main() == 1

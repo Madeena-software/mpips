@@ -193,9 +193,7 @@ def run_checks(
         env_hosts = os.getenv("MPIPS_UPDATE_TRUSTED_STORAGE_HOSTS", "").strip()
         if env_hosts:
             effective_trusted_hosts = frozenset(
-                h.strip().lower()
-                for h in re.split(r"[,\s]+", env_hosts)
-                if h.strip()
+                h.strip().lower() for h in re.split(r"[,\s]+", env_hosts) if h.strip()
             )
         else:
             effective_hosts_set = set(DEFAULT_TRUSTED_STORAGE_HOSTS)
@@ -668,9 +666,7 @@ def run_checks(
                         )
                         all_ok = False
                 except Exception as exc:
-                    print(
-                        f"  [FAIL] 7. Download failed for {sanitized_dl_url}: {exc}"
-                    )
+                    print(f"  [FAIL] 7. Download failed for {sanitized_dl_url}: {exc}")
                     all_ok = False
             else:
                 print(
@@ -738,15 +734,13 @@ def main() -> int:
         default="https://ip.mhcsgo.cloud",
         help="Base URL of the update server (default: https://ip.mhcsgo.cloud)",
     )
-    token_env = os.getenv("MPIPS_UPDATE_STAGING_READER_TOKEN") or os.getenv(
-        "MPIPS_API_KEY", ""
-    )
+    token_env = os.getenv("MPIPS_UPDATE_STAGING_READER_TOKEN", "")
     parser.add_argument(
         "--token",
         default=token_env,
         help=(
             "Staging reader authentication token (defaults to "
-            "MPIPS_UPDATE_STAGING_READER_TOKEN or MPIPS_API_KEY env vars)"
+            "MPIPS_UPDATE_STAGING_READER_TOKEN env var)"
         ),
     )
     parser.add_argument(
@@ -801,7 +795,7 @@ def main() -> int:
     if not token:
         print(
             "ERROR: Authentication token is required via --token or "
-            "MPIPS_UPDATE_STAGING_READER_TOKEN / MPIPS_API_KEY",
+            "MPIPS_UPDATE_STAGING_READER_TOKEN",
             file=sys.stderr,
         )
         return 1

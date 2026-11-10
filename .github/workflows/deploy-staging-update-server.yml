@@ -25,15 +25,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Validate dedicated staging credentials and environment
+        env:
+          AWS_ACCESS_KEY_ID_SECRET: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_ENDPOINT_SECRET: ${{ secrets.AWS_ENDPOINT }}
+          MPIPS_UPDATE_STAGING_READER_TOKEN_SECRET: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          for var in AWS_ACCESS_KEY_ID_SECRET AWS_SECRET_ACCESS_KEY_SECRET AWS_ENDPOINT_SECRET MPIPS_UPDATE_STAGING_READER_TOKEN_SECRET; do
+            if [ -z "${!var:-}" ]; then
+              echo "ERROR: Required secret mapped to $var is missing or empty. Refusing to write deployment configuration or modify services." >&2
+              exit 1
+            fi
+          done
+          echo "Dedicated staging credentials verified present."
+
       - name: Set up deployment environment
         env:
           AWS_ACCESS_KEY_ID_SECRET: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_ENDPOINT_SECRET: ${{ secrets.AWS_ENDPOINT }}
           AWS_REGION_SECRET: ${{ secrets.AWS_DEFAULT_REGION }}
-          MPIPS_UPDATE_STAGING_READER_TOKEN_SECRET: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN || secrets.MPIPS_API_KEY }}
+          MPIPS_UPDATE_STAGING_READER_TOKEN_SECRET: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN }}
         run: |
           set -Eeuo pipefail
+          if [ -z "${MPIPS_UPDATE_STAGING_READER_TOKEN_SECRET:-}" ]; then
+            echo "ERROR: Dedicated secret MPIPS_UPDATE_STAGING_READER_TOKEN is missing or empty." >&2
+            exit 1
+          fi
           echo "Setting up host directories for staging update server..."
 
           BASE_DIR="/var/www/mpips-runtime/update-server"
@@ -250,7 +270,7 @@ jobs:
 
       - name: Run End-to-End Verification Suite (Local & HTTPS)
         env:
-          MPIPS_UPDATE_STAGING_READER_TOKEN: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN || secrets.MPIPS_API_KEY }}
+          MPIPS_UPDATE_STAGING_READER_TOKEN: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN }}
           MPIPS_UPDATE_PUBLIC_KEY_PATH: /var/www/mpips-runtime/update-server/release-public.pem
         run: |
           set -Eeuo pipefail

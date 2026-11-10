@@ -26,6 +26,7 @@ import hashlib
 import json
 import os
 import shutil
+import socket
 import stat
 import subprocess
 import threading
@@ -1233,8 +1234,16 @@ def test_protocol_simulation_network_isolation_no_live_egress(
     mock_server: MockServerFixture,
     ed25519_keypair: tuple[Ed25519PrivateKey, bytes],
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Protocol-only simulation: confirms all requests remain on loopback."""
+    """Protocol-only simulation: enforces Python-level socket loopback guard.
+
+    NOTE: This installs a Python-level `socket.create_connection` guard that
+    records and allows only loopback (`127.0.0.1` / `localhost` / `::1`)
+    targets and raises ` RuntimeError` on any non-loopback connection attempt.
+    It distinguishes requested loopback endpoints + Python-level egress
+    restriction from kernel-level network namespace isolation.
+    """
     _, pub_pem = ed25519_keypair
 
     installed_bin = tmp_path / "installed_runtime.bin"
@@ -1248,6 +1257,33 @@ def test_protocol_simulation_network_isolation_no_live_egress(
     }
     mock_server.state["manifest_response"] = manifest
 
+    observed_targets: list[tuple[str, int]] = []
+    real_create_connection = socket.create_connection
+
+    def _loopback_only_create_connection(
+        address: tuple[str, int],
+        *args: Any,
+        **kwargs: Any,
+    ) -> socket.socket:
+        host, port = address[0], int(address[1])
+        observed_targets.append((host, port))
+        if host not in LOOPBACK_HOSTS:
+            raise RuntimeError(
+                f"Python socket guard blocked non-loopback egress to {host}:{port}"
+            )
+        return real_create_connection(address, *args, **kwargs)
+
+    monkeypatch.setattr(socket, "create_connection", _loopback_only_create_connection)
+
+    # Verify the Python socket guard actively blocks non-loopback egress
+    with pytest.raises(
+        RuntimeError,
+        match="Python socket guard blocked non-loopback egress",
+    ):
+        socket.create_connection(("198.51.100.1", 443), timeout=0.1)
+
+    observed_targets.clear()
+
     result = simulate_grabber_update_flow(
         server_base_url=mock_server.base_url,
         trusted_public_key_pem=pub_pem,
@@ -1258,6 +1294,7 @@ def test_protocol_simulation_network_isolation_no_live_egress(
 
     assert result["status"] == "no_release"
     assert result["current_sequence"] == 10
+    assert observed_targets == [("127.0.0.1", mock_server.port)]
     # Calls logged exclusively on local loopback server
     assert len(mock_server.state["calls"]) == 1
     assert mock_server.state["calls"][0] == "/mpips/staging/latest.json"

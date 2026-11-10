@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import os
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -13,7 +14,9 @@ from botocore.exceptions import BotoCoreError, ClientError
 from mpips.storage import get_s3_client
 from mpips.update_server.release_metadata import (
     ARTIFACT_FILENAME,
+    MAX_ARTIFACT_BYTES,
     RELEASE_ID_RE,
+    SHA256_RE,
     SUPPORTED_CHANNEL,
     SUPPORTED_PLATFORM,
     sha256_file,
@@ -228,8 +231,10 @@ class MinIOArtifactStore:
         self.verify_release_objects(
             release_id=release_id,
             expected_size_bytes=expected_size_bytes,
+            expected_sha256=expected_sha256,
             expected_metadata_bytes=metadata_bytes,
             expected_signature_bytes=signature_bytes,
+            verify_binary_sha256=True,
             channel=channel,
             platform_name=platform_name,
         )
@@ -240,12 +245,32 @@ class MinIOArtifactStore:
         *,
         release_id: str,
         expected_size_bytes: int,
+        expected_sha256: str | None = None,
         expected_metadata_bytes: bytes | None = None,
         expected_signature_bytes: bytes | None = None,
+        verify_binary_sha256: bool = False,
         channel: str = SUPPORTED_CHANNEL,
         platform_name: str = SUPPORTED_PLATFORM,
     ) -> dict[str, Any]:
-        """Verify binary existence/size and optional metadata/signature bytes."""
+        """Verify binary existence/size, optional binary SHA-256, and metadata/sig."""
+        if (
+            type(expected_size_bytes) is not int
+            or expected_size_bytes <= 0
+            or expected_size_bytes > MAX_ARTIFACT_BYTES
+        ):
+            raise ArtifactIntegrityError(
+                "Expected binary size outside permitted bounds"
+            )
+        if expected_sha256 is not None and (
+            not isinstance(expected_sha256, str)
+            or not SHA256_RE.fullmatch(expected_sha256)
+        ):
+            raise ArtifactIntegrityError("Invalid expected binary SHA-256 format")
+        if verify_binary_sha256 and expected_sha256 is None:
+            raise ArtifactIntegrityError(
+                "expected_sha256 is required when verify_binary_sha256 is True"
+            )
+
         bin_key = build_release_object_key(
             release_id,
             ARTIFACT_FILENAME,
@@ -272,7 +297,11 @@ class MinIOArtifactStore:
             raise ArtifactNotFoundError("Release artifact object missing in storage")
 
         content_length = int(bin_head.get("ContentLength", -1))
-        if content_length != expected_size_bytes or content_length <= 0:
+        if (
+            content_length != expected_size_bytes
+            or content_length <= 0
+            or content_length > MAX_ARTIFACT_BYTES
+        ):
             raise ArtifactIntegrityError("Stored binary size mismatch")
         if int(sig_head.get("ContentLength", -1)) != 64:
             raise ArtifactIntegrityError("Stored signature size mismatch")
@@ -281,25 +310,82 @@ class MinIOArtifactStore:
             try:
                 if expected_metadata_bytes is not None:
                     meta_obj = self._s3.get_object(Bucket=self._bucket, Key=meta_key)
-                    if meta_obj["Body"].read() != expected_metadata_bytes:
-                        raise ArtifactIntegrityError(
-                            "Stored release.json bytes mismatch"
-                        )
+                    meta_body = meta_obj["Body"]
+                    try:
+                        if meta_body.read() != expected_metadata_bytes:
+                            raise ArtifactIntegrityError(
+                                "Stored release.json bytes mismatch"
+                            )
+                    finally:
+                        close_fn = getattr(meta_body, "close", None)
+                        if callable(close_fn):
+                            close_fn()
                 if expected_signature_bytes is not None:
                     sig_obj = self._s3.get_object(Bucket=self._bucket, Key=sig_key)
-                    if sig_obj["Body"].read() != expected_signature_bytes:
-                        raise ArtifactIntegrityError(
-                            "Stored release.sig bytes mismatch"
-                        )
+                    sig_body = sig_obj["Body"]
+                    try:
+                        if sig_body.read() != expected_signature_bytes:
+                            raise ArtifactIntegrityError(
+                                "Stored release.sig bytes mismatch"
+                            )
+                    finally:
+                        close_fn = getattr(sig_body, "close", None)
+                        if callable(close_fn):
+                            close_fn()
             except (ClientError, BotoCoreError) as exc:
                 raise StorageUnavailableError(
                     "Failed to read release metadata from storage"
                 ) from exc
 
-        return {
+        result: dict[str, Any] = {
             "binary_key": bin_key,
             "size_bytes": content_length,
         }
+
+        if verify_binary_sha256 and expected_sha256 is not None:
+            try:
+                bin_obj = self._s3.get_object(Bucket=self._bucket, Key=bin_key)
+                bin_body = bin_obj["Body"]
+                try:
+                    hasher = hashlib.sha256()
+                    total_read = 0
+                    chunk_size = 64 * 1024
+                    while True:
+                        chunk = bin_body.read(chunk_size)
+                        if not chunk:
+                            break
+                        if not isinstance(chunk, (bytes, bytearray)):
+                            raise ArtifactIntegrityError(
+                                "Stored binary stream returned non-bytes chunk"
+                            )
+                        total_read += len(chunk)
+                        if (
+                            total_read > expected_size_bytes
+                            or total_read > MAX_ARTIFACT_BYTES
+                        ):
+                            raise ArtifactIntegrityError(
+                                "Stored binary stream exceeded expected size bounds"
+                            )
+                        hasher.update(chunk)
+                finally:
+                    close_fn = getattr(bin_body, "close", None)
+                    if callable(close_fn):
+                        close_fn()
+            except (ClientError, BotoCoreError, OSError) as exc:
+                raise StorageUnavailableError(
+                    "Failed to stream release binary from storage"
+                ) from exc
+
+            if total_read != expected_size_bytes:
+                raise ArtifactIntegrityError(
+                    "Stored binary stream truncated before expected size"
+                )
+            actual_sha256 = hasher.hexdigest()
+            if actual_sha256 != expected_sha256:
+                raise ArtifactIntegrityError("Stored binary SHA-256 mismatch")
+            result["sha256"] = actual_sha256
+
+        return result
 
     def generate_presigned_download(
         self,

@@ -272,7 +272,10 @@ class ReleaseRegistry:
             record = RegisteredRelease.from_dict(releases[release_id])
             if record.authorization_state == "revoked":
                 raise ReleaseUnauthorizedError("Revoked release cannot be authorized")
-            self._verify_registered_release(record)
+            self._verify_registered_release(
+                record,
+                verify_binary_sha256=True,
+            )
             updated = RegisteredRelease(
                 **{
                     **record.to_dict(),
@@ -282,6 +285,123 @@ class ReleaseRegistry:
             releases[release_id] = updated.to_dict()
             self._save_state(state)
             return updated
+
+    def revoke_release(
+        self,
+        release_id: str,
+        *,
+        channel: str = SUPPORTED_CHANNEL,
+        platform_name: str = SUPPORTED_PLATFORM,
+        now: datetime | None = None,
+    ) -> RegisteredRelease:
+        """Atomically mark a registered or promoted release as revoked.
+
+        Preserves monotonic sequence allocation and channel promotion history:
+        - The revoked sequence remains permanently allocated and cannot be reused.
+        - If the revoked release is currently pointed to by the channel pointer,
+          the channel record remains at its monotonic sequence while
+          `get_latest_release` and `get_authorized_release_for_download` fail
+          closed with `ReleaseUnauthorizedError` (HTTP 403 `release_unauthorized`)
+          until a newly signed release with `sequence > current_sequence` is
+          registered and promoted.
+        """
+        if channel != SUPPORTED_CHANNEL:
+            raise ReleaseValidationError("Only staging channel revocation is permitted")
+        try:
+            validate_platform_compatibility(platform_name)
+        except ValueError as exc:
+            raise ReleaseValidationError(str(exc)) from exc
+        if not isinstance(release_id, str) or not RELEASE_ID_RE.fullmatch(release_id):
+            raise ReleaseValidationError("Invalid release_id")
+
+        with self._lock:
+            state = self._load_state()
+            releases = state.get("releases", {})
+            if release_id not in releases:
+                raise ReleaseNotFoundError("Release not found")
+            record = RegisteredRelease.from_dict(releases[release_id])
+            if record.channel != channel or record.platform != platform_name:
+                raise ReleaseValidationError("Release channel/platform mismatch")
+
+            ref_now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
+            revoked_record = RegisteredRelease(
+                **{
+                    **record.to_dict(),
+                    "authorization_state": "revoked",
+                }
+            )
+            releases[release_id] = revoked_record.to_dict()
+
+            channel_key = f"{channel}/{platform_name}"
+            channels = state.setdefault("channels", {})
+            pointer = channels.get(channel_key)
+            if pointer and pointer.get("current"):
+                current = pointer["current"]
+                if str(current.get("release_id")) == release_id:
+                    updated_current = {
+                        **current,
+                        "revoked_at": ref_now.isoformat(),
+                    }
+                    history = list(pointer.get("history", []))
+                    history.append(
+                        {
+                            "release_id": release_id,
+                            "sequence": record.sequence,
+                            "previous_sequence": int(current["sequence"]),
+                            "action": "revoked",
+                            "revoked_at": ref_now.isoformat(),
+                        }
+                    )
+                    channels[channel_key] = {
+                        "current": updated_current,
+                        "history": history,
+                    }
+
+            self._save_state(state)
+            return revoked_record
+
+    def list_releases(
+        self,
+        *,
+        channel: str = SUPPORTED_CHANNEL,
+        platform_name: str = SUPPORTED_PLATFORM,
+    ) -> list[RegisteredRelease]:
+        """Return registered releases for channel/platform ordered by sequence."""
+        with self._lock:
+            state = self._load_state()
+            releases = state.get("releases", {})
+            records = [
+                RegisteredRelease.from_dict(raw)
+                for raw in releases.values()
+                if raw.get("channel") == channel
+                and raw.get("platform") == platform_name
+            ]
+            records.sort(key=lambda r: (r.sequence, r.release_id))
+            return records
+
+    def get_highest_allocated_sequence(
+        self,
+        *,
+        channel: str = SUPPORTED_CHANNEL,
+        platform_name: str = SUPPORTED_PLATFORM,
+    ) -> int:
+        """Return the highest sequence number ever allocated or promoted."""
+        with self._lock:
+            state = self._load_state()
+            channel_key = f"{channel}/{platform_name}"
+            pointer = state.get("channels", {}).get(channel_key)
+            highest = (
+                int(pointer["current"]["sequence"])
+                if pointer and pointer.get("current")
+                else 0
+            )
+            for raw in state.get("releases", {}).values():
+                if (
+                    raw.get("channel") == channel
+                    and raw.get("platform") == platform_name
+                ):
+                    highest = max(highest, int(raw.get("sequence", 0)))
+            return highest
 
     def get_current_sequence(
         self,
@@ -348,6 +468,7 @@ class ReleaseRegistry:
             self._verify_registered_release(
                 record,
                 minimum_sequence=current_seq + 1,
+                verify_binary_sha256=True,
                 now=now,
             )
 
@@ -376,6 +497,7 @@ class ReleaseRegistry:
         record: RegisteredRelease,
         *,
         minimum_sequence: int = 1,
+        verify_binary_sha256: bool = False,
         now: datetime | None = None,
     ) -> dict[str, Any]:
         try:
@@ -407,8 +529,10 @@ class ReleaseRegistry:
         self._store.verify_release_objects(
             release_id=record.release_id,
             expected_size_bytes=record.size_bytes,
+            expected_sha256=record.sha256,
             expected_metadata_bytes=record.metadata_bytes,
             expected_signature_bytes=record.signature_bytes,
+            verify_binary_sha256=verify_binary_sha256,
             channel=record.channel,
             platform_name=record.platform,
         )

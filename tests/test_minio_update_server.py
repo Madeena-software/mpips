@@ -27,7 +27,9 @@ from mpips.update_server.minio_adapter import (
 )
 from mpips.update_server.registry import (
     ChannelSequenceConflictError,
+    ReleaseNotFoundError,
     ReleaseRegistry,
+    ReleaseUnauthorizedError,
     ReleaseValidationError,
 )
 from mpips.update_server.release_metadata import (
@@ -620,3 +622,362 @@ def test_presigned_url_ttl_bounds_enforced(minio_env: dict[str, Any]) -> None:
                 bucket=TEST_BUCKET,
                 presign_ttl_seconds=invalid_ttl,
             )
+
+
+def test_pre_promotion_binary_sha256_integrity_catches_corruption_and_truncation(
+    minio_env: dict[str, Any],
+    synthetic_elf_binary: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify verify_release_objects(..., verify_binary_sha256=True) & promote.
+
+    Exercises:
+    1. Same-size stored binary corruption (head_object ContentLength matches,
+       but stored ELF payload bytes have a flipped bit -> SHA-256 mismatch).
+    2. Truncated object stream (head_object reports expected ContentLength,
+       but get_object stream yields fewer bytes).
+    3. Oversized object stream (get_object stream yields more bytes than expected).
+    """
+    registry: ReleaseRegistry = minio_env["registry"]
+    store: MinIOArtifactStore = minio_env["store"]
+    s3 = minio_env["s3"]
+    private_pem: bytes = minio_env["private_pem"]
+
+    release_id = "0.1.0-sha256-integrity-seq1"
+    metadata, meta_bytes, sig_bytes = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=release_id,
+        sequence=1,
+    )
+    expected_sha256 = str(metadata["artifact"]["sha256"])
+    expected_size = int(metadata["artifact"]["size_bytes"])
+
+    # Stage release without promoting yet
+    record = registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta_bytes,
+        signature_bytes=sig_bytes,
+        authorize=True,
+        promote=False,
+    )
+    assert record.authorization_state == "authorized"
+
+    # Full SHA-256 check passes on intact stored binary
+    verified_info = store.verify_release_objects(
+        release_id=release_id,
+        expected_size_bytes=expected_size,
+        expected_sha256=expected_sha256,
+        expected_metadata_bytes=meta_bytes,
+        expected_signature_bytes=sig_bytes,
+        verify_binary_sha256=True,
+    )
+    assert verified_info["sha256"] == expected_sha256
+    assert verified_info["size_bytes"] == expected_size
+
+    bin_key = f"staging/ubuntu-24.04-x86_64/releases/{release_id}/mpips-runtime.bin"
+    original_bytes = synthetic_elf_binary.read_bytes()
+
+    # 1. Same-size bit-flip corruption in stored MinIO object
+    corrupted_same_size = bytearray(original_bytes)
+    corrupted_same_size[-1] ^= 0xFF
+    s3.put_object(
+        Bucket=TEST_BUCKET,
+        Key=bin_key,
+        Body=bytes(corrupted_same_size),
+    )
+
+    # Size-only check wouldn't catch same-size corruption, verify_binary_sha256 does
+    with pytest.raises(ArtifactIntegrityError, match="Stored binary SHA-256 mismatch"):
+        store.verify_release_objects(
+            release_id=release_id,
+            expected_size_bytes=expected_size,
+            expected_sha256=expected_sha256,
+            verify_binary_sha256=True,
+        )
+
+    # promote_release and authorize_release enforce verify_binary_sha256=True
+    with pytest.raises(ArtifactIntegrityError, match="Stored binary SHA-256 mismatch"):
+        registry.promote_release(
+            release_id=release_id,
+            expected_current_sequence=0,
+        )
+    with pytest.raises(ArtifactIntegrityError, match="Stored binary SHA-256 mismatch"):
+        registry.authorize_release(release_id)
+    assert registry.get_current_sequence() == 0
+
+    # Restore valid object bytes
+    s3.put_object(Bucket=TEST_BUCKET, Key=bin_key, Body=original_bytes)
+
+    # 2. Simulated truncated stream from S3 get_object (even when head_object matches)
+    real_get_object = s3.get_object
+
+    class _TruncatedStream:
+        def __init__(self, data: bytes) -> None:
+            self._data = data[:-16]
+            self._offset = 0
+            self.closed = False
+
+        def read(self, amt: int | None = None) -> bytes:
+            if self._offset >= len(self._data):
+                return b""
+            n = len(self._data) if amt is None else amt
+            chunk = self._data[self._offset : self._offset + n]
+            self._offset += len(chunk)
+            return chunk
+
+        def close(self) -> None:
+            self.closed = True
+
+    truncated_body = _TruncatedStream(original_bytes)
+
+    def _mock_truncated_get_object(*, Bucket: str, Key: str) -> dict[str, Any]:
+        if Key == bin_key:
+            return {"Body": truncated_body, "ContentLength": expected_size}
+        res: dict[str, Any] = real_get_object(Bucket=Bucket, Key=Key)
+        return res
+
+    monkeypatch.setattr(s3, "get_object", _mock_truncated_get_object)
+    with pytest.raises(
+        ArtifactIntegrityError,
+        match="Stored binary stream truncated before expected size",
+    ):
+        store.verify_release_objects(
+            release_id=release_id,
+            expected_size_bytes=expected_size,
+            expected_sha256=expected_sha256,
+            verify_binary_sha256=True,
+        )
+    assert truncated_body.closed is True
+
+    # 3. Simulated oversized stream from S3 get_object
+    class _OversizedStream:
+        def __init__(self, data: bytes) -> None:
+            self._data = data + b"EXTRA_TRAILING_BYTES"
+            self._offset = 0
+            self.closed = False
+
+        def read(self, amt: int | None = None) -> bytes:
+            if self._offset >= len(self._data):
+                return b""
+            n = len(self._data) if amt is None else amt
+            chunk = self._data[self._offset : self._offset + n]
+            self._offset += len(chunk)
+            return chunk
+
+        def close(self) -> None:
+            self.closed = True
+
+    oversized_body = _OversizedStream(original_bytes)
+
+    def _mock_oversized_get_object(*, Bucket: str, Key: str) -> dict[str, Any]:
+        if Key == bin_key:
+            return {"Body": oversized_body, "ContentLength": expected_size}
+        res: dict[str, Any] = real_get_object(Bucket=Bucket, Key=Key)
+        return res
+
+    monkeypatch.setattr(s3, "get_object", _mock_oversized_get_object)
+    with pytest.raises(
+        ArtifactIntegrityError,
+        match="Stored binary stream exceeded expected size bounds",
+    ):
+        store.verify_release_objects(
+            release_id=release_id,
+            expected_size_bytes=expected_size,
+            expected_sha256=expected_sha256,
+            verify_binary_sha256=True,
+        )
+    assert oversized_body.closed is True
+
+    # Restore real get_object and confirm promotion succeeds
+    monkeypatch.setattr(s3, "get_object", real_get_object)
+    promoted = registry.promote_release(
+        release_id=release_id,
+        expected_current_sequence=0,
+    )
+    assert promoted.authorization_state == "promoted"
+    assert registry.get_current_sequence() == 1
+
+
+def test_release_revocation_and_monotonic_recovery_lifecycle(
+    minio_env: dict[str, Any],
+    synthetic_elf_binary: Path,
+) -> None:
+    """Verify safe release revocation across unpromoted and promoted states.
+
+    Distinguishes:
+    1. Registered but unpromoted release revocation (blocks promotion & download,
+       preserves allocated sequence so it cannot be reused).
+    2. Post-promotion release revocation (causes /latest.json and /download to
+       fail closed with 403 release_unauthorized while preserving monotonic
+       channel sequence history).
+    3. Forward recovery by registering and promoting sequence = highest_allocated + 1.
+    """
+    registry: ReleaseRegistry = minio_env["registry"]
+    client: TestClient = minio_env["client"]
+    private_pem: bytes = minio_env["private_pem"]
+
+    # 1. Register sequence 1 without promoting, then revoke it before promotion
+    rel_seq1 = "0.1.0-staged-unpromoted-seq1"
+    _, meta1, sig1 = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=rel_seq1,
+        sequence=1,
+    )
+    rec1 = registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta1,
+        signature_bytes=sig1,
+        authorize=True,
+        promote=False,
+    )
+    assert rec1.authorization_state == "authorized"
+    assert registry.get_current_sequence() == 0
+    assert registry.get_highest_allocated_sequence() == 1
+
+    revoked1 = registry.revoke_release(rel_seq1)
+    assert revoked1.authorization_state == "revoked"
+    # Channel pointer is still 0 (no_release), but sequence 1 remains allocated
+    assert registry.get_current_sequence() == 0
+    assert registry.get_highest_allocated_sequence() == 1
+
+    with pytest.raises(ReleaseUnauthorizedError):
+        registry.promote_release(release_id=rel_seq1, expected_current_sequence=0)
+    with pytest.raises(ReleaseUnauthorizedError):
+        registry.authorize_release(rel_seq1)
+
+    dl_seq1 = client.get(
+        f"/mpips/staging/releases/{rel_seq1}/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert dl_seq1.status_code == 403
+    assert dl_seq1.json()["error"]["code"] == "release_unauthorized"
+
+    # Attempting to reuse sequence 1 with a new release_id is rejected
+    _, meta1_dup, sig1_dup = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id="0.1.0-reuse-seq1",
+        sequence=1,
+    )
+    with pytest.raises(ReleaseConflictError):
+        registry.register_and_upload_release(
+            binary_path=synthetic_elf_binary,
+            metadata_bytes=meta1_dup,
+            signature_bytes=sig1_dup,
+        )
+
+    # 2. Register and promote sequence 2, then revoke post-promotion
+    rel_seq2 = "0.1.0-promoted-then-revoked-seq2"
+    _, meta2, sig2 = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=rel_seq2,
+        sequence=2,
+    )
+    rec2 = registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta2,
+        signature_bytes=sig2,
+        authorize=True,
+        promote=True,
+    )
+    assert rec2.authorization_state == "promoted"
+    assert registry.get_current_sequence() == 2
+    assert registry.get_highest_allocated_sequence() == 2
+
+    revoked2 = registry.revoke_release(rel_seq2)
+    assert revoked2.authorization_state == "revoked"
+    # Monotonic channel sequence remains 2
+    assert registry.get_current_sequence() == 2
+    assert registry.get_highest_allocated_sequence() == 2
+
+    # Both /latest.json and /download fail closed with 403 release_unauthorized
+    latest_after_revoke = client.get(
+        "/mpips/staging/latest.json",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert latest_after_revoke.status_code == 403
+    assert latest_after_revoke.json()["error"]["code"] == "release_unauthorized"
+
+    dl_after_revoke = client.get(
+        f"/mpips/staging/releases/{rel_seq2}/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert dl_after_revoke.status_code == 403
+    assert dl_after_revoke.json()["error"]["code"] == "release_unauthorized"
+
+    # 3. Forward recovery with sequence 3 (highest_allocated + 1)
+    rel_seq3 = "0.1.0-recovery-seq3"
+    _, meta3, sig3 = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=rel_seq3,
+        sequence=3,
+    )
+    rec3 = registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta3,
+        signature_bytes=sig3,
+        authorize=True,
+        promote=False,
+    )
+    assert rec3.authorization_state == "authorized"
+    assert registry.get_highest_allocated_sequence() == 3
+
+    promoted3 = registry.promote_release(
+        release_id=rel_seq3,
+        expected_current_sequence=2,
+    )
+    assert promoted3.authorization_state == "promoted"
+    assert registry.get_current_sequence() == 3
+
+    latest_recovered = client.get(
+        "/mpips/staging/latest.json",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert latest_recovered.status_code == 200
+    assert latest_recovered.json()["release_id"] == rel_seq3
+    assert latest_recovered.json()["sequence"] == 3
+
+    all_releases = registry.list_releases()
+    assert [
+        (r.release_id, r.sequence, r.authorization_state) for r in all_releases
+    ] == [
+        (rel_seq1, 1, "revoked"),
+        (rel_seq2, 2, "revoked"),
+        (rel_seq3, 3, "promoted"),
+    ]
+
+    with pytest.raises(ReleaseNotFoundError):
+        registry.revoke_release("0.1.0-unknown-release")
+
+
+def test_staging_workflow_enforces_dedicated_reader_token_no_fallback() -> None:
+    """Static regression check on .github/workflows/deploy-staging-update-server.yml."""
+    repo_root = Path(__file__).resolve().parents[1]
+    workflow_path = (
+        repo_root / ".github" / "workflows" / "deploy-staging-update-server.yml"
+    )
+    content = workflow_path.read_text(encoding="utf-8")
+
+    # 1. Must not reference secrets.MPIPS_API_KEY anywhere in staging update workflow
+    assert "MPIPS_API_KEY" not in content
+    # 2. Must require secrets.MPIPS_UPDATE_STAGING_READER_TOKEN
+    assert "secrets.MPIPS_UPDATE_STAGING_READER_TOKEN" in content
+    # 3. Validate dedicated credentials step runs before writing .env.staging
+    validate_idx = content.index(
+        "name: Validate dedicated staging credentials and environment"
+    )
+    setup_idx = content.index("name: Set up deployment environment")
+    compose_env_idx = content.index('COMPOSE_ENV="$BASE_DIR/.env.staging"')
+    deploy_idx = content.index("name: Deploy Staging Update Server via Compose")
+    assert validate_idx < setup_idx < compose_env_idx < deploy_idx
+    # 4. Preserves Ed25519 key lifecycle and bootstrap marker checks
+    assert 'BOOTSTRAP_MARKER="$STATE_DIR/.bootstrapped"' in content
+    expected_guard = (
+        "Refusing implicit key regeneration to prevent replacing "
+        "deployed trust identity."
+    )
+    assert expected_guard in content
