@@ -1,0 +1,622 @@
+"""Integration and security tests for the MPIPS MinIO staging update server."""
+
+from __future__ import annotations
+
+import hashlib
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import Any
+from urllib.parse import parse_qs, urlsplit
+
+import boto3
+import pytest
+from botocore.config import Config
+from botocore.exceptions import EndpointConnectionError
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from fastapi.testclient import TestClient
+from moto import mock_aws
+
+from mpips.update_server.app import create_update_server_app
+from mpips.update_server.auth import STAGING_READ_SCOPE, ClientAuthenticator
+from mpips.update_server.minio_adapter import (
+    ArtifactIntegrityError,
+    MinIOArtifactStore,
+    ReleaseConflictError,
+    build_release_object_key,
+)
+from mpips.update_server.registry import (
+    ChannelSequenceConflictError,
+    ReleaseRegistry,
+    ReleaseValidationError,
+)
+from mpips.update_server.release_metadata import (
+    ARTIFACT_FILENAME,
+    INTERFACE_VERSION,
+    SUPPORTED_CHANNEL,
+    SUPPORTED_PLATFORM,
+    canonical_metadata_bytes,
+    create_elf_release_metadata,
+    decode_signature_b64,
+    sign_metadata_bytes,
+    verify_elf_release_metadata,
+)
+
+TEST_BUCKET = "mhcs-mpips-artifacts"
+AUTHORIZED_READER_TOKEN = "staging-grabber-reader-token-synthetic"
+FORBIDDEN_SCOPE_TOKEN = "other-service-token-without-staging-read"
+
+
+@pytest.fixture
+def ed25519_keypair() -> tuple[bytes, bytes]:
+    private_key = Ed25519PrivateKey.generate()
+    private_pem = private_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    public_pem = private_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    return private_pem, public_pem
+
+
+@pytest.fixture
+def synthetic_elf_binary(tmp_path: Path) -> Path:
+    binary = tmp_path / ARTIFACT_FILENAME
+    payload = b"\x7fELF\x02\x01\x01\x00" + (b"MPIPS-SYNTHETIC-TEST-ELF-PAYLOAD-" * 256)
+    binary.write_bytes(payload)
+    return binary
+
+
+def _build_signed_bundle(
+    binary_path: Path,
+    private_pem: bytes,
+    *,
+    release_id: str = "0.1.0-synthetic-staging-r1",
+    sequence: int = 1,
+    source_commit: str = "1176a4f79bc654c88a24f62cf5793fdf653cf0e9",
+    expires_delta: timedelta = timedelta(days=7),
+) -> tuple[dict[str, Any], bytes, bytes]:
+    metadata = create_elf_release_metadata(
+        binary_path=binary_path,
+        release_id=release_id,
+        version="0.1.0",
+        sequence=sequence,
+        source_commit=source_commit,
+        expires_at=datetime.now(timezone.utc) + expires_delta,
+    )
+    meta_bytes = canonical_metadata_bytes(metadata)
+    sig_bytes = sign_metadata_bytes(meta_bytes, private_pem)
+    return metadata, meta_bytes, sig_bytes
+
+
+@pytest.fixture
+def minio_env(
+    tmp_path: Path,
+    ed25519_keypair: tuple[bytes, bytes],
+) -> Any:
+    private_pem, public_pem = ed25519_keypair
+    with mock_aws():
+        s3 = boto3.client(
+            "s3",
+            region_name="us-east-1",
+            aws_access_key_id="minio-test-access-key",
+            aws_secret_access_key="minio-test-secret-key",
+            config=Config(signature_version="s3v4", s3={"addressing_style": "path"}),
+        )
+        s3.create_bucket(Bucket=TEST_BUCKET)
+        s3.put_bucket_versioning(
+            Bucket=TEST_BUCKET,
+            VersioningConfiguration={"Status": "Enabled"},
+        )
+        store = MinIOArtifactStore(
+            s3_client=s3,
+            bucket=TEST_BUCKET,
+            presign_ttl_seconds=300,
+        )
+        registry = ReleaseRegistry(
+            state_dir=tmp_path / "state",
+            public_key_pem=public_pem,
+            artifact_store=store,
+        )
+        auth = ClientAuthenticator(
+            {
+                AUTHORIZED_READER_TOKEN: {STAGING_READ_SCOPE},
+                FORBIDDEN_SCOPE_TOKEN: {"unrelated:scope"},
+            }
+        )
+        app = create_update_server_app(registry=registry, authenticator=auth)
+        client = TestClient(app)
+        yield {
+            "s3": s3,
+            "store": store,
+            "registry": registry,
+            "client": client,
+            "private_pem": private_pem,
+            "public_pem": public_pem,
+        }
+
+
+def test_health_endpoint_contract_and_secret_hygiene(
+    minio_env: dict[str, Any],
+) -> None:
+    client: TestClient = minio_env["client"]
+    resp = client.get("/mpips/staging/health")
+    assert resp.status_code == 200
+    assert resp.headers.get("Cache-Control") == "no-store"
+    body = resp.json()
+    assert body == {
+        "status": "ok",
+        "service": "mpips-update-server",
+        "environment": "staging",
+    }
+    raw_text = resp.text
+    for forbidden in (
+        TEST_BUCKET,
+        "minio-test-access-key",
+        "minio-test-secret-key",
+        AUTHORIZED_READER_TOKEN,
+    ):
+        assert forbidden not in raw_text
+
+
+def test_latest_release_when_empty(minio_env: dict[str, Any]) -> None:
+    client: TestClient = minio_env["client"]
+    resp = client.get(
+        "/mpips/staging/latest.json",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert resp.status_code == 200
+    assert resp.headers.get("Cache-Control") == "no-store"
+    assert resp.json() == {
+        "schema_version": 1,
+        "channel": "staging",
+        "status": "no_release",
+    }
+
+
+def test_end_to_end_release_registration_discovery_presign_and_verification(
+    minio_env: dict[str, Any],
+    synthetic_elf_binary: Path,
+) -> None:
+    registry: ReleaseRegistry = minio_env["registry"]
+    client: TestClient = minio_env["client"]
+    s3 = minio_env["s3"]
+    private_pem: bytes = minio_env["private_pem"]
+    public_pem: bytes = minio_env["public_pem"]
+
+    release_id = "0.1.0-1176a4f7-ubuntu24.04-x86_64-seq1"
+    metadata, meta_bytes, sig_bytes = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=release_id,
+        sequence=1,
+    )
+
+    record = registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta_bytes,
+        signature_bytes=sig_bytes,
+        authorize=True,
+        promote=True,
+    )
+    assert record.authorization_state == "promoted"
+    assert (
+        record.artifact_object_key
+        == f"staging/ubuntu-24.04-x86_64/releases/{release_id}/mpips-runtime.bin"
+    )
+
+    # Verify all 3 immutable objects exist in private MinIO bucket
+    for fname in ("mpips-runtime.bin", "release.json", "release.sig"):
+        key = f"staging/ubuntu-24.04-x86_64/releases/{release_id}/{fname}"
+        head = s3.head_object(Bucket=TEST_BUCKET, Key=key)
+        assert head["ContentLength"] > 0
+
+    # Discover via GET /mpips/staging/latest.json
+    latest_resp = client.get(
+        "/mpips/staging/latest.json",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert latest_resp.status_code == 200
+    manifest = latest_resp.json()
+    assert manifest["schema_version"] == 1
+    assert manifest["channel"] == SUPPORTED_CHANNEL
+    assert manifest["status"] == "available"
+    assert manifest["platform"] == SUPPORTED_PLATFORM
+    assert manifest["release_id"] == release_id
+    assert manifest["version"] == "0.1.0"
+    assert manifest["sequence"] == 1
+    assert manifest["source_commit"] == "1176a4f79bc654c88a24f62cf5793fdf653cf0e9"
+    assert manifest["interface_version"] == INTERFACE_VERSION
+    assert manifest["release_status"] == "staging"
+    assert (
+        manifest["download_endpoint"]
+        == f"/mpips/staging/releases/{release_id}/download"
+    )
+    assert "download_url" not in manifest
+
+    expected_sha256 = hashlib.sha256(synthetic_elf_binary.read_bytes()).hexdigest()
+    expected_size = synthetic_elf_binary.stat().st_size
+    assert expected_size > 0
+    assert manifest["artifact"] == {
+        "filename": ARTIFACT_FILENAME,
+        "sha256": expected_sha256,
+        "size_bytes": expected_size,
+    }
+
+    # Verify Ed25519 signature over canonical metadata bytes from latest.json
+    served_canonical = canonical_metadata_bytes(manifest)
+    assert served_canonical == meta_bytes
+    sig_raw = decode_signature_b64(manifest["signature"])
+    verified = verify_elf_release_metadata(
+        served_canonical,
+        sig_raw,
+        public_pem,
+        binary_path=synthetic_elf_binary,
+        minimum_sequence=1,
+    )
+    assert verified["release_id"] == release_id
+
+    # Request authorized download URL
+    dl_resp = client.get(
+        manifest["download_endpoint"],
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert dl_resp.status_code == 200
+    dl_body = dl_resp.json()
+    assert dl_body["release_id"] == release_id
+    assert dl_body["expires_at"].endswith("Z")
+    presigned_url = dl_body["download_url"]
+    parsed_url = urlsplit(presigned_url)
+    assert parsed_url.scheme == "https"
+    expected_path = (
+        f"/{TEST_BUCKET}/staging/ubuntu-24.04-x86_64/releases/"
+        f"{release_id}/mpips-runtime.bin"
+    )
+    assert expected_path in parsed_url.path
+    query_params = parse_qs(parsed_url.query)
+    assert query_params.get("X-Amz-Expires") == ["300"]
+    assert "X-Amz-Signature" in query_params
+    assert "minio-test-secret-key" not in presigned_url
+
+    # Verify downloaded object bytes from MinIO match SHA-256 and size
+    s3_obj = s3.get_object(
+        Bucket=TEST_BUCKET,
+        Key=f"staging/ubuntu-24.04-x86_64/releases/{release_id}/mpips-runtime.bin",
+    )
+    downloaded_bytes = s3_obj["Body"].read()
+    assert len(downloaded_bytes) == manifest["artifact"]["size_bytes"]
+    assert (
+        hashlib.sha256(downloaded_bytes).hexdigest() == manifest["artifact"]["sha256"]
+    )
+
+
+def test_unauthorized_and_forbidden_access_rejected(
+    minio_env: dict[str, Any],
+    synthetic_elf_binary: Path,
+) -> None:
+    registry: ReleaseRegistry = minio_env["registry"]
+    client: TestClient = minio_env["client"]
+    private_pem: bytes = minio_env["private_pem"]
+
+    release_id = "0.1.0-auth-test-seq1"
+    _, meta_bytes, sig_bytes = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=release_id,
+        sequence=1,
+    )
+    registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta_bytes,
+        signature_bytes=sig_bytes,
+        authorize=True,
+        promote=True,
+    )
+
+    for path in (
+        "/mpips/staging/latest.json",
+        f"/mpips/staging/releases/{release_id}/download",
+    ):
+        # Missing token -> 401
+        r_missing = client.get(path)
+        assert r_missing.status_code == 401
+        assert r_missing.json()["error"]["code"] == "unauthorized"
+
+        # Invalid token -> 401
+        r_wrong = client.get(path, headers={"Authorization": "Bearer wrong-token"})
+        assert r_wrong.status_code == 401
+        assert r_wrong.json()["error"]["code"] == "unauthorized"
+
+        # Authenticated token without staging:read scope -> 403
+        r_forbid = client.get(
+            path,
+            headers={"Authorization": f"Bearer {FORBIDDEN_SCOPE_TOKEN}"},
+        )
+        assert r_forbid.status_code == 403
+        assert r_forbid.json()["error"]["code"] == "forbidden"
+
+
+def test_release_immutability_and_object_key_validation(
+    minio_env: dict[str, Any],
+    synthetic_elf_binary: Path,
+) -> None:
+    registry: ReleaseRegistry = minio_env["registry"]
+    private_pem: bytes = minio_env["private_pem"]
+
+    release_id = "0.1.0-immutable-seq1"
+    _, meta_bytes, sig_bytes = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=release_id,
+        sequence=1,
+    )
+    registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta_bytes,
+        signature_bytes=sig_bytes,
+        authorize=True,
+        promote=True,
+    )
+
+    # Attempting to overwrite the same release_id must fail closed
+    with pytest.raises(ReleaseConflictError):
+        registry.register_and_upload_release(
+            binary_path=synthetic_elf_binary,
+            metadata_bytes=meta_bytes,
+            signature_bytes=sig_bytes,
+        )
+
+    # Attempting to reuse sequence 1 with a different release_id must fail closed
+    _, meta2, sig2 = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id="0.1.0-duplicate-seq1",
+        sequence=1,
+    )
+    with pytest.raises(ReleaseConflictError):
+        registry.register_and_upload_release(
+            binary_path=synthetic_elf_binary,
+            metadata_bytes=meta2,
+            signature_bytes=sig2,
+        )
+
+    # Strict object key validation rejects production channel, traversal, and DICOM/TRX
+    for bad_args in (
+        ("0.1.0-ok", "mpips-runtime.bin", "production", SUPPORTED_PLATFORM),
+        ("../traversal", "mpips-runtime.bin", SUPPORTED_CHANNEL, SUPPORTED_PLATFORM),
+        ("0.1.0-ok", "patient.dcm", SUPPORTED_CHANNEL, SUPPORTED_PLATFORM),
+        (
+            "0.1.0-ok",
+            "trx-calibration-606db560.tar.gz",
+            SUPPORTED_CHANNEL,
+            SUPPORTED_PLATFORM,
+        ),
+        ("0.1.0-ok", "mpips-runtime.bin", SUPPORTED_CHANNEL, "ubuntu-20.04-x86_64"),
+    ):
+        with pytest.raises(ValueError):
+            build_release_object_key(
+                bad_args[0],
+                bad_args[1],
+                channel=bad_args[2],
+                platform_name=bad_args[3],
+            )
+
+
+def test_incompatible_platform_expired_metadata_and_tampered_signature_rejected(
+    minio_env: dict[str, Any],
+    synthetic_elf_binary: Path,
+) -> None:
+    registry: ReleaseRegistry = minio_env["registry"]
+    client: TestClient = minio_env["client"]
+    private_pem: bytes = minio_env["private_pem"]
+
+    # Tampered signature rejected at registration
+    _, meta_bytes, sig_bytes = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id="0.1.0-tampered-sig",
+        sequence=1,
+    )
+    bad_sig = bytes([sig_bytes[0] ^ 0xFF]) + sig_bytes[1:]
+    with pytest.raises(ReleaseValidationError):
+        registry.register_and_upload_release(
+            binary_path=synthetic_elf_binary,
+            metadata_bytes=meta_bytes,
+            signature_bytes=bad_sig,
+        )
+
+    # Register valid release, then test expired metadata and incompatible platform
+    release_id = "0.1.0-valid-seq1"
+    _, valid_meta, valid_sig = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=release_id,
+        sequence=1,
+        expires_delta=timedelta(hours=1),
+    )
+    registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=valid_meta,
+        signature_bytes=valid_sig,
+        authorize=True,
+        promote=True,
+    )
+
+    # Incompatible platform rejected with 422 on both latest.json and download
+    for path in (
+        "/mpips/staging/latest.json?platform=ubuntu-22.04-x86_64",
+        f"/mpips/staging/releases/{release_id}/download?platform=ubuntu-24.04-arm64",
+    ):
+        resp = client.get(
+            path,
+            headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+        )
+        assert resp.status_code == 422
+        assert resp.json()["error"]["code"] == "incompatible_platform"
+
+    # Simulated future clock past metadata expiry fails closed
+    future_now = datetime.now(timezone.utc) + timedelta(hours=2)
+    with pytest.raises(ReleaseValidationError):
+        registry.get_latest_release(now=future_now)
+    with pytest.raises(ReleaseValidationError):
+        registry.get_authorized_release_for_download(release_id, now=future_now)
+
+
+def test_rollback_and_replay_protection_with_monotonic_sequence(
+    minio_env: dict[str, Any],
+    synthetic_elf_binary: Path,
+) -> None:
+    registry: ReleaseRegistry = minio_env["registry"]
+    client: TestClient = minio_env["client"]
+    private_pem: bytes = minio_env["private_pem"]
+
+    # Register and promote sequence 2
+    _, meta2, sig2 = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id="0.1.0-release-seq2",
+        sequence=2,
+    )
+    registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta2,
+        signature_bytes=sig2,
+        authorize=True,
+        promote=True,
+    )
+
+    # Register sequence 1 (older sequence) and attempt to promote -> rejected!
+    _, meta1, sig1 = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id="0.1.0-older-seq1",
+        sequence=1,
+    )
+    registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta1,
+        signature_bytes=sig1,
+        authorize=True,
+        promote=False,
+    )
+    with pytest.raises(ChannelSequenceConflictError):
+        registry.promote_release(
+            release_id="0.1.0-older-seq1",
+            expected_current_sequence=2,
+        )
+
+    # Attempting to download superseded sequence 1 via HTTP returns 409 Conflict
+    superseded_resp = client.get(
+        "/mpips/staging/releases/0.1.0-older-seq1/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert superseded_resp.status_code == 409
+    assert superseded_resp.json()["error"]["code"] == "release_superseded"
+
+    # Authorized rollback using a newly signed higher sequence (sequence 3) succeeds
+    _, meta3, sig3 = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id="0.1.0-rollback-to-known-good-seq3",
+        sequence=3,
+    )
+    registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta3,
+        signature_bytes=sig3,
+        authorize=True,
+        promote=True,
+    )
+    latest_resp = client.get(
+        "/mpips/staging/latest.json",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert latest_resp.status_code == 200
+    assert latest_resp.json()["sequence"] == 3
+    assert latest_resp.json()["release_id"] == "0.1.0-rollback-to-known-good-seq3"
+
+
+def test_missing_object_and_minio_unavailable_failure_modes(
+    minio_env: dict[str, Any],
+    synthetic_elf_binary: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    registry: ReleaseRegistry = minio_env["registry"]
+    client: TestClient = minio_env["client"]
+    s3 = minio_env["s3"]
+    private_pem: bytes = minio_env["private_pem"]
+
+    # Unknown release_id -> 404
+    unknown_resp = client.get(
+        "/mpips/staging/releases/0.1.0-does-not-exist/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert unknown_resp.status_code == 404
+    assert unknown_resp.json()["error"]["code"] == "release_not_found"
+
+    # Register & promote release, corrupt binary -> ArtifactIntegrityError / 422
+    release_id = "0.1.0-missing-obj-seq1"
+    _, meta_bytes, sig_bytes = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=release_id,
+        sequence=1,
+    )
+    registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta_bytes,
+        signature_bytes=sig_bytes,
+        authorize=True,
+        promote=True,
+    )
+    bin_key = f"staging/ubuntu-24.04-x86_64/releases/{release_id}/mpips-runtime.bin"
+    s3.put_object(Bucket=TEST_BUCKET, Key=bin_key, Body=b"corrupted-size")
+    with pytest.raises(ArtifactIntegrityError):
+        minio_env["store"].verify_release_objects(
+            release_id=release_id,
+            expected_size_bytes=synthetic_elf_binary.stat().st_size,
+        )
+    corrupt_dl = client.get(
+        f"/mpips/staging/releases/{release_id}/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert corrupt_dl.status_code == 422
+    assert corrupt_dl.json()["error"]["code"] == "invalid_release"
+
+    # Delete binary from MinIO -> 404 artifact_not_found
+    s3.delete_object(Bucket=TEST_BUCKET, Key=bin_key)
+
+    missing_dl = client.get(
+        f"/mpips/staging/releases/{release_id}/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert missing_dl.status_code == 404
+    assert missing_dl.json()["error"]["code"] == "artifact_not_found"
+
+    # Simulate MinIO connection outage -> 503 storage_unavailable with no leaked secrets
+    def _raise_outage(*_args: Any, **_kwargs: Any) -> Any:
+        raise EndpointConnectionError(endpoint_url="https://s3.internal.invalid")
+
+    monkeypatch.setattr(s3, "head_object", _raise_outage)
+    outage_resp = client.get(
+        "/mpips/staging/latest.json",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert outage_resp.status_code == 503
+    assert outage_resp.json()["error"]["code"] == "storage_unavailable"
+    assert "s3.internal.invalid" not in outage_resp.text
+    assert TEST_BUCKET not in outage_resp.text
+
+
+def test_presigned_url_ttl_bounds_enforced(minio_env: dict[str, Any]) -> None:
+    s3 = minio_env["s3"]
+    for invalid_ttl in (0, 30, 901, 86400):
+        with pytest.raises(ValueError):
+            MinIOArtifactStore(
+                s3_client=s3,
+                bucket=TEST_BUCKET,
+                presign_ttl_seconds=invalid_ttl,
+            )

@@ -204,3 +204,27 @@ Prior to requesting clinical integration testing or deployment review, external 
 - [ ] **6. Privacy & Security Audit**:
   - [ ] Confirmed no patient names, medical record numbers, or birthdates appear in error logs or stdout.
   - [ ] Confirmed calibration directory is kept read-only and separate from clinical data storage.
+
+---
+
+## 7. Staging Update Server Integration & Remote Binary Distribution
+
+The MPIPS staging update server (`https://ip.mhcsgo.cloud`, port `8015`) provides automated discovery and authenticated download for the standalone Linux ELF binary (`mpips-runtime.bin`).
+
+### Summary API Contract for Grabber Clients
+
+| Endpoint | Method | Auth | Purpose & Format |
+|---|---|---|---|
+| `/mpips/staging/health` | GET | None | Health check. Returns `{"status": "ok", "service": "mpips-update-server", "environment": "staging"}`. |
+| `/mpips/staging/latest.json` | GET | Bearer / API Key | Channel discovery. Returns either `status: "no_release"` or `status: "available"` with `artifact` descriptor and signed metadata. |
+| `/mpips/staging/releases/{release_id}/download` | GET | Bearer / API Key | Presigned download URL issuer. Returns short-lived MinIO presigned URL in `download_url`. |
+
+### Key Integration Rules for Grabber Developers:
+1. **Platform Target**: Supported canonical platform is strictly `ubuntu-24.04-x86_64`.
+2. **Client-Side Version Checking**: The update server does **not** compare a `current_version` query parameter. Grabber must compare the returned `sequence` against its locally installed sequence and enforce monotonic sequence progression (`sequence > current_sequence`).
+3. **Presigned Download URL & Storage Key**: The download endpoint returns a short-lived MinIO presigned URL in `{"download_url": "https://..."}`, **not** binary stream bytes. The underlying object key is structured as `staging/{platform}/releases/{release_id}/mpips-runtime.bin`. Fetch the binary from `download_url` directly via HTTP GET without forwarding MPIPS authorization headers.
+4. **Streaming & Bounded Download**: Use streaming downloads in chunks with incremental SHA-256 calculation. Abort immediately if downloaded bytes exceed `artifact.size_bytes` or the 512 MiB maximum limit. Never execute downloaded payload during verification.
+5. **Mandatory Signature Verification**: Verify the 64-byte Ed25519 signature in `signature` over the canonical bytes of `signed_metadata_b64` using the pinned staging Ed25519 public key before activation. Cross-check all outer manifest fields against inner signed metadata.
+6. **PR #23 Candidate Provenance**: Under open PR #23 (`EV-STANDALONE-REAL-TRX-001`), the local candidate ELF binary size is `236,532,616` bytes (~226 MiB, SHA-256 `8ef48229d72adaa4eb9df832a5315e2ecf42abb448f78c2674c330d964004669`) embedding real TRX and synthetic BED calibration profiles. Gate G10 remains **NOT RELEASED**; live staging returns `status: "no_release"`.
+7. **Detailed Reference**: See [Ubuntu Grabber Integration Guide](../ubuntu-grabber.md#staging-release-distribution-and-update-server-api-contract) for full JSON request/response envelopes and client state machine specifications.
+

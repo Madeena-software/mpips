@@ -8,6 +8,12 @@ case "${1:-api}" in
       --port "${PORT:-8000}" \
       --workers "${MPIPS_API_WORKERS:-1}"
     ;;
+  update-server)
+    exec uvicorn mpips.update_server.app:app \
+      --host 0.0.0.0 \
+      --port "${PORT:-8000}" \
+      --workers "${MPIPS_UPDATE_SERVER_WORKERS:-1}"
+    ;;
   worker)
     set -- celery -A mpips.worker worker \
       --loglevel="${MPIPS_WORKER_LOG_LEVEL:-info}" \

@@ -434,50 +434,149 @@ retaining the existing lock check, dependency audit, regression, full pytest,
 offline install and installed BED/TRX DICOM smoke gates. It does not publish test
 packages or connect to any service.
 
-## Proposed Madeena HTTPS protocol (not a deployed service)
+## Staging release distribution and update-server API contract
 
-All endpoint roots, paths, auth, trust keys, storage and network rules need
-infrastructure-owner agreement. A possible owner-approved protocol is:
+The staging update server is implemented in `mpips/update_server/` and deployed at
+`https://ip.mhcsgo.cloud` (with loopback access at `http://127.0.0.1:8015`).
+It provides an authenticated, read-only discovery and presigned download API
+specifically for Ubuntu Grabber clients on the canonical supported platform
+`ubuntu-24.04-x86_64`.
 
-| Operation | Proposed request/response |
-|---|---|
-| Version check | Authenticated `GET <base>/channels/stable/<target>/release.json` and matching `.sig`; metadata's release ID/sequence identifies the update |
-| Download | Authenticated `GET <base>/releases/<release-id>/<package-filename>`; immutable bytes, declared size and signed hash |
-| CI publication | Authenticated HTTPS upload of package, release.json and release.sig to an immutable staging prefix, using a short-lived owner-provisioned credential |
-| Promotion | Separate authorized server-side atomic channel change after uploaded-byte verification and approvals |
-| Rollback | Separately authorized higher-sequence signed release pointing to a known-good package, or local already-trusted previous installed version |
+The release server transports software artifacts only. It does not handle patient data,
+SIMRS queries, or DICOM imaging.
 
-Use HTTPS certificate verification; never disable TLS or embed tokens in URLs.
-Keep bearer credentials in the OS credential store/approved CI secret channel, out
-of process arguments/logs/Git. Server controls must prevent overwrites, reject
-partial uploads and separate publisher from downloader privileges. Fetch matching
-metadata/signature snapshots; on races retry the version check and never accept an
-unsigned mismatch. Enforce bounded downloads; do not follow cross-origin redirects
-with credentials. Server capabilities, response codes and token/OIDC mechanism
-remain proposed until the infrastructure owner supplies a real contract.
+### Supported Platform and Constraints
 
-Local publication preparation can generate a reviewable **plan only** after signature
-verification and recorded approval references; it makes no network request:
+- **Platform Target**: `ubuntu-24.04-x86_64` (strictly enforced; requests for other
+  platforms return HTTP 422 `incompatible_platform`).
+- **Release Channel**: `staging`.
+- **Interface Version**: `2-experimental` (standalone ELF binary `mpips-runtime.bin`
+  with embedded TRX and BED calibrations).
+- **Authentication**: `Authorization: Bearer <staging-reader-token>` or
+  `X-MPIPS-API-Key: <token>`.
+- **Client Version Responsibility**: The update server does **not** compare a
+  `current_version` query parameter. Monotonic sequence verification and version comparison
+  belong entirely to the Grabber client.
 
-```bash
-python scripts/runtime_release.py publication-plan \
-  --metadata /candidate/release.json --signature /candidate/release.sig \
-  --key /trusted-config/release-public.pem --package /candidate/<exact-package-name> \
-  --minimum-sequence <accepted-sequence> \
-  --endpoint https://release.example.invalid/mpips \
-  --licensing-approval <owner-approved-record> \
-  --infrastructure-approval <owner-approved-record> --output /tmp/publication-plan.json
+### Endpoints
+
+#### 1. Service Health Check
+
+- **Method / Path**: `GET /mpips/staging/health`
+- **Authentication**: None required.
+- **Response**: `200 OK`
+```json
+{
+  "status": "ok",
+  "service": "mpips-update-server",
+  "environment": "staging"
+}
 ```
 
-`example.invalid` is a documentation placeholder, not Madeena infrastructure.
-Approval-reference strings are traceability inputs, not an automated approval
-system. A plan is not authorization to upload. No live publication implementation
-or production signing workflow is supplied while licensing/infrastructure gates
-remain open. Existing API deployment workflows are unchanged.
+#### 2. Latest Release Discovery
 
-For a future approved uploader, stage the builder's `<package-stem>.release.json`
-as `release.json` and its detached signature as `release.sig` under the target's
-immutable release prefix. Renaming files does not change the signed bytes.
+- **Method / Path**: `GET /mpips/staging/latest.json`
+- **Optional Query**: `?platform=ubuntu-24.04-x86_64` (or header `X-MPIPS-Client-Platform: ubuntu-24.04-x86_64`)
+- **Headers**:
+  - `Authorization: Bearer <staging-reader-token>` (or `X-MPIPS-API-Key: <token>`)
+  - Response headers include `Cache-Control: no-store` and `X-Content-Type-Options: nosniff`.
+- **Error Responses**:
+  - `401 Unauthorized`: `{"schema_version": 1, "error": {"code": "unauthorized", "message": "Valid staging client token required"}}`
+  - `403 Forbidden`: `{"schema_version": 1, "error": {"code": "forbidden", "message": "Client token lacks staging:read scope"}}`
+  - `422 Unprocessable Content`: `{"schema_version": 1, "error": {"code": "incompatible_platform", "message": "Requested platform is not supported by this release channel"}}`
+- **Success Case A: No Promoted Release (`status: "no_release"`)**:
+  Returned when no release has been promoted to the staging channel pointer (current live staging state; G10 release gate remains open):
+```json
+{
+  "schema_version": 1,
+  "channel": "staging",
+  "status": "no_release"
+}
+```
+- **Illustrative Synthetic Example: Promoted Release Available (`status: "available"`)**:
+  *(Illustrative schema example only — Gate G10 remains NOT RELEASED; no production binary is currently promoted on the live channel)*:
+```json
+{
+  "schema_version": 1,
+  "channel": "staging",
+  "status": "available",
+  "platform": "ubuntu-24.04-x86_64",
+  "release_id": "0.1.0-20261102-1",
+  "version": "0.1.0",
+  "sequence": 1,
+  "source_commit": "6976961e9bf6a3e1631180bc56a6e9de1da4840b",
+  "interface_version": "2-experimental",
+  "artifact": {
+    "filename": "mpips-runtime.bin",
+    "sha256": "8ef48229d72adaa4eb9df832a5315e2ecf42abb448f78c2674c330d964004669",
+    "size_bytes": 236532616
+  },
+  "download_endpoint": "/mpips/staging/releases/0.1.0-20261102-1/download",
+  "signature": "<base64-encoded-64-byte-ed25519-detached-signature>",
+  "release_status": "staging",
+  "expires_at": "2026-12-01T00:00:00+00:00",
+  "compatibility": {
+    "os": "ubuntu",
+    "os_version": "24.04",
+    "architecture": "x86_64",
+    "glibc_min": "2.39"
+  },
+  "signed_metadata_b64": "<base64-encoded-canonical-metadata-json>"
+}
+```
+
+#### 3. Authenticated Download URL Endpoint
+
+- **Method / Path**: `GET /mpips/staging/releases/{release_id}/download` (matching `download_endpoint`)
+- **Headers**:
+  - `Authorization: Bearer <staging-reader-token>` (or `X-MPIPS-API-Key: <token>`)
+- **Response**: `200 OK`
+```json
+{
+  "release_id": "0.1.0-20261102-1",
+  "download_url": "https://<s3-endpoint>/<bucket>/staging/ubuntu-24.04-x86_64/releases/0.1.0-20261102-1/mpips-runtime.bin?AWSAccessKeyId=...&Signature=...&Expires=...",
+  "expires_at": "2026-11-04T08:50:00+00:00"
+}
+```
+> **CRITICAL ARCHITECTURAL CONSTRAINTS**:
+> 1. **Presigned URL Flow**: The download endpoint returns a short-lived MinIO presigned URL (`download_url`), **not** raw binary bytes. Grabber executes a direct HTTP GET request to `download_url` (without an `Authorization` header, as authentication is embedded in the presigned query string) to stream the `.bin` executable.
+> 2. **Object Key Structure**: The underlying storage adapter strictly maps artifacts to `staging/{platform}/releases/{release_id}/mpips-runtime.bin`.
+> 3. **Streaming & Bounded Download**: Grabber must stream the download in chunks, calculating SHA-256 incrementally, and abort immediately if downloaded bytes exceed `artifact.size_bytes` or the 512 MiB upper bound.
+
+### Standalone Binary Provenance and Release Gate Status (PR #23 Review)
+
+- **G10 Release Gate**: Gate G10 remains strictly **NOT RELEASED**. No real binary has been promoted on live staging channels.
+- **PR #23 Candidate Provenance**: Under open PR #23 and qualification evidence `EV-STANDALONE-REAL-TRX-001`:
+  - Artifact: `dist-experimental/mpips-runtime.bin` (local build candidate only; not committed to git).
+  - Format: ELF 64-bit LSB executable, x86-64, dynamically linked (`glibc 2.39`), stripped.
+  - File Size: `236,532,616` bytes (~226 MiB).
+  - Digest: SHA-256 `8ef48229d72adaa4eb9df832a5315e2ecf42abb448f78c2674c330d964004669`.
+  - Supported Profiles: Real TRX geometric calibration (`DA5234480`, `MV-CH120-10UM`, `3000 x 4096`) and synthetic BED mode.
+  - Pending Approvals: Physical clean-host verification (without Python installed) and formal institutional clinical release authorization remain open.
+
+### Grabber Verification Obligations
+
+Before activating any downloaded release, the Grabber updater must strictly enforce:
+
+1. **Status Check**: If `status == "no_release"`, take no action and maintain the current installed version.
+2. **Monotonic Sequence Enforcement**: Verify `sequence > current_installed_sequence`. Reject any sequence less than or equal to current sequence to prevent replay or unapproved downgrade.
+3. **Target Platform Compatibility**: Verify `platform == "ubuntu-24.04-x86_64"` and compatibility fields match host capabilities.
+4. **Expiration Check**: Verify `expires_at > current_utc_time`. Fail closed if the system clock cannot be trusted or metadata is expired.
+5. **Ed25519 Detached Signature Verification**:
+   - Decode `signed_metadata_b64` from base64 to canonical JSON bytes.
+   - Decode `signature` from base64 (must be exactly 64 bytes).
+   - Verify the signature over the decoded metadata bytes using the trusted host Ed25519 public key.
+   - Verify that canonical serialization `canonical_metadata_bytes(parsed_json) == decoded_bytes`.
+   - Verify that inner fields (`release_id`, `sequence`, `artifact["sha256"]`, `artifact["size_bytes"]`, `interface_version`) match the outer manifest.
+6. **Binary Download & Integrity**:
+   - Request `download_url` and stream into a temporary file.
+   - Verify downloaded file size equals `artifact.size_bytes`.
+   - Compute SHA-256 digest of downloaded file and verify it exactly matches `artifact.sha256`.
+7. **Atomic Activation**:
+   - Set executable permissions (`chmod 0755`).
+   - Acquire the system-wide acquisition lock.
+   - Atomically replace the `current` symlink with the new version directory.
+   - Retain the previous working version for emergency rollback.
 
 ## Grabber update activation, rollback and offline behavior (developer responsibility)
 
