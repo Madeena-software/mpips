@@ -26,6 +26,7 @@ DEFAULT_ARTIFACT_BUCKET = "mhcs-mpips-artifacts"
 ALLOWED_RELEASE_FILENAMES = frozenset(
     {ARTIFACT_FILENAME, "release.json", "release.sig"}
 )
+STAGING_UPLOAD_PREFIX = f"{SUPPORTED_CHANNEL}/{SUPPORTED_PLATFORM}/incoming"
 DEFAULT_PRESIGN_TTL_SECONDS = 300
 MIN_PRESIGN_TTL_SECONDS = 60
 MAX_PRESIGN_TTL_SECONDS = 900
@@ -60,6 +61,16 @@ class PresignedDownload:
     expires_at: str
 
 
+@dataclass(frozen=True)
+class PresignedStagingUpload:
+    """Short-lived presigned PUT URL descriptor for temporary staging upload."""
+
+    upload_id: str
+    object_key: str
+    upload_url: str
+    expires_at: str
+
+
 def resolve_artifact_bucket(explicit_bucket: str | None = None) -> str:
     """Resolve configured MinIO bucket name."""
     bucket = (
@@ -90,6 +101,22 @@ def build_release_object_key(
     if filename not in ALLOWED_RELEASE_FILENAMES:
         raise ValueError("Disallowed release artifact filename")
     return f"{channel}/{platform_name}/releases/{release_id}/{filename}"
+
+
+def build_staging_upload_object_key(
+    upload_id: str,
+    *,
+    channel: str = SUPPORTED_CHANNEL,
+    platform_name: str = SUPPORTED_PLATFORM,
+) -> str:
+    """Build and strictly validate a temporary staging upload object key."""
+    if channel != SUPPORTED_CHANNEL:
+        raise ValueError("Only staging namespace is permitted")
+    if platform_name != SUPPORTED_PLATFORM:
+        raise ValueError("Unsupported target platform")
+    if not isinstance(upload_id, str) or not RELEASE_ID_RE.fullmatch(upload_id):
+        raise ValueError("Invalid upload_id for staging upload object key")
+    return f"{channel}/{platform_name}/incoming/{upload_id}/{ARTIFACT_FILENAME}"
 
 
 class MinIOArtifactStore:
@@ -434,3 +461,158 @@ class MinIOArtifactStore:
             download_url=url,
             expires_at=expires_at.isoformat().replace("+00:00", "Z"),
         )
+
+    def generate_presigned_staging_upload(
+        self,
+        *,
+        upload_id: str,
+        channel: str = SUPPORTED_CHANNEL,
+        platform_name: str = SUPPORTED_PLATFORM,
+        ttl_seconds: int | None = None,
+        now: datetime | None = None,
+    ) -> PresignedStagingUpload:
+        """Verify temporary staging key is unused and generate a presigned PUT URL."""
+        ttl = ttl_seconds if ttl_seconds is not None else self._presign_ttl_seconds
+        if not (MIN_PRESIGN_TTL_SECONDS <= ttl <= MAX_PRESIGN_TTL_SECONDS):
+            raise ValueError("Presigned URL TTL outside permitted bounds")
+
+        obj_key = build_staging_upload_object_key(
+            upload_id,
+            channel=channel,
+            platform_name=platform_name,
+        )
+        if self._head_object_Or_none(obj_key) is not None:
+            raise ReleaseConflictError(
+                "Temporary staging upload object already exists in storage"
+            )
+
+        ref_now = now or datetime.now(timezone.utc)
+        expires_at = (ref_now + timedelta(seconds=ttl)).astimezone(timezone.utc)
+        try:
+            url = str(
+                self._s3.generate_presigned_url(
+                    "put_object",
+                    Params={
+                        "Bucket": self._bucket,
+                        "Key": obj_key,
+                        "ContentType": "application/octet-stream",
+                    },
+                    ExpiresIn=ttl,
+                )
+            )
+        except (ClientError, BotoCoreError) as exc:
+            raise StorageUnavailableError(
+                "Failed to generate presigned staging upload URL"
+            ) from exc
+
+        return PresignedStagingUpload(
+            upload_id=upload_id,
+            object_key=obj_key,
+            upload_url=url,
+            expires_at=expires_at.isoformat().replace("+00:00", "Z"),
+        )
+
+    def download_and_verify_staging_upload(
+        self,
+        *,
+        upload_id: str,
+        destination_path: Path,
+        expected_size_bytes: int,
+        expected_sha256: str,
+        channel: str = SUPPORTED_CHANNEL,
+        platform_name: str = SUPPORTED_PLATFORM,
+    ) -> dict[str, Any]:
+        """Stream temporary staging upload to disk and verify size and SHA-256."""
+        if (
+            type(expected_size_bytes) is not int
+            or expected_size_bytes <= 0
+            or expected_size_bytes > MAX_ARTIFACT_BYTES
+        ):
+            raise ArtifactIntegrityError(
+                "Expected binary size outside permitted bounds"
+            )
+        if not isinstance(expected_sha256, str) or not SHA256_RE.fullmatch(
+            expected_sha256
+        ):
+            raise ArtifactIntegrityError("Invalid expected binary SHA-256 format")
+
+        obj_key = build_staging_upload_object_key(
+            upload_id,
+            channel=channel,
+            platform_name=platform_name,
+        )
+        head = self._head_object_Or_none(obj_key)
+        if head is None:
+            raise ArtifactNotFoundError(
+                "Temporary staging upload object missing in storage"
+            )
+
+        content_length = int(head.get("ContentLength", -1))
+        if (
+            content_length != expected_size_bytes
+            or content_length <= 0
+            or content_length > MAX_ARTIFACT_BYTES
+        ):
+            raise ArtifactIntegrityError("Temporary staging upload size mismatch")
+
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        temp_dest = destination_path.with_suffix(".part")
+        try:
+            obj = self._s3.get_object(Bucket=self._bucket, Key=obj_key)
+            body = obj["Body"]
+            try:
+                hasher = hashlib.sha256()
+                total_read = 0
+                chunk_size = 64 * 1024
+                with temp_dest.open("wb") as out_stream:
+                    while True:
+                        chunk = body.read(chunk_size)
+                        if not chunk:
+                            break
+                        if not isinstance(chunk, (bytes, bytearray)):
+                            raise ArtifactIntegrityError(
+                                "Temporary staging stream returned non-bytes chunk"
+                            )
+                        total_read += len(chunk)
+                        if (
+                            total_read > expected_size_bytes
+                            or total_read > MAX_ARTIFACT_BYTES
+                        ):
+                            raise ArtifactIntegrityError(
+                                "Temporary staging stream exceeded expected size bounds"
+                            )
+                        hasher.update(chunk)
+                        out_stream.write(chunk)
+                    out_stream.flush()
+                    os.fsync(out_stream.fileno())
+            finally:
+                close_fn = getattr(body, "close", None)
+                if callable(close_fn):
+                    close_fn()
+        except (ClientError, BotoCoreError, OSError) as exc:
+            temp_dest.unlink(missing_ok=True)
+            raise StorageUnavailableError(
+                "Failed to stream temporary staging upload from storage"
+            ) from exc
+        except Exception:
+            temp_dest.unlink(missing_ok=True)
+            raise
+
+        if total_read != expected_size_bytes:
+            temp_dest.unlink(missing_ok=True)
+            raise ArtifactIntegrityError(
+                "Temporary staging stream truncated before expected size"
+            )
+        actual_sha256 = hasher.hexdigest()
+        if actual_sha256 != expected_sha256:
+            temp_dest.unlink(missing_ok=True)
+            raise ArtifactIntegrityError("Temporary staging upload SHA-256 mismatch")
+
+        os.replace(temp_dest, destination_path)
+        return {
+            "upload_id": upload_id,
+            "object_key": obj_key,
+            "size_bytes": total_read,
+            "sha256": actual_sha256,
+            "destination_path": str(destination_path),
+        }

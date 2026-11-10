@@ -24,6 +24,7 @@ from mpips.update_server.minio_adapter import (
     MinIOArtifactStore,
     ReleaseConflictError,
     build_release_object_key,
+    build_staging_upload_object_key,
 )
 from mpips.update_server.registry import (
     ChannelSequenceConflictError,
@@ -1140,3 +1141,88 @@ def test_download_gate_permits_only_currently_promoted_non_revoked_release(
     )
     assert dl_revoked2.status_code == 403
     assert dl_revoked2.json()["error"]["code"] == "release_unauthorized"
+
+
+def test_presigned_staging_upload_and_stream_verification(
+    minio_env: dict[str, Any],
+    synthetic_elf_binary: Path,
+    tmp_path: Path,
+) -> None:
+    """Verify temporary staging upload presigned PUT and streamed SHA-256 staging."""
+    s3 = minio_env["s3"]
+    bucket_name = TEST_BUCKET
+    store: MinIOArtifactStore = minio_env["store"]
+
+    upload_id = "gate-b-upload-20261110-001"
+    expected_key = f"staging/ubuntu-24.04-x86_64/incoming/{upload_id}/mpips-runtime.bin"
+    assert build_staging_upload_object_key(upload_id) == expected_key
+
+    # 1. Generate short-lived presigned PUT for unused upload_id
+    presigned = store.generate_presigned_staging_upload(
+        upload_id=upload_id,
+        ttl_seconds=300,
+    )
+    assert presigned.upload_id == upload_id
+    assert presigned.object_key == expected_key
+    assert "X-Amz-Signature=" in presigned.upload_url or "Signature=" in (
+        presigned.upload_url
+    )
+
+    # 2. Simulate operator PUT upload to the temporary staging object
+    payload = synthetic_elf_binary.read_bytes()
+    expected_size = len(payload)
+    expected_sha256 = hashlib.sha256(payload).hexdigest()
+    s3.put_object(
+        Bucket=bucket_name,
+        Key=presigned.object_key,
+        Body=payload,
+        ContentLength=expected_size,
+        ContentType="application/octet-stream",
+    )
+
+    # 3. Attempting to generate another presigned PUT for the same upload_id fails
+    with pytest.raises(
+        ReleaseConflictError,
+        match="Temporary staging upload object already exists in storage",
+    ):
+        store.generate_presigned_staging_upload(upload_id=upload_id)
+
+    # 4. Wrong expected SHA-256 fails closed and leaves no partial destination file
+    dest_path = tmp_path / "staged" / "mpips-runtime.bin"
+    with pytest.raises(
+        ArtifactIntegrityError,
+        match="Temporary staging upload SHA-256 mismatch",
+    ):
+        store.download_and_verify_staging_upload(
+            upload_id=upload_id,
+            destination_path=dest_path,
+            expected_size_bytes=expected_size,
+            expected_sha256="0" * 64,
+        )
+    assert not dest_path.exists()
+
+    # 5. Wrong expected size fails closed
+    with pytest.raises(
+        ArtifactIntegrityError,
+        match="Temporary staging upload size mismatch",
+    ):
+        store.download_and_verify_staging_upload(
+            upload_id=upload_id,
+            destination_path=dest_path,
+            expected_size_bytes=expected_size + 1,
+            expected_sha256=expected_sha256,
+        )
+    assert not dest_path.exists()
+
+    # 6. Exact size + SHA-256 streams and atomically stages the verified ELF
+    staged = store.download_and_verify_staging_upload(
+        upload_id=upload_id,
+        destination_path=dest_path,
+        expected_size_bytes=expected_size,
+        expected_sha256=expected_sha256,
+    )
+    assert staged["upload_id"] == upload_id
+    assert staged["object_key"] == expected_key
+    assert staged["size_bytes"] == expected_size
+    assert staged["sha256"] == expected_sha256
+    assert dest_path.read_bytes() == payload

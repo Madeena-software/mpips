@@ -7,6 +7,47 @@ on:
       - feat/mpips-staging-binary-distribution
   workflow_dispatch:
     inputs:
+      operation:
+        description: "Gate A/B operation mode (deploy_infra, preflight_inspect, prepare_elf_upload, publish_staged_elf)"
+        type: choice
+        options:
+          - deploy_infra
+          - preflight_inspect
+          - prepare_elf_upload
+          - publish_staged_elf
+        default: deploy_infra
+      upload_id:
+        description: "Unique temporary upload ID under staging/ubuntu-24.04-x86_64/incoming/<upload_id>/"
+        type: string
+        default: ""
+      handoff_recipient_pubkey_b64:
+        description: "Base64-encoded 32-byte X25519 recipient public key for sealed presigned PUT handoff"
+        type: string
+        default: ""
+      target_release_id:
+        description: "Unused release_id to register and promote (for publish_staged_elf)"
+        type: string
+        default: ""
+      expected_current_sequence:
+        description: "Optimistic concurrency current promoted sequence (for publish_staged_elf)"
+        type: string
+        default: ""
+      target_sequence:
+        description: "Monotonic sequence = highest_allocated_sequence + 1 (for publish_staged_elf)"
+        type: string
+        default: ""
+      expected_sha256:
+        description: "Expected candidate ELF SHA-256 hex digest"
+        type: string
+        default: "189baaeff2dd6f5eb96e7dac984a63ea1e2cc47e54158539cc77d7d5d0fae937"
+      expected_size_bytes:
+        description: "Expected candidate ELF byte size"
+        type: string
+        default: "241288024"
+      source_commit:
+        description: "Source commit SHA that produced the ELF binary"
+        type: string
+        default: "cbf2b24ba4fb8f2b5fc25b6a86f381ba7cf5f4b1"
       stage_test_release:
         description: "Upload and promote a synthetic staging test release for E2E verification"
         type: boolean
@@ -42,6 +83,7 @@ jobs:
           echo "Dedicated staging credentials verified present."
 
       - name: Set up deployment environment
+        if: github.event_name == 'push' || inputs.operation == 'deploy_infra' || inputs.operation == ''
         env:
           AWS_ACCESS_KEY_ID_SECRET: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -150,6 +192,7 @@ jobs:
           echo "Compose environment configuration ready."
 
       - name: Build immutable image
+        if: github.event_name == 'push' || inputs.operation == 'deploy_infra' || inputs.operation == ''
         run: |
           set -Eeuo pipefail
           BUILDER=mpips-production-cache
@@ -232,6 +275,7 @@ jobs:
           echo "Image mpips-api:${GITHUB_SHA} built successfully."
 
       - name: Deploy Staging Update Server via Compose
+        if: github.event_name == 'push' || inputs.operation == 'deploy_infra' || inputs.operation == ''
         run: |
           set -Eeuo pipefail
           COMPOSE_ENV="/var/www/mpips-runtime/update-server/.env.staging"
@@ -269,6 +313,7 @@ jobs:
           echo "Public HTTPS staging health verified!"
 
       - name: Run End-to-End Verification Suite (Local & HTTPS)
+        if: github.event_name == 'push' || inputs.operation == 'deploy_infra' || inputs.operation == ''
         env:
           MPIPS_UPDATE_STAGING_READER_TOKEN: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN }}
           MPIPS_UPDATE_PUBLIC_KEY_PATH: /var/www/mpips-runtime/update-server/release-public.pem
@@ -283,6 +328,414 @@ jobs:
           python3 scripts/verify_staging_update_server.py \
             --base-url https://ip.mhcsgo.cloud \
             --mode infra
+
+      - name: Gate B Read-Only CI Registry & Storage Preflight
+        if: github.event_name == 'workflow_dispatch' && inputs.operation == 'preflight_inspect'
+        env:
+          MPIPS_UPDATE_STAGING_READER_TOKEN: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN }}
+          EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+          EXPECTED_SIZE_BYTES: ${{ inputs.expected_size_bytes }}
+          CHECK_RELEASE_ID: ${{ inputs.target_release_id }}
+          CHECK_UPLOAD_ID: ${{ inputs.upload_id }}
+        run: |
+          set -Eeuo pipefail
+          BASE_DIR="/var/www/mpips-runtime/update-server"
+          ENV_FILE="$BASE_DIR/.env.staging"
+          STATE_DIR="$BASE_DIR/state"
+          PUBKEY_PATH="$BASE_DIR/release-public.pem"
+          PRIVKEY_PATH="$BASE_DIR/staging-signing-private.pem"
+
+          test -s "$ENV_FILE"
+          test -s "$PUBKEY_PATH"
+          test -s "$PRIVKEY_PATH"
+
+          echo "=== 1. Running Container & Image Identity ==="
+          CONTAINER_INFO="$(docker inspect mpips-update-staging-mpips-update-server-1 \
+            --format '{{.Config.Image}}|{{.Image}}|{{.State.Status}}')"
+          echo "Container inspect: $CONTAINER_INFO"
+
+          echo "=== 2. Ed25519 Keypair Consistency ==="
+          python3 -c "
+          import hashlib, sys
+          from pathlib import Path
+          from cryptography.hazmat.primitives import serialization
+          from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+          priv = serialization.load_pem_private_key(Path('$PRIVKEY_PATH').read_bytes(), password=None)
+          if not isinstance(priv, Ed25519PrivateKey):
+              sys.exit('Private key is not Ed25519')
+          derived_pub = priv.public_key().public_bytes(
+              encoding=serialization.Encoding.PEM,
+              format=serialization.PublicFormat.SubjectPublicKeyInfo,
+          )
+          existing_pub = Path('$PUBKEY_PATH').read_bytes()
+          if derived_pub != existing_pub:
+              sys.exit('Public key does not match private key')
+          print('Ed25519 keypair consistent; public_key_sha256=' + hashlib.sha256(existing_pub).hexdigest())
+          "
+
+          echo "=== 3. Registry State & MinIO Preflight ==="
+          IMAGE_TAG="$(grep -E '^MPIPS_VERSION=' "$ENV_FILE" | cut -d= -f2-)"
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env-file "$ENV_FILE" \
+            -e EXPECTED_SHA256="$EXPECTED_SHA256" \
+            -e EXPECTED_SIZE_BYTES="$EXPECTED_SIZE_BYTES" \
+            -e CHECK_RELEASE_ID="$CHECK_RELEASE_ID" \
+            -e CHECK_UPLOAD_ID="$CHECK_UPLOAD_ID" \
+            -v "$STATE_DIR:/var/lib/mpips-update-server/state:ro" \
+            -v "$PUBKEY_PATH:/etc/mpips-update-server/release-public.pem:ro" \
+            -v "${GITHUB_WORKSPACE}:/workspace:ro" \
+            -e PYTHONPATH=/workspace \
+            --entrypoint python \
+            "mpips-api:${IMAGE_TAG}" -c '
+          import json, os
+          from pathlib import Path
+          from mpips.update_server.minio_adapter import (
+              MinIOArtifactStore,
+              ReleaseConflictError,
+              build_staging_upload_object_key,
+          )
+          from mpips.update_server.registry import ReleaseRegistry
+
+          pub_pem = Path("/etc/mpips-update-server/release-public.pem").read_bytes()
+          store = MinIOArtifactStore()
+          reg = ReleaseRegistry(
+              state_dir=Path("/var/lib/mpips-update-server/state"),
+              public_key_pem=pub_pem,
+              artifact_store=store,
+          )
+          current_seq = reg.get_current_sequence()
+          highest_seq = reg.get_highest_allocated_sequence()
+          releases = [
+              {
+                  "release_id": r.release_id,
+                  "sequence": r.sequence,
+                  "authorization_state": r.authorization_state,
+                  "sha256": r.sha256,
+                  "size_bytes": r.size_bytes,
+                  "source_commit": r.source_commit,
+              }
+              for r in reg.list_releases()
+          ]
+          exp_sha = os.environ.get("EXPECTED_SHA256", "").strip()
+          already_promoted = any(
+              r["sha256"] == exp_sha and r["authorization_state"] == "promoted"
+              for r in releases
+          )
+          check_rel = os.environ.get("CHECK_RELEASE_ID", "").strip()
+          release_prefix_unused = None
+          if check_rel:
+              try:
+                  store.ensure_release_not_present(check_rel)
+                  release_prefix_unused = (check_rel not in {r["release_id"] for r in releases})
+              except ReleaseConflictError:
+                  release_prefix_unused = False
+
+          check_up = os.environ.get("CHECK_UPLOAD_ID", "").strip()
+          upload_key_present = None
+          if check_up:
+              up_key = build_staging_upload_object_key(check_up)
+              head = store._head_object_Or_none(up_key)
+              upload_key_present = (
+                  {"exists": True, "size_bytes": int(head.get("ContentLength", -1))}
+                  if head is not None
+                  else {"exists": False}
+              )
+
+          print(json.dumps({
+              "current_promoted_sequence": current_seq,
+              "highest_allocated_sequence": highest_seq,
+              "next_safe_sequence": highest_seq + 1,
+              "registered_releases": releases,
+              "candidate_sha256_already_promoted": already_promoted,
+              "check_release_id_unused": release_prefix_unused,
+              "check_upload_object": upload_key_present,
+          }, indent=2, sort_keys=True))
+          '
+
+          echo "=== 4. Authenticated Staging Endpoint Verification ==="
+          MPIPS_UPDATE_PUBLIC_KEY_PATH="$PUBKEY_PATH" \
+          python3 scripts/verify_staging_update_server.py \
+            --base-url http://127.0.0.1:8015 \
+            --mode infra
+          MPIPS_UPDATE_PUBLIC_KEY_PATH="$PUBKEY_PATH" \
+          python3 scripts/verify_staging_update_server.py \
+            --base-url https://ip.mhcsgo.cloud \
+            --mode infra
+
+      - name: Gate B Prepare Encrypted Presigned ELF Upload Handoff
+        if: github.event_name == 'workflow_dispatch' && inputs.operation == 'prepare_elf_upload'
+        env:
+          UPLOAD_ID: ${{ inputs.upload_id }}
+          RECIPIENT_PUBKEY_B64: ${{ inputs.handoff_recipient_pubkey_b64 }}
+        run: |
+          set -Eeuo pipefail
+          if [ -z "${UPLOAD_ID:-}" ] || [ -z "${RECIPIENT_PUBKEY_B64:-}" ]; then
+            echo "ERROR: upload_id and handoff_recipient_pubkey_b64 are required for prepare_elf_upload" >&2
+            exit 1
+          fi
+          BASE_DIR="/var/www/mpips-runtime/update-server"
+          ENV_FILE="$BASE_DIR/.env.staging"
+          IMAGE_TAG="$(grep -E '^MPIPS_VERSION=' "$ENV_FILE" | cut -d= -f2-)"
+
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env-file "$ENV_FILE" \
+            -e UPLOAD_ID="$UPLOAD_ID" \
+            -e RECIPIENT_PUBKEY_B64="$RECIPIENT_PUBKEY_B64" \
+            -v "${GITHUB_WORKSPACE}:/workspace:ro" \
+            -e PYTHONPATH=/workspace \
+            --entrypoint python \
+            "mpips-api:${IMAGE_TAG}" -c '
+          import base64, json, os
+          from cryptography.hazmat.primitives import hashes, serialization
+          from cryptography.hazmat.primitives.asymmetric.x25519 import (
+              X25519PrivateKey,
+              X25519PublicKey,
+          )
+          from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
+          from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+          from mpips.update_server.minio_adapter import MinIOArtifactStore
+
+          upload_id = os.environ["UPLOAD_ID"].strip()
+          peer_pub_raw = base64.b64decode(os.environ["RECIPIENT_PUBKEY_B64"].strip())
+          if len(peer_pub_raw) != 32:
+              raise ValueError("Recipient X25519 public key must be 32 raw bytes")
+          peer_pub = X25519PublicKey.from_public_bytes(peer_pub_raw)
+
+          store = MinIOArtifactStore()
+          descriptor = store.generate_presigned_staging_upload(
+              upload_id=upload_id,
+              ttl_seconds=600,
+          )
+
+          eph_priv = X25519PrivateKey.generate()
+          eph_pub_raw = eph_priv.public_key().public_bytes(
+              encoding=serialization.Encoding.Raw,
+              format=serialization.PublicFormat.Raw,
+          )
+          shared = eph_priv.exchange(peer_pub)
+          key = HKDF(
+              algorithm=hashes.SHA256(),
+              length=32,
+              salt=eph_pub_raw + peer_pub_raw,
+              info=b"mpips-gate-b-presigned-put-handoff-v1",
+          ).derive(shared)
+          nonce = os.urandom(12)
+          plaintext = json.dumps({
+              "upload_id": descriptor.upload_id,
+              "object_key": descriptor.object_key,
+              "upload_url": descriptor.upload_url,
+              "expires_at": descriptor.expires_at,
+          }, sort_keys=True).encode("utf-8")
+          ciphertext = ChaCha20Poly1305(key).encrypt(
+              nonce,
+              plaintext,
+              upload_id.encode("utf-8"),
+          )
+          print("SEALED_UPLOAD_HANDOFF_JSON=" + json.dumps({
+              "schema_version": 1,
+              "upload_id": descriptor.upload_id,
+              "object_key": descriptor.object_key,
+              "expires_at": descriptor.expires_at,
+              "ephemeral_pubkey_b64": base64.b64encode(eph_pub_raw).decode("ascii"),
+              "nonce_b64": base64.b64encode(nonce).decode("ascii"),
+              "ciphertext_b64": base64.b64encode(ciphertext).decode("ascii"),
+          }, sort_keys=True))
+          '
+
+      - name: Gate B Verify Staged ELF, Register, Promote & Verify Distribution
+        if: github.event_name == 'workflow_dispatch' && inputs.operation == 'publish_staged_elf'
+        env:
+          UPLOAD_ID: ${{ inputs.upload_id }}
+          TARGET_RELEASE_ID: ${{ inputs.target_release_id }}
+          EXPECTED_CURRENT_SEQ: ${{ inputs.expected_current_sequence }}
+          TARGET_SEQ: ${{ inputs.target_sequence }}
+          EXPECTED_SHA256: ${{ inputs.expected_sha256 }}
+          EXPECTED_SIZE_BYTES: ${{ inputs.expected_size_bytes }}
+          SOURCE_COMMIT: ${{ inputs.source_commit }}
+          MPIPS_UPDATE_STAGING_READER_TOKEN: ${{ secrets.MPIPS_UPDATE_STAGING_READER_TOKEN }}
+        run: |
+          set -Eeuo pipefail
+          for req in UPLOAD_ID TARGET_RELEASE_ID EXPECTED_CURRENT_SEQ TARGET_SEQ EXPECTED_SHA256 EXPECTED_SIZE_BYTES SOURCE_COMMIT; do
+            if [ -z "${!req:-}" ]; then
+              echo "ERROR: Required input $req is empty for publish_staged_elf" >&2
+              exit 1
+            fi
+          done
+
+          BASE_DIR="/var/www/mpips-runtime/update-server"
+          ENV_FILE="$BASE_DIR/.env.staging"
+          STATE_DIR="$BASE_DIR/state"
+          PUBKEY_PATH="$BASE_DIR/release-public.pem"
+          PRIVKEY_PATH="$BASE_DIR/staging-signing-private.pem"
+          IMAGE_TAG="$(grep -E '^MPIPS_VERSION=' "$ENV_FILE" | cut -d= -f2-)"
+
+          WORK_STAGE_DIR="$(mktemp -d /tmp/mpips-gate-b-stage.XXXXXX)"
+          chmod 700 "$WORK_STAGE_DIR"
+          trap 'rm -rf "$WORK_STAGE_DIR"' EXIT
+
+          echo "=== Step 1: Stream & Verify Temporary MinIO ELF Upload, Sign, Upload & Register (promote=False) ==="
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env-file "$ENV_FILE" \
+            -e UPLOAD_ID="$UPLOAD_ID" \
+            -e TARGET_RELEASE_ID="$TARGET_RELEASE_ID" \
+            -e TARGET_SEQ="$TARGET_SEQ" \
+            -e EXPECTED_SHA256="$EXPECTED_SHA256" \
+            -e EXPECTED_SIZE_BYTES="$EXPECTED_SIZE_BYTES" \
+            -e SOURCE_COMMIT="$SOURCE_COMMIT" \
+            -v "$STATE_DIR:/var/lib/mpips-update-server/state:rw" \
+            -v "$PUBKEY_PATH:/etc/mpips-update-server/release-public.pem:ro" \
+            -v "$PRIVKEY_PATH:/etc/mpips-update-server/staging-signing-private.pem:ro" \
+            -v "$WORK_STAGE_DIR:/stage:rw" \
+            -v "${GITHUB_WORKSPACE}:/workspace:ro" \
+            -e PYTHONPATH=/workspace \
+            --entrypoint python \
+            "mpips-api:${IMAGE_TAG}" -c '
+          import hashlib, json, os
+          from datetime import datetime, timedelta, timezone
+          from pathlib import Path
+          from mpips.update_server.minio_adapter import MinIOArtifactStore
+          from mpips.update_server.registry import ReleaseRegistry
+          from mpips.update_server.release_metadata import (
+              canonical_metadata_bytes,
+              create_elf_release_metadata,
+              sign_metadata_bytes,
+          )
+
+          store = MinIOArtifactStore()
+          pub_pem = Path("/etc/mpips-update-server/release-public.pem").read_bytes()
+          priv_pem = Path("/etc/mpips-update-server/staging-signing-private.pem").read_bytes()
+          reg = ReleaseRegistry(
+              state_dir=Path("/var/lib/mpips-update-server/state"),
+              public_key_pem=pub_pem,
+              artifact_store=store,
+          )
+
+          bin_path = Path("/stage/mpips-runtime.bin")
+          staged_info = store.download_and_verify_staging_upload(
+              upload_id=os.environ["UPLOAD_ID"].strip(),
+              destination_path=bin_path,
+              expected_size_bytes=int(os.environ["EXPECTED_SIZE_BYTES"]),
+              expected_sha256=os.environ["EXPECTED_SHA256"].strip(),
+          )
+
+          release_id = os.environ["TARGET_RELEASE_ID"].strip()
+          target_seq = int(os.environ["TARGET_SEQ"])
+          source_commit = os.environ["SOURCE_COMMIT"].strip()
+
+          metadata = create_elf_release_metadata(
+              binary_path=bin_path,
+              release_id=release_id,
+              version="0.1.0",
+              sequence=target_seq,
+              source_commit=source_commit,
+              expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+          )
+          meta_bytes = canonical_metadata_bytes(metadata)
+          sig_bytes = sign_metadata_bytes(meta_bytes, priv_pem)
+
+          record = reg.register_and_upload_release(
+              binary_path=bin_path,
+              metadata_bytes=meta_bytes,
+              signature_bytes=sig_bytes,
+              authorize=True,
+              promote=False,
+          )
+          print(json.dumps({
+              "action": "registered_and_uploaded",
+              "staged_upload_verified": {
+                  "upload_id": staged_info["upload_id"],
+                  "object_key": staged_info["object_key"],
+                  "size_bytes": staged_info["size_bytes"],
+                  "sha256": staged_info["sha256"],
+              },
+              "release_id": record.release_id,
+              "sequence": record.sequence,
+              "sha256": record.sha256,
+              "size_bytes": record.size_bytes,
+              "object_key": record.artifact_object_key,
+              "authorization_state": record.authorization_state,
+              "pubkey_sha256": hashlib.sha256(pub_pem).hexdigest(),
+          }, sort_keys=True))
+          '
+
+          echo "=== Step 2: Verify Unpromoted Release Is Blocked on Grabber Download Endpoint (403 release_unauthorized) ==="
+          python3 -c '
+          import json, os, sys, urllib.error, urllib.request
+          rel_id = os.environ["TARGET_RELEASE_ID"].strip()
+          token = os.environ["MPIPS_UPDATE_STAGING_READER_TOKEN"].strip()
+          url = f"http://127.0.0.1:8015/mpips/staging/releases/{rel_id}/download"
+          req = urllib.request.Request(url, headers={"Authorization": f"Bearer {token}"})
+          try:
+              with urllib.request.urlopen(req, timeout=10) as resp:
+                  sys.exit(f"ERROR: Unpromoted release unexpectedly returned {resp.status}")
+          except urllib.error.HTTPError as exc:
+              body = json.loads(exc.read().decode("utf-8"))
+              code = body.get("error", {}).get("code")
+              if exc.code != 403 or code != "release_unauthorized":
+                  sys.exit(f"ERROR: Expected 403 release_unauthorized, got {exc.code}: {body}")
+              print(json.dumps({
+                  "action": "unpromoted_download_gate_verified",
+                  "release_id": rel_id,
+                  "http_status": exc.code,
+                  "error_code": code,
+              }, sort_keys=True))
+          '
+
+          echo "=== Step 3: Promote Verified Release Atomically ==="
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --env-file "$ENV_FILE" \
+            -e TARGET_RELEASE_ID="$TARGET_RELEASE_ID" \
+            -e EXPECTED_CURRENT_SEQ="$EXPECTED_CURRENT_SEQ" \
+            -v "$STATE_DIR:/var/lib/mpips-update-server/state:rw" \
+            -v "$PUBKEY_PATH:/etc/mpips-update-server/release-public.pem:ro" \
+            -v "${GITHUB_WORKSPACE}:/workspace:ro" \
+            -e PYTHONPATH=/workspace \
+            --entrypoint python \
+            "mpips-api:${IMAGE_TAG}" -c '
+          import json, os
+          from pathlib import Path
+          from mpips.update_server.minio_adapter import MinIOArtifactStore
+          from mpips.update_server.registry import ReleaseRegistry
+
+          pub_pem = Path("/etc/mpips-update-server/release-public.pem").read_bytes()
+          reg = ReleaseRegistry(
+              state_dir=Path("/var/lib/mpips-update-server/state"),
+              public_key_pem=pub_pem,
+              artifact_store=MinIOArtifactStore(),
+          )
+          promoted = reg.promote_release(
+              release_id=os.environ["TARGET_RELEASE_ID"].strip(),
+              expected_current_sequence=int(os.environ["EXPECTED_CURRENT_SEQ"]),
+              channel="staging",
+              platform_name="ubuntu-24.04-x86_64",
+          )
+          print(json.dumps({
+              "action": "promoted",
+              "release_id": promoted.release_id,
+              "sequence": promoted.sequence,
+              "sha256": promoted.sha256,
+              "size_bytes": promoted.size_bytes,
+              "authorization_state": promoted.authorization_state,
+          }, sort_keys=True))
+          '
+
+          echo "=== Step 4: Post-Promotion Distribution Verification (Local & Public HTTPS) ==="
+          MPIPS_UPDATE_PUBLIC_KEY_PATH="$PUBKEY_PATH" \
+          python3 scripts/verify_staging_update_server.py \
+            --base-url http://127.0.0.1:8015 \
+            --mode distribution \
+            --download-timeout 180
+
+          MPIPS_UPDATE_PUBLIC_KEY_PATH="$PUBKEY_PATH" \
+          python3 scripts/verify_staging_update_server.py \
+            --base-url https://ip.mhcsgo.cloud \
+            --mode distribution \
+            --download-timeout 180
 
       - name: Verify Clinical API on Port 8014 Unaffected
         run: |
