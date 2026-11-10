@@ -548,10 +548,10 @@ SIMRS queries, or DICOM imaging.
 - **G10 Release Gate**: Gate G10 remains strictly **NOT RELEASED**. No real binary has been promoted on live staging channels.
 - **PR #23 Candidate Provenance**: Under open PR #23 and qualification evidence `EV-STANDALONE-REAL-TRX-001`:
   - Artifact: `dist-experimental/mpips-runtime.bin` (local build candidate only; not committed to git).
-  - Format: ELF 64-bit LSB executable, x86-64, dynamically linked (max required symbol `GLIBC_2.14`, qualified on Ubuntu 24.04 LTS `glibc 2.39`), stripped.
+  - Format: ELF 64-bit LSB executable, x86-64, dynamically linked (outer ELF bootloader max symbol `GLIBC_2.14`; bundled shared libraries max symbol `GLIBC_2.38` in `libstdc++.so.6`; qualified on Ubuntu 24.04 LTS `glibc 2.39`), stripped.
   - File Size: `241,288,024` bytes (~230.1 MiB).
   - Digest: SHA-256 `189baaeff2dd6f5eb96e7dac984a63ea1e2cc47e54158539cc77d7d5d0fae937`.
-  - Interface Separation: Standalone `mpips-runtime.bin` implements `interface_version: "2-experimental"` (embedded detector calibration; external `--calibration` strictly rejected with `INVALID_ARGUMENTS` / exit code `2`), distinct from Legacy Wheelhouse Interface `1` (which requires external `--calibration <dir>`).
+  - Interface Separation: Standalone `mpips-runtime.bin` implements `interface_version: "2-experimental"` (embedded detector calibration; external `--calibration` strictly rejected with `INVALID_INPUT` / exit code `2`), distinct from Legacy Wheelhouse Interface `1` (which requires external `--calibration <dir>`).
   - Supported Profiles: Real TRX geometric calibration (`GOTRI-TRX-001`, `DA5234480`, `MV-CH120-10UM`, `3000 x 4096`) and synthetic BED mode (`SYNTHETIC-EMBEDDED-BED-CALIBRATION-V1`, `48 x 64`, `SYNTHETIC_DEVELOPMENT_ONLY`).
   - Pending Approvals: Physical bare-metal hospital Grabber hardware verification and formal institutional clinical release authorization (Gate G10) remain open.
 

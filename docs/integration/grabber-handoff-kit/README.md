@@ -31,7 +31,10 @@ MPIPS maintains two distinct runtime integration interfaces. **Do not mix their 
 ### 2.1 Supported Platform & Ubuntu 24.04 Compatibility Evidence
 
 * **Operating System**: **Ubuntu 24.04 LTS (`noble`)** `x86_64` (`Ubuntu GLIBC 2.39-0ubuntu8.4` / `glibc 2.39`).
-* **Maximum Required GLIBC Symbol Version**: `GLIBC_2.14` (observed ELF symbol version set via `objdump -T` / `readelf -V`: `GLIBC_2.2.5`, `GLIBC_2.3`, `GLIBC_2.3.4`, `GLIBC_2.4`, `GLIBC_2.7`, `GLIBC_2.14`).
+* **GLIBC Symbol Version Requirements**:
+  * **ELF Bootloader (`mpips-runtime.bin`)**: `GLIBC_2.2.5`, `GLIBC_2.3`, `GLIBC_2.3.4`, `GLIBC_2.4`, `GLIBC_2.7`, `GLIBC_2.14` (maximum bootloader symbol: `GLIBC_2.14`).
+  * **Bundled Shared Libraries (`152` `.so` libraries in PyInstaller archive)**: `GLIBC_2.2.5` through `GLIBC_2.38` (maximum bundled shared-library symbol: **`GLIBC_2.38`** in `libstdc++.so.6`).
+  * **Ubuntu 24.04 Compatibility**: Both the outer bootloader (`<= GLIBC_2.14`) and all bundled shared libraries (`<= GLIBC_2.38`) are satisfied by Ubuntu 24.04 LTS (`glibc 2.39`).
 * **Host Shared Library Dependencies (`ldd`)**: Only standard base OS libraries (`libc.so.6`, `libdl.so.2`, `libpthread.so.0`, `libz.so.1`, `ld-linux-x86-64.so.2`).
 * **Zero External Python Dependency**: Confirmed via clean Ubuntu 24.04 container qualification and scrubbed-environment execution (`/usr/bin/env -i PATH=/usr/bin:/bin ./mpips-runtime.bin --version` and `convert` with no `PYTHON*` variables or system Python required).
 * **Verified Candidate Artifact Identity**:
