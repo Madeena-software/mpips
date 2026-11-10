@@ -25,25 +25,58 @@ import base64
 import hashlib
 import json
 import os
+import shutil
 import stat
+import subprocess
 import threading
 import urllib.error
 import urllib.parse
 import urllib.request
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
+import numpy as np
+import pydicom
 import pytest
+from botocore.exceptions import ClientError
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import (
     Ed25519PrivateKey,
     Ed25519PublicKey,
 )
+from fastapi.testclient import TestClient
 
+from mpips.update_server.app import create_update_server_app
+from mpips.update_server.auth import STAGING_READ_SCOPE, ClientAuthenticator
+from mpips.update_server.minio_adapter import MinIOArtifactStore
+from mpips.update_server.registry import ReleaseRegistry
+from mpips.update_server.release_metadata import (
+    canonical_metadata_bytes,
+    create_elf_release_metadata,
+    sign_metadata_bytes,
+)
+from scripts.grabber_smoke import make_inputs
 from scripts.grabber_subprocess_adapter import MPIPSSubprocessAdapter
+from scripts.simrs_manifest_example import (
+    SIMRSConfirmationRequiredError,
+    parse_simrs_http_response,
+)
+from scripts.verify_staging_update_server import (
+    DEFAULT_TRUSTED_STORAGE_HOSTS,
+    LOOPBACK_HOSTS,
+    StrictNoRedirectHandler,
+    run_checks,
+)
 
 DEFAULT_STAGING_READER_TOKEN = "synthetic-staging-reader-token-xyz123"
+REPO_ROOT = Path(__file__).resolve().parents[1]
+REAL_ELF_PATH = REPO_ROOT / "dist-experimental" / "mpips-runtime.bin"
+EXPECTED_REAL_ELF_SHA256 = (
+    "189baaeff2dd6f5eb96e7dac984a63ea1e2cc47e54158539cc77d7d5d0fae937"
+)
+EXPECTED_REAL_ELF_SIZE = 241288024
 
 SIGNED_METADATA_KEYS = frozenset(
     {
@@ -326,25 +359,35 @@ def simulate_grabber_update_flow(
     workspace_dir: Path,
     staging_token: str | None = DEFAULT_STAGING_READER_TOKEN,
     perform_synthetic_conversion: bool = True,
+    trusted_storage_hosts: Iterable[str] | None = None,
+    require_available_for_bootstrap: bool = False,
+    download_timeout: float = 60.0,
+    self_check_timeout: float = 30.0,
 ) -> dict[str, Any]:
     """Execute the 8-step Grabber update workflow simulation.
 
     Steps:
     1. Query latest release metadata with staging bearer token.
-    2. Compare candidate sequence against installed sequence.
-    3. Validate Ed25519 signature, integer schema_version=1 & platform compatibility
-       BEFORE downloading.
+    2. Validate Ed25519 signature, integer schema_version=1, outer-vs-inner equality,
+       expiry, and platform compatibility BEFORE trusting sequence or downloading.
+    3. Compare authenticated candidate sequence against installed sequence.
     4. Request download endpoint with staging bearer token.
-    5. Stream candidate artifact (no auth header on storage URL)
-       with SHA-256 validation.
+    5. Validate storage host & no-redirect policy; stream candidate artifact
+       (without forwarding MPIPS auth header) with bounded size & SHA-256 checks.
     6. Run local runtime self-check (--version).
-    7. Invoke candidate for a synthetic conversion.
+    7. Invoke candidate for a synthetic conversion when enabled.
     8. Atomically promote candidate, preserving existing runtime on any failure.
     """
     history: list[str] = []
     auth_headers = {}
     if staging_token:
         auth_headers["Authorization"] = f"Bearer {staging_token}"
+
+    effective_storage_hosts = (
+        frozenset(h.strip().lower() for h in trusted_storage_hosts if h.strip())
+        if trusted_storage_hosts is not None
+        else DEFAULT_TRUSTED_STORAGE_HOSTS
+    )
 
     # Step 1: Query latest release metadata
     history.append("1_CHECK_METADATA")
@@ -366,7 +409,23 @@ def simulate_grabber_update_flow(
     except Exception as exc:
         raise GrabberUpdateError(f"Failed to query latest release: {exc}") from exc
 
+    # Verify integer schema_version: 1 (contract requirement)
+    schema_ver = manifest.get("schema_version")
+    if type(schema_ver) is not int or schema_ver != 1:
+        raise GrabberUpdateError(
+            f"Invalid schema_version: {schema_ver!r}, expected integer 1"
+        )
+
     if manifest.get("status") == "no_release":
+        if set(manifest.keys()) != {"schema_version", "channel", "status"} or (
+            manifest.get("channel") != "staging"
+        ):
+            raise GrabberUpdateError("Malformed no_release manifest envelope")
+        if require_available_for_bootstrap or installed_sequence <= 0:
+            raise GrabberUpdateError(
+                "First-bootstrap requires an available release; channel reports "
+                "no_release"
+            )
         return {
             "status": "no_release",
             "active_executable": installed_executable,
@@ -374,29 +433,14 @@ def simulate_grabber_update_flow(
             "steps_completed": history,
         }
 
-    # Verify integer schema_version: 1 (contract requirement)
-    schema_ver = manifest.get("schema_version")
-    if not isinstance(schema_ver, int) or schema_ver != 1:
+    if manifest.get("status") != "available":
         raise GrabberUpdateError(
-            f"Invalid schema_version: {schema_ver!r}, expected integer 1"
+            f"Unexpected manifest status: {manifest.get('status')!r}"
         )
 
-    # Step 2: Compare verified release sequence against installed sequence
-    history.append("2_COMPARE_SEQUENCE")
-    candidate_seq = manifest.get("sequence")
-    if not isinstance(candidate_seq, int):
-        raise GrabberUpdateError(f"Invalid sequence type: {type(candidate_seq)}")
-    if candidate_seq <= installed_sequence:
-        return {
-            "status": "up_to_date",
-            "active_executable": installed_executable,
-            "current_sequence": installed_sequence,
-            "steps_completed": history,
-        }
-
-    # Step 3: Validate Ed25519 signature, outer-vs-inner manifest, and compatibility
-    # CRITICAL: This MUST occur BEFORE requesting download endpoint or binary!
-    history.append("3_VALIDATE_SIGNATURE_AND_COMPATIBILITY")
+    # Step 2: Validate Ed25519 signature, outer-vs-inner manifest, expiry, and
+    # compatibility BEFORE trusting sequence or requesting download endpoint!
+    history.append("2_VALIDATE_SIGNATURE_AND_COMPATIBILITY")
     sig_b64 = manifest.get("signature")
     signed_meta_b64 = manifest.get("signed_metadata_b64")
     if not isinstance(sig_b64, str) or not isinstance(signed_meta_b64, str):
@@ -407,6 +451,12 @@ def simulate_grabber_update_flow(
         meta_bytes = base64.b64decode(signed_meta_b64.encode("ascii"), validate=True)
     except Exception as exc:
         raise GrabberUpdateError(f"Malformed base64 signature/metadata: {exc}") from exc
+
+    if len(sig_bytes) != 64:
+        raise GrabberUpdateError(
+            f"Ed25519 signature verification failed: expected 64 bytes, got "
+            f"{len(sig_bytes)}"
+        )
 
     # Cryptographic verification
     try:
@@ -424,38 +474,74 @@ def simulate_grabber_update_flow(
     if _canonical_metadata_bytes(parsed_inner) != meta_bytes:
         raise GrabberUpdateError("signed_metadata_b64 does not match canonical form")
 
-    # Match outer manifest against authenticated inner metadata
-    for key in (
-        "schema_version",
-        "channel",
-        "platform",
-        "release_id",
-        "version",
-        "sequence",
-        "source_commit",
-        "interface_version",
-    ):
+    # Match ALL signed metadata keys between outer manifest and inner metadata
+    for key in SIGNED_METADATA_KEYS:
         if manifest.get(key) != parsed_inner.get(key):
             raise GrabberUpdateError(
                 f"Outer manifest mismatch for {key}: "
                 f"{manifest.get(key)} != {parsed_inner.get(key)}"
             )
 
+    if (
+        manifest.get("channel") != "staging"
+        or manifest.get("platform") != "ubuntu-24.04-x86_64"
+        or manifest.get("interface_version") != "2-experimental"
+        or manifest.get("release_status") != "staging"
+    ):
+        raise GrabberUpdateError("Incompatible channel, platform, or interface")
+
+    expires_at_str = manifest.get("expires_at")
+    if not isinstance(expires_at_str, str):
+        raise GrabberUpdateError("Missing expires_at in manifest")
+    try:
+        expires_dt = datetime.fromisoformat(expires_at_str)
+    except ValueError as exc:
+        raise GrabberUpdateError(f"Malformed expires_at: {exc}") from exc
+    if expires_dt.tzinfo is None or expires_dt <= datetime.now(timezone.utc):
+        raise GrabberUpdateError(f"Release metadata expired at {expires_at_str}")
+
     compat = manifest.get("compatibility", {})
-    if compat.get("os") != "ubuntu" or compat.get("architecture") != "x86_64":
+    if (
+        not isinstance(compat, dict)
+        or compat.get("os") != "ubuntu"
+        or compat.get("os_version") != "24.04"
+        or compat.get("architecture") != "x86_64"
+    ):
         raise GrabberUpdateError(f"Incompatible target platform: {compat}")
 
     artifact_info = manifest.get("artifact", {})
     expected_sha = artifact_info.get("sha256")
     expected_size = artifact_info.get("size_bytes")
-    if not expected_sha or not expected_size:
-        raise GrabberUpdateError("Manifest artifact metadata missing sha256 or size")
+    if (
+        artifact_info.get("filename") != "mpips-runtime.bin"
+        or not isinstance(expected_sha, str)
+        or len(expected_sha) != 64
+        or type(expected_size) is not int
+        or expected_size <= 0
+        or expected_size > 512 * 1024 * 1024
+    ):
+        raise GrabberUpdateError("Manifest artifact metadata missing or invalid")
 
+    release_id = manifest.get("release_id")
     download_endpoint = manifest.get("download_endpoint")
-    if not isinstance(download_endpoint, str) or not download_endpoint.startswith(
-        "/mpips/staging/releases/"
+    expected_dl_endpoint = f"/mpips/staging/releases/{release_id}/download"
+    if not isinstance(download_endpoint, str) or (
+        download_endpoint != expected_dl_endpoint
     ):
         raise GrabberUpdateError(f"Invalid download_endpoint path: {download_endpoint}")
+
+    # Step 3: Compare verified release sequence against installed sequence
+    history.append("3_COMPARE_SEQUENCE")
+    candidate_seq = manifest.get("sequence")
+    if type(candidate_seq) is not int or candidate_seq < 1:
+        raise GrabberUpdateError(f"Invalid sequence: {candidate_seq!r}")
+    if candidate_seq <= installed_sequence:
+        return {
+            "status": "up_to_date",
+            "active_executable": installed_executable,
+            "current_sequence": installed_sequence,
+            "steps_completed": history,
+        }
 
     # Step 4: Request download endpoint to obtain presigned storage URL
     history.append("4_REQUEST_DOWNLOAD_ENDPOINT")
@@ -467,8 +553,14 @@ def simulate_grabber_update_flow(
                 raise GrabberUpdateError(f"Download endpoint error {resp.status}")
             dl_data = json.loads(resp.read().decode("utf-8"))
             storage_url = dl_data.get("download_url")
-            if not storage_url:
+            if not isinstance(storage_url, str) or not storage_url:
                 raise GrabberUpdateError("Missing download_url in download response")
+            if "release_id" in dl_data and dl_data["release_id"] != release_id:
+                raise GrabberUpdateError("Download response release_id mismatch")
+            if "expires_at" in dl_data:
+                dl_exp = datetime.fromisoformat(str(dl_data["expires_at"]))
+                if dl_exp.tzinfo is None or dl_exp <= datetime.now(timezone.utc):
+                    raise GrabberUpdateError("Presigned download_url already expired")
     except urllib.error.HTTPError as exc:
         if exc.code == 401:
             raise GrabberUpdateError(
@@ -480,30 +572,51 @@ def simulate_grabber_update_flow(
     except Exception as exc:
         raise GrabberUpdateError(f"Failed download endpoint request: {exc}") from exc
 
+    # Validate presigned storage URL host & scheme before downloading
+    parsed_storage = urllib.parse.urlsplit(storage_url)
+    storage_host = (parsed_storage.hostname or "").lower()
+    if parsed_storage.scheme == "http":
+        if storage_host not in LOOPBACK_HOSTS:
+            raise GrabberUpdateError(
+                f"Insecure non-loopback HTTP storage host rejected: {storage_host}"
+            )
+    elif parsed_storage.scheme == "https":
+        if (
+            storage_host not in effective_storage_hosts
+            and storage_host not in LOOPBACK_HOSTS
+        ):
+            raise GrabberUpdateError(
+                f"Untrusted HTTPS storage host rejected: {storage_host}"
+            )
+    else:
+        raise GrabberUpdateError(
+            f"Unsupported storage URL scheme: {parsed_storage.scheme}"
+        )
+
     # Step 5: Bounded chunk download and verify SHA-256 + size
     # NOTE: Presigned storage download does NOT forward MPIPS Authorization headers
+    # and strictly rejects all HTTP redirects.
     history.append("5_DOWNLOAD_AND_VERIFY_ARTIFACT")
     workspace_dir.mkdir(parents=True, exist_ok=True)
     staging_file = workspace_dir / "candidate_runtime.tmp"
     hasher = hashlib.sha256()
     bytes_downloaded = 0
     max_bytes = 512 * 1024 * 1024  # 512 MiB
+    opener = urllib.request.build_opener(StrictNoRedirectHandler())
 
     try:
-        req = urllib.request.Request(storage_url)
-        with urllib.request.urlopen(req, timeout=10.0) as resp, open(
-            staging_file, "wb"
-        ) as out_f:
+        req = urllib.request.Request(storage_url, headers={})
+        with (
+            opener.open(req, timeout=download_timeout) as resp,
+            open(staging_file, "wb") as out_f,
+        ):
             while True:
                 chunk = resp.read(65536)
                 if not chunk:
                     break
                 bytes_downloaded += len(chunk)
-                if (
-                    bytes_downloaded > max_bytes
-                    or bytes_downloaded > expected_size * 2
-                ):
-                    raise GrabberUpdateError("Artifact exceeded size limit")
+                if bytes_downloaded > max_bytes or bytes_downloaded > expected_size:
+                    raise GrabberUpdateError("Artifact exceeded declared size limit")
                 hasher.update(chunk)
                 out_f.write(chunk)
     except Exception as exc:
@@ -532,7 +645,7 @@ def simulate_grabber_update_flow(
     history.append("6_RUNTIME_SELF_CHECK")
     adapter = MPIPSSubprocessAdapter(staging_file)
     try:
-        info = adapter.check_version(timeout=5.0)
+        info = adapter.check_version(timeout=self_check_timeout)
         if info.interface_version != "2-experimental" or info.status != "ok":
             staging_file.unlink()
             raise GrabberUpdateError(
@@ -549,12 +662,7 @@ def simulate_grabber_update_flow(
     if perform_synthetic_conversion:
         history.append("7_SYNTHETIC_CONVERSION")
         convert_out = workspace_dir / "qualification_out.dcm"
-        rad = workspace_dir / "rad.npz"
-        gain = workspace_dir / "gain.npz"
-        man = workspace_dir / "manifest.json"
-        rad.write_bytes(b"SYNTHETIC_RAD")
-        gain.write_bytes(b"SYNTHETIC_GAIN")
-        man.write_bytes(b'{"patient": {}}')
+        rad, gain, man, _ = make_inputs(workspace_dir / "smoke_bed", "BED")
 
         try:
             res = adapter.convert(
@@ -562,7 +670,7 @@ def simulate_grabber_update_flow(
                 gain=gain,
                 manifest=man,
                 output=convert_out,
-                timeout=5.0,
+                timeout=max(self_check_timeout, 60.0),
                 expected_interface_version="2-experimental",
             )
             if res.status != "ok" or not convert_out.is_file():
@@ -743,16 +851,15 @@ def test_protocol_simulation_rejects_older_or_equal_sequence(
     tmp_path: Path,
 ) -> None:
     """Protocol-only simulation: sequence <= installed halts before download."""
-    _, pub_pem = ed25519_keypair
+    priv_key, pub_pem = ed25519_keypair
 
     installed_bin = tmp_path / "installed_runtime.bin"
     _create_mock_runtime_script(installed_bin, tag="v10-existing")
     initial_bytes = installed_bin.read_bytes()
 
-    manifest = {
+    metadata = {
         "schema_version": 1,
         "channel": "staging",
-        "status": "available",
         "platform": "ubuntu-24.04-x86_64",
         "release_id": "rel-0010",
         "version": "0.1.0",
@@ -764,16 +871,22 @@ def test_protocol_simulation_rejects_older_or_equal_sequence(
             "sha256": "0" * 64,
             "size_bytes": 1000,
         },
-        "download_endpoint": "/mpips/staging/releases/rel-0010/download",
-        "signature": "dummysig",
-        "signed_metadata_b64": "dummymeta",
         "release_status": "staging",
         "expires_at": "2026-12-31T23:59:59Z",
         "compatibility": {
             "os": "ubuntu",
             "os_version": "24.04",
             "architecture": "x86_64",
+            "glibc_min": "2.39",
         },
+    }
+    sig_b64, signed_b64 = _sign_metadata(metadata, priv_key)
+    manifest = {
+        **metadata,
+        "status": "available",
+        "download_endpoint": "/mpips/staging/releases/rel-0010/download",
+        "signature": sig_b64,
+        "signed_metadata_b64": signed_b64,
     }
     mock_server.state["manifest_response"] = manifest
 
@@ -1148,3 +1261,586 @@ def test_protocol_simulation_network_isolation_no_live_egress(
     # Calls logged exclusively on local loopback server
     assert len(mock_server.state["calls"]) == 1
     assert mock_server.state["calls"][0] == "/mpips/staging/latest.json"
+
+
+# ---------------------------------------------------------------------------
+# Offline Integrated Acceptance with Real Update Server & Real ELF Binary
+# ---------------------------------------------------------------------------
+
+
+class LocalIsolatedS3Client:
+    """Isolated local-disk S3 client double for MinIOArtifactStore."""
+
+    def __init__(self, storage_root: Path) -> None:
+        self.storage_root = storage_root
+        self.storage_root.mkdir(parents=True, exist_ok=True)
+        self.base_url = "http://127.0.0.1:0"
+
+    def _obj_path(self, bucket: str, key: str) -> Path:
+        return self.storage_root / bucket / key
+
+    def head_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
+        target = self._obj_path(Bucket, Key)
+        if not target.is_file():
+            raise ClientError(
+                {"Error": {"Code": "404", "Message": "Not Found"}},
+                "HeadObject",
+            )
+        return {"ContentLength": target.stat().st_size}
+
+    def put_object(
+        self,
+        *,
+        Bucket: str,
+        Key: str,
+        Body: Any,
+        ContentLength: int | None = None,
+        ContentType: str | None = None,
+    ) -> dict[str, Any]:
+        _ = (ContentLength, ContentType)
+        target = self._obj_path(Bucket, Key)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if isinstance(Body, (bytes, bytearray)):
+            target.write_bytes(bytes(Body))
+        elif hasattr(Body, "name") and isinstance(Body.name, str):
+            src = Path(Body.name)
+            try:
+                os.link(src, target)
+            except OSError:
+                shutil.copyfile(src, target)
+        else:
+            with target.open("wb") as out_f:
+                shutil.copyfileobj(Body, out_f, length=1024 * 1024)
+        return {"ETag": '"isolated-local-etag"'}
+
+    def get_object(self, *, Bucket: str, Key: str) -> dict[str, Any]:
+        target = self._obj_path(Bucket, Key)
+        if not target.is_file():
+            raise ClientError(
+                {"Error": {"Code": "NoSuchKey", "Message": "Not Found"}},
+                "GetObject",
+            )
+        return {
+            "Body": target.open("rb"),
+            "ContentLength": target.stat().st_size,
+        }
+
+    def generate_presigned_url(
+        self,
+        ClientMethod: str,
+        *,
+        Params: dict[str, Any],
+        ExpiresIn: int,
+    ) -> str:
+        if ClientMethod != "get_object":
+            raise ValueError(f"Unsupported ClientMethod: {ClientMethod}")
+        bucket = Params["Bucket"]
+        key = Params["Key"]
+        return (
+            f"{self.base_url}/storage/{bucket}/{key}"
+            f"?X-Amz-Expires={ExpiresIn}&X-Amz-Signature=synthetic-local-sig"
+        )
+
+
+class RealUpdateServerLoopbackFixture:
+    """Hosts the real FastAPI create_update_server_app + isolated local storage."""
+
+    def __init__(
+        self,
+        tmp_dir: Path,
+        public_key_pem: bytes,
+        staging_token: str = DEFAULT_STAGING_READER_TOKEN,
+    ) -> None:
+        self.storage_root = tmp_dir / "isolated_s3"
+        self.state_dir = tmp_dir / "registry_state"
+        self.s3_client = LocalIsolatedS3Client(self.storage_root)
+        self.store = MinIOArtifactStore(
+            s3_client=self.s3_client,
+            bucket="mhcs-mpips-artifacts",
+            presign_ttl_seconds=300,
+        )
+        self.registry = ReleaseRegistry(
+            state_dir=self.state_dir,
+            public_key_pem=public_key_pem,
+            artifact_store=self.store,
+        )
+        self.authenticator = ClientAuthenticator({staging_token: {STAGING_READ_SCOPE}})
+        self.fastapi_app = create_update_server_app(
+            registry=self.registry,
+            authenticator=self.authenticator,
+        )
+        self.test_client = TestClient(self.fastapi_app)
+        self.storage_downloads = 0
+        self.storage_auth_leaks = 0
+        self.corrupt_storage_stream = False
+
+        fixture_ref = self
+
+        class BridgeHandler(BaseHTTPRequestHandler):
+            def log_message(self, format: str, *args: Any) -> None:
+                pass
+
+            def do_GET(self) -> None:
+                parsed = urllib.parse.urlsplit(self.path)
+                if parsed.path.startswith("/storage/"):
+                    if self.headers.get("Authorization"):
+                        fixture_ref.storage_auth_leaks += 1
+                        self.send_response(403)
+                        self.end_headers()
+                        return
+                    rel_key = parsed.path[len("/storage/") :]
+                    file_path = fixture_ref.storage_root / rel_key
+                    if not file_path.is_file():
+                        self.send_response(404)
+                        self.end_headers()
+                        return
+                    fixture_ref.storage_downloads += 1
+                    file_size = file_path.stat().st_size
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/octet-stream")
+                    self.send_header("Content-Length", str(file_size))
+                    self.end_headers()
+                    with file_path.open("rb") as f_in:
+                        first_chunk = True
+                        while True:
+                            chunk = f_in.read(65536)
+                            if not chunk:
+                                break
+                            if first_chunk and fixture_ref.corrupt_storage_stream:
+                                mutated = bytearray(chunk)
+                                mutated[0] ^= 0xFF
+                                chunk = bytes(mutated)
+                            first_chunk = False
+                            self.wfile.write(chunk)
+                    return
+
+                req_headers: dict[str, str] = {}
+                for hdr_name in (
+                    "Authorization",
+                    "X-MPIPS-API-Key",
+                    "X-MPIPS-Client-Platform",
+                ):
+                    hdr_val = self.headers.get(hdr_name)
+                    if hdr_val is not None:
+                        req_headers[hdr_name] = hdr_val
+                resp = fixture_ref.test_client.get(self.path, headers=req_headers)
+                body = resp.content
+                self.send_response(resp.status_code)
+                for k, v in resp.headers.items():
+                    if k.lower() not in {"content-length", "transfer-encoding"}:
+                        self.send_header(k, v)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+
+        self.server = HTTPServer(("127.0.0.1", 0), BridgeHandler)
+        self.port = self.server.server_port
+        self.base_url = f"http://127.0.0.1:{self.port}"
+        self.s3_client.base_url = self.base_url
+        self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.thread.start()
+
+    def shutdown(self) -> None:
+        self.server.shutdown()
+        self.server.server_close()
+        self.thread.join(timeout=2.0)
+
+
+def test_real_update_server_and_real_elf_offline_integrated_acceptance(
+    tmp_path: Path,
+) -> None:
+    """Offline integrated acceptance using real update-server and real ELF binary."""
+    if not REAL_ELF_PATH.is_file():
+        if os.getenv("MPIPS_STRICT_QUALIFICATION") == "1":
+            pytest.fail(f"Real ELF binary missing at {REAL_ELF_PATH}")
+        pytest.skip(f"Real ELF binary not present at {REAL_ELF_PATH}")
+
+    # Verify candidate binary identity before publishing to local fixture
+    assert REAL_ELF_PATH.stat().st_size == EXPECTED_REAL_ELF_SIZE
+    with REAL_ELF_PATH.open("rb") as f_elf:
+        actual_elf_sha = hashlib.file_digest(f_elf, "sha256").hexdigest()
+    assert actual_elf_sha == EXPECTED_REAL_ELF_SHA256
+
+    # Generate disposable Ed25519 signing keypair
+    priv_key = Ed25519PrivateKey.generate()
+    priv_pem = priv_key.private_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PrivateFormat.PKCS8,
+        encryption_algorithm=serialization.NoEncryption(),
+    )
+    pub_pem = priv_key.public_key().public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+
+    srv = RealUpdateServerLoopbackFixture(tmp_path / "server", pub_pem)
+    try:
+        # 1. Verify initial 'no_release' state & first-bootstrap guard
+        assert (
+            run_checks(srv.base_url, DEFAULT_STAGING_READER_TOKEN, mode="infra") is True
+        )
+        assert (
+            run_checks(
+                srv.base_url,
+                DEFAULT_STAGING_READER_TOKEN,
+                mode="distribution",
+                public_key_pem=pub_pem,
+            )
+            is False
+        )
+
+        installed_bin = tmp_path / "grabber_install" / "mpips-runtime.bin"
+        installed_bin.parent.mkdir(parents=True, exist_ok=True)
+        _create_mock_runtime_script(installed_bin, tag="v10-preexisting")
+
+        with pytest.raises(GrabberUpdateError, match="First-bootstrap requires"):
+            simulate_grabber_update_flow(
+                server_base_url=srv.base_url,
+                trusted_public_key_pem=pub_pem,
+                installed_executable=installed_bin,
+                installed_sequence=0,
+                workspace_dir=tmp_path / "work_bootstrap",
+                staging_token=DEFAULT_STAGING_READER_TOKEN,
+                require_available_for_bootstrap=True,
+            )
+
+        # 2. Publish and promote the real ELF (sequence 11) in the real ReleaseRegistry
+        release_id = "0.1.0-real-elf-staging-r11"
+        metadata = create_elf_release_metadata(
+            binary_path=REAL_ELF_PATH,
+            release_id=release_id,
+            version="0.1.0",
+            sequence=11,
+            source_commit="cbf2b24ba4fb8f2b5fc25b6a86f381ba7cf5f4b1",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        )
+        meta_bytes = canonical_metadata_bytes(metadata)
+        sig_bytes = sign_metadata_bytes(meta_bytes, priv_pem)
+
+        srv.registry.register_and_upload_release(
+            binary_path=REAL_ELF_PATH,
+            metadata_bytes=meta_bytes,
+            signature_bytes=sig_bytes,
+            authorize=True,
+            promote=True,
+        )
+
+        # 3. Verify server distribution readiness via canonical verifier
+        assert (
+            run_checks(
+                srv.base_url,
+                DEFAULT_STAGING_READER_TOKEN,
+                mode="distribution",
+                public_key_pem=pub_pem,
+                download_timeout=120.0,
+            )
+            is True
+        )
+
+        # 4. Run full Grabber update flow to download, verify, self-check, smoke-test,
+        # and atomically promote the genuine 241,288,024-byte ELF
+        update_res = simulate_grabber_update_flow(
+            server_base_url=srv.base_url,
+            trusted_public_key_pem=pub_pem,
+            installed_executable=installed_bin,
+            installed_sequence=10,
+            workspace_dir=tmp_path / "work_promote",
+            staging_token=DEFAULT_STAGING_READER_TOKEN,
+            perform_synthetic_conversion=True,
+            download_timeout=120.0,
+            self_check_timeout=30.0,
+        )
+        assert update_res["status"] == "promoted"
+        assert update_res["current_sequence"] == 11
+        assert srv.storage_auth_leaks == 0
+        assert installed_bin.stat().st_size == EXPECTED_REAL_ELF_SIZE
+        with installed_bin.open("rb") as f_inst:
+            assert (
+                hashlib.file_digest(f_inst, "sha256").hexdigest()
+                == EXPECTED_REAL_ELF_SHA256
+            )
+
+        # 5. Execute downloaded ELF's --version with scrubbed env (no Python runtime)
+        ver_proc = subprocess.run(
+            [
+                "/usr/bin/env",
+                "-i",
+                "PATH=/usr/bin:/bin",
+                str(installed_bin),
+                "--version",
+            ],
+            capture_output=True,
+            text=True,
+            cwd=tmp_path,
+            check=True,
+        )
+        ver_json = json.loads(ver_proc.stdout.strip())
+        assert ver_json == {
+            "code": "OK",
+            "interface_version": "2-experimental",
+            "runtime_version": "0.1.0",
+            "status": "ok",
+        }
+
+        # 6. Generate synthetic SIMRS HTTP response and enforce operator confirmation
+        visit_id = "SYNTHETIC-VISIT-2026-0777"
+        simrs_payload = json.dumps(
+            {
+                "success": True,
+                "data": {
+                    "no_rawat": visit_id,
+                    "no_rkm_medis": "SYNTHETIC-MRN-0777",
+                    "nm_pasien": "SYNTHETIC INTEGRATED PATIENT",
+                    "jk": "L",
+                    "tgl_lahir": "1988-04-12",
+                    "tgl_daftar": "2026-11-10",
+                },
+            }
+        )
+        with pytest.raises(SIMRSConfirmationRequiredError):
+            parse_simrs_http_response(
+                200,
+                simrs_payload,
+                visit_id,
+                confirmed_sex_codes={"L": "male", "P": "female"},
+                captured_at="2026-11-10T09:00:00+07:00",
+                confirmed=False,
+            )
+
+        simrs_manifest = parse_simrs_http_response(
+            200,
+            simrs_payload,
+            visit_id,
+            confirmed_sex_codes={"L": "male", "P": "female"},
+            captured_at="2026-11-10T09:00:00+07:00",
+            confirmed=True,
+        )
+
+        # 7. Invoke promoted real ELF to produce BED DICOM from SIMRS-derived manifest
+        bed_dir = tmp_path / "exam_bed"
+        bed_rad, bed_gain, bed_man_path, bed_cal_dir = make_inputs(bed_dir, "BED")
+        bed_man_data = json.loads(bed_man_path.read_text(encoding="utf-8"))
+        bed_man_data["patient"] = simrs_manifest["patient"]
+        bed_man_data["examination"]["encounter_id"] = visit_id
+        bed_man_path.write_text(json.dumps(bed_man_data), encoding="utf-8")
+        bed_out = bed_dir / "bed_result.dcm"
+
+        adapter = MPIPSSubprocessAdapter(installed_bin)
+        bed_conv = adapter.convert(
+            radiograph=bed_rad,
+            gain=bed_gain,
+            manifest=bed_man_path,
+            output=bed_out,
+            timeout=120.0,
+        )
+        assert bed_conv.status == "ok"
+        assert bed_conv.code == "OK"
+        assert bed_conv.interface_version == "2-experimental"
+        assert bed_out.is_file()
+        assert bed_out.stat().st_size == bed_conv.output_byte_size
+        assert (bed_out.stat().st_mode & 0o777) == 0o600
+
+        ds_bed = pydicom.dcmread(bed_out)
+        assert ds_bed.Modality == "DX"
+        assert ds_bed.SOPClassUID == "1.2.840.10008.5.1.4.1.1.1.1.1"
+        assert ds_bed.PhotometricInterpretation == "MONOCHROME2"
+        assert ds_bed.BitsAllocated == 16
+        assert ds_bed.PixelRepresentation == 0
+        assert ds_bed.PatientID == "SYNTHETIC-MRN-0777"
+        assert ds_bed.PatientSex == "M"
+        assert ds_bed.PatientBirthDate == "19880412"
+        assert ds_bed.pixel_array.shape == (48, 64)
+        assert ds_bed.pixel_array.dtype == np.uint16
+
+        # 8. Invoke promoted real ELF to produce full-resolution (3000x4096) TRX DICOM
+        trx_dir = tmp_path / "exam_trx"
+        trx_dir.mkdir(parents=True, exist_ok=True)
+        trx_rad = trx_dir / "radiograph.npz"
+        trx_gain = trx_dir / "gain.npz"
+        trx_man = trx_dir / "manifest.json"
+        trx_out = trx_dir / "trx_result.dcm"
+        shape = (3000, 4096)
+        camera = {
+            "serialNumber": "DA5234480",
+            "cameraSerial": "DA5234480",
+            "cameraModel": "MV-CH120-10UM",
+        }
+        xray = {"detectorMode": "TRX"}
+        raw_img = np.linspace(
+            1000, 30000, shape[0] * shape[1], dtype=np.uint16
+        ).reshape(shape)
+        np.savez_compressed(
+            trx_rad,
+            id=np.array("INTEGRATED-TRX-RAD-001"),
+            gainid=np.array("INTEGRATED-TRX-GAIN-001"),
+            rawimage=raw_img,
+            cameraparams=np.array(camera),
+            xrayparams=np.array(xray),
+        )
+        np.savez_compressed(
+            trx_gain,
+            id=np.array("INTEGRATED-TRX-GAIN-001"),
+            rawimage=np.full(shape, 35000, dtype=np.uint16),
+            darkimage=np.full(shape, 50, dtype=np.uint16),
+            cameraparams=np.array(camera),
+            xrayparams=np.array(xray),
+        )
+        trx_manifest_payload = {
+            "manifest_version": "1.0",
+            "patient": simrs_manifest["patient"],
+            "examination": {
+                "encounter_id": visit_id,
+                "performed_at": "2026-11-10T09:00:00+07:00",
+            },
+            "capture": {
+                "detector_type": "TRX",
+                "body_part_examined": "CHEST",
+                "projection": "PA",
+                "view_code_sequence": [
+                    {
+                        "code_value": "272479007",
+                        "coding_scheme_designator": "SCT",
+                        "code_meaning": "postero-anterior",
+                    }
+                ],
+                "captured_at": "2026-11-10T09:00:00+07:00",
+                "detector_spacing": {"row_mm": 0.15, "column_mm": 0.16},
+            },
+            "dicom": {
+                "pixel_source": "CANONICAL_PRE_PRESENTATION",
+                "pixel_intensity_relationship": "LIN",
+                "pixel_intensity_relationship_sign": 1,
+            },
+        }
+        trx_man.write_text(json.dumps(trx_manifest_payload), encoding="utf-8")
+
+        trx_conv = adapter.convert(
+            radiograph=trx_rad,
+            gain=trx_gain,
+            manifest=trx_man,
+            output=trx_out,
+            timeout=180.0,
+        )
+        assert trx_conv.status == "ok"
+        assert trx_conv.code == "OK"
+        assert trx_out.is_file()
+        assert trx_out.stat().st_size == trx_conv.output_byte_size
+        assert (trx_out.stat().st_mode & 0o777) == 0o600
+
+        ds_trx = pydicom.dcmread(trx_out)
+        assert ds_trx.Modality == "DX"
+        assert ds_trx.SOPClassUID == "1.2.840.10008.5.1.4.1.1.1.1.1"
+        assert ds_trx.PatientID == "SYNTHETIC-MRN-0777"
+        assert ds_trx.PatientSex == "M"
+        assert ds_trx.pixel_array.shape == (4096, 3000)
+        assert ds_trx.pixel_array.dtype == np.uint16
+
+        # 9. Validate deterministic failure behavior of downloaded real ELF
+        # 9a. Reject external --calibration override in 2-experimental (exit 2)
+        cal_override_proc = subprocess.run(
+            [
+                str(installed_bin),
+                "convert",
+                "--radiograph",
+                str(bed_rad),
+                "--gain",
+                str(bed_gain),
+                "--manifest",
+                str(bed_man_path),
+                "--calibration",
+                str(bed_cal_dir),
+                "--output",
+                str(bed_dir / "never_created.dcm"),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert cal_override_proc.returncode == 2
+        assert json.loads(cal_override_proc.stdout)["code"] == "INVALID_INPUT"
+
+        # 9b. Reject existing destination DICOM file (exit 4 OUTPUT_EXISTS)
+        exists_proc = subprocess.run(
+            [
+                str(installed_bin),
+                "convert",
+                "--radiograph",
+                str(bed_rad),
+                "--gain",
+                str(bed_gain),
+                "--manifest",
+                str(bed_man_path),
+                "--output",
+                str(bed_out),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert exists_proc.returncode == 4
+        assert json.loads(exists_proc.stdout)["code"] == "OUTPUT_EXISTS"
+
+        # 9c. Reject missing input file (exit 3 INPUT_NOT_FOUND)
+        missing_proc = subprocess.run(
+            [
+                str(installed_bin),
+                "convert",
+                "--radiograph",
+                str(bed_dir / "nonexistent_rad.npz"),
+                "--gain",
+                str(bed_gain),
+                "--manifest",
+                str(bed_man_path),
+                "--output",
+                str(bed_dir / "never_created_2.dcm"),
+            ],
+            capture_output=True,
+            text=True,
+        )
+        assert missing_proc.returncode == 3
+        assert json.loads(missing_proc.stdout)["code"] == "INPUT_NOT_FOUND"
+
+        # 10. Test preservation of promoted real ELF after deliberately failed update
+        release_id_12 = "0.1.0-real-elf-staging-r12"
+        meta_12 = create_elf_release_metadata(
+            binary_path=REAL_ELF_PATH,
+            release_id=release_id_12,
+            version="0.1.0",
+            sequence=12,
+            source_commit="cbf2b24ba4fb8f2b5fc25b6a86f381ba7cf5f4b1",
+            expires_at=datetime.now(timezone.utc) + timedelta(days=7),
+        )
+        meta_12_bytes = canonical_metadata_bytes(meta_12)
+        sig_12_bytes = sign_metadata_bytes(meta_12_bytes, priv_pem)
+        srv.registry.register_and_upload_release(
+            binary_path=REAL_ELF_PATH,
+            metadata_bytes=meta_12_bytes,
+            signature_bytes=sig_12_bytes,
+            authorize=True,
+            promote=True,
+        )
+
+        # Deliberately corrupt streamed artifact bytes during download
+        srv.corrupt_storage_stream = True
+        with pytest.raises(GrabberUpdateError, match="SHA-256 mismatch"):
+            simulate_grabber_update_flow(
+                server_base_url=srv.base_url,
+                trusted_public_key_pem=pub_pem,
+                installed_executable=installed_bin,
+                installed_sequence=11,
+                workspace_dir=tmp_path / "work_failed_r12",
+                staging_token=DEFAULT_STAGING_READER_TOKEN,
+                perform_synthetic_conversion=True,
+                download_timeout=120.0,
+                self_check_timeout=30.0,
+            )
+
+        # Verify staging file was cleaned up and installed real ELF is untouched
+        assert not (tmp_path / "work_failed_r12" / "candidate_runtime.tmp").exists()
+        assert installed_bin.stat().st_size == EXPECTED_REAL_ELF_SIZE
+        with installed_bin.open("rb") as f_after:
+            assert (
+                hashlib.file_digest(f_after, "sha256").hexdigest()
+                == EXPECTED_REAL_ELF_SHA256
+            )
+        assert adapter.check_version().status == "ok"
+    finally:
+        srv.shutdown()

@@ -508,8 +508,8 @@ SIMRS queries, or DICOM imaging.
   "interface_version": "2-experimental",
   "artifact": {
     "filename": "mpips-runtime.bin",
-    "sha256": "8ef48229d72adaa4eb9df832a5315e2ecf42abb448f78c2674c330d964004669",
-    "size_bytes": 236532616
+    "sha256": "189baaeff2dd6f5eb96e7dac984a63ea1e2cc47e54158539cc77d7d5d0fae937",
+    "size_bytes": 241288024
   },
   "download_endpoint": "/mpips/staging/releases/0.1.0-20261102-1/download",
   "signature": "<base64-encoded-64-byte-ed25519-detached-signature>",
@@ -548,11 +548,12 @@ SIMRS queries, or DICOM imaging.
 - **G10 Release Gate**: Gate G10 remains strictly **NOT RELEASED**. No real binary has been promoted on live staging channels.
 - **PR #23 Candidate Provenance**: Under open PR #23 and qualification evidence `EV-STANDALONE-REAL-TRX-001`:
   - Artifact: `dist-experimental/mpips-runtime.bin` (local build candidate only; not committed to git).
-  - Format: ELF 64-bit LSB executable, x86-64, dynamically linked (`glibc 2.39`), stripped.
-  - File Size: `236,532,616` bytes (~226 MiB).
-  - Digest: SHA-256 `8ef48229d72adaa4eb9df832a5315e2ecf42abb448f78c2674c330d964004669`.
-  - Supported Profiles: Real TRX geometric calibration (`DA5234480`, `MV-CH120-10UM`, `3000 x 4096`) and synthetic BED mode.
-  - Pending Approvals: Physical clean-host verification (without Python installed) and formal institutional clinical release authorization remain open.
+  - Format: ELF 64-bit LSB executable, x86-64, dynamically linked (max required symbol `GLIBC_2.14`, qualified on Ubuntu 24.04 LTS `glibc 2.39`), stripped.
+  - File Size: `241,288,024` bytes (~230.1 MiB).
+  - Digest: SHA-256 `189baaeff2dd6f5eb96e7dac984a63ea1e2cc47e54158539cc77d7d5d0fae937`.
+  - Interface Separation: Standalone `mpips-runtime.bin` implements `interface_version: "2-experimental"` (embedded detector calibration; external `--calibration` strictly rejected with `INVALID_ARGUMENTS` / exit code `2`), distinct from Legacy Wheelhouse Interface `1` (which requires external `--calibration <dir>`).
+  - Supported Profiles: Real TRX geometric calibration (`GOTRI-TRX-001`, `DA5234480`, `MV-CH120-10UM`, `3000 x 4096`) and synthetic BED mode (`SYNTHETIC-EMBEDDED-BED-CALIBRATION-V1`, `48 x 64`, `SYNTHETIC_DEVELOPMENT_ONLY`).
+  - Pending Approvals: Physical bare-metal hospital Grabber hardware verification and formal institutional clinical release authorization (Gate G10) remain open.
 
 ### Grabber Verification Obligations
 
