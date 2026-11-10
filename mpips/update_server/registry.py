@@ -610,7 +610,7 @@ class ReleaseRegistry:
         platform_name: str = SUPPORTED_PLATFORM,
         now: datetime | None = None,
     ) -> RegisteredRelease:
-        """Validate release_id, compatibility, authorization, and storage integrity."""
+        """Validate that release_id is the currently promoted, non-revoked release."""
         if channel != SUPPORTED_CHANNEL:
             raise ReleaseValidationError("Unsupported release channel")
         try:
@@ -628,21 +628,32 @@ class ReleaseRegistry:
             record = RegisteredRelease.from_dict(releases[release_id])
             if record.channel != channel or record.platform != platform_name:
                 raise ReleaseValidationError("Release platform or channel mismatch")
-            if record.authorization_state not in {"authorized", "promoted"}:
+            if record.authorization_state == "revoked":
                 raise ReleaseUnauthorizedError(
-                    "Release is not authorized for staging download"
+                    "Release has been revoked and is not authorized for download"
                 )
 
             channel_key = f"{channel}/{platform_name}"
             pointer = state.get("channels", {}).get(channel_key)
-            current_seq = (
-                int(pointer["current"]["sequence"])
-                if pointer and pointer.get("current")
-                else 1
-            )
+            current = pointer.get("current") if pointer else None
+            if not current:
+                raise ReleaseUnauthorizedError(
+                    "Release is not currently promoted for staging download"
+                )
+
+            current_release_id = str(current["release_id"])
+            current_seq = int(current["sequence"])
             if record.sequence < current_seq:
                 raise ChannelSequenceConflictError(
                     "Release has been superseded by a newer sequence"
+                )
+            if (
+                record.release_id != current_release_id
+                or record.sequence != current_seq
+                or record.authorization_state != "promoted"
+            ):
+                raise ReleaseUnauthorizedError(
+                    "Release is not currently promoted for staging download"
                 )
 
             self._verify_registered_release(

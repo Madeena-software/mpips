@@ -981,3 +981,162 @@ def test_staging_workflow_enforces_dedicated_reader_token_no_fallback() -> None:
         "deployed trust identity."
     )
     assert expected_guard in content
+
+
+def test_download_gate_permits_only_currently_promoted_non_revoked_release(
+    minio_env: dict[str, Any],
+    synthetic_elf_binary: Path,
+) -> None:
+    """Verify strict Grabber download gate across release states.
+
+    - Registered/authorized but unpromoted release (when channel has no release or
+      when a lower sequence is currently promoted) -> rejected on /download (403
+      release_unauthorized), not exposed on /latest.json, but inspectable via
+      administrative registry/storage APIs (list_releases / verify_release_objects).
+    - Currently promoted release -> permitted on /latest.json and /download (200 OK).
+    - Superseded previously promoted release -> rejected on /download (409
+      release_superseded).
+    - Revoked release -> rejected on /latest.json and /download (403
+      release_unauthorized).
+    """
+    registry: ReleaseRegistry = minio_env["registry"]
+    store: MinIOArtifactStore = minio_env["store"]
+    client: TestClient = minio_env["client"]
+    private_pem: bytes = minio_env["private_pem"]
+
+    # 1. Register & authorize sequence 1 WITHOUT promoting (promote=False)
+    rel_seq1 = "0.1.0-authorized-unpromoted-seq1"
+    meta1_dict, meta1, sig1 = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=rel_seq1,
+        sequence=1,
+    )
+    rec1 = registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta1,
+        signature_bytes=sig1,
+        authorize=True,
+        promote=False,
+    )
+    assert rec1.authorization_state == "authorized"
+
+    # Inspectable through administrative registry/storage operations
+    assert [r.release_id for r in registry.list_releases()] == [rel_seq1]
+    verified1 = store.verify_release_objects(
+        release_id=rel_seq1,
+        expected_size_bytes=int(meta1_dict["artifact"]["size_bytes"]),
+        expected_sha256=str(meta1_dict["artifact"]["sha256"]),
+        expected_metadata_bytes=meta1,
+        expected_signature_bytes=sig1,
+        verify_binary_sha256=True,
+    )
+    assert verified1["sha256"] == meta1_dict["artifact"]["sha256"]
+
+    # Not exposed on /mpips/staging/latest.json
+    latest_unpromoted = client.get(
+        "/mpips/staging/latest.json",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert latest_unpromoted.status_code == 200
+    assert latest_unpromoted.json()["status"] == "no_release"
+
+    # Direct Grabber download of authorized-but-unpromoted release is rejected (403)
+    with pytest.raises(ReleaseUnauthorizedError):
+        registry.get_authorized_release_for_download(rel_seq1)
+
+    dl_unpromoted = client.get(
+        f"/mpips/staging/releases/{rel_seq1}/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert dl_unpromoted.status_code == 403
+    assert dl_unpromoted.json()["error"]["code"] == "release_unauthorized"
+
+    # 2. Promote sequence 1 -> now active on /latest.json and permitted on /download
+    promoted1 = registry.promote_release(
+        release_id=rel_seq1,
+        expected_current_sequence=0,
+    )
+    assert promoted1.authorization_state == "promoted"
+
+    latest_promoted1 = client.get(
+        "/mpips/staging/latest.json",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert latest_promoted1.status_code == 200
+    assert latest_promoted1.json()["status"] == "available"
+    assert latest_promoted1.json()["release_id"] == rel_seq1
+
+    dl_promoted1 = client.get(
+        f"/mpips/staging/releases/{rel_seq1}/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert dl_promoted1.status_code == 200
+    assert dl_promoted1.json()["release_id"] == rel_seq1
+
+    # 3. Stage sequence 2 as authorized-but-unpromoted while sequence 1 is promoted
+    rel_seq2 = "0.1.0-staged-next-seq2"
+    _, meta2, sig2 = _build_signed_bundle(
+        synthetic_elf_binary,
+        private_pem,
+        release_id=rel_seq2,
+        sequence=2,
+    )
+    rec2 = registry.register_and_upload_release(
+        binary_path=synthetic_elf_binary,
+        metadata_bytes=meta2,
+        signature_bytes=sig2,
+        authorize=True,
+        promote=False,
+    )
+    assert rec2.authorization_state == "authorized"
+
+    # /latest.json still serves seq 1; direct /download of unpromoted seq 2 fails (403)
+    latest_still_1 = client.get(
+        "/mpips/staging/latest.json",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert latest_still_1.status_code == 200
+    assert latest_still_1.json()["release_id"] == rel_seq1
+
+    dl_unpromoted2 = client.get(
+        f"/mpips/staging/releases/{rel_seq2}/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert dl_unpromoted2.status_code == 403
+    assert dl_unpromoted2.json()["error"]["code"] == "release_unauthorized"
+
+    # 4. Promote seq 2 -> seq 2 succeeds (200), superseded seq 1 fails (409)
+    registry.promote_release(
+        release_id=rel_seq2,
+        expected_current_sequence=1,
+    )
+    dl_promoted2 = client.get(
+        f"/mpips/staging/releases/{rel_seq2}/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert dl_promoted2.status_code == 200
+    assert dl_promoted2.json()["release_id"] == rel_seq2
+
+    dl_superseded1 = client.get(
+        f"/mpips/staging/releases/{rel_seq1}/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert dl_superseded1.status_code == 409
+    assert dl_superseded1.json()["error"]["code"] == "release_superseded"
+
+    # 5. Revoke promoted seq 2 -> both /latest.json and /download fail (403)
+    registry.revoke_release(rel_seq2)
+    latest_revoked2 = client.get(
+        "/mpips/staging/latest.json",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert latest_revoked2.status_code == 403
+    assert latest_revoked2.json()["error"]["code"] == "release_unauthorized"
+
+    dl_revoked2 = client.get(
+        f"/mpips/staging/releases/{rel_seq2}/download",
+        headers={"Authorization": f"Bearer {AUTHORIZED_READER_TOKEN}"},
+    )
+    assert dl_revoked2.status_code == 403
+    assert dl_revoked2.json()["error"]["code"] == "release_unauthorized"
